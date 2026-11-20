@@ -1,0 +1,162 @@
+# Aurora / Noctbeat — internal contract
+
+This file is the single source of truth for module boundaries. Every feature
+branch implements against these signatures so the parts merge without
+renaming. If you must change the contract, change this file AND every caller.
+
+## Layout
+
+```
+branding.json                 product name/ids/domains (rename = this file + `pnpm branding`)
+scripts/sync-branding.mjs     regenerates tauri.conf.json, src/branding.ts, site/branding.js
+crates/noctbeat-core/         pure Rust logic, no UI deps — must test clean headless
+src-tauri/                    Tauri 2 shell: commands, windows, tray
+src/                          React + TS + Vite frontend (player window UI)
+site/                         static landing page (vanilla, EN/ES toggle)
+e2e/                          WebdriverIO + tauri-driver specs
+docs/                         this file + design notes
+bench/                        resource profiling script
+```
+
+## Rust: `noctbeat-core`
+
+`src/media/mod.rs` (already on main — do not change signatures):
+
+- `Track { id, title, artist, album, artwork_url, duration_ms }`
+- `PlaybackStatus { Playing, Paused, Stopped }`
+- `NowPlaying { track: Option<Track>, status, position_ms, updated_at_ms }`
+- `Control { PlayPause, Next, Previous }`
+- `trait NowPlayingSource { name(), poll(), control() }`
+- `NullSource`, `DemoSource` (`media/demo.rs`), `platform_source()`
+
+### media implementations (branch `devin/core-media`, files `src/media/{mpris,osascript,smtc}.rs`)
+
+- `MprisSource::new() -> Result<Self, MediaError>` (Linux; zbus blocking,
+  `org.mpris.MediaPlayer2.*` — pick first available player; control via
+  `PlayPause`/`Next`/`Previous` on `org.mpris.MediaPlayer2.Player`).
+- `OsascriptSource::new() -> Self` (macOS; shell out to `osascript` for
+  Music.app then Spotify; parse its output in a pure, unit-tested function).
+- `SmtcSource::new() -> Result<Self, MediaError>` (Windows; `windows` crate,
+  `GlobalSystemMediaTransportControlsSessionManager`).
+
+### palette (branch `devin/core-analysis`, `src/palette.rs`)
+
+```rust
+pub struct Rgb(pub u8, pub u8, pub u8);
+pub struct Palette { pub dominant: Rgb, pub accents: Vec<Rgb> } // accents: up to 4, vibrancy-sorted
+pub fn extract_palette(pixels: &[u8], width: u32, height: u32) -> Palette // RGB8, k-means k<=6, deterministic seeding
+pub fn to_hex(c: Rgb) -> String // "#rrggbb"
+```
+
+### lyrics (branch `devin/core-analysis`, `src/lyrics.rs`)
+
+```rust
+pub struct LrcLine { pub at_ms: u64, pub text: String }
+pub fn parse_lrc(input: &str) -> Vec<LrcLine>        // multiple timestamps per line supported
+pub fn active_line(lines: &[LrcLine], pos_ms: u64) -> Option<usize>
+pub struct LrclibClient { /* base_url injectable */ }
+impl LrclibClient {
+    pub fn new() -> Self;
+    pub fn fetch(&self, track: &crate::media::Track) -> Result<Option<Vec<LrcLine>>, LyricsError>;
+}
+pub struct LyricsCache { /* dir-based, keyed by track.id hash, ttl_ms */ }
+```
+
+### energy (branch `devin/core-analysis`, `src/energy.rs`)
+
+```rust
+pub struct BeatDetector { /* windowed RMS + onset flux, adaptive threshold */ }
+impl BeatDetector {
+    pub fn new(sample_rate: u32) -> Self;
+    pub fn push(&mut self, samples: &[f32]) -> EnergyUpdate; // mono f32 in [-1,1]
+}
+pub struct EnergyUpdate { pub level: f32 /* 0..1 smoothed */, pub beat: bool, pub bpm: Option<f32> }
+```
+
+### settings (branch `devin/core-config`, `src/settings.rs`)
+
+```rust
+pub struct DisplayRule { pub display_id: String, pub enabled: bool }
+pub enum ColorMode { Artwork, Custom } // serde tag="mode", snake_case
+pub struct Settings {
+    pub version: u32,              // 1
+    pub edge_thickness_px: u32,    // default 24
+    pub glow_strength: f32,        // 0..1, default 0.7
+    pub brightness: f32,           // 0..1, default 0.8
+    pub color_mode: ColorMode,
+    pub custom_color: String,      // "#rrggbb"
+    pub battery_saver: bool,
+    pub hide_in_fullscreen: bool,  // default true
+    pub displays: Vec<DisplayRule>,
+    pub license_key: Option<String>,
+}
+impl Settings { pub fn load(path: &Path) -> Self; pub fn save(&self, path: &Path) -> io::Result<()>; }
+// load(): missing file -> defaults; older version -> migrate; corrupt -> defaults (never panic)
+```
+
+### licensing (branch `devin/core-config`, `src/licensing.rs`)
+
+Vendor: Lemon Squeezy `POST {base}/v1/licenses/validate` with `license_key`,
+`instance_name`. HTTP behind a `trait Http { fn post_json(&self, url, body) -> Result<String, String> }`
+so tests mock it. `validate(key, hwid) -> LicenseState { Valid{..}, Invalid, Offline{grace_until_ms} }`.
+Offline grace: 72h from last successful validation (persisted next to settings as
+`license.json`). Entire module also compiles with real `ureq` impl `UreqHttp`.
+
+## Tauri commands (branch `devin/tauri-shell` implements; frontend calls exactly these)
+
+All via `invoke`, camelCase names:
+
+| command                | args                                   | returns                       |
+|------------------------|----------------------------------------|-------------------------------|
+| `getNowPlaying`        | —                                      | `NowPlaying`                  |
+| `mediaControl`         | `{ cmd: "play-pause"\|"next"\|"previous" }` | `null`                    |
+| `getPalette`           | `{ artworkUrl: string }`               | `Palette`-shaped hex strings  |
+| `getLyrics`            | —                                      | `LrcLine[] \| null`           |
+| `getSettings`          | —                                      | `Settings`                    |
+| `updateSettings`       | `{ settings: Settings }`               | `null`                        |
+| `getLicenseState`      | —                                      | `LicenseState`                |
+| `activateLicense`      | `{ key: string }`                      | `LicenseState`                |
+| `getEnergy`            | —                                      | `EnergyUpdate`                |
+| `listDisplays`         | —                                      | `{ id, name, primary }[]`     |
+
+Events emitted to frontend: `now-playing` (NowPlaying), `energy` (EnergyUpdate).
+
+Demo mode: env `NOCTBEAT_DEMO=1` forces `DemoSource`. Overlay windows are
+`edge-<displayId>` labels, transparent, click-through, always-on-top,
+decorations off, sized to the monitor; the frontend route `/edge` renders the
+glow; `/` is the mini player.
+
+## Frontend (branch `devin/frontend`, everything under `src/`)
+
+- `src/bridge.ts`: calls `invoke` when `window.__TAURI_INTERNALS__` exists,
+  otherwise a browser mock identical to `DemoSource` (same playlist/titles)
+  so `pnpm dev` works with no Rust.
+- Routes: `/` mini player, `/edge` glow overlay, `/settings` panel.
+- Design: dark, frosted glass (backdrop-filter), thin wordmark, no emoji.
+- Tests: Vitest + Testing Library; test the mock bridge and pure helpers.
+- `src/branding.ts` is generated — import from it, never hard-code the name.
+
+## Site (branch `devin/site`, everything under `site/`)
+
+Static `index.html` + `styles.css` + `app.js`, reads `site/branding.js`.
+EN default with ES toggle (`?lang=es`, persisted in localStorage).
+Sections: hero, features (edge light / player / lyrics / low footprint),
+pricing (one-time license, `checkoutUrl`), download (macOS/Windows/Linux).
+Playwright spec in `e2e/site.spec.ts` asserts wordmark, lang toggle, links.
+
+## Commands
+
+```
+node scripts/sync-branding.mjs   # regenerate branding outputs (predev/prebuild)
+cargo test -p noctbeat-core      # core unit tests — must pass headless
+pnpm install && pnpm test        # frontend unit tests
+pnpm build                       # vite build
+pnpm exec playwright test        # site e2e (serves site/ statically)
+cargo tauri build                # desktop bundle (needs webkit2gtk on Linux)
+```
+
+## Non-negotiables
+
+- No placeholder/dead features; every UI element works or is absent.
+- No real license keys, no secrets, no vendor lock-in strings outside branding.json.
+- `cargo fmt`, `cargo clippy -D warnings`, `tsc --noEmit` all clean.

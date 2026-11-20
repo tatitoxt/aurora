@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Noctbeat",
+  "version": "0.1.0",
+  "identifier": "com.noctbeat.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "player",
+        "title": "Noctbeat",
+        "width": 340,
+        "height": 460,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [],
+    "category": "Music",
+    "shortDescription": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",
+    "longDescription": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",
+    "copyright": "Copyright (c) 2026 Fausto Pastura"
+  }
+}
