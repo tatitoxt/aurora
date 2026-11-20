@@ -81,7 +81,7 @@ export default function Library() {
             {SOURCES.map((s) => (
               <button
                 key={s.id}
-                className={source === s.id ? "seg--on" : ""}
+                className={source === s.id ? "on" : ""}
                 onClick={() => setSource(s.id)}
               >
                 {s.label}
@@ -103,7 +103,7 @@ export default function Library() {
         </div>
         {!ytReady && (
           <span className="field">
-            Streaming needs yt-dlp installed (brew/pip install yt-dlp).
+            Streaming needs <code style={{whiteSpace:"nowrap"}}>yt-dlp</code> installed (brew or pip).
           </span>
         )}
         <div className="lib">
