@@ -43,21 +43,20 @@ try {
   session = created.body.value?.sessionId ?? created.body.sessionId;
   if (!session) throw new Error(`no session: ${JSON.stringify(created.body)}`);
 
-  // The main window should show the mini player with a demo track.
-  await new Promise((r) => setTimeout(r, 4000));
-  const handles = await wd("GET", `/session/${session}/window`);
-  const first = handles.body.value?.[0];
-  if (first) await wd("POST", `/session/${session}/window`, { handle: first });
-
-  // The webview can take ~1min to appear on a cold CI runner: poll for it.
+  // The app opens several windows (main, HUD, edge overlays) — find the one
+  // that hosts the mini player. Webview can take ~1min on a cold runner.
   let el;
-  for (let i = 0; i < 30; i++) {
-    el = await wd("POST", `/session/${session}/element`, {
-      using: "css selector",
-      value: ".player__title",
-    });
-    if (el.status === 200) break;
-    await new Promise((r) => setTimeout(r, 2000));
+  for (let i = 0; i < 30 && !(el && el.status === 200); i++) {
+    const handles = await wd("GET", `/session/${session}/window`);
+    for (const h of handles.body.value ?? []) {
+      await wd("POST", `/session/${session}/window`, { handle: h });
+      el = await wd("POST", `/session/${session}/element`, {
+        using: "css selector",
+        value: ".player__title",
+      });
+      if (el.status === 200) break;
+    }
+    if (el.status !== 200) await new Promise((r) => setTimeout(r, 2000));
   }
   // Element refs: find the first string value (drivers differ in shape).
   const flat = (v) => {
