@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { bridge, subscribe, DEFAULT_SETTINGS, type EnergyUpdate, type NowPlaying, type Settings } from "../bridge";
 import { beatPulse } from "../lib";
+import { cssVar } from "../themes";
 
 const DEFAULTS: Settings = DEFAULT_SETTINGS;
 
 export default function Edge() {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
-  const [palette, setPalette] = useState<{ dominant: string; accents: string[] }>({
-    dominant: "#8b5cf6",
-    accents: ["#22d3ee"],
-  });
+  const [palette, setPalette] = useState<{ dominant: string; accents: string[] } | null>(null);
   const [pulse, setPulse] = useState(0);
   const lastBeat = useRef(0);
   const lastArtwork = useRef("");
@@ -56,8 +54,12 @@ export default function Edge() {
   }, [settings.batterySaver]);
 
   const useArtwork = settings.colorMode.mode === "artwork";
-  const c1 = useArtwork ? palette.dominant : settings.customColor;
-  const c2 = useArtwork ? palette.accents[0] ?? c1 : settings.customColor;
+  // Before artwork extraction lands (or with no artwork), the glow follows
+  // the active theme's accents instead of the hard-coded defaults.
+  const themeC1 = cssVar("--accent") || "#8b5cf6";
+  const themeC2 = cssVar("--accent2") || themeC1;
+  const c1 = useArtwork ? (palette?.dominant ?? themeC1) : settings.customColor;
+  const c2 = useArtwork ? (palette?.accents[0] ?? themeC2) : settings.customColor;
   const t = settings.edgeThicknessPx;
   const opacity = Math.min(1, settings.brightness * (0.55 + pulse * 0.45));
 

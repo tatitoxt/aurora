@@ -44,6 +44,28 @@ export const THEMES: ThemeDef[] = [
   },
 ];
 
+/** Values matching the :root block in styles.css, for preset fallbacks. */
+export const ROOT_VARS: Record<string, string> = {
+  "--bg": "#0a0a12",
+  "--panel": "rgba(20, 20, 34, 0.62)",
+  "--line": "rgba(255, 255, 255, 0.09)",
+  "--text": "#eef0ff",
+  "--dim": "#9aa0c3",
+  "--accent": "#8b5cf6",
+  "--accent2": "#22d3ee",
+};
+
+/** Resolved value of a theme variable for a preset (preset var, else :root). */
+export function presetVar(themeName: string, varName: string): string {
+  const def = THEMES.find((d) => d.name === themeName) ?? THEMES[0];
+  return def.vars[varName] ?? ROOT_VARS[varName] ?? "";
+}
+
+/** Current computed value of a CSS variable on this window. */
+export function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 const KNOWN_VARS = [
   "--bg",
   "--panel",

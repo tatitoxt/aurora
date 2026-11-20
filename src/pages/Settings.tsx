@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { THEMES } from "../themes";
+import { THEMES, presetVar } from "../themes";
 import {
   bridge,
   DEFAULT_SETTINGS,
@@ -123,7 +123,7 @@ export default function Settings() {
             <span>Accent</span>
             <input
               type="color"
-              value={s.theme.accent ?? "#8b5cf6"}
+              value={s.theme.accent ?? presetVar(s.theme.name, "--accent")}
               onChange={(e) => patch({ theme: { ...s.theme, accent: e.target.value } })}
             />
           </div>
@@ -131,7 +131,7 @@ export default function Settings() {
             <span>Accent 2</span>
             <input
               type="color"
-              value={s.theme.accent2 ?? "#22d3ee"}
+              value={s.theme.accent2 ?? presetVar(s.theme.name, "--accent2")}
               onChange={(e) => patch({ theme: { ...s.theme, accent2: e.target.value } })}
             />
           </div>
