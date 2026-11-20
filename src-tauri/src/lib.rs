@@ -136,7 +136,43 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
         .map_err(|e| e.to_string())?;
     *state.settings.lock().map_err(|e| e.to_string())? = settings.clone();
     sync_edge_windows(&app, &settings);
+    sync_hud_window(&app, &settings);
     let _ = app.emit("settings", settings);
+    Ok(())
+}
+
+#[tauri::command]
+fn set_hud_pinned(app: tauri::AppHandle, pinned: bool) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+        s.hud_always_on_top = pinned;
+        s.save(&state.settings_path).map_err(|e| e.to_string())?;
+        let _ = app.emit("settings", s.clone());
+    }
+    if let Some(win) = app.get_webview_window("hud") {
+        win.set_always_on_top(pinned).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Begin an OS-native drag of the HUD window (called on mousedown in the pill).
+#[tauri::command]
+fn hud_start_drag(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("hud") {
+        win.start_dragging().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Bring the full player window forward (HUD expand button).
+#[tauri::command]
+fn show_player(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("player") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
     Ok(())
 }
 
@@ -225,6 +261,50 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
         {
             let _ = win.set_ignore_cursor_events(true);
         }
+    }
+}
+
+/// Floating HUD pill: borderless, transparent, draggable anywhere, optionally
+/// pinned above other windows. Position persists via the Moved event.
+fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
+    if let Some(win) = app.get_webview_window("hud") {
+        if settings.hud_enabled {
+            let _ = win.set_always_on_top(settings.hud_always_on_top);
+        } else {
+            let _ = win.close();
+        }
+        return;
+    }
+    if !settings.hud_enabled {
+        return;
+    }
+    let mut builder = tauri::WebviewWindowBuilder::new(
+        app,
+        "hud",
+        tauri::WebviewUrl::App("index.html#/hud".into()),
+    )
+    .transparent(true)
+    .decorations(false)
+    .always_on_top(settings.hud_always_on_top)
+    .skip_taskbar(true)
+    .resizable(false)
+    .inner_size(460.0, 76.0);
+    if let Some((x, y)) = settings.hud_position {
+        builder = builder.position(x as f64, y as f64);
+    }
+    if let Ok(win) = builder.build() {
+        let app2 = app.clone();
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Moved(pos) = event {
+                let state = app2.state::<AppState>();
+                if let Ok(mut s) = state.settings.lock() {
+                    if s.hud_position != Some((pos.x, pos.y)) {
+                        s.hud_position = Some((pos.x, pos.y));
+                        let _ = s.save(&state.settings_path);
+                    }
+                };
+            }
+        });
     }
 }
 
@@ -342,12 +422,16 @@ pub fn run() {
             activate_license,
             get_energy,
             list_displays,
+            set_hud_pinned,
+            hud_start_drag,
+            show_player,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());
             let state = app.state::<AppState>();
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_edge_windows(app.handle(), &s);
+            sync_hud_window(app.handle(), &s);
             build_tray(app.handle())?;
             Ok(())
         })
@@ -360,8 +444,9 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::tray::TrayIconBuilder;
     let open = MenuItem::with_id(app, "open", "Open", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+    let hud = MenuItem::with_id(app, "hud", "Floating HUD", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &settings, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &settings, &hud, &quit])?;
     let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
         tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).expect("icon")
     });
@@ -380,6 +465,16 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     let _ = w.show();
                     let _ = w.eval("location.hash = '#/settings'");
                 }
+            }
+            "hud" => {
+                let state = app.state::<AppState>();
+                if let Ok(mut s) = state.settings.lock() {
+                    s.hud_enabled = !s.hud_enabled;
+                    let s = s.clone();
+                    let _ = s.save(&state.settings_path);
+                    sync_hud_window(app, &s);
+                    let _ = app.emit("settings", s);
+                };
             }
             "quit" => app.exit(0),
             _ => {}

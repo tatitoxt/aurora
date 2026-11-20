@@ -49,6 +49,9 @@ export interface Settings {
   hideInFullscreen: boolean;
   displays: DisplayRule[];
   licenseKey: string | null;
+  hudEnabled: boolean;
+  hudAlwaysOnTop: boolean;
+  hudPosition: [number, number] | null;
 }
 export type LicenseState =
   | { state: "unlicensed" }
@@ -67,6 +70,9 @@ export const DEFAULT_SETTINGS: Settings = {
   hideInFullscreen: true,
   displays: [],
   licenseKey: null,
+  hudEnabled: true,
+  hudAlwaysOnTop: true,
+  hudPosition: null,
 };
 
 const isTauri = () =>
@@ -197,6 +203,20 @@ export const bridge = {
   updateSettings: (settings: Settings) => {
     if (isTauri()) return invokeCmd<null>("update_settings", { settings });
     settingsStore = { ...settings };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(null);
+  },
+  setHudPinned: (pinned: boolean) => {
+    if (isTauri()) return invokeCmd<null>("set_hud_pinned", { pinned });
+    settingsStore = { ...settingsStore, hudAlwaysOnTop: pinned };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(null);
+  },
+  hudStartDrag: () =>
+    isTauri() ? invokeCmd<null>("hud_start_drag") : Promise.resolve(null),
+  showPlayer: () => {
+    if (isTauri()) return invokeCmd<null>("show_player");
+    window.location.hash = "#/";
     return Promise.resolve(null);
   },
   getLicenseState: (): Promise<LicenseState> =>

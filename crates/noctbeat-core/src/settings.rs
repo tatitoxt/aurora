@@ -34,6 +34,19 @@ pub struct Settings {
     pub displays: Vec<DisplayRule>,
     #[serde(default)]
     pub license_key: Option<String>,
+    /// Floating HUD mini-player window.
+    #[serde(default = "default_true")]
+    pub hud_enabled: bool,
+    /// Pin the HUD above other windows; false lets it sink behind them.
+    #[serde(default = "default_true")]
+    pub hud_always_on_top: bool,
+    /// Last on-screen position, restored on launch.
+    #[serde(default)]
+    pub hud_position: Option<(i32, i32)>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -49,6 +62,9 @@ impl Default for Settings {
             hide_in_fullscreen: true,
             displays: vec![],
             license_key: None,
+            hud_enabled: true,
+            hud_always_on_top: true,
+            hud_position: None,
         }
     }
 }
@@ -152,6 +168,24 @@ mod tests {
         assert_eq!(s.edge_thickness_px, 12);
         assert!(s.battery_saver);
         assert_eq!(s.displays, vec![]);
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn v1_file_without_hud_fields_gets_hud_defaults() {
+        let p = tmp("v1nohud.json");
+        std::fs::write(
+            &p,
+            r##"{"version":1,"edgeThicknessPx":24,"glowStrength":0.7,
+               "brightness":0.8,"colorMode":{"mode":"artwork"},
+               "customColor":"#8b5cf6","batterySaver":false,
+               "hideInFullscreen":true,"displays":[],"licenseKey":null}"##,
+        )
+        .unwrap();
+        let s = Settings::load(&p);
+        assert!(s.hud_enabled);
+        assert!(s.hud_always_on_top);
+        assert_eq!(s.hud_position, None);
         let _ = std::fs::remove_file(&p);
     }
 }

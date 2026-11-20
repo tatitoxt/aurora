@@ -112,6 +112,22 @@ export default function Settings() {
           />
         </div>
         <div className="row">
+          <span>Floating HUD</span>
+          <button
+            className={`toggle ${s.hudEnabled ? "on" : ""}`}
+            aria-label="Floating HUD"
+            onClick={() => patch({ hudEnabled: !s.hudEnabled })}
+          />
+        </div>
+        <div className="row">
+          <span>Keep HUD on top</span>
+          <button
+            className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
+            aria-label="Keep HUD on top"
+            onClick={() => patch({ hudAlwaysOnTop: !s.hudAlwaysOnTop })}
+          />
+        </div>
+        <div className="row">
           <span>Hide while fullscreen</span>
           <button
             className={`toggle ${s.hideInFullscreen ? "on" : ""}`}

@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { bridge, subscribe, type EnergyUpdate, type NowPlaying, type Settings } from "../bridge";
+import { bridge, subscribe, DEFAULT_SETTINGS, type EnergyUpdate, type NowPlaying, type Settings } from "../bridge";
 import { beatPulse } from "../lib";
 
-const DEFAULTS: Settings = {
-  version: 1,
-  edgeThicknessPx: 24,
-  glowStrength: 0.7,
-  brightness: 0.8,
-  colorMode: { mode: "artwork" },
-  customColor: "#8b5cf6",
-  batterySaver: false,
-  hideInFullscreen: true,
-  displays: [],
-  licenseKey: null,
-};
+const DEFAULTS: Settings = DEFAULT_SETTINGS;
 
 export default function Edge() {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
