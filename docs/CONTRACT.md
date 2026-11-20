@@ -92,6 +92,10 @@ pub struct Settings {
     pub hud_enabled: bool,         // floating HUD window, default true
     pub hud_always_on_top: bool,   // pin HUD above other windows, default true
     pub hud_position: Option<(i32, i32)>,  // persisted drag position
+    pub music_dir: Option<String>,
+    pub ytdlp_path: Option<String>,
+    pub theme: ThemeSettings,              // preset name + accent overrides
+    pub lyrics_mode: String,               // "lines" (default) | "karaoke"
 }
 impl Settings { pub fn load(path: &Path) -> Self; pub fn save(&self, path: &Path) -> io::Result<()>; }
 // load(): missing file -> defaults; older version -> migrate; corrupt -> defaults (never panic)
