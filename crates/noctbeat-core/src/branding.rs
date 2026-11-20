@@ -24,16 +24,11 @@ pub struct Branding {
     pub copyright: String,
 }
 
-static mut CACHED: Option<Branding> = None;
+static CACHED: std::sync::OnceLock<Branding> = std::sync::OnceLock::new();
 
 /// Parsed branding. The JSON is compiled into the binary, so this cannot fail.
 pub fn branding() -> &'static Branding {
-    unsafe {
-        if CACHED.is_none() {
-            CACHED = Some(serde_json::from_str(BRANDING_JSON).expect("branding.json is valid"));
-        }
-        CACHED.as_ref().unwrap()
-    }
+    CACHED.get_or_init(|| serde_json::from_str(BRANDING_JSON).expect("branding.json is valid"))
 }
 
 #[cfg(test)]
