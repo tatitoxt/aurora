@@ -76,6 +76,10 @@ pub struct Settings {
     /// Lyrics presentation: "lines" (scrolling list) or "karaoke" (word fill).
     #[serde(default = "default_lyrics_mode")]
     pub lyrics_mode: String,
+    /// Karaoke backdrop plays the track's music video behind the lyrics
+    /// (resolved via yt-dlp); false keeps the blurred artwork backdrop.
+    #[serde(default = "default_true")]
+    pub video_backdrop: bool,
 }
 
 fn default_true() -> bool {
@@ -106,6 +110,7 @@ impl Default for Settings {
             ytdlp_path: None,
             theme: ThemeSettings::default(),
             lyrics_mode: default_lyrics_mode(),
+            video_backdrop: true,
         }
     }
 }

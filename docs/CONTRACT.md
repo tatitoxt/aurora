@@ -96,6 +96,7 @@ pub struct Settings {
     pub ytdlp_path: Option<String>,
     pub theme: ThemeSettings,              // preset name + accent overrides
     pub lyrics_mode: String,               // "lines" (default) | "karaoke"
+    pub video_backdrop: bool,              // karaoke plays the music video, default true
 }
 impl Settings { pub fn load(path: &Path) -> Self; pub fn save(&self, path: &Path) -> io::Result<()>; }
 // load(): missing file -> defaults; older version -> migrate; corrupt -> defaults (never panic)
@@ -216,6 +217,12 @@ best decodable audio (m4a/AAC preferred — rodio has no opus codec) into the
 app cache, and `provider_play` enqueues the file like a local track. The
 binary is optional (`settings.ytdlp_path` or PATH); commands error cleanly
 when it is absent.
+
+`resolve_video(artist, title)` additionally maps a track to a direct video
+stream URL (`ytsearch1:` + `-g`, progressive mp4 <=480p preferred) for the
+karaoke backdrop; the player `<video>` renders it muted and blurred in sync
+with the track position, and falls back to blurred artwork when yt-dlp is
+missing or no video resolves.
 
 ## Non-negotiables
 

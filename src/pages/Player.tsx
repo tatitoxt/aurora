@@ -17,11 +17,52 @@ const NEXT = <SkipForward weight="fill" size={18} />;
 const PAUSE = <Pause weight="fill" size={20} />;
 const PLAY = <Play weight="fill" size={20} />;
 
+/** Music-video backdrop for karaoke mode: plays the resolved stream muted and
+ * blurred behind the lyrics, kept in sync with the track position. */
+function VideoBackdrop({
+  url,
+  posMs,
+  playing,
+}: {
+  url: string;
+  posMs: number;
+  playing: boolean;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (playing) void v.play().catch(() => {});
+    else v.pause();
+  }, [playing, url]);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !ready) return;
+    const target = Math.min(posMs / 1000, v.duration || Infinity);
+    if (Math.abs(v.currentTime - target) > 0.6) v.currentTime = target;
+  }, [posMs, ready]);
+
+  return (
+    <video
+      ref={ref}
+      className={`kbg__video ${ready ? "kbg__video--ready" : ""}`}
+      src={url}
+      muted
+      playsInline
+      onCanPlay={() => setReady(true)}
+    />
+  );
+}
+
 export default function Player() {
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [art, setArt] = useState<string>("");
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const trackId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +85,26 @@ export default function Player() {
       else setArt("");
     }
   }, [track]);
+
+  // Resolve the music video lazily: only in karaoke mode with the backdrop
+  // enabled, only once per track. Falls back to blurred artwork on any
+  // failure (no yt-dlp, no video result, unreachable stream).
+  // Dep is track?.id, not track: the now-playing poll emits a new object
+  // every ~200ms and would restart the yt-dlp resolve on every tick.
+  const wantVideo = settings.lyricsMode === "karaoke" && settings.videoBackdrop;
+  const trackKey = track?.id ?? null;
+  useEffect(() => {
+    setVideoUrl(null);
+    if (!wantVideo || !track) return;
+    let stale = false;
+    bridge.resolveVideo(track.artist, track.title).then((u) => {
+      if (!stale && u) setVideoUrl(u);
+    });
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantVideo, trackKey]);
 
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 1;
@@ -110,6 +171,7 @@ export default function Player() {
       <div className="glass glass--bare">
         <div className="kbg">
           {art ? <img src={art} alt="" /> : null}
+          {videoUrl ? <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} /> : null}
           <div className="kbg__veil" />
         </div>
         <div className="player player--karaoke">
