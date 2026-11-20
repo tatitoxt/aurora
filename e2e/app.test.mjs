@@ -49,10 +49,16 @@ try {
   const first = handles.body.value?.[0];
   if (first) await wd("POST", `/session/${session}/window`, { handle: first });
 
-  const el = await wd("POST", `/session/${session}/element`, {
-    using: "css selector",
-    value: ".player__title",
-  });
+  // The webview can take ~1min to appear on a cold CI runner: poll for it.
+  let el;
+  for (let i = 0; i < 30; i++) {
+    el = await wd("POST", `/session/${session}/element`, {
+      using: "css selector",
+      value: ".player__title",
+    });
+    if (el.status === 200) break;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
   // Element refs: find the first string value (drivers differ in shape).
   const flat = (v) => {
     if (typeof v === "string") return v;
