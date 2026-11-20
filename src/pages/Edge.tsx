@@ -24,6 +24,7 @@ export default function Edge() {
   const [pulse, setPulse] = useState(0);
   const lastBeat = useRef(0);
   const lastArtwork = useRef("");
+  const lastPaletteFail = useRef(0);
   const raf = useRef(0);
   const [, force] = useState(0);
 
@@ -31,9 +32,16 @@ export default function Edge() {
     bridge.getSettings().then(setSettings);
     const offNp = subscribe<NowPlaying>("now-playing", (np) => {
       const art = np.track?.artworkUrl ?? "";
-      if (art && art !== lastArtwork.current) {
+      const retryOk = Date.now() - lastPaletteFail.current > 30_000;
+      if (art && retryOk && art !== lastArtwork.current) {
         lastArtwork.current = art;
-        bridge.getPalette(art).then(setPalette).catch(() => {});
+        bridge
+          .getPalette(art)
+          .then(setPalette)
+          .catch(() => {
+            lastArtwork.current = "";
+            lastPaletteFail.current = Date.now();
+          });
       }
     });
     const offEnergy = subscribe<EnergyUpdate>("energy", (e) => {
