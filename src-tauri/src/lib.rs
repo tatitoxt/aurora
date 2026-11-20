@@ -4,7 +4,9 @@
 use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
-use noctbeat_core::media::{now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus};
+use noctbeat_core::media::{
+    now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus,
+};
 use noctbeat_core::palette::{extract_palette_bytes, Palette};
 use noctbeat_core::player::{LocalPlayer, QueueItem};
 
@@ -147,13 +149,7 @@ fn clear_queue(state: State<AppState>) -> Result<(), String> {
 /// Scan `dir` (or the configured music dir) and replace the play queue.
 #[tauri::command]
 fn scan_library(state: State<AppState>, dir: Option<String>) -> Result<Vec<QueueItem>, String> {
-    let dir = dir.or_else(|| {
-        state
-            .settings
-            .lock()
-            .ok()
-            .and_then(|s| s.music_dir.clone())
-    });
+    let dir = dir.or_else(|| state.settings.lock().ok().and_then(|s| s.music_dir.clone()));
     let Some(dir) = dir else {
         return Err("no music folder configured".into());
     };
@@ -426,7 +422,9 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
 fn flush_hud_position(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     let pos = {
-        let Ok(pending) = state.hud_pos_pending.lock() else { return };
+        let Ok(pending) = state.hud_pos_pending.lock() else {
+            return;
+        };
         match *pending {
             Some((pos, at)) if at.elapsed() > std::time::Duration::from_millis(300) => pos,
             _ => return,
@@ -435,7 +433,9 @@ fn flush_hud_position(app: &tauri::AppHandle) {
     if let Ok(mut pending) = state.hud_pos_pending.lock() {
         *pending = None;
     }
-    let Ok(mut s) = state.settings.lock() else { return };
+    let Ok(mut s) = state.settings.lock() else {
+        return;
+    };
     if s.hud_position == Some(pos) {
         return;
     }

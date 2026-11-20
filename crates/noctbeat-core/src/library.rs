@@ -4,7 +4,9 @@ use crate::media::Track;
 use crate::player::QueueItem;
 use std::path::{Path, PathBuf};
 
-const AUDIO_EXTS: &[&str] = &["mp3", "flac", "ogg", "opus", "m4a", "aac", "wav", "wma", "aiff"];
+const AUDIO_EXTS: &[&str] = &[
+    "mp3", "flac", "ogg", "opus", "m4a", "aac", "wav", "wma", "aiff",
+];
 
 fn is_audio(path: &Path) -> bool {
     path.extension()
@@ -19,7 +21,9 @@ pub fn scan_paths(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];
     while let Some(d) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
         for entry in rd.flatten() {
             let p = entry.path();
             if p.is_dir() {
@@ -64,9 +68,7 @@ fn tag_track(path: &Path) -> Track {
         return t;
     };
     t.duration_ms = probed.properties().duration().as_millis() as u64;
-    let tag = probed
-        .primary_tag()
-        .or_else(|| probed.first_tag());
+    let tag = probed.primary_tag().or_else(|| probed.first_tag());
     if let Some(tag) = tag {
         if let Some(x) = tag.title() {
             if !x.is_empty() {

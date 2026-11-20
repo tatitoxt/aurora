@@ -3,7 +3,9 @@
 //! the `AudioOut` trait so this module stays headless and unit-testable;
 //! the Tauri shell provides a rodio implementation.
 
-use crate::media::{Control, MediaError, NowPlaying, NowPlayingSource, PlaybackStatus, Track, now_ms};
+use crate::media::{
+    now_ms, Control, MediaError, NowPlaying, NowPlayingSource, PlaybackStatus, Track,
+};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,19 +56,25 @@ impl NullAudio {
 
 impl AudioOut for NullAudio {
     fn open(&self, _path: &str) -> Result<Option<u64>, String> {
-        self.position_ms.store(0, std::sync::atomic::Ordering::SeqCst);
-        self.playing.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.position_ms
+            .store(0, std::sync::atomic::Ordering::SeqCst);
+        self.playing
+            .store(false, std::sync::atomic::Ordering::SeqCst);
         Ok(None)
     }
     fn play(&self) {
-        self.anchor_ms
-            .store(now_ms() - self.position_ms.load(std::sync::atomic::Ordering::SeqCst),
-                std::sync::atomic::Ordering::SeqCst);
-        self.playing.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.anchor_ms.store(
+            now_ms() - self.position_ms.load(std::sync::atomic::Ordering::SeqCst),
+            std::sync::atomic::Ordering::SeqCst,
+        );
+        self.playing
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
     fn pause(&self) {
-        self.position_ms.store(self.position_ms(), std::sync::atomic::Ordering::SeqCst);
-        self.playing.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.position_ms
+            .store(self.position_ms(), std::sync::atomic::Ordering::SeqCst);
+        self.playing
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
     fn position_ms(&self) -> u64 {
         if self.playing.load(std::sync::atomic::Ordering::SeqCst) {
@@ -186,7 +194,10 @@ impl LocalPlayer {
 
     fn snapshot(&self) -> NowPlaying {
         NowPlaying {
-            track: self.index.and_then(|i| self.queue.get(i)).map(|q| q.track.clone()),
+            track: self
+                .index
+                .and_then(|i| self.queue.get(i))
+                .map(|q| q.track.clone()),
             status: self.status,
             position_ms: self.audio.position_ms(),
             updated_at_ms: now_ms(),
@@ -226,7 +237,8 @@ impl NowPlayingSource for LocalPlayer {
                 if self.audio.position_ms() > 3_000 {
                     self.audio.seek(0).map_err(|e| MediaError::Control(e))
                 } else {
-                    self.advance(-1).map_err(|e| MediaError::Control(e.to_string()))
+                    self.advance(-1)
+                        .map_err(|e| MediaError::Control(e.to_string()))
                 }
             }
         }
@@ -236,8 +248,8 @@ impl NowPlayingSource for LocalPlayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
 
     fn item(title: &str) -> QueueItem {
         QueueItem {
@@ -348,7 +360,7 @@ mod tests {
         p.control(Control::Next).unwrap();
         assert_eq!(p.tick().track.unwrap().title, "c");
         assert!(p.control(Control::Next).is_err()); // end of queue
-        // Previous within 3s boundary: position 0 → go to previous track.
+                                                    // Previous within 3s boundary: position 0 → go to previous track.
         p.control(Control::Previous).unwrap();
         assert_eq!(p.tick().track.unwrap().title, "b");
     }
