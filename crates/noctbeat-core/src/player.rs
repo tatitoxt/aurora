@@ -227,7 +227,7 @@ impl NowPlayingSource for LocalPlayer {
                 }
                 PlaybackStatus::Stopped => self
                     .play_index(self.index.unwrap_or(0))
-                    .map_err(|e| MediaError::Control(e)),
+                    .map_err(MediaError::Control),
             },
             Control::Next => self
                 .advance(1)
@@ -235,7 +235,7 @@ impl NowPlayingSource for LocalPlayer {
             Control::Previous => {
                 // Convention: >3s in, restart the track; else go back.
                 if self.audio.position_ms() > 3_000 {
-                    self.audio.seek(0).map_err(|e| MediaError::Control(e))
+                    self.audio.seek(0).map_err(MediaError::Control)
                 } else {
                     self.advance(-1)
                         .map_err(|e| MediaError::Control(e.to_string()))
