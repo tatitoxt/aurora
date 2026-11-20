@@ -160,6 +160,9 @@ All via `invoke`, camelCase names:
 | `playQueueIndex`       | `{ index: number }`                    | `null`                        |
 | `clearQueue`           | —                                      | `null`                        |
 | `scanLibrary`          | `{ dir?: string }`                     | `QueueItem[]`                 |
+| `providerStatus`       | —                                      | `boolean` (yt-dlp detected)   |
+| `providerSearch`       | `{ source, query }`                    | `RemoteTrack[]`               |
+| `providerPlay`         | `{ track: RemoteTrack }`               | `QueueItem`                   |
 
 Events emitted to frontend: `now-playing` (NowPlaying), `energy` (EnergyUpdate).
 
@@ -200,6 +203,15 @@ pnpm build                       # vite build
 pnpm exec playwright test        # site e2e (serves site/ statically)
 cargo tauri build                # desktop bundle (needs webkit2gtk on Linux)
 ```
+
+## providers module (noctbeat-core)
+
+`providers` wraps an external `yt-dlp` binary: `search` maps
+`<source>search<N>:` result JSON to `RemoteTrack`, `download` fetches the
+best decodable audio (m4a/AAC preferred — rodio has no opus codec) into the
+app cache, and `provider_play` enqueues the file like a local track. The
+binary is optional (`settings.ytdlp_path` or PATH); commands error cleanly
+when it is absent.
 
 ## Non-negotiables
 

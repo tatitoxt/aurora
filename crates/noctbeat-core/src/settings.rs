@@ -46,6 +46,9 @@ pub struct Settings {
     /// Folder the local library scans on demand.
     #[serde(default)]
     pub music_dir: Option<String>,
+    /// Explicit yt-dlp binary path; PATH is searched when unset.
+    #[serde(default)]
+    pub ytdlp_path: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -69,6 +72,7 @@ impl Default for Settings {
             hud_always_on_top: true,
             hud_position: None,
             music_dir: None,
+            ytdlp_path: None,
         }
     }
 }
