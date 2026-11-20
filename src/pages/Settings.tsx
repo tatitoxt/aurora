@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { THEMES, presetVar } from "../themes";
 import {
   bridge,
   DEFAULT_SETTINGS,
@@ -102,6 +103,39 @@ export default function Settings() {
             />
           </div>
         )}
+
+        <div className="field">
+          <span>Theme</span>
+          <div className="seg">
+            {THEMES.map((th) => (
+              <button
+                key={th.name}
+                className={s.theme.name === th.name ? "on" : ""}
+                onClick={() => patch({ theme: { ...s.theme, name: th.name } })}
+              >
+                {th.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="row">
+          <div className="field">
+            <span>Accent</span>
+            <input
+              type="color"
+              value={s.theme.accent ?? presetVar(s.theme.name, "--accent")}
+              onChange={(e) => patch({ theme: { ...s.theme, accent: e.target.value } })}
+            />
+          </div>
+          <div className="field">
+            <span>Accent 2</span>
+            <input
+              type="color"
+              value={s.theme.accent2 ?? presetVar(s.theme.name, "--accent2")}
+              onChange={(e) => patch({ theme: { ...s.theme, accent2: e.target.value } })}
+            />
+          </div>
+        </div>
 
         <div className="field">
           <span>Music folder</span>
