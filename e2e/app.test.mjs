@@ -53,9 +53,20 @@ try {
     using: "css selector",
     value: ".player__title",
   });
-  const elId = Object.values(el.body.value ?? {})[0];
+  // Element refs: find the first string value (drivers differ in shape).
+  const flat = (v) => {
+    if (typeof v === "string") return v;
+    if (v && typeof v === "object") {
+      for (const x of Object.values(v)) {
+        const s = flat(x);
+        if (s) return s;
+      }
+    }
+    return "";
+  };
+  const elId = flat(el.body.value);
   const text = elId
-    ? (await wd("GET", `/session/${session}/element/${elId}/text`)).body.value
+    ? (await wd("GET", `/session/${session}/element/${encodeURIComponent(elId)}/text`)).body.value
     : "";
   if (!/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) {
     throw new Error(`expected a demo track title, got "${text}"`);
