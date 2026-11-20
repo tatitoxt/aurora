@@ -95,6 +95,17 @@ export default function Settings() {
           </div>
         </div>
 
+        {s.lyricsMode === "karaoke" && (
+          <div className="row">
+            <span>Music video backdrop</span>
+            <button
+              className={`toggle ${s.videoBackdrop ? "on" : ""}`}
+              aria-label="Music video backdrop"
+              onClick={() => patch({ videoBackdrop: !s.videoBackdrop })}
+            />
+          </div>
+        )}
+
         <div className="row">
           <span>Colors</span>
           <div className="seg">

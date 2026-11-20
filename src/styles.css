@@ -98,6 +98,15 @@ body {
   transform: scale(1.18);
   filter: blur(38px) saturate(1.5) brightness(0.75);
 }
+.kbg__video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.18);
+  filter: blur(38px) saturate(1.5) brightness(0.75);
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.kbg__video--ready { opacity: 1; }
 .kbg__veil {
   position: absolute; inset: 0;
   background:

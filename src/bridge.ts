@@ -59,6 +59,8 @@ export interface Settings {
   theme: ThemeSettings;
   /** "lines" (scrolling list) or "karaoke" (word-by-word). */
   lyricsMode: string;
+  /** Karaoke backdrop plays the music video (yt-dlp) instead of blurred art. */
+  videoBackdrop: boolean;
 }
 
 export interface ThemeSettings {
@@ -109,6 +111,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ytdlpPath: null,
   theme: { name: "noct", accent: null, accent2: null },
   lyricsMode: "lines",
+  videoBackdrop: true,
 };
 
 const isTauri = () =>
@@ -343,6 +346,10 @@ export const bridge = {
           },
           path: `/demo/${track.id}.mp3`,
         }),
+  resolveVideo: (artist: string, title: string): Promise<string | null> =>
+    isTauri()
+      ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
+      : Promise.resolve(null),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
