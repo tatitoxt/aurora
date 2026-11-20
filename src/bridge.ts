@@ -140,7 +140,7 @@ const mock = new MockSource();
 const listeners = new Map<string, Set<(p: unknown) => void>>();
 let settingsStore: Settings = { ...DEFAULT_SETTINGS };
 
-export function subscribe<T>(event: "now-playing" | "energy", cb: (p: T) => void): () => void {
+export function subscribe<T>(event: "now-playing" | "energy" | "settings", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {

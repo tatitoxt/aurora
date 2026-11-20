@@ -60,7 +60,7 @@ struct PaletteOut {
 }
 
 #[tauri::command]
-fn get_palette(artwork_url: String) -> Result<PaletteOut, String> {
+async fn get_palette(artwork_url: String) -> Result<PaletteOut, String> {
     let bytes = fetch_artwork(&artwork_url)?;
     let Palette { dominant, accents } = extract_palette_bytes(&bytes).map_err(|e| e.to_string())?;
     Ok(PaletteOut {
@@ -93,7 +93,7 @@ fn fetch_artwork(url: &str) -> Result<Vec<u8>, String> {
 }
 
 #[tauri::command]
-fn get_lyrics(state: State<AppState>) -> Result<Option<Vec<LrcLine>>, String> {
+async fn get_lyrics(state: State<'_, AppState>) -> Result<Option<Vec<LrcLine>>, String> {
     let np = get_now_playing(state.clone())?;
     let Some(track) = np.track else {
         return Ok(None);
@@ -145,13 +145,13 @@ fn license_client<'a>(http: &'a dyn Http, state: &AppState) -> LicenseClient<'a>
 }
 
 #[tauri::command]
-fn get_license_state(state: State<AppState>) -> Result<LicenseState, String> {
+async fn get_license_state(state: State<'_, AppState>) -> Result<LicenseState, String> {
     let http = UreqHttp;
-    Ok(license_client(&http, &state).state())
+    Ok(license_client(&http, &state).refresh())
 }
 
 #[tauri::command]
-fn activate_license(state: State<AppState>, key: String) -> Result<LicenseState, String> {
+async fn activate_license(state: State<'_, AppState>, key: String) -> Result<LicenseState, String> {
     let http = UreqHttp;
     Ok(license_client(&http, &state).activate(&key))
 }
@@ -209,16 +209,19 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
         }
         let size = monitor.size();
         let pos = monitor.position();
-        if let Ok(win) =
-            tauri::WebviewWindowBuilder::new(app, &label, tauri::WebviewUrl::App("/edge".into()))
-                .transparent(true)
-                .decorations(false)
-                .always_on_top(true)
-                .skip_taskbar(true)
-                .resizable(false)
-                .inner_size(size.width as f64, size.height as f64)
-                .position(pos.x as f64, pos.y as f64)
-                .build()
+        if let Ok(win) = tauri::WebviewWindowBuilder::new(
+            app,
+            &label,
+            tauri::WebviewUrl::App("index.html#/edge".into()),
+        )
+        .transparent(true)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .resizable(false)
+        .inner_size(size.width as f64, size.height as f64)
+        .position(pos.x as f64, pos.y as f64)
+        .build()
         {
             let _ = win.set_ignore_cursor_events(true);
         }
@@ -253,39 +256,46 @@ fn synthetic_energy(np: &NowPlaying, prev: &EnergyUpdate) -> EnergyUpdate {
 
 fn spawn_poller(app: &tauri::AppHandle) {
     let app = app.clone();
-    std::thread::spawn(move || loop {
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        let state = app.state::<AppState>();
-        let np = {
-            let mut src = match state.source.lock() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            src.poll().unwrap_or(NowPlaying {
-                track: None,
-                status: noctbeat_core::media::PlaybackStatus::Stopped,
-                position_ms: 0,
-                updated_at_ms: now_ms(),
-            })
-        };
-        let energy = {
-            let prev = *state.last_energy.lock().unwrap_or_else(|e| e.into_inner());
-            let next = if state.demo {
-                synthetic_energy(&np, &prev)
-            } else {
-                let mut det = match state.beat.lock() {
-                    Ok(d) => d,
+    std::thread::spawn(move || {
+        let mut ticks = 0u64;
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            ticks += 1;
+            let state = app.state::<AppState>();
+            let np = {
+                let mut src = match state.source.lock() {
+                    Ok(s) => s,
                     Err(_) => continue,
                 };
-                // No capture source yet (see README: platform capture roadmap);
-                // keep the detector fed with silence so the UI rests honestly.
-                det.push(&[0.0f32; 1024])
+                if !state.demo && src.name() == "null" && ticks.is_multiple_of(25) {
+                    *src = noctbeat_core::media::platform_source();
+                }
+                src.poll().unwrap_or(NowPlaying {
+                    track: None,
+                    status: noctbeat_core::media::PlaybackStatus::Stopped,
+                    position_ms: 0,
+                    updated_at_ms: now_ms(),
+                })
             };
-            *state.last_energy.lock().unwrap_or_else(|e| e.into_inner()) = next;
-            next
-        };
-        let _ = app.emit("now-playing", &np);
-        let _ = app.emit("energy", energy);
+            let energy = {
+                let prev = *state.last_energy.lock().unwrap_or_else(|e| e.into_inner());
+                let next = if state.demo {
+                    synthetic_energy(&np, &prev)
+                } else {
+                    let mut det = match state.beat.lock() {
+                        Ok(d) => d,
+                        Err(_) => continue,
+                    };
+                    // No capture source yet (see README: platform capture roadmap);
+                    // keep the detector fed with silence so the UI rests honestly.
+                    det.push(&[0.0f32; 1024])
+                };
+                *state.last_energy.lock().unwrap_or_else(|e| e.into_inner()) = next;
+                next
+            };
+            let _ = app.emit("now-playing", &np);
+            let _ = app.emit("energy", energy);
+        }
     });
 }
 

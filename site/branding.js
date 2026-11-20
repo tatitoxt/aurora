@@ -13,5 +13,6 @@ window.BRANDING = {
   "repository": "https://github.com/tatitoxt/aurora",
   "checkoutUrl": "https://noctbeat.lemonsqueezy.com/checkout/buy/REPLACE_WITH_PRODUCT_ID",
   "licenseVendor": "lemonsqueezy",
+  "licenseProductId": 0,
   "copyright": "Copyright (c) 2026 Fausto Pastura"
 };

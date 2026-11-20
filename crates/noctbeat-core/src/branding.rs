@@ -21,6 +21,8 @@ pub struct Branding {
     pub repository: String,
     pub checkout_url: String,
     pub license_vendor: String,
+    #[serde(default)]
+    pub license_product_id: u64,
     pub copyright: String,
 }
 

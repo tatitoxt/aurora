@@ -62,6 +62,10 @@ struct StoredLicense {
 }
 
 impl<'a> LicenseClient<'a> {
+    fn expected_product_id(&self) -> u64 {
+        crate::branding::branding().license_product_id
+    }
+
     pub fn new(http: &'a dyn Http, state_path: impl Into<PathBuf>) -> Self {
         Self {
             base_url: "https://api.lemonsqueezy.com",
@@ -93,7 +97,7 @@ impl<'a> LicenseClient<'a> {
         );
         let url = format!("{}/v1/licenses/validate", self.base_url);
         match self.http.post_json(&url, &body) {
-            Ok(text) => match parse_validate(&text) {
+            Ok(text) => match parse_validate(&text, self.expected_product_id()) {
                 Ok(Some(customer_email)) => {
                     let st = StoredLicense {
                         key: key.to_string(),
@@ -127,7 +131,7 @@ impl<'a> LicenseClient<'a> {
         );
         let url = format!("{}/v1/licenses/validate", self.base_url);
         match self.http.post_json(&url, &body) {
-            Ok(text) => match parse_validate(&text) {
+            Ok(text) => match parse_validate(&text, self.expected_product_id()) {
                 Ok(Some(email)) => {
                     let st = StoredLicense {
                         last_validated_ms: (self.now_ms)(),
@@ -198,7 +202,7 @@ fn urlencoded(s: &str) -> String {
 /// Lemon Squeezy returns `{valid: bool, license_key: {status}, meta:{store_id},
 /// customer_email?}` — success = valid && status=="active".
 /// Returns Ok(Some(email)) valid, Ok(None) invalid, Err(reason) malformed.
-fn parse_validate(text: &str) -> Result<Option<Option<String>>, String> {
+fn parse_validate(text: &str, expected_product_id: u64) -> Result<Option<Option<String>>, String> {
     let v: serde_json::Value =
         serde_json::from_str(text).map_err(|e| format!("bad response: {e}"))?;
     let valid = v.get("valid").and_then(|x| x.as_bool()).unwrap_or(false);
@@ -211,6 +215,17 @@ fn parse_validate(text: &str) -> Result<Option<Option<String>>, String> {
     }
     if status != "active" {
         return Err(format!("license status is '{status}'"));
+    }
+    // A key is only valid for THIS product once a product id is configured.
+    if expected_product_id != 0 {
+        let pid = v
+            .pointer("/license_key/product_id")
+            .or_else(|| v.pointer("/meta/product_id"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        if pid != expected_product_id {
+            return Err("key belongs to a different product".to_string());
+        }
     }
     let email = v
         .get("customer_email")

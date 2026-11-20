@@ -63,6 +63,9 @@ impl Settings {
         let Ok(mut s) = serde_json::from_str::<serde_json::Value>(&text) else {
             return Self::default();
         };
+        if !s.is_object() {
+            return Self::default();
+        }
         let version = s.get("version").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
         if version < CURRENT_VERSION {
             // Migration path: fill anything missing with defaults.

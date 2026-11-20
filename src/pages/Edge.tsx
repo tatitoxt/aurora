@@ -23,22 +23,27 @@ export default function Edge() {
   });
   const [pulse, setPulse] = useState(0);
   const lastBeat = useRef(0);
+  const lastArtwork = useRef("");
   const raf = useRef(0);
   const [, force] = useState(0);
 
   useEffect(() => {
     bridge.getSettings().then(setSettings);
     const offNp = subscribe<NowPlaying>("now-playing", (np) => {
-      if (np.track?.artworkUrl) {
-        bridge.getPalette(np.track.artworkUrl).then(setPalette).catch(() => {});
+      const art = np.track?.artworkUrl ?? "";
+      if (art && art !== lastArtwork.current) {
+        lastArtwork.current = art;
+        bridge.getPalette(art).then(setPalette).catch(() => {});
       }
     });
     const offEnergy = subscribe<EnergyUpdate>("energy", (e) => {
       if (e.beat) lastBeat.current = Date.now();
     });
+    const offSettings = subscribe<Settings>("settings", setSettings);
     return () => {
       offNp();
       offEnergy();
+      offSettings();
     };
   }, []);
 
