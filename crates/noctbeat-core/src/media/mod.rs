@@ -46,6 +46,8 @@ pub struct NowPlaying {
     pub track: Option<Track>,
     pub status: PlaybackStatus,
     pub position_ms: u64,
+    /// Which source produced this snapshot ("local", "mpris", "demo", ...).
+    pub source: String,
     /// Unix milliseconds when this snapshot was taken.
     pub updated_at_ms: u64,
 }
@@ -80,6 +82,7 @@ impl NowPlayingSource for NullSource {
             track: None,
             status: PlaybackStatus::Stopped,
             position_ms: 0,
+            source: "null".into(),
             updated_at_ms: now_ms(),
         })
     }

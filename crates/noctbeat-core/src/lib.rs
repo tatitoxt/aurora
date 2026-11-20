@@ -5,8 +5,10 @@
 
 pub mod branding;
 pub mod energy;
+pub mod library;
 pub mod licensing;
 pub mod lyrics;
 pub mod media;
 pub mod palette;
+pub mod player;
 pub mod settings;
