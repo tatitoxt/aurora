@@ -15,7 +15,7 @@
         "label": "player",
         "title": "Noctbeat",
         "width": 340,
-        "height": 460,
+        "height": 560,
         "resizable": false,
         "decorations": false,
         "transparent": true,

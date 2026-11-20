@@ -35,7 +35,7 @@ const conf = {
         label: "player",
         title: brand.productName,
         width: 340,
-        height: 460,
+        height: 560,
         resizable: false,
         decorations: false,
         transparent: true,
