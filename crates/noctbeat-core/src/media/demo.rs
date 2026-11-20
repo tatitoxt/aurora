@@ -76,6 +76,7 @@ impl NowPlayingSource for DemoSource {
                 track: Some(self.track()),
                 status: self.status,
                 position_ms: position,
+                source: "demo".into(),
                 updated_at_ms: super::now_ms(),
             });
         }
@@ -83,6 +84,7 @@ impl NowPlayingSource for DemoSource {
             track: Some(track),
             status: self.status,
             position_ms: position,
+            source: "demo".into(),
             updated_at_ms: super::now_ms(),
         })
     }

@@ -91,6 +91,7 @@ impl NowPlayingSource for SmtcSource {
             position_ms: timeline
                 .and_then(|t| t.Position().ok().map(ms))
                 .unwrap_or(0),
+            source: "smtc".into(),
             updated_at_ms: super::now_ms(),
         })
     }

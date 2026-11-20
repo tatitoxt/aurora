@@ -149,6 +149,7 @@ impl NowPlayingSource for MprisSource {
                 _ => PlaybackStatus::Stopped,
             },
             position_ms: (position_us.max(0) / 1000) as u64,
+            source: "mpris".into(),
             updated_at_ms: super::now_ms(),
         })
     }

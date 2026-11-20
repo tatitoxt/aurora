@@ -85,6 +85,7 @@ pub fn parse_player_line(line: &str) -> Option<(String, NowPlaying)> {
             }),
             status,
             position_ms,
+            source: "osascript".into(),
             updated_at_ms: super::now_ms(),
         },
     ))
@@ -106,6 +107,7 @@ impl NowPlayingSource for OsascriptSource {
                 track: None,
                 status: PlaybackStatus::Stopped,
                 position_ms: 0,
+                source: "osascript".into(),
                 updated_at_ms: super::now_ms(),
             }),
         }

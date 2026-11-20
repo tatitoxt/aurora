@@ -43,7 +43,10 @@ const conf = {
         skipTaskbar: true,
       },
     ],
-    security: { csp: null },
+    security: {
+      csp: null,
+      assetProtocol: { enable: true, scope: ["$APPDATA/**"] },
+    },
   },
   bundle: {
     active: true,

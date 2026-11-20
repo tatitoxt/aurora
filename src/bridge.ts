@@ -16,6 +16,8 @@ export interface NowPlaying {
   track: Track | null;
   status: PlaybackStatus;
   positionMs: number;
+  /** Which source produced this snapshot ("local", "mpris", "demo", ...). */
+  source: string;
   updatedAtMs: number;
 }
 export type Control = "play-pause" | "next" | "previous";
@@ -88,6 +90,16 @@ export const DEFAULT_SETTINGS: Settings = {
 const isTauri = () =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** Resolve an artwork reference (http(s), data:, file://, or a bare absolute
+ * path from the local art cache) to a URL an <img> can load. */
+export async function artSrc(url: string): Promise<string> {
+  if (!url || !isTauri()) return url;
+  if (/^(https?|data|blob):/.test(url)) return url;
+  const { convertFileSrc } = await import("@tauri-apps/api/core");
+  const path = url.startsWith("file://") ? url.slice(7) : url;
+  return convertFileSrc(path);
+}
+
 async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tauri = (window as any).__TAURI__?.core ?? (window as any).__TAURI_INTERNALS__;
@@ -134,7 +146,7 @@ class MockSource {
     let p = this.pos();
     const t = this.track();
     if (p >= t.durationMs) this.skip(1), (p = this.pos());
-    return { track: this.track(), status: this.status, positionMs: p, updatedAtMs: Date.now() };
+    return { track: this.track(), status: this.status, positionMs: p, source: "demo", updatedAtMs: Date.now() };
   }
 
   control(cmd: Control) {
@@ -193,6 +205,7 @@ function ensureMockLoop() {
 ensureMockLoop();
 
 export const bridge = {
+  artSrc,
   isTauri,
   productName: branding.productName,
 

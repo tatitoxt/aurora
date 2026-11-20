@@ -20,7 +20,7 @@ export default function Player() {
     if (track && track.id !== trackId.current) {
       trackId.current = track.id;
       bridge.getLyrics().then(setLyrics);
-      if (track.artworkUrl) setArt(track.artworkUrl);
+      if (track.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);
     }
   }, [track]);
 
@@ -46,7 +46,9 @@ export default function Player() {
             className="player__progress"
             role="slider"
             aria-label="Seek"
+            style={{ cursor: np?.source === "local" ? "pointer" : "default" }}
             onClick={(e) => {
+              if (np?.source !== "local") return;
               const r = e.currentTarget.getBoundingClientRect();
               const frac = (e.clientX - r.left) / r.width;
               if (track?.durationMs) void bridge.seek(Math.floor(frac * track.durationMs));

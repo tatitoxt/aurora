@@ -25,7 +25,7 @@ export default function Hud() {
 
   const track = np?.track ?? null;
   useEffect(() => {
-    if (track?.artworkUrl) setArt(track.artworkUrl);
+    if (track?.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);
   }, [track]);
 
   const pos = np?.positionMs ?? 0;

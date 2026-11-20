@@ -4,7 +4,6 @@
 use noctbeat_core::player::AudioOut;
 use rodio::{Decoder, Source};
 use std::fs::File;
-use std::io::BufReader;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -39,7 +38,7 @@ impl RodioOut {
 impl AudioOut for RodioOut {
     fn open(&self, path: &str) -> Result<Option<u64>, String> {
         let file = File::open(path).map_err(|e| format!("open {path}: {e}"))?;
-        let decoder = Decoder::new(BufReader::new(file)).map_err(|e| e.to_string())?;
+        let decoder = Decoder::try_from(file).map_err(|e| e.to_string())?;
         let dur = decoder.total_duration().map(|d| d.as_millis() as u64);
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_mut().ok_or("no audio device")?;

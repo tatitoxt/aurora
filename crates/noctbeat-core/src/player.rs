@@ -130,6 +130,9 @@ impl LocalPlayer {
     }
 
     pub fn set_queue(&mut self, items: Vec<QueueItem>) {
+        // Stop any in-flight playback first: otherwise the old track keeps
+        // sounding while the player reports Stopped.
+        self.audio.pause();
         self.queue = items;
         self.index = None;
         self.status = PlaybackStatus::Stopped;
@@ -200,6 +203,7 @@ impl LocalPlayer {
                 .map(|q| q.track.clone()),
             status: self.status,
             position_ms: self.audio.position_ms(),
+            source: "local".into(),
             updated_at_ms: now_ms(),
         }
     }

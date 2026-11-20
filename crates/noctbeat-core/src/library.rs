@@ -4,9 +4,9 @@ use crate::media::Track;
 use crate::player::QueueItem;
 use std::path::{Path, PathBuf};
 
-const AUDIO_EXTS: &[&str] = &[
-    "mp3", "flac", "ogg", "opus", "m4a", "aac", "wav", "wma", "aiff",
-];
+// Only extensions the configured decoder (rodio's default symphonia
+// feature set) can actually play: flac, mp3, mp4/aac, vorbis, wav.
+const AUDIO_EXTS: &[&str] = &["mp3", "flac", "ogg", "m4a", "aac", "wav"];
 
 fn is_audio(path: &Path) -> bool {
     path.extension()
@@ -20,6 +20,11 @@ fn is_audio(path: &Path) -> bool {
 pub fn scan_paths(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];
+    // Canonicalized dirs already visited: symlinks to ancestors can't loop us.
+    let mut seen = std::collections::HashSet::new();
+    if let Ok(c) = dir.canonicalize() {
+        seen.insert(c);
+    }
     while let Some(d) = stack.pop() {
         let Ok(rd) = std::fs::read_dir(&d) else {
             continue;
@@ -27,7 +32,11 @@ pub fn scan_paths(dir: &Path) -> Vec<PathBuf> {
         for entry in rd.flatten() {
             let p = entry.path();
             if p.is_dir() {
-                stack.push(p);
+                if let Ok(c) = p.canonicalize() {
+                    if seen.insert(c) {
+                        stack.push(p);
+                    }
+                }
             } else if is_audio(&p) {
                 out.push(p);
             }
@@ -92,7 +101,9 @@ fn tag_track(path: &Path) -> Track {
                 let out = Path::new(&dir).join(&name);
                 if std::fs::create_dir_all(&dir).is_ok() && std::fs::write(&out, pic.data()).is_ok()
                 {
-                    t.artwork_url = format!("file://{}", out.display());
+                    // Plain absolute path: the webview loads it through
+                    // Tauri's asset protocol (convertFileSrc), not file://.
+                    t.artwork_url = out.display().to_string();
                 }
             }
         }

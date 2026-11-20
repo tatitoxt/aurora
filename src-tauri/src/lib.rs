@@ -69,6 +69,7 @@ fn poll_np(state: &AppState) -> NowPlaying {
             track: None,
             status: PlaybackStatus::Stopped,
             position_ms: 0,
+            source: "null".into(),
             updated_at_ms: now_ms(),
         })
 }
@@ -98,6 +99,9 @@ fn media_control(state: State<AppState>, cmd: Control) -> Result<(), String> {
 
 #[tauri::command]
 fn seek(state: State<AppState>, position_ms: u64) -> Result<(), String> {
+    if !local_active(&state) {
+        return Err("seek is only supported for local playback".into());
+    }
     state
         .player
         .lock()
@@ -153,7 +157,20 @@ fn scan_library(state: State<AppState>, dir: Option<String>) -> Result<Vec<Queue
     let Some(dir) = dir else {
         return Err("no music folder configured".into());
     };
-    let items = noctbeat_core::library::scan(std::path::Path::new(&dir));
+    // Expand a leading ~ or ~/ against the user's home directory.
+    let dir = if dir == "~" || dir.starts_with("~/") {
+        match std::env::home_dir() {
+            Some(h) => h.join(dir.trim_start_matches("~/")).display().to_string(),
+            None => dir,
+        }
+    } else {
+        dir
+    };
+    let dir_path = std::path::Path::new(&dir);
+    if !dir_path.is_dir() {
+        return Err(format!("not a directory: {dir}"));
+    }
+    let items = noctbeat_core::library::scan(dir_path);
     state
         .player
         .lock()
@@ -188,6 +205,13 @@ fn fetch_artwork(url: &str) -> Result<Vec<u8>, String> {
     }
     if let Some(path) = url.strip_prefix("file://") {
         return std::fs::read(path).map_err(|e| e.to_string());
+    }
+    {
+        // Bare absolute path (embedded artwork cache) — not a URL.
+        let p = std::path::Path::new(url);
+        if p.is_absolute() && p.exists() {
+            return std::fs::read(p).map_err(|e| e.to_string());
+        }
     }
     let resp = ureq::get(url)
         .timeout(std::time::Duration::from_secs(10))
@@ -241,10 +265,13 @@ fn get_settings(state: State<AppState>) -> Result<Settings, String> {
 #[tauri::command]
 fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let state = app.state::<AppState>();
-    settings
-        .save(&state.settings_path)
-        .map_err(|e| e.to_string())?;
-    *state.settings.lock().map_err(|e| e.to_string())? = settings.clone();
+    {
+        let mut guard = state.settings.lock().map_err(|e| e.to_string())?;
+        settings
+            .save(&state.settings_path)
+            .map_err(|e| e.to_string())?;
+        *guard = settings.clone();
+    }
     sync_edge_windows(&app, &settings);
     sync_hud_window(&app, &settings);
     let _ = app.emit("settings", settings);
