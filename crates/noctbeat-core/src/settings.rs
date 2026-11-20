@@ -20,6 +20,27 @@ pub enum ColorMode {
     Custom,
 }
 
+/// User theme: a preset name plus optional accent overrides applied on top.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThemeSettings {
+    pub name: String,
+    #[serde(default)]
+    pub accent: Option<String>,
+    #[serde(default)]
+    pub accent2: Option<String>,
+}
+
+impl Default for ThemeSettings {
+    fn default() -> Self {
+        Self {
+            name: "noct".into(),
+            accent: None,
+            accent2: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -49,6 +70,9 @@ pub struct Settings {
     /// Explicit yt-dlp binary path; PATH is searched when unset.
     #[serde(default)]
     pub ytdlp_path: Option<String>,
+    /// Visual theme preset + accent overrides.
+    #[serde(default)]
+    pub theme: ThemeSettings,
 }
 
 fn default_true() -> bool {
@@ -73,6 +97,7 @@ impl Default for Settings {
             hud_position: None,
             music_dir: None,
             ytdlp_path: None,
+            theme: ThemeSettings::default(),
         }
     }
 }
