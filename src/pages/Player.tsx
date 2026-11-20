@@ -89,7 +89,10 @@ export default function Player() {
   // Resolve the music video lazily: only in karaoke mode with the backdrop
   // enabled, only once per track. Falls back to blurred artwork on any
   // failure (no yt-dlp, no video result, unreachable stream).
+  // Dep is track?.id, not track: the now-playing poll emits a new object
+  // every ~200ms and would restart the yt-dlp resolve on every tick.
   const wantVideo = settings.lyricsMode === "karaoke" && settings.videoBackdrop;
+  const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
     if (!wantVideo || !track) return;
@@ -100,7 +103,8 @@ export default function Player() {
     return () => {
       stale = true;
     };
-  }, [wantVideo, track]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantVideo, trackKey]);
 
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 1;
