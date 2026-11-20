@@ -246,6 +246,21 @@ async fn provider_play(
     Ok(item)
 }
 
+/// Resolve the track's music video to a direct stream URL for the karaoke
+/// backdrop. `Ok(None)` when yt-dlp is missing or no video resolves — the
+/// player falls back to the blurred artwork.
+#[tauri::command]
+async fn resolve_video(
+    state: State<'_, AppState>,
+    artist: String,
+    title: String,
+) -> Result<Option<String>, String> {
+    match detected_ytdlp(&state) {
+        Ok(ytdlp) => ytdlp.resolve_video(&artist, &title),
+        Err(_) => Ok(None),
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PaletteOut {
@@ -678,6 +693,7 @@ pub fn run() {
             provider_status,
             provider_search,
             provider_play,
+            resolve_video,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());

@@ -33,6 +33,19 @@ pub struct RemoteTrack {
     pub artwork_url: String,
 }
 
+/// Video selector for the karaoke backdrop: prefer an h264 progressive or
+/// video-only mp4 under 480p (every webview decodes avc; av1/vp9 support is
+/// uneven), then any <=480p video, then whatever is available. Video-only
+/// streams are fine — the backdrop is muted and blurred, so quality matters
+/// less than size.
+const VIDEO_SELECTOR: &str = concat!(
+    "b[ext=mp4][vcodec^=avc][height<=480]/bv*[ext=mp4][vcodec^=avc][height<=480]/",
+    "b[vcodec^=avc][height<=480]/bv*[vcodec^=avc][height<=480]/",
+    "b[ext=mp4][height<=480]/bv*[ext=mp4][height<=480]/",
+    "b[height<=480]/bv*[height<=480]/",
+    "b/bv*",
+);
+
 /// Provider prefix understood by yt-dlp (`<prefix><N>:<query>`).
 pub fn search_prefix(source: &str) -> Option<&'static str> {
     match source {
@@ -93,6 +106,38 @@ impl YtDlp {
             .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
             .filter_map(|v| parse_entry(source, &v))
             .collect())
+    }
+
+    /// Resolve a direct video stream URL for the track's music video, for the
+    /// karaoke backdrop. Returns the `-g` URL (no download). First tries an
+    /// "official video" search, then a bare title search.
+    pub fn resolve_video(&self, artist: &str, title: &str) -> Result<Option<String>, String> {
+        for suffix in [" official music video", ""] {
+            let query = format!("{artist} {title}{suffix}");
+            let spec = format!("ytsearch1:{query}");
+            let out = Command::new(&self.bin)
+                .args([
+                    &spec,
+                    "-f",
+                    VIDEO_SELECTOR,
+                    "-g",
+                    "--no-playlist",
+                    "--no-warnings",
+                ])
+                .output()
+                .map_err(|e| e.to_string())?;
+            if !out.status.success() {
+                continue;
+            }
+            let url = String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .find(|l| !l.trim().is_empty())
+                .map(|l| l.trim().to_string());
+            if let Some(u) = url {
+                return Ok(Some(u));
+            }
+        }
+        Ok(None)
     }
 
     /// Download the best decodable audio for `url` into `dest_dir` as
