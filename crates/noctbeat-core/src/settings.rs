@@ -73,10 +73,17 @@ pub struct Settings {
     /// Visual theme preset + accent overrides.
     #[serde(default)]
     pub theme: ThemeSettings,
+    /// Lyrics presentation: "lines" (scrolling list) or "karaoke" (word fill).
+    #[serde(default = "default_lyrics_mode")]
+    pub lyrics_mode: String,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_lyrics_mode() -> String {
+    "lines".into()
 }
 
 impl Default for Settings {
@@ -98,6 +105,7 @@ impl Default for Settings {
             music_dir: None,
             ytdlp_path: None,
             theme: ThemeSettings::default(),
+            lyrics_mode: default_lyrics_mode(),
         }
     }
 }

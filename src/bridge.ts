@@ -57,6 +57,8 @@ export interface Settings {
   musicDir: string | null;
   ytdlpPath: string | null;
   theme: ThemeSettings;
+  /** "lines" (scrolling list) or "karaoke" (word-by-word). */
+  lyricsMode: string;
 }
 
 export interface ThemeSettings {
@@ -106,6 +108,7 @@ export const DEFAULT_SETTINGS: Settings = {
   musicDir: null,
   ytdlpPath: null,
   theme: { name: "noct", accent: null, accent2: null },
+  lyricsMode: "lines",
 };
 
 const isTauri = () =>

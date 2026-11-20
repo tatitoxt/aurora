@@ -78,6 +78,24 @@ export default function Settings() {
         </div>
 
         <div className="row">
+          <span>Lyrics</span>
+          <div className="seg">
+            <button
+              className={s.lyricsMode === "lines" ? "on" : ""}
+              onClick={() => patch({ lyricsMode: "lines" })}
+            >
+              Lines
+            </button>
+            <button
+              className={s.lyricsMode === "karaoke" ? "on" : ""}
+              onClick={() => patch({ lyricsMode: "karaoke" })}
+            >
+              Karaoke
+            </button>
+          </div>
+        </div>
+
+        <div className="row">
           <span>Colors</span>
           <div className="seg">
             <button
