@@ -75,13 +75,18 @@ pub fn parse_lrc(input: &str) -> Vec<LrcLine> {
         if stamps.is_empty() {
             continue; // metadata or malformed
         }
+        let base_ms = stamps[0];
         for ms in stamps {
-            let (text, words) = match parse_word_tags(rest.trim(), offset_ms) {
+            // Word tags are written against the first occurrence; shift them
+            // so repeated lines get their own syllable times.
+            let word_offset = offset_ms + (ms as i64 - base_ms as i64);
+            let line_at = (ms as i64 + offset_ms).max(0) as u64;
+            let (text, words) = match parse_word_tags(rest.trim(), word_offset, line_at) {
                 Some((t, w)) => (t, Some(w)),
                 None => (rest.trim().to_string(), None),
             };
             lines.push(LrcLine {
-                at_ms: (ms as i64 + offset_ms).max(0) as u64,
+                at_ms: line_at,
                 text,
                 words,
             });
@@ -92,16 +97,27 @@ pub fn parse_lrc(input: &str) -> Vec<LrcLine> {
 }
 
 /// Enhanced-LRC (A2) inline word tags: `<mm:ss.xx>` marks when the following
-/// word is sung. Returns the plain text (tags stripped) and the timed words;
-/// `None` when the line has no word tags.
-fn parse_word_tags(rest: &str, offset_ms: i64) -> Option<(String, Vec<LrcWord>)> {
+/// word is sung. `offset_ms` applies the global offset plus any shift for
+/// repeated lines; `line_at_ms` is this occurrence's start, used to time any
+/// leading text before the first tag. Returns the plain text (tags stripped)
+/// and the timed segments; `None` when the line has no word tags.
+fn parse_word_tags(rest: &str, offset_ms: i64, line_at_ms: u64) -> Option<(String, Vec<LrcWord>)> {
     if !rest.contains('<') {
         return None;
     }
     let mut s = rest;
     let mut plain = String::new();
     let mut words: Vec<LrcWord> = Vec::new();
-    let mut current: Option<LrcWord> = None;
+    // Text before the first tag belongs to this line too — time it at the
+    // line start so karaoke doesn't drop it.
+    let mut current: Option<LrcWord> = if !rest.starts_with('<') {
+        Some(LrcWord {
+            at_ms: line_at_ms,
+            text: String::new(),
+        })
+    } else {
+        None
+    };
     while let Some(lt) = s.find('<') {
         let (head, after_lt) = s.split_at(lt);
         plain.push_str(head);
@@ -284,20 +300,39 @@ impl LrclibClient {
             return Ok(if lines.is_empty() { None } else { Some(lines) });
         }
         let res = self.fetch(track)?;
-        let text = res.as_ref().map(|ls| {
-            ls.iter()
-                .map(|l| {
-                    let m = l.at_ms / 60000;
-                    let s = (l.at_ms % 60000) / 1000;
-                    let cs = (l.at_ms % 1000) / 10;
-                    format!("[{m:02}:{s:02}.{cs:02}]{}", l.text)
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        });
+        let text = res.as_ref().map(|ls| write_lrc(ls));
         cache.put(&track.id, text.as_deref())?;
         Ok(res)
     }
+}
+
+fn fmt_ts(ms: u64) -> String {
+    format!(
+        "{:02}:{:02}.{:02}",
+        ms / 60000,
+        (ms % 60000) / 1000,
+        (ms % 1000) / 10
+    )
+}
+
+/// Serialize lines back to LRC for the disk cache, preserving A2 word tags
+/// (written against each line's own timestamp).
+fn write_lrc(lines: &[LrcLine]) -> String {
+    lines
+        .iter()
+        .map(|l| {
+            let mut s = format!("[{}]", fmt_ts(l.at_ms));
+            if let Some(words) = &l.words {
+                for w in words {
+                    s.push_str(&format!("<{}>{}", fmt_ts(w.at_ms), w.text));
+                }
+            } else {
+                s.push_str(&l.text);
+            }
+            s
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn urlencode(s: &str) -> String {
@@ -365,6 +400,42 @@ mod tests {
         assert_eq!(words.len(), 1);
         assert_eq!(words[0].at_ms, 1700);
         assert_eq!(words[0].text, "hey");
+    }
+
+    #[test]
+    fn a2_leading_text_gets_line_time() {
+        let lines = parse_lrc("[00:01.00]La <00:01.50>la");
+        let words = lines[0].words.as_ref().unwrap();
+        assert_eq!(words.len(), 2);
+        assert_eq!(words[0].at_ms, 1000);
+        assert_eq!(words[0].text, "La ");
+        assert_eq!(words[1].at_ms, 1500);
+        assert_eq!(lines[0].text, "La la");
+    }
+
+    #[test]
+    fn a2_repeated_lines_shift_word_times() {
+        let lines = parse_lrc("[00:10.00][00:20.00]<00:10.50>word");
+        assert_eq!(lines.len(), 2);
+        assert_eq!(
+            lines[0].words.as_ref().unwrap()[0].at_ms,
+            10_500,
+            "first occurrence"
+        );
+        assert_eq!(
+            lines[1].words.as_ref().unwrap()[0].at_ms,
+            20_500,
+            "second occurrence shifted by line delta"
+        );
+    }
+
+    #[test]
+    fn write_lrc_preserves_word_tags() {
+        let src = "[00:01.00]<00:01.10>Hel<00:01.50>lo <00:02.00>world\n[00:05.00]plain";
+        let lines = parse_lrc(src);
+        let out = write_lrc(&lines);
+        let reparsed = parse_lrc(&out);
+        assert_eq!(reparsed, lines);
     }
 
     #[test]
