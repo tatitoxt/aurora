@@ -1,2 +1,3 @@
-# aurora
-Ambient edge light, glass mini player and synced lyrics that follow whatever music you play. Mac, Windows, Linux.
+# Noctbeat
+
+Ambient edge light, glass mini player and synced lyrics for whatever music is playing.
