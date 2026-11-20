@@ -56,6 +56,13 @@ export interface Settings {
   hudPosition: [number, number] | null;
   musicDir: string | null;
   ytdlpPath: string | null;
+  theme: ThemeSettings;
+}
+
+export interface ThemeSettings {
+  name: string;
+  accent: string | null;
+  accent2: string | null;
 }
 export interface RemoteTrack {
   id: string;
@@ -98,6 +105,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hudPosition: null,
   musicDir: null,
   ytdlpPath: null,
+  theme: { name: "noct", accent: null, accent2: null },
 };
 
 const isTauri = () =>
