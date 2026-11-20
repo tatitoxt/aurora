@@ -9,9 +9,20 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LrcWord {
+    pub at_ms: u64,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LrcLine {
     pub at_ms: u64,
     pub text: String,
+    /// Enhanced-LRC (A2) word timestamps, when the source provides them —
+    /// lets karaoke light words at their real times instead of an even split.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub words: Option<Vec<LrcWord>>,
 }
 
 #[derive(Debug, Error)]
@@ -65,14 +76,81 @@ pub fn parse_lrc(input: &str) -> Vec<LrcLine> {
             continue; // metadata or malformed
         }
         for ms in stamps {
+            let (text, words) = match parse_word_tags(rest.trim(), offset_ms) {
+                Some((t, w)) => (t, Some(w)),
+                None => (rest.trim().to_string(), None),
+            };
             lines.push(LrcLine {
                 at_ms: (ms as i64 + offset_ms).max(0) as u64,
-                text: rest.trim().to_string(),
+                text,
+                words,
             });
         }
     }
     lines.sort_by_key(|l| l.at_ms);
     lines
+}
+
+/// Enhanced-LRC (A2) inline word tags: `<mm:ss.xx>` marks when the following
+/// word is sung. Returns the plain text (tags stripped) and the timed words;
+/// `None` when the line has no word tags.
+fn parse_word_tags(rest: &str, offset_ms: i64) -> Option<(String, Vec<LrcWord>)> {
+    if !rest.contains('<') {
+        return None;
+    }
+    let mut s = rest;
+    let mut plain = String::new();
+    let mut words: Vec<LrcWord> = Vec::new();
+    let mut current: Option<LrcWord> = None;
+    while let Some(lt) = s.find('<') {
+        let (head, after_lt) = s.split_at(lt);
+        plain.push_str(head);
+        if let Some(w) = current.as_mut() {
+            w.text.push_str(head);
+        }
+        let after = &after_lt[1..];
+        let Some(gt) = after.find('>') else {
+            // Unterminated '<' — literal text.
+            plain.push('<');
+            if let Some(w) = current.as_mut() {
+                w.text.push('<');
+            }
+            s = after;
+            continue;
+        };
+        if let Some(ms) = parse_ts(&after[..gt]) {
+            if let Some(w) = current.take() {
+                words.push(w);
+            }
+            current = Some(LrcWord {
+                at_ms: (ms as i64 + offset_ms).max(0) as u64,
+                text: String::new(),
+            });
+            s = &after[gt + 1..];
+        } else {
+            // Not a timestamp — treat '<' literally.
+            plain.push('<');
+            if let Some(w) = current.as_mut() {
+                w.text.push('<');
+            }
+            s = after;
+        }
+    }
+    plain.push_str(s);
+    if let Some(w) = current.as_mut() {
+        w.text.push_str(s);
+    }
+    if let Some(w) = current.take() {
+        words.push(w);
+    }
+    // Segment text keeps its spacing verbatim — segments can be syllables
+    // mid-word, so trimming/joining with spaces would corrupt the line.
+    words.retain(|w| !w.text.is_empty());
+    if words.is_empty() {
+        None
+    } else {
+        Some((plain.trim().to_string(), words))
+    }
 }
 
 /// Index of the line active at `pos_ms` (last line at or before position).
@@ -261,6 +339,38 @@ mod tests {
         assert_eq!(lines[3].text, "");
         assert_eq!(lines[5].at_ms, 10_000);
         assert_eq!(lines[5].text, "Repeated");
+    }
+
+    #[test]
+    fn parses_a2_word_tags() {
+        // A2 marks syllable starts: "Hel"+"lo" is one word, two segments.
+        let lines = parse_lrc("[00:01.00]<00:01.10>Hel<00:01.50>lo <00:02.00>world");
+        assert_eq!(lines.len(), 1);
+        let l = &lines[0];
+        assert_eq!(l.text, "Hello world");
+        let words = l.words.as_ref().unwrap();
+        assert_eq!(words.len(), 3);
+        assert_eq!(words[0].at_ms, 1100);
+        assert_eq!(words[0].text, "Hel");
+        assert_eq!(words[1].at_ms, 1500);
+        assert_eq!(words[1].text, "lo ");
+        assert_eq!(words[2].at_ms, 2000);
+        assert_eq!(words[2].text, "world");
+    }
+
+    #[test]
+    fn a2_respects_offset() {
+        let lines = parse_lrc("[offset:+500]\n[00:01.00]<00:01.20>hey");
+        let words = lines[0].words.as_ref().unwrap();
+        assert_eq!(words.len(), 1);
+        assert_eq!(words[0].at_ms, 1700);
+        assert_eq!(words[0].text, "hey");
+    }
+
+    #[test]
+    fn line_without_word_tags_has_none() {
+        let lines = parse_lrc("[00:01.00]plain line");
+        assert_eq!(lines[0].words, None);
     }
 
     #[test]
