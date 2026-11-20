@@ -9,9 +9,16 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Prefer AAC/m4a so rodio/symphonia decodes it without the opus/mkv feature
-/// set; fall back to whatever audio (or muxed) stream yt-dlp can get.
-const FORMAT_SELECTOR: &str = "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best";
+/// Prefer formats rodio/symphonia decodes without the opus/mkv feature set
+/// (aac/m4a, mp3, flac, wav, ogg-vorbis) — a plain `bestaudio` fallback can
+/// pick Opus/WebM over an available MP3 and produce an undecodable file.
+const FORMAT_SELECTOR: &str = concat!(
+    "ba[ext=m4a]/ba[acodec^=mp4a]/",
+    "ba[ext=mp3]/ba[acodec^=mp3]/",
+    "ba[ext=flac]/ba[ext=wav]/",
+    "ba[ext=ogg]/ba[acodec^=vorbis]/",
+    "ba/b",
+);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -147,11 +154,11 @@ fn which(name: &str) -> Option<PathBuf> {
 fn parse_entry(source: &str, v: &serde_json::Value) -> Option<RemoteTrack> {
     let id = v.get("id")?.as_str()?.to_string();
     let title = v.get("title")?.as_str()?.to_string();
-    let artist = v
-        .get("artist")
-        .or_else(|| v.get("channel"))
-        .or_else(|| v.get("uploader"))
-        .and_then(|x| x.as_str())
+    // `artist: null` is a present-but-null value: or_else would accept it and
+    // suppress the populated fallbacks — pick the first non-null string.
+    let artist = ["artist", "channel", "uploader"]
+        .iter()
+        .find_map(|k| v.get(k)?.as_str())
         .unwrap_or_default()
         .to_string();
     let duration_ms = v
@@ -159,10 +166,9 @@ fn parse_entry(source: &str, v: &serde_json::Value) -> Option<RemoteTrack> {
         .and_then(|d| d.as_f64())
         .map(|s| (s * 1000.0) as u64)
         .unwrap_or(0);
-    let url = v
-        .get("webpage_url")
-        .or_else(|| v.get("url"))
-        .and_then(|x| x.as_str())
+    let url = ["webpage_url", "url"]
+        .iter()
+        .find_map(|k| v.get(k)?.as_str())
         .unwrap_or_default()
         .to_string();
     // Flat entries carry only an id; rebuild a watch/search URL per provider.
@@ -177,6 +183,7 @@ fn parse_entry(source: &str, v: &serde_json::Value) -> Option<RemoteTrack> {
     let artwork_url = v
         .get("thumbnail")
         .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
         .map(String::from)
         .or_else(|| {
             v.get("thumbnails")?
@@ -237,6 +244,19 @@ mod tests {
     #[test]
     fn drops_entry_without_title() {
         assert!(entry(r#"{"id":"x"}"#).is_none());
+    }
+
+    #[test]
+    fn null_artist_falls_back_to_uploader() {
+        let t = entry(r#"{"id":"a","title":"S","artist":null,"channel":null,"uploader":"DJ"}"#)
+            .unwrap();
+        assert_eq!(t.artist, "DJ");
+    }
+
+    #[test]
+    fn null_webpage_url_falls_back() {
+        let t = entry(r#"{"id":"a","title":"S","webpage_url":null,"url":"https://x/y"}"#).unwrap();
+        assert_eq!(t.url, "https://x/y");
     }
 
     #[test]

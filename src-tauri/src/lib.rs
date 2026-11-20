@@ -198,9 +198,11 @@ fn provider_status(state: State<AppState>) -> bool {
     detected_ytdlp(&state).is_ok()
 }
 
+/// Async so the synchronous yt-dlp extraction runs on the runtime pool, not
+/// the UI thread.
 #[tauri::command]
-fn provider_search(
-    state: State<AppState>,
+async fn provider_search(
+    state: State<'_, AppState>,
     source: String,
     query: String,
 ) -> Result<Vec<RemoteTrack>, String> {
