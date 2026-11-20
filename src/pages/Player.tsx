@@ -42,7 +42,16 @@ export default function Player() {
           </div>
         </div>
         <div>
-          <div className="player__progress">
+          <div
+            className="player__progress"
+            role="slider"
+            aria-label="Seek"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const frac = (e.clientX - r.left) / r.width;
+              if (track?.durationMs) void bridge.seek(Math.floor(frac * track.durationMs));
+            }}
+          >
             <div className="player__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
           </div>
           <div className="player__times">
@@ -78,9 +87,14 @@ export default function Player() {
             ))}
           </div>
         )}
-        <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
-          {bridge.productName}
-        </Link>
+        <div className="player__nav">
+          <Link to="/library" className="wordmark" style={{ textDecoration: "none" }}>
+            Library
+          </Link>
+          <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
+            {bridge.productName}
+          </Link>
+        </div>
       </div>
     </div>
   );

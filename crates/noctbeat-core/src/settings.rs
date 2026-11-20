@@ -43,6 +43,9 @@ pub struct Settings {
     /// Last on-screen position, restored on launch.
     #[serde(default)]
     pub hud_position: Option<(i32, i32)>,
+    /// Folder the local library scans on demand.
+    #[serde(default)]
+    pub music_dir: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -65,6 +68,7 @@ impl Default for Settings {
             hud_enabled: true,
             hud_always_on_top: true,
             hud_position: None,
+            music_dir: None,
         }
     }
 }

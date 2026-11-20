@@ -4,8 +4,11 @@
 use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
-use noctbeat_core::media::{now_ms, Control, DemoSource, NowPlaying, NowPlayingSource};
+use noctbeat_core::media::{now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus};
 use noctbeat_core::palette::{extract_palette_bytes, Palette};
+use noctbeat_core::player::{LocalPlayer, QueueItem};
+
+mod audio;
 use noctbeat_core::settings::Settings;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -14,6 +17,8 @@ use tauri::{Emitter, Manager, State};
 
 struct AppState {
     source: Mutex<Box<dyn NowPlayingSource>>,
+    /// In-app player for local files; wins over `source` while active.
+    player: Mutex<LocalPlayer>,
     settings: Mutex<Settings>,
     settings_path: PathBuf,
     beat: Mutex<BeatDetector>,
@@ -21,6 +26,9 @@ struct AppState {
     lyrics: Mutex<Option<(String, Vec<LrcLine>)>>,
     lyrics_cache: LyricsCache,
     license_path: PathBuf,
+    /// Latest HUD position reported by the Moved event, debounced before
+    /// persisting so a drag does not write settings on every pixel.
+    hud_pos_pending: Mutex<Option<((i32, i32), std::time::Instant)>>,
     demo: bool,
 }
 
@@ -32,24 +40,130 @@ fn config_dir() -> PathBuf {
     base.join(&noctbeat_core::branding::branding().short_name)
 }
 
-#[tauri::command]
-fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
+/// The local player claims the transport while it is playing or paused;
+/// otherwise whatever the OS reports (Spotify, browser, …) wins.
+fn local_active(state: &AppState) -> bool {
+    state
+        .player
+        .lock()
+        .map(|p| p.status() != PlaybackStatus::Stopped)
+        .unwrap_or(false)
+}
+
+fn poll_np(state: &AppState) -> NowPlaying {
+    if local_active(state) {
+        if let Ok(mut p) = state.player.lock() {
+            if let Ok(np) = p.poll() {
+                return np;
+            }
+        }
+    }
     state
         .source
         .lock()
-        .map_err(|e| e.to_string())?
-        .poll()
-        .map_err(|e| e.to_string())
+        .ok()
+        .and_then(|mut s| s.poll().ok())
+        .unwrap_or(NowPlaying {
+            track: None,
+            status: PlaybackStatus::Stopped,
+            position_ms: 0,
+            updated_at_ms: now_ms(),
+        })
+}
+
+#[tauri::command]
+fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
+    Ok(poll_np(&state))
 }
 
 #[tauri::command]
 fn media_control(state: State<AppState>, cmd: Control) -> Result<(), String> {
+    if local_active(&state) {
+        return state
+            .player
+            .lock()
+            .map_err(|e| e.to_string())?
+            .control(cmd)
+            .map_err(|e| e.to_string());
+    }
     state
         .source
         .lock()
         .map_err(|e| e.to_string())?
         .control(cmd)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn seek(state: State<AppState>, position_ms: u64) -> Result<(), String> {
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .seek(position_ms)
+}
+
+#[tauri::command]
+fn set_volume(state: State<AppState>, volume: f32) -> Result<(), String> {
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .set_volume(volume);
+    Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QueueOut {
+    items: Vec<QueueItem>,
+    current_index: Option<usize>,
+}
+
+#[tauri::command]
+fn get_queue(state: State<AppState>) -> Result<QueueOut, String> {
+    let p = state.player.lock().map_err(|e| e.to_string())?;
+    Ok(QueueOut {
+        items: p.queue().to_vec(),
+        current_index: p.current_index(),
+    })
+}
+
+#[tauri::command]
+fn play_queue_index(state: State<AppState>, index: usize) -> Result<(), String> {
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .play_index(index)
+}
+
+#[tauri::command]
+fn clear_queue(state: State<AppState>) -> Result<(), String> {
+    state.player.lock().map_err(|e| e.to_string())?.clear();
+    Ok(())
+}
+
+/// Scan `dir` (or the configured music dir) and replace the play queue.
+#[tauri::command]
+fn scan_library(state: State<AppState>, dir: Option<String>) -> Result<Vec<QueueItem>, String> {
+    let dir = dir.or_else(|| {
+        state
+            .settings
+            .lock()
+            .ok()
+            .and_then(|s| s.music_dir.clone())
+    });
+    let Some(dir) = dir else {
+        return Err("no music folder configured".into());
+    };
+    let items = noctbeat_core::library::scan(std::path::Path::new(&dir));
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .set_queue(items.clone());
+    Ok(items)
 }
 
 #[derive(Serialize)]
@@ -278,7 +392,7 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     if !settings.hud_enabled {
         return;
     }
-    let mut builder = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         app,
         "hud",
         tauri::WebviewUrl::App("index.html#/hud".into()),
@@ -289,22 +403,45 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     .skip_taskbar(true)
     .resizable(false)
     .inner_size(460.0, 76.0);
-    if let Some((x, y)) = settings.hud_position {
-        builder = builder.position(x as f64, y as f64);
-    }
     if let Ok(win) = builder.build() {
+        // Moved reports physical pixels; restore them physically too, or a
+        // scaled display would double-apply the scale factor.
+        if let Some((x, y)) = settings.hud_position {
+            let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+        }
         let app2 = app.clone();
         win.on_window_event(move |event| {
             if let tauri::WindowEvent::Moved(pos) = event {
                 let state = app2.state::<AppState>();
-                if let Ok(mut s) = state.settings.lock() {
-                    if s.hud_position != Some((pos.x, pos.y)) {
-                        s.hud_position = Some((pos.x, pos.y));
-                        let _ = s.save(&state.settings_path);
-                    }
+                if let Ok(mut pending) = state.hud_pos_pending.lock() {
+                    *pending = Some(((pos.x, pos.y), std::time::Instant::now()));
                 };
             }
         });
+    }
+}
+
+/// Called from the poller: persist a HUD position once the drag settles,
+/// and emit `settings` so windows holding a copy never save a stale one.
+fn flush_hud_position(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    let pos = {
+        let Ok(pending) = state.hud_pos_pending.lock() else { return };
+        match *pending {
+            Some((pos, at)) if at.elapsed() > std::time::Duration::from_millis(300) => pos,
+            _ => return,
+        }
+    };
+    if let Ok(mut pending) = state.hud_pos_pending.lock() {
+        *pending = None;
+    }
+    let Ok(mut s) = state.settings.lock() else { return };
+    if s.hud_position == Some(pos) {
+        return;
+    }
+    s.hud_position = Some(pos);
+    if s.save(&state.settings_path).is_ok() {
+        let _ = app.emit("settings", s.clone());
     }
 }
 
@@ -343,19 +480,22 @@ fn spawn_poller(app: &tauri::AppHandle) {
             ticks += 1;
             let state = app.state::<AppState>();
             let np = {
-                let mut src = match state.source.lock() {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                };
-                if !state.demo && src.name() == "null" && ticks.is_multiple_of(25) {
-                    *src = noctbeat_core::media::platform_source();
+                if !local_active(&state) {
+                    // Rediscover the platform player source while idle.
+                    if !state.demo
+                        && ticks.is_multiple_of(25)
+                        && state
+                            .source
+                            .lock()
+                            .map(|s| s.name() == "null")
+                            .unwrap_or(false)
+                    {
+                        if let Ok(mut src) = state.source.lock() {
+                            *src = noctbeat_core::media::platform_source();
+                        }
+                    }
                 }
-                src.poll().unwrap_or(NowPlaying {
-                    track: None,
-                    status: noctbeat_core::media::PlaybackStatus::Stopped,
-                    position_ms: 0,
-                    updated_at_ms: now_ms(),
-                })
+                poll_np(&state)
             };
             let energy = {
                 let prev = *state.last_energy.lock().unwrap_or_else(|e| e.into_inner());
@@ -375,6 +515,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
             };
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
+            flush_hud_position(&app);
         }
     });
 }
@@ -390,10 +531,18 @@ pub fn run() {
     let dir = config_dir();
     let settings_path = dir.join("settings.json");
     let settings = Settings::load(&settings_path);
+    // Tag reader drops embedded artwork here for the UI to file://.
+    std::env::set_var("NOCTBEAT_ART_DIR", dir.join("art"));
+    let audio_out: std::sync::Arc<dyn noctbeat_core::player::AudioOut> =
+        match audio::RodioOut::open_default() {
+            Some(out) => std::sync::Arc::new(out),
+            None => std::sync::Arc::new(noctbeat_core::player::NullAudio::new()),
+        };
 
     tauri::Builder::default()
         .manage(AppState {
             source: Mutex::new(source),
+            player: Mutex::new(LocalPlayer::new(audio_out)),
             settings: Mutex::new(settings.clone()),
             settings_path: settings_path.clone(),
             beat: Mutex::new(BeatDetector::new(48_000)),
@@ -408,6 +557,7 @@ pub fn run() {
                 std::time::Duration::from_secs(7 * 24 * 3600),
             ),
             license_path: dir.join("license.json"),
+            hud_pos_pending: Mutex::new(None),
             demo,
         })
         .invoke_handler(tauri::generate_handler![
@@ -425,6 +575,12 @@ pub fn run() {
             set_hud_pinned,
             hud_start_drag,
             show_player,
+            seek,
+            set_volume,
+            get_queue,
+            play_queue_index,
+            clear_queue,
+            scan_library,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());

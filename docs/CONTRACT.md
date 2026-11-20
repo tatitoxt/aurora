@@ -97,6 +97,36 @@ impl Settings { pub fn load(path: &Path) -> Self; pub fn save(&self, path: &Path
 // load(): missing file -> defaults; older version -> migrate; corrupt -> defaults (never panic)
 ```
 
+### player + library (`src/player.rs`, `src/library.rs`)
+
+```rust
+pub struct QueueItem { pub track: Track, pub path: String }
+pub trait AudioOut: Send + Sync {          // audio device behind a trait
+    fn open(&self, path: &str) -> Result<Option<u64>, String>; // -> duration ms
+    fn play(&self); fn pause(&self);
+    fn position_ms(&self) -> u64;
+    fn seek(&self, position_ms: u64) -> Result<(), String>;
+    fn set_volume(&self, v: f32);
+    fn is_finished(&self) -> bool;
+}
+pub struct NullAudio;                       // silent impl for tests/headless
+pub struct LocalPlayer;                     // implements NowPlayingSource
+impl LocalPlayer {
+    pub fn new(audio: Arc<dyn AudioOut>) -> Self;
+    pub fn queue(&self) -> &[QueueItem];
+    pub fn current_index(&self) -> Option<usize>;
+    pub fn status(&self) -> PlaybackStatus;
+    pub fn set_queue(&mut self, items: Vec<QueueItem>);
+    pub fn add(&mut self, item: QueueItem);
+    pub fn clear(&mut self);
+    pub fn play_index(&mut self, i: usize) -> Result<(), String>;
+    pub fn seek(&self, ms: u64) -> Result<(), String>;
+    pub fn set_volume(&self, v: f32);
+    pub fn tick(&mut self) -> NowPlaying;  // auto-advances on track end
+}
+// library.rs: scan(dir) -> Vec<QueueItem>  (walkdir + lofty tags/artwork)
+// The local player wins now-playing + transport while status != Stopped.
+
 ### licensing (branch `devin/core-config`, `src/licensing.rs`)
 
 Vendor: Lemon Squeezy `POST {base}/v1/licenses/validate` with `license_key`,
@@ -124,6 +154,12 @@ All via `invoke`, camelCase names:
 | `setHudPinned`         | `{ pinned: boolean }`                  | `null`                        |
 | `hudStartDrag`         | —                                      | `null`                        |
 | `showPlayer`           | —                                      | `null`                        |
+| `seek`                 | `{ positionMs: number }`               | `null` (local only)           |
+| `setVolume`            | `{ volume: number }`                   | `null`                        |
+| `getQueue`             | —                                      | `{ items, currentIndex }`     |
+| `playQueueIndex`       | `{ index: number }`                    | `null`                        |
+| `clearQueue`           | —                                      | `null`                        |
+| `scanLibrary`          | `{ dir?: string }`                     | `QueueItem[]`                 |
 
 Events emitted to frontend: `now-playing` (NowPlaying), `energy` (EnergyUpdate).
 
@@ -141,7 +177,7 @@ transparent pill serving `/hud`; it is dragged via `hudStartDrag`, pinned via
   otherwise a browser mock identical to `DemoSource` (same playlist/titles)
   so `pnpm dev` works with no Rust.
 - Routes: `/` mini player, `/edge` glow overlay, `/settings` panel,
-  `/hud` floating pill.
+  `/hud` floating pill, `/library` local queue.
 - Design: dark, frosted glass (backdrop-filter), thin wordmark, no emoji.
 - Tests: Vitest + Testing Library; test the mock bridge and pure helpers.
 - `src/branding.ts` is generated — import from it, never hard-code the name.

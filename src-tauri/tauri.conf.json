@@ -30,7 +30,14 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "category": "Music",
     "shortDescription": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",
     "longDescription": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",

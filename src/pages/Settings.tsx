@@ -103,6 +103,16 @@ export default function Settings() {
           </div>
         )}
 
+        <div className="field">
+          <span>Music folder</span>
+          <input
+            type="text"
+            placeholder="~/Music"
+            value={s.musicDir ?? ""}
+            onChange={(e) => patch({ musicDir: e.target.value || null })}
+          />
+        </div>
+
         <div className="row">
           <span>Battery saver (static glow)</span>
           <button

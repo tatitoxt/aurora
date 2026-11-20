@@ -40,7 +40,9 @@ export default function Hud() {
   };
 
   const close = () =>
-    void bridge.updateSettings({ ...settings, hudEnabled: false });
+    void bridge
+      .getSettings()
+      .then((fresh) => bridge.updateSettings({ ...fresh, hudEnabled: false }));
 
   return (
     <div className="hud" onMouseDown={onMouseDown}>

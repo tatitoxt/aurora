@@ -48,7 +48,14 @@ const conf = {
   bundle: {
     active: true,
     targets: "all",
-    icon: [],
+    icon: [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+    ],
     category: "Music",
     shortDescription: brand.description,
     longDescription: brand.description,

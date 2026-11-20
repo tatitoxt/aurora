@@ -65,9 +65,10 @@ try {
     return "";
   };
   const elId = flat(el.body.value);
-  const text = elId
-    ? (await wd("GET", `/session/${session}/element/${encodeURIComponent(elId)}/text`)).body.value
-    : "";
+  const textRes = elId
+    ? await wd("GET", `/session/${session}/element/${encodeURIComponent(elId)}/text`)
+    : null;
+  const text = textRes ? flat(textRes.body.value) : "";
   if (!/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) {
     throw new Error(`expected a demo track title, got "${text}"`);
   }

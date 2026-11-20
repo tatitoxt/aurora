@@ -52,6 +52,15 @@ export interface Settings {
   hudEnabled: boolean;
   hudAlwaysOnTop: boolean;
   hudPosition: [number, number] | null;
+  musicDir: string | null;
+}
+export interface QueueItem {
+  track: Track;
+  path: string;
+}
+export interface QueueState {
+  items: QueueItem[];
+  currentIndex: number | null;
 }
 export type LicenseState =
   | { state: "unlicensed" }
@@ -73,6 +82,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hudEnabled: true,
   hudAlwaysOnTop: true,
   hudPosition: null,
+  musicDir: null,
 };
 
 const isTauri = () =>
@@ -231,6 +241,41 @@ export const bridge = {
     isTauri()
       ? invokeCmd<EnergyUpdate>("get_energy")
       : Promise.resolve({ level: 0.5, beat: false, bpm: 120 }),
+  seek: (positionMs: number) =>
+    isTauri() ? invokeCmd<null>("seek", { positionMs }) : Promise.resolve(null),
+  setVolume: (volume: number) =>
+    isTauri() ? invokeCmd<null>("set_volume", { volume }) : Promise.resolve(null),
+  getQueue: (): Promise<QueueState> =>
+    isTauri()
+      ? invokeCmd<QueueState>("get_queue")
+      : Promise.resolve({
+          items: DEMO_PLAYLIST.map(([title, artist, album, durationMs], i) => ({
+            track: {
+              id: `${artist} — ${title}`,
+              title,
+              artist,
+              album,
+              artworkUrl: "",
+              durationMs,
+            },
+            path: `/demo/${i}.mp3`,
+          })),
+          currentIndex: mock.index,
+        }),
+  playQueueIndex: (index: number) => {
+    if (isTauri()) return invokeCmd<null>("play_queue_index", { index });
+    mock.index = index;
+    mock.positionMs = 0;
+    mock.anchor = Date.now();
+    mock.status = "playing";
+    return Promise.resolve(null);
+  },
+  clearQueue: () =>
+    isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
+  scanLibrary: (dir?: string) =>
+    isTauri()
+      ? invokeCmd<QueueItem[]>("scan_library", { dir: dir ?? null })
+      : bridge.getQueue().then((q) => q.items),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
