@@ -108,48 +108,52 @@ fn parse_word_tags(rest: &str, offset_ms: i64, line_at_ms: u64) -> Option<(Strin
     let mut s = rest;
     let mut plain = String::new();
     let mut words: Vec<LrcWord> = Vec::new();
-    // Text before the first tag belongs to this line too — time it at the
-    // line start so karaoke doesn't drop it.
-    let mut current: Option<LrcWord> = if !rest.starts_with('<') {
-        Some(LrcWord {
-            at_ms: line_at_ms,
-            text: String::new(),
-        })
-    } else {
-        None
-    };
+    // Text before the first valid tag — becomes a segment timed at the line
+    // start if a real tag exists, so karaoke doesn't drop it. A '<' that is
+    // not a timestamp is literal text, not a tag.
+    let mut pre = String::new();
+    let mut seen_tag = false;
+    let mut current: Option<LrcWord> = None;
     while let Some(lt) = s.find('<') {
         let (head, after_lt) = s.split_at(lt);
         plain.push_str(head);
         if let Some(w) = current.as_mut() {
             w.text.push_str(head);
+        } else {
+            pre.push_str(head);
         }
         let after = &after_lt[1..];
-        let Some(gt) = after.find('>') else {
-            // Unterminated '<' — literal text.
-            plain.push('<');
-            if let Some(w) = current.as_mut() {
-                w.text.push('<');
+        let tag = after
+            .find('>')
+            .and_then(|gt| parse_ts(&after[..gt]).map(|ms| (gt, ms)));
+        match tag {
+            Some((gt, ms)) => {
+                if let Some(w) = current.take() {
+                    words.push(w);
+                }
+                if !seen_tag && !pre.trim().is_empty() {
+                    words.push(LrcWord {
+                        at_ms: line_at_ms,
+                        text: std::mem::take(&mut pre),
+                    });
+                }
+                seen_tag = true;
+                current = Some(LrcWord {
+                    at_ms: (ms as i64 + offset_ms).max(0) as u64,
+                    text: String::new(),
+                });
+                s = &after[gt + 1..];
             }
-            s = after;
-            continue;
-        };
-        if let Some(ms) = parse_ts(&after[..gt]) {
-            if let Some(w) = current.take() {
-                words.push(w);
+            None => {
+                // Unterminated or non-timestamp '<' — literal text.
+                plain.push('<');
+                if let Some(w) = current.as_mut() {
+                    w.text.push('<');
+                } else {
+                    pre.push('<');
+                }
+                s = after;
             }
-            current = Some(LrcWord {
-                at_ms: (ms as i64 + offset_ms).max(0) as u64,
-                text: String::new(),
-            });
-            s = &after[gt + 1..];
-        } else {
-            // Not a timestamp — treat '<' literally.
-            plain.push('<');
-            if let Some(w) = current.as_mut() {
-                w.text.push('<');
-            }
-            s = after;
         }
     }
     plain.push_str(s);
@@ -158,6 +162,10 @@ fn parse_word_tags(rest: &str, offset_ms: i64, line_at_ms: u64) -> Option<(Strin
     }
     if let Some(w) = current.take() {
         words.push(w);
+    }
+    // No real timestamp tag anywhere: the '<' was literal — plain LRC.
+    if !seen_tag {
+        return None;
     }
     // Segment text keeps its spacing verbatim — segments can be syllables
     // mid-word, so trimming/joining with spaces would corrupt the line.
@@ -435,6 +443,30 @@ mod tests {
         let lines = parse_lrc(src);
         let out = write_lrc(&lines);
         let reparsed = parse_lrc(&out);
+        assert_eq!(reparsed, lines);
+    }
+
+    #[test]
+    fn literal_lt_is_not_a_tag() {
+        // "I <3 you" has no real tag — plain LRC, no timed segments.
+        let lines = parse_lrc("[00:01.00]I <3 you");
+        assert_eq!(lines[0].words, None);
+        assert_eq!(lines[0].text, "I <3 you");
+    }
+
+    #[test]
+    fn literal_lt_before_first_tag_keeps_leading_text() {
+        // "<3 <00:01.50>you": the "<3 " prefix is literal text timed at the
+        // line start, not a tag.
+        let lines = parse_lrc("[00:01.00]<3 <00:01.50>you");
+        let words = lines[0].words.as_ref().unwrap();
+        assert_eq!(words.len(), 2);
+        assert_eq!(words[0].at_ms, 1000);
+        assert_eq!(words[0].text, "<3 ");
+        assert_eq!(words[1].at_ms, 1500);
+        assert_eq!(words[1].text, "you");
+        // And it survives a cache write/read round-trip.
+        let reparsed = parse_lrc(&write_lrc(&lines));
         assert_eq!(reparsed, lines);
     }
 
