@@ -59,7 +59,9 @@ export default function Edge() {
   const themeC1 = cssVar("--accent") || "#8b5cf6";
   const themeC2 = cssVar("--accent2") || themeC1;
   const c1 = useArtwork ? (palette?.dominant ?? themeC1) : settings.customColor;
-  const c2 = useArtwork ? (palette?.accents[0] ?? themeC2) : settings.customColor;
+  const c2 = useArtwork
+    ? (palette?.accents[0] ?? palette?.dominant ?? themeC2)
+    : settings.customColor;
   const t = settings.edgeThicknessPx;
   const opacity = Math.min(1, settings.brightness * (0.55 + pulse * 0.45));
 
