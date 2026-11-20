@@ -8,13 +8,14 @@ import {
   type LrcLine,
   type Settings,
 } from "../bridge";
+import { Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { activeLyricIndex, formatTime } from "../lib";
 
-const PREV = <svg viewBox="0 0 24 24"><path d="M6 4h2v16H6zM20 4v16L9.5 12z" /></svg>;
-const NEXT = <svg viewBox="0 0 24 24"><path d="M16 4h2v16h-2zM4 4v16l10.5-8z" /></svg>;
-const PAUSE = <svg viewBox="0 0 24 24"><path d="M7 4h4v16H7zM13 4h4v16h-4z" /></svg>;
-const PLAY = <svg viewBox="0 0 24 24"><path d="M8 4l12 8-12 8z" /></svg>;
+const PREV = <SkipBack weight="fill" size={18} />;
+const NEXT = <SkipForward weight="fill" size={18} />;
+const PAUSE = <Pause weight="fill" size={20} />;
+const PLAY = <Play weight="fill" size={20} />;
 
 export default function Player() {
   const [np, setNp] = useState<NowPlaying | null>(null);
@@ -115,7 +116,7 @@ export default function Player() {
           <div className="kmeta">
             <div className="kmeta__title">{track?.title ?? "Nothing playing"}</div>
             <div className="kmeta__sub">
-              {track ? `${track.artist} — ${track.album}` : "Start music in any app"}
+              {track ? `${track.artist} · ${track.album}` : "Start music in any app"}
             </div>
           </div>
           <div className="kcenter">
@@ -126,7 +127,7 @@ export default function Player() {
                 posMs={pos}
               />
             ) : (
-              <div className="karaoke__idle">{track ? track.title : "Noctbeat"}</div>
+              <div className="karaoke__idle">{track ? track.title : bridge.productName}</div>
             )}
           </div>
           {progress}
@@ -144,7 +145,7 @@ export default function Player() {
         <div className="player__meta">
           <div className="player__title">{track?.title ?? "Nothing playing"}</div>
           <div className="player__sub">
-            {track ? `${track.artist} — ${track.album}` : "Start music in any app"}
+            {track ? `${track.artist} · ${track.album}` : "Start music in any app"}
           </div>
         </div>
         {progress}

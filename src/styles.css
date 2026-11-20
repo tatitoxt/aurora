@@ -7,7 +7,7 @@
   --dim: #a8adc9;
   --accent: #8b5cf6;
   --accent2: #22d3ee;
-  font-family: "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -252,3 +252,11 @@ body {
 .hctl--play:hover { background: var(--text); color: var(--bg); }
 .hctl--play svg { width: 17px; height: 17px; }
 .hctl--on { color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

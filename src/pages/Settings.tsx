@@ -56,21 +56,21 @@ export default function Settings() {
         </div>
 
         <div className="field">
-          <span>Edge thickness — {s.edgeThicknessPx}px</span>
+          <span>Edge thickness · {s.edgeThicknessPx}px</span>
           <input
             type="range" min={8} max={64} value={s.edgeThicknessPx}
             onChange={(e) => patch({ edgeThicknessPx: +e.target.value })}
           />
         </div>
         <div className="field">
-          <span>Glow — {Math.round(s.glowStrength * 100)}%</span>
+          <span>Glow · {Math.round(s.glowStrength * 100)}%</span>
           <input
             type="range" min={0} max={100} value={s.glowStrength * 100}
             onChange={(e) => patch({ glowStrength: +e.target.value / 100 })}
           />
         </div>
         <div className="field">
-          <span>Brightness — {Math.round(s.brightness * 100)}%</span>
+          <span>Brightness · {Math.round(s.brightness * 100)}%</span>
           <input
             type="range" min={0} max={100} value={s.brightness * 100}
             onChange={(e) => patch({ brightness: +e.target.value / 100 })}
