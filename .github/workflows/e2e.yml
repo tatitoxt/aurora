@@ -24,7 +24,9 @@ jobs:
           sudo apt-get install -y webkitgtk-webdriver || sudo apt-get install -y webkit2gtk-driver
       - run: pnpm install --frozen-lockfile
       - run: cargo install tauri-driver --locked
-      - run: cargo build -p noctbeat
+      # `cargo build` produces a binary that loads devUrl (vite dev server); the e2e
+      # must embed frontendDist instead, which `tauri build --debug` does.
+      - run: pnpm exec tauri build --debug --no-bundle
       - name: tauri-driver smoke (demo mode)
         run: xvfb-run -a node e2e/app.test.mjs
         env:
