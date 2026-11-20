@@ -1,0 +1,25 @@
+[package]
+name = "noctbeat-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core logic for Noctbeat: now-playing detection, palette extraction, synced lyrics, beat energy, settings and licensing."
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+ureq = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "4", default-features = false, features = ["async-io", "blocking"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Media_Control",
+    "Foundation",
+    "Foundation_Collections",
+    "Storage_Streams",
+    "System",
+] }
