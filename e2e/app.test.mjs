@@ -43,37 +43,26 @@ try {
   session = created.body.value?.sessionId ?? created.body.sessionId;
   if (!session) throw new Error(`no session: ${JSON.stringify(created.body)}`);
 
-  // The app opens several windows (main, HUD, edge overlays) — find the one
-  // that hosts the mini player. Webview can take ~1min on a cold runner.
-  let el;
-  for (let i = 0; i < 30 && !(el && el.status === 200); i++) {
+  // The app opens several windows (player, HUD, edge overlays) — find the one
+  // that hosts the mini player. The webview can take ~1min on a cold runner.
+  // Read the title via execute/sync: the element/text endpoint is flaky on
+  // webkitgtk (returns "" for found elements).
+  let text = "";
+  const script = "return document.querySelector('.player__title')?.textContent ?? null";
+  for (let i = 0; i < 45 && !/Neon Reversal|Slow Meridian|Glass Tide/.test(text); i++) {
     const handles = await wd("GET", `/session/${session}/window`);
     for (const h of handles.body.value ?? []) {
       await wd("POST", `/session/${session}/window`, { handle: h });
-      el = await wd("POST", `/session/${session}/element`, {
-        using: "css selector",
-        value: ".player__title",
-      });
-      if (el.status === 200) break;
-    }
-    if (el.status !== 200) await new Promise((r) => setTimeout(r, 2000));
-  }
-  // Element refs: find the first string value (drivers differ in shape).
-  const flat = (v) => {
-    if (typeof v === "string") return v;
-    if (v && typeof v === "object") {
-      for (const x of Object.values(v)) {
-        const s = flat(x);
-        if (s) return s;
+      const r = await wd("POST", `/session/${session}/execute/sync`, { script, args: [] });
+      if (r.status === 200 && typeof r.body.value === "string" && r.body.value) {
+        text = r.body.value;
+        if (/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) break;
       }
     }
-    return "";
-  };
-  const elId = flat(el.body.value);
-  const textRes = elId
-    ? await wd("GET", `/session/${session}/element/${encodeURIComponent(elId)}/text`)
-    : null;
-  const text = textRes ? flat(textRes.body.value) : "";
+    if (!/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
   if (!/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) {
     throw new Error(`expected a demo track title, got "${text}"`);
   }
