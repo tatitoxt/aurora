@@ -55,7 +55,19 @@ export interface Settings {
   hudAlwaysOnTop: boolean;
   hudPosition: [number, number] | null;
   musicDir: string | null;
+  ytdlpPath: string | null;
 }
+export interface RemoteTrack {
+  id: string;
+  /** Provider key: "youtube" | "soundcloud". */
+  source: string;
+  title: string;
+  artist: string;
+  durationMs: number;
+  url: string;
+  artworkUrl: string;
+}
+
 export interface QueueItem {
   track: Track;
   path: string;
@@ -85,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hudAlwaysOnTop: true,
   hudPosition: null,
   musicDir: null,
+  ytdlpPath: null,
 };
 
 const isTauri = () =>
@@ -289,6 +302,36 @@ export const bridge = {
     isTauri()
       ? invokeCmd<QueueItem[]>("scan_library", { dir: dir ?? null })
       : bridge.getQueue().then((q) => q.items),
+  providerStatus: () =>
+    isTauri() ? invokeCmd<boolean>("provider_status") : Promise.resolve(false),
+  providerSearch: (source: string, query: string): Promise<RemoteTrack[]> =>
+    isTauri()
+      ? invokeCmd<RemoteTrack[]>("provider_search", { source, query })
+      : Promise.resolve(
+          DEMO_PLAYLIST.slice(0, 3).map(([title, artist, , durationMs], i) => ({
+            id: `demo-${i}`,
+            source,
+            title,
+            artist,
+            durationMs,
+            url: "",
+            artworkUrl: "",
+          })),
+        ),
+  providerPlay: (track: RemoteTrack) =>
+    isTauri()
+      ? invokeCmd<QueueItem>("provider_play", { track })
+      : Promise.resolve({
+          track: {
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            album: "",
+            artworkUrl: track.artworkUrl,
+            durationMs: track.durationMs,
+          },
+          path: `/demo/${track.id}.mp3`,
+        }),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")

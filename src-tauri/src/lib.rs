@@ -5,10 +5,11 @@ use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
 use noctbeat_core::media::{
-    now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus,
+    now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus, Track,
 };
 use noctbeat_core::palette::{extract_palette_bytes, Palette};
 use noctbeat_core::player::{LocalPlayer, QueueItem};
+use noctbeat_core::providers::{RemoteTrack, YtDlp};
 
 mod audio;
 use noctbeat_core::settings::Settings;
@@ -177,6 +178,72 @@ fn scan_library(state: State<AppState>, dir: Option<String>) -> Result<Vec<Queue
         .map_err(|e| e.to_string())?
         .set_queue(items.clone());
     Ok(items)
+}
+
+// ---------- remote providers (yt-dlp-backed) ----------
+
+fn detected_ytdlp(state: &State<AppState>) -> Result<YtDlp, String> {
+    let explicit = state
+        .settings
+        .lock()
+        .map_err(|e| e.to_string())?
+        .ytdlp_path
+        .clone();
+    YtDlp::detect(explicit.as_deref())
+        .ok_or_else(|| "yt-dlp not found — install it or set its path in Settings".into())
+}
+
+#[tauri::command]
+fn provider_status(state: State<AppState>) -> bool {
+    detected_ytdlp(&state).is_ok()
+}
+
+/// Async so the synchronous yt-dlp extraction runs on the runtime pool, not
+/// the UI thread.
+#[tauri::command]
+async fn provider_search(
+    state: State<'_, AppState>,
+    source: String,
+    query: String,
+) -> Result<Vec<RemoteTrack>, String> {
+    detected_ytdlp(&state)?.search(&source, &query, 8)
+}
+
+/// Download the track's audio into the app cache and play it through the
+/// local player, so seek/queue/energy all work identically to local files.
+#[tauri::command]
+async fn provider_play(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    track: RemoteTrack,
+) -> Result<QueueItem, String> {
+    let ytdlp = detected_ytdlp(&state)?;
+    let cache = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("streams");
+    let name = format!(
+        "{}-{}",
+        track.source,
+        track.id.replace(|c: char| !c.is_alphanumeric(), "_")
+    );
+    let path = ytdlp.download(&track.url, &cache, &name)?;
+    let item = QueueItem {
+        track: Track {
+            id: format!("{}:{}", track.source, track.id),
+            title: track.title,
+            artist: track.artist,
+            album: String::new(),
+            artwork_url: track.artwork_url,
+            duration_ms: track.duration_ms,
+        },
+        path: path.display().to_string(),
+    };
+    let mut p = state.player.lock().map_err(|e| e.to_string())?;
+    p.set_queue(std::slice::from_ref(&item).to_vec());
+    p.play_index(0)?;
+    Ok(item)
 }
 
 #[derive(Serialize)]
@@ -608,6 +675,9 @@ pub fn run() {
             play_queue_index,
             clear_queue,
             scan_library,
+            provider_status,
+            provider_search,
+            provider_play,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());

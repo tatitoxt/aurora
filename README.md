@@ -13,6 +13,8 @@ A thin ribbon of light along your screen edges that breathes with your music —
 - **Glass mini player** — artwork, transport, progress, and LRCLIB-synced lyrics with a local cache.
 - **Settings** — thickness, glow, brightness, artwork/custom color, per-display toggles, battery-saver, hide-in-fullscreen. Persisted to the OS config dir.
 - **Licensing** — Lemon Squeezy validation with a 72 h offline grace; no keys in the repo.
+- **Library + local playback** — scans a music folder (mp3/flac/ogg/m4a/aac/wav), queues and plays through an in-app rodio engine with seek and volume.
+- **Streaming search** — YouTube and SoundCloud track search via an optional `yt-dlp` binary; playback downloads the best AAC stream into the app cache and plays it like a local file.
 
 ## Run
 
