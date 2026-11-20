@@ -177,7 +177,7 @@ mod tests {
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect();
-        map.try_into().expect("dict")
+        map.into()
     }
 
     #[test]

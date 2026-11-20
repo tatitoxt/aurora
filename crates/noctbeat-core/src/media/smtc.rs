@@ -82,9 +82,7 @@ impl NowPlayingSource for SmtcSource {
                 // SMTC thumbnails are streams, not URLs; decoded artwork is a
                 // later milestone. Empty for now.
                 artwork_url: String::new(),
-                duration_ms: timeline
-                    .and_then(|t| t.EndTime().ok().map(ms))
-                    .unwrap_or(0),
+                duration_ms: timeline.and_then(|t| t.EndTime().ok().map(ms)).unwrap_or(0),
             })
         };
         Ok(NowPlaying {

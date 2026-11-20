@@ -117,15 +117,17 @@ mod tests {
     #[test]
     fn roundtrip() {
         let p = tmp("round.json");
-        let mut s = Settings::default();
-        s.edge_thickness_px = 48;
-        s.color_mode = ColorMode::Custom;
-        s.custom_color = "#ff0080".into();
-        s.displays = vec![DisplayRule {
-            display_id: "d1".into(),
-            enabled: false,
-        }];
-        s.license_key = Some("K".into());
+        let s = Settings {
+            edge_thickness_px: 48,
+            color_mode: ColorMode::Custom,
+            custom_color: "#ff0080".into(),
+            displays: vec![DisplayRule {
+                display_id: "d1".into(),
+                enabled: false,
+            }],
+            license_key: Some("K".into()),
+            ..Default::default()
+        };
         s.save(&p).unwrap();
         assert_eq!(Settings::load(&p), s);
         let _ = std::fs::remove_file(&p);
