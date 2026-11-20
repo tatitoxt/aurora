@@ -2,6 +2,7 @@
   "name": "noctbeat",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@12.16.1",
   "type": "module",
   "scripts": {
     "branding": "node scripts/sync-branding.mjs",
