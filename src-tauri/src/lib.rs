@@ -1987,8 +1987,9 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     .decorations(false)
     .always_on_top(settings.hud_always_on_top)
     .skip_taskbar(true)
-    .resizable(false)
-    .inner_size(460.0, 76.0);
+    .resizable(true)
+    .min_inner_size(260.0, 140.0)
+    .inner_size(320.0, 440.0);
     if let Ok(win) = builder.build() {
         // Moved reports physical pixels; restore them physically too, or a
         // scaled display would double-apply the scale factor.
