@@ -47,6 +47,18 @@
     "category": "Music",
     "shortDescription": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",
     "longDescription": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",
-    "copyright": "Copyright (c) 2026 Fausto Pastura"
+    "copyright": "Copyright (c) 2026 Fausto Pastura",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY0NzJBQzA3QjZCNTQyQ0YKUldUUFFyVzJCNnh5WlA0R3QwOU9Mdmk5bVZZVUgxL1pTbVp4a2lUQ0kzVjE5YWlMSkdGdlBCVWgK",
+      "endpoints": [
+        "https://github.com/tatitoxt/aurora/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

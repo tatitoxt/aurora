@@ -30,15 +30,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libxdo-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - run: pnpm install --frozen-lockfile
-      - name: Build (unsigned)
-        run: pnpm tauri build --no-sign
-      - uses: actions/upload-artifact@v4
+      # Signing env is only exported when the secret is actually set — an
+      # empty-string TAURI_SIGNING_PRIVATE_KEY makes tauri-action attempt
+      # signing and fail the whole build.
+      - name: Configure updater signing
+        shell: bash
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY=$KEY" >> "$GITHUB_ENV"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
+          fi
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASS: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      # tauri-action builds every bundle and — on tag pushes — opens a
+      # draft GitHub Release with installers + updater artifacts
+      # (latest.json + .sig files). Without the signing secret the release
+      # is published unsigned and in-app auto-update stays disabled.
+      - uses: tauri-apps/tauri-action@v0
         with:
-          name: noctbeat-${{ matrix.target }}
+          # On tag pushes, creates (or attaches to) the release for this tag.
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Noctbeat ${{ github.ref_name }}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Non-tag builds (workflow_dispatch, PRs): keep the raw bundles as
+      # workflow artifacts since no release is created for them.
+      - uses: actions/upload-artifact@v4
+        if: github.ref_type != 'tag'
+        with:
+          name: noctbeat-bundles
           path: |
-            target/release/bundle/**/*.deb
-            target/release/bundle/**/*.AppImage
-            target/release/bundle/**/*.dmg
-            target/release/bundle/**/*.msi
-            target/release/bundle/**/*.nsis.zip
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.dmg
           if-no-files-found: ignore
