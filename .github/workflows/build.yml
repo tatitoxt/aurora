@@ -34,12 +34,11 @@ jobs:
       # empty-string TAURI_SIGNING_PRIVATE_KEY makes tauri-action attempt
       # signing and fail the whole build.
       - name: Configure updater signing
+        shell: bash
         run: |
           if [ -n "$KEY" ]; then
-            printf 'TAURI_SIGNING_PRIVATE_KEY=%s
-' "$KEY" >> "$GITHUB_ENV"
-            printf 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD=%s
-' "$PASS" >> "$GITHUB_ENV"
+            echo "TAURI_SIGNING_PRIVATE_KEY=$KEY" >> "$GITHUB_ENV"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
           fi
         env:
           KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -52,6 +51,7 @@ jobs:
         with:
           # On tag pushes, creates (or attaches to) the release for this tag.
           tagName: ${{ github.ref_name }}
+          releaseName: 'Noctbeat ${{ github.ref_name }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Non-tag builds (workflow_dispatch, PRs): keep the raw bundles as
