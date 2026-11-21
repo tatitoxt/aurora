@@ -55,6 +55,7 @@ const FS_STYLES = [
   { id: "vision", label: "Vision" },
   { id: "dial", label: "Dial" },
   { id: "tile", label: "Tile" },
+  { id: "showcase", label: "Showcase" },
 ] as const;
 
 function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
@@ -319,6 +320,8 @@ export default function Fullscreen() {
       <div className="fs__bg">
         {videoUrl ? (
           <FsVideo url={videoUrl} posMs={pos} playing={playing} />
+        ) : fsStyle === "tile" && art ? (
+          <img className="fs__tilebg" src={art} alt="" />
         ) : wall.length > 1 ? (
           <div className="fs__wall">
             {(wall.length < 12
@@ -421,7 +424,7 @@ export default function Fullscreen() {
       )}
 
       <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
-        {lyricsOn && !["spotlight", "vision", "dial", "tile"].includes(fsStyle) ? (
+        {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
           line ? (
             <div className="fs__lyric" key={active}>
               {line}
@@ -509,6 +512,28 @@ export default function Fullscreen() {
           <div className="fs__dialmeta">
             <span className="fs__dialtitle">{track?.title ?? "Nothing playing"}</span>
             <span className="fs__dialsub">{track ? `${track.artist} · ${track.album}` : ""}</span>
+          </div>
+          <div className="fs__orbit" aria-hidden="true">
+            {covers
+              .filter((c) => !c.on)
+              .map((c, idx, arr) => {
+                const angle = arr.length > 1 ? 15 + (idx * 150) / (arr.length - 1) : 90;
+                return (
+                  <span
+                    key={c.key}
+                    className="fs__orbititem"
+                    style={{
+                      transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-32vh) rotate(${-angle}deg)`,
+                    }}
+                  >
+                    {c.src ? (
+                      <img src={c.src} alt="" />
+                    ) : (
+                      <span className="fs__meta-art" style={{ display: "block", width: "100%", aspectRatio: "1", borderRadius: 10 }} />
+                    )}
+                  </span>
+                );
+              })}
           </div>
         </div>
       )}
@@ -613,7 +638,7 @@ export default function Fullscreen() {
         </div>
       )}
 
-      {!["spotlight", "vision", "dial", "tile"].includes(fsStyle) && covers.length > 1 && (
+      {!["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) && covers.length > 1 && (
         <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"} ${panelShown && queueOpen ? "fs__covers--panel" : ""}`}>
           {covers.map((c) =>
             c.on ? (
@@ -770,6 +795,9 @@ export default function Fullscreen() {
                 </div>
               </div>
             </div>
+            {(fsStyle === "tile" || fsStyle === "showcase") && line && (
+              <div className="fs__cardlyric">{line}</div>
+            )}
             <div
               className={`fs__hair ${np?.source === "local" && dur ? "" : "fs__hair--off"}`}
               role="slider"
