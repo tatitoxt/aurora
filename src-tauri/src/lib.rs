@@ -770,8 +770,24 @@ fn export_playlist(state: State<AppState>, name: String) -> Result<ExportResult,
             skipped += 1;
             continue;
         }
+        // Playlists land in the music dir, but queue paths can be relative
+        // to the launch cwd — anchor them absolute so reimport resolves
+        // against the playlist's own directory-independent location.
+        let path = match std::fs::canonicalize(&it.path) {
+            Ok(p) => p.to_string_lossy().into_owned(),
+            Err(_) => {
+                let p = std::path::Path::new(&it.path);
+                if p.is_absolute() {
+                    it.path.clone()
+                } else {
+                    std::env::current_dir()
+                        .map(|cwd| cwd.join(p).to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| it.path.clone())
+                }
+            }
+        };
         items.push(noctbeat_core::playlists::M3uItem {
-            path: it.path.clone(),
+            path,
             title: it.track.title.clone(),
             artist: it.track.artist.clone(),
             duration_ms: it.track.duration_ms,
