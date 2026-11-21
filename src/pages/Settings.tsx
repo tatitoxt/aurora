@@ -201,7 +201,7 @@ export default function Settings() {
             ))}
           </div>
         </div>
-        <div className="row">
+        <div className="row row--tight">
           <div className="field">
             <span>{t("set.accent")}</span>
             <input
