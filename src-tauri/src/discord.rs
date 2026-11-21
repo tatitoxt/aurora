@@ -19,6 +19,9 @@ pub struct DiscordRpc {
     /// Signature of the activity last pushed — reconnects and no-op ticks
     /// skip the socket write.
     last_sig: Option<String>,
+    /// (position_ms, publish instant) of the last pushed activity, for
+    /// detecting seeks/repeats whose signature stays identical.
+    last_pub: Option<(u64, std::time::Instant)>,
     backoff_until: std::time::Instant,
 }
 
@@ -28,6 +31,7 @@ impl DiscordRpc {
             client_id: client_id.to_string(),
             client: None,
             last_sig: None,
+            last_pub: None,
             backoff_until: std::time::Instant::now(),
         }
     }
@@ -49,10 +53,11 @@ impl DiscordRpc {
                     }
                 }
                 self.last_sig = None;
+                self.last_pub = None;
             }
             return;
         };
-        if self.last_sig.as_deref() == Some(sig.as_str()) {
+        if self.last_sig.as_deref() == Some(sig.as_str()) && !self.position_jumped(np) {
             return;
         }
         if self.client.is_none() && !self.connect() {
@@ -61,6 +66,7 @@ impl DiscordRpc {
         if let Some(c) = self.client.as_mut() {
             if c.set_activity(activity).is_ok() {
                 self.last_sig = Some(sig);
+                self.last_pub = Some((np.position_ms, std::time::Instant::now()));
             } else {
                 // Discord went away (quit, socket rotated): retry next cycle.
                 self.disconnect();
@@ -95,6 +101,20 @@ impl DiscordRpc {
             let _ = c.close();
         }
         self.last_sig = None;
+        self.last_pub = None;
+    }
+
+    /// Position drifted more than 4 s from where a playing track should be:
+    /// a seek or a loop jump — republish so Discord's elapsed timer resets.
+    fn position_jumped(&self, np: &NowPlaying) -> bool {
+        if np.status != PlaybackStatus::Playing {
+            return false;
+        }
+        let Some((pos, at)) = self.last_pub else {
+            return false;
+        };
+        let expected = pos + at.elapsed().as_millis() as u64;
+        np.position_ms.abs_diff(expected) > 4_000
     }
 
     fn backoff(&mut self) {
@@ -106,6 +126,11 @@ impl DiscordRpc {
 /// no track to show. The activity borrows `np`'s strings, so it cannot
 /// outlive the snapshot — fine, it is written to the socket immediately.
 fn build_activity<'a>(np: &'a NowPlaying) -> Option<(String, Activity<'a>)> {
+    // Stopped keeps last-track metadata in the player — only Playing/Paused
+    // are a presence worth publishing.
+    if np.status == PlaybackStatus::Stopped {
+        return None;
+    }
     let t = np.track.as_ref()?;
     let playing = np.status == PlaybackStatus::Playing;
     let state: &str = if t.artist.is_empty() {
@@ -121,11 +146,13 @@ fn build_activity<'a>(np: &'a NowPlaying) -> Option<(String, Activity<'a>)> {
         .details(&t.title)
         .state(state);
     if playing {
-        let now = std::time::SystemTime::now()
+        // Timestamps::start is epoch SECONDS; milliseconds render a broken
+        // elapsed timer in Discord.
+        let now_secs = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis() as i64;
-        let start = (now - np.position_ms as i64).max(0);
+            .as_secs() as i64;
+        let start = (now_secs - (np.position_ms / 1000) as i64).max(0);
         a = a.timestamps(Timestamps::new().start(start));
     }
     Some((sig, a))
@@ -158,6 +185,13 @@ mod tests {
         let mut idle = np(PlaybackStatus::Stopped, 0);
         idle.track = None;
         assert!(build_activity(&idle).is_none());
+    }
+
+    #[test]
+    fn stopped_with_retained_track_yields_no_activity() {
+        // The player keeps the last track after stop — presence must clear.
+        let stopped = np(PlaybackStatus::Stopped, 42_000);
+        assert!(build_activity(&stopped).is_none());
     }
 
     #[test]
