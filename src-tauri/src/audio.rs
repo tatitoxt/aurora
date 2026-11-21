@@ -1,11 +1,12 @@
 //! rodio-backed `AudioOut` for the local player. One OS output stream with a
 //! single Player; `open` replaces its contents so `get_pos` stays correct.
 
+use noctbeat_core::eq::{EqBank, EqState};
 use noctbeat_core::player::AudioOut;
 use rodio::cpal::traits::{DeviceTrait, HostTrait};
-use rodio::{Decoder, Source};
+use rodio::{Decoder, Sample, Source};
 use std::fs::File;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 struct Inner {
@@ -13,11 +14,74 @@ struct Inner {
     player: rodio::Player,
 }
 
+/// `Source` wrapper that applies the shared EQ bank to every sample.
+struct EqSource<I> {
+    inner: I,
+    state: Arc<EqState>,
+    bank: EqBank,
+    /// Interleaved channel cursor, cycles 0..channels-1 per sample.
+    channel: usize,
+}
+
+impl<I> EqSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    fn wrap(inner: I, state: Arc<EqState>) -> Self {
+        let bank = EqBank::new(
+            inner.channels().get() as usize,
+            inner.sample_rate().get() as f32,
+        );
+        Self {
+            inner,
+            state,
+            bank,
+            channel: 0,
+        }
+    }
+}
+
+impl<I> Iterator for EqSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    type Item = Sample;
+
+    #[inline]
+    fn next(&mut self) -> Option<Sample> {
+        let x = self.inner.next()?;
+        self.bank.sync(&self.state);
+        let ch = self.channel;
+        self.channel = (self.channel + 1) % (self.inner.channels().get() as usize).max(1);
+        Some(self.bank.process(ch, x))
+    }
+}
+
+impl<I> Source for EqSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len()
+    }
+    fn channels(&self) -> rodio::ChannelCount {
+        self.inner.channels()
+    }
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.inner.sample_rate()
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+}
+
 pub struct RodioOut {
     inner: Mutex<Option<Inner>>,
     /// Position to report after `seek` (rodio counts source position, and a
     /// `try_seek` can fail silently on some codecs — clamp honestly).
     fallback_pos: Mutex<Option<Duration>>,
+    /// Live EQ gains shared with every wrapped source.
+    eq: Arc<EqState>,
 }
 
 fn device_name(d: &rodio::cpal::Device) -> String {
@@ -67,7 +131,13 @@ impl RodioOut {
                 player,
             })),
             fallback_pos: Mutex::new(None),
+            eq: Arc::new(EqState::new()),
         })
+    }
+
+    /// Shared EQ handle — `set` retunes every source live.
+    pub fn eq(&self) -> Arc<EqState> {
+        self.eq.clone()
     }
 
     /// Re-point playback at the device `name` (None = OS default). The
@@ -92,7 +162,9 @@ impl AudioOut for RodioOut {
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_mut().ok_or("no audio device")?;
         inner.player.clear();
-        inner.player.append(decoder);
+        inner
+            .player
+            .append(EqSource::wrap(decoder, self.eq.clone()));
         *self.fallback_pos.lock().map_err(|e| e.to_string())? = Some(Duration::ZERO);
         Ok(dur)
     }

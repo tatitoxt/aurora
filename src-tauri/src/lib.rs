@@ -249,6 +249,21 @@ async fn provider_play(
     Ok(item)
 }
 
+/// Retune the live EQ (dB per band) and persist the choice.
+#[tauri::command]
+fn set_eq(app: tauri::AppHandle, preset: String, bands: Vec<f32>) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    if let Some(rodio) = &state.rodio {
+        rodio.eq().set(&bands);
+    }
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    s.eq_preset = preset;
+    s.eq_bands = bands;
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
+    Ok(())
+}
+
 /// OS audio output device names for the settings picker.
 #[tauri::command]
 fn list_outputs() -> Vec<String> {
@@ -733,10 +748,16 @@ pub fn run() {
             resolve_video,
             list_outputs,
             set_output_device,
+            set_eq,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());
             let state = app.state::<AppState>();
+            if let Some(rodio) = &state.rodio {
+                if let Ok(s) = state.settings.lock() {
+                    rodio.eq().set(&s.eq_bands);
+                }
+            }
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_edge_windows(app.handle(), &s);
             sync_hud_window(app.handle(), &s);

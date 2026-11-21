@@ -83,6 +83,17 @@ pub struct Settings {
     /// Audio output device name (e.g. a Bluetooth speaker); None = OS default.
     #[serde(default)]
     pub audio_output: Option<String>,
+    /// Name of the active EQ preset ("flat", "bass", "vocal", "treble",
+    /// "custom" when the user moved a slider).
+    #[serde(default = "default_eq_preset")]
+    pub eq_preset: String,
+    /// Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat.
+    #[serde(default)]
+    pub eq_bands: Vec<f32>,
+}
+
+fn default_eq_preset() -> String {
+    "flat".into()
 }
 
 fn default_true() -> bool {
@@ -115,6 +126,8 @@ impl Default for Settings {
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
             audio_output: None,
+            eq_preset: default_eq_preset(),
+            eq_bands: Vec::new(),
         }
     }
 }
