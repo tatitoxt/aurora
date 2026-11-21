@@ -16,7 +16,7 @@ import Palette from "./Palette";
 import { bridge, onFileDrop, subscribe, type NowPlaying, type Settings as AppSettings } from "./bridge";
 import { favEntryFor, loadFavs, toggleFav } from "./favs";
 import { useT } from "./i18n";
-import { applyDynAccent, applyTheme } from "./themes";
+import { applyDynAccent, applyGlassOpacity, applyTheme } from "./themes";
 
 export default function App() {
   useEffect(() => {
@@ -47,8 +47,14 @@ export default function App() {
       applyTheme(t);
       dyn();
     };
-    void bridge.getSettings().then((s) => onTheme(s.theme));
-    const offS = subscribe<AppSettings>("settings", (s) => onTheme(s.theme));
+    void bridge.getSettings().then((s) => {
+      onTheme(s.theme);
+      applyGlassOpacity(s.glassOpacity);
+    });
+    const offS = subscribe<AppSettings>("settings", (s) => {
+      onTheme(s.theme);
+      applyGlassOpacity(s.glassOpacity);
+    });
     void bridge.getNowPlaying().then((np) => {
       art = np?.track?.artworkUrl;
       dyn();

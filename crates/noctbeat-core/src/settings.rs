@@ -88,6 +88,9 @@ pub struct Settings {
     /// the artwork palette; false keeps the static backdrop.
     #[serde(default = "default_true")]
     pub ambient_bg: bool,
+    /// Glass panel opacity 0-100; lower lets more of the desktop show through.
+    #[serde(default = "default_glass_opacity")]
+    pub glass_opacity: u32,
     /// Audio output device name (e.g. a Bluetooth speaker); None = OS default.
     #[serde(default)]
     pub audio_output: Option<String>,
@@ -166,6 +169,10 @@ fn default_true() -> bool {
     true
 }
 
+fn default_glass_opacity() -> u32 {
+    68
+}
+
 fn default_lyrics_mode() -> String {
     "lines".into()
 }
@@ -185,6 +192,7 @@ impl Default for Settings {
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
             ambient_bg: true,
+            glass_opacity: default_glass_opacity(),
             audio_output: None,
             crossfade_ms: default_crossfade(),
             eq_preset: default_eq_preset(),
