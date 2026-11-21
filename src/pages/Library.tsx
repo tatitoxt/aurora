@@ -13,8 +13,8 @@ import {
   listable,
   loadFavs,
   remoteParts,
+  replayFor,
   toQueueItem,
-  toRemoteTrack,
   type FavEntry,
 } from "../favs";
 import { formatTime } from "../lib";
@@ -65,21 +65,38 @@ export default function Library() {
 
   const liked = listable(favs);
   // Local likes replay as one queue so next/prev flows through the list;
-  // streamed likes play one at a time (same as tapping a search result).
+  // provider likes replay the stream directly (as tapping a search
+  // result); likes of external players replay via a provider search.
   const playLiked = (entry: FavEntry) => {
     setError("");
-    const remote = toRemoteTrack(entry);
-    if (remote) {
+    const replay = replayFor(entry);
+    if (!replay) return;
+    if (replay.kind === "provider") {
       setDownloading(entry.key);
       bridge
-        .providerPlay(remote)
+        .providerPlay(replay.track)
+        .then(() => refresh())
+        .catch((e) => setError(String(e)))
+        .finally(() => setDownloading(null));
+      return;
+    }
+    if (replay.kind === "external") {
+      setDownloading(entry.key);
+      bridge
+        .providerSearch(source, replay.query)
+        .then((rs) => {
+          const top = rs[0];
+          return top
+            ? bridge.providerPlay(top)
+            : Promise.reject("No matches found");
+        })
         .then(() => refresh())
         .catch((e) => setError(String(e)))
         .finally(() => setDownloading(null));
       return;
     }
     const locals = liked
-      .filter((e) => remoteParts(e.trackId) === null)
+      .filter((e) => replayFor(e)?.kind === "local")
       .map(toQueueItem);
     const index = locals.findIndex((i) => i.path === entry.trackId);
     if (index < 0) return;
@@ -335,6 +352,7 @@ export default function Library() {
             </div>
             <div className="lib">
               {liked.map((e) => {
+                const replay = replayFor(e);
                 const remote = remoteParts(e.trackId);
                 return (
                   <button
@@ -349,7 +367,11 @@ export default function Library() {
                     </span>
                     <span className="lib__sub">
                       {e.artist}
-                      {remote ? ` · ${remote.source}` : ""}
+                      {remote
+                        ? ` · ${remote.source}`
+                        : replay?.kind === "external"
+                          ? " · via search"
+                          : ""}
                     </span>
                     <span className="lib__dur">
                       {e.durationMs ? formatTime(e.durationMs) : ""}

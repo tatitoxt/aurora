@@ -6,6 +6,7 @@ import {
   listable,
   loadFavs,
   remoteParts,
+  replayFor,
   toggleFav,
   toQueueItem,
   toRemoteTrack,
@@ -101,6 +102,23 @@ describe("favs", () => {
       title: "Song",
     });
     expect(toRemoteTrack(entry)).toBeNull();
+  });
+
+  it("routes SoundCloud numeric ids through the API endpoint", () => {
+    const rt = toRemoteTrack({ ...entry, trackId: "soundcloud:62986583" });
+    expect(rt?.url).toBe("https://api.soundcloud.com/tracks/62986583");
+    const slug = toRemoteTrack({ ...entry, trackId: "soundcloud:user/song" });
+    expect(slug?.url).toBe("https://soundcloud.com/user/song");
+  });
+
+  it("classifies replay by id kind, not by assumed source", () => {
+    expect(replayFor({ ...entry, trackId: "youtube:abc" })?.kind).toBe("provider");
+    expect(replayFor(entry)?.kind).toBe("local");
+    expect(replayFor({ ...entry, trackId: "C:\\music\\a.mp3" })?.kind).toBe("local");
+    // External players report "{artist} — {title}" ids — not queueable.
+    const ext = replayFor({ ...entry, trackId: "Artist — Song" });
+    expect(ext?.kind).toBe("external");
+    expect(ext?.kind === "external" && ext.query).toBe("Artist Song");
   });
 
   it("maps a local like to a queue item keyed by its path", () => {

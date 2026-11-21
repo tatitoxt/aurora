@@ -120,6 +120,35 @@ export function toRemoteTrack(e: FavEntry): RemoteTrack | null {
   };
 }
 
+/** True when `trackId` is a filesystem path (local files store it as id). */
+export function isLocalPath(trackId: string): boolean {
+  return (
+    trackId.startsWith("/") ||
+    trackId.startsWith("\\") ||
+    /^[A-Za-z]:[\\/]/.test(trackId)
+  );
+}
+
+/** How a liked entry can be replayed, by the kind of id it carries. */
+export type FavReplay =
+  | { kind: "provider"; track: RemoteTrack }
+  | { kind: "local"; item: QueueItem }
+  | { kind: "external"; query: string };
+
+/**
+ * - `provider:id` → replay the stream through `providerPlay`.
+ * - a filesystem path → replay through the local queue.
+ * - anything else (external players report `"{artist} — {title}"` ids)
+ *   → a provider search query, since the file/stream isn't ours.
+ */
+export function replayFor(e: FavEntry): FavReplay | null {
+  const remote = toRemoteTrack(e);
+  if (remote) return { kind: "provider", track: remote };
+  if (isLocalPath(e.trackId)) return { kind: "local", item: toQueueItem(e) };
+  const query = [e.artist, e.title].filter((s) => s !== "").join(" ");
+  return e.trackId !== "" && query !== "" ? { kind: "external", query } : null;
+}
+
 /** Local files store their path as `track.id` — replay straight from it. */
 export function toQueueItem(e: FavEntry): QueueItem {
   return {
