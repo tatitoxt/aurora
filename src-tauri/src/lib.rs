@@ -1835,6 +1835,16 @@ struct DisplayInfo {
     primary: bool,
 }
 
+/// Stable id for a monitor: its OS name (output connector / EDID) survives
+/// re-enumeration when a sibling is unplugged, where an index would shift
+/// and apply one display's rules to another.
+fn display_id(i: usize, monitor: &tauri::Monitor) -> String {
+    monitor
+        .name()
+        .cloned()
+        .unwrap_or_else(|| format!("display-{i}"))
+}
+
 #[tauri::command]
 fn list_displays(app: tauri::AppHandle) -> Result<Vec<DisplayInfo>, String> {
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
@@ -1842,7 +1852,7 @@ fn list_displays(app: tauri::AppHandle) -> Result<Vec<DisplayInfo>, String> {
         .into_iter()
         .enumerate()
         .map(|(i, m)| DisplayInfo {
-            id: format!("display-{i}"),
+            id: display_id(i, &m),
             name: m
                 .name()
                 .cloned()
@@ -1862,7 +1872,7 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
     };
     let mut expected: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, monitor) in monitors.iter().enumerate() {
-        let id = format!("display-{i}");
+        let id = display_id(i, monitor);
         let label = format!("edge-{id}");
         let enabled = settings
             .displays
@@ -2280,7 +2290,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
         let mut last_track_id: Option<String> = None;
-        let mut last_monitor_count = usize::MAX;
+        let mut last_monitor_sig = String::new();
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
@@ -2294,9 +2304,16 @@ fn spawn_poller(app: &tauri::AppHandle) {
             // settings write.
             if ticks.is_multiple_of(5) {
                 if let Ok(monitors) = app.available_monitors() {
-                    let n = monitors.len();
-                    if n != last_monitor_count {
-                        last_monitor_count = n;
+                    // Compare identities, not the count: swapping one monitor
+                    // for another keeps the total but needs a re-sync.
+                    let sig = monitors
+                        .iter()
+                        .enumerate()
+                        .map(|(i, m)| display_id(i, m))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    if sig != last_monitor_sig {
+                        last_monitor_sig = sig;
                         if let Ok(s) = state.settings.lock() {
                             sync_edge_windows(&app, &s);
                         }
