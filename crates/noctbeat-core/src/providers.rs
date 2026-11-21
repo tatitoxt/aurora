@@ -34,15 +34,15 @@ pub struct RemoteTrack {
 }
 
 /// Video selector for the karaoke backdrop: prefer an h264 progressive or
-/// video-only mp4 under 480p (every webview decodes avc; av1/vp9 support is
-/// uneven), then any <=480p video, then whatever is available. Video-only
-/// streams are fine — the backdrop is muted and blurred, so quality matters
-/// less than size.
+/// video-only mp4 under 720p (every webview decodes avc; av1/vp9 support is
+/// uneven), then any <=720p video, then whatever is available. Video-only
+/// streams are fine — the backdrop is muted, so bandwidth matters more than
+/// codecs; 720p keeps the clip legible behind lyrics.
 const VIDEO_SELECTOR: &str = concat!(
-    "b[ext=mp4][vcodec^=avc][height<=480]/bv*[ext=mp4][vcodec^=avc][height<=480]/",
-    "b[vcodec^=avc][height<=480]/bv*[vcodec^=avc][height<=480]/",
-    "b[ext=mp4][height<=480]/bv*[ext=mp4][height<=480]/",
-    "b[height<=480]/bv*[height<=480]/",
+    "b[ext=mp4][vcodec^=avc][height<=720]/bv*[ext=mp4][vcodec^=avc][height<=720]/",
+    "b[vcodec^=avc][height<=720]/bv*[vcodec^=avc][height<=720]/",
+    "b[ext=mp4][height<=720]/bv*[ext=mp4][height<=720]/",
+    "b[height<=720]/bv*[height<=720]/",
     "b/bv*",
 );
 
