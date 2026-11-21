@@ -281,6 +281,14 @@ export default function Settings() {
           />
         </div>
         <div className="row">
+          <span>Desktop lyrics overlay</span>
+          <button
+            className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
+            aria-label="Desktop lyrics overlay"
+            onClick={() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled })}
+          />
+        </div>
+        <div className="row">
           <span>Hide while fullscreen</span>
           <button
             className={`toggle ${s.hideInFullscreen ? "on" : ""}`}
