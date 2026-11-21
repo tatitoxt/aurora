@@ -12,5 +12,6 @@ pub mod lyrics;
 pub mod media;
 pub mod palette;
 pub mod player;
+pub mod playlists;
 pub mod providers;
 pub mod settings;
