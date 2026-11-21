@@ -1,13 +1,13 @@
 # Noctbeat
 
-A floating, always-on-top glass HUD with your queue and transport — synced lyrics, a fullscreen stage with nine looks and a native Tauri core. Open core: the engine (`crates/noctbeat-core`) is MIT-licensed; signed, licensed builds are the commercial product.
+A floating, always-on-top glass HUD with your queue and transport — synced lyrics, a fullscreen stage with nine looks and a native Tauri core. Local files plus whatever plays in your browser, via a tiny extension. Open core: the engine (`crates/noctbeat-core`) is MIT-licensed; signed, licensed builds are the commercial product.
 
 **Stack:** Tauri 2 · Rust core · React 18 + TypeScript + Vite · static landing in `site/`.
 
 ## Features
 
 - **Floating HUD** — transparent, always-on-top glass panel: now-playing + queue list and a big now-playing focus view, draggable, resizable and pinnable above every window.
-- **Now Playing** — MPRIS (Linux), `osascript` Spotify/Music (macOS), SMTC (Windows).
+- **Now Playing** — browser-extension bridge (any tab of YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music) with fallback to MPRIS (Linux), `osascript` Spotify/Music (macOS), SMTC (Windows).
 - **Palette extraction** — deterministic k-means over artwork, in Rust.
 - **Beat energy** — onset detection in `noctbeat-core`; demo mode synthesizes a 120 BPM grid.
 - **Glass mini player** — artwork, transport, progress, and LRCLIB-synced lyrics with a local cache.
@@ -23,6 +23,16 @@ A floating, always-on-top glass HUD with your queue and transport — synced lyr
 - **Library + local playback** — scans a music folder (mp3/flac/ogg/m4a/aac/wav), queues and plays through an in-app rodio engine with seek and volume.
 - **Listening stats** — play history, top tracks/artists, a daily activity strip and a monthly Wrapped page; stored locally.
 - **Streaming search** — YouTube and SoundCloud track search via an optional `yt-dlp` binary; results join the queue lazily via `remote:` paths.
+
+## Browser extension
+
+Noctbeat can follow whatever plays in a browser tab — no OAuth, no app registration:
+
+1. Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**.
+2. **Load unpacked** → pick the `extension/` folder of this repo.
+3. Open music.youtube.com, open.spotify.com, soundcloud.com, music.apple.com, listen.tidal.com or music.amazon.* and press play.
+
+The extension reports title, artist, artwork and position to the app on `127.0.0.1:17893` (loopback only). While a tab is fresh it's the Now Playing source; transport controls (play/pause/next/previous) are delivered back to that tab. Firefox/Safari are supported via the same MV3 manifest (temporary add-on in `about:debugging`).
 
 ## Run
 
