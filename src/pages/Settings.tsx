@@ -183,13 +183,19 @@ export default function Settings() {
           <span className="setghead">{t("set.grp.look")}</span>
         <div className="field">
           <span>{t("set.theme")}</span>
-          <div className="seg">
+          <div className="themegal">
             {THEMES.map((th) => (
               <button
                 key={th.name}
-                className={s.theme.name === th.name ? "on" : ""}
+                className={`themechip ${s.theme.name === th.name ? "on" : ""}`}
                 onClick={() => patch({ theme: { ...s.theme, name: th.name } })}
               >
+                <span
+                  className="themechip__sw"
+                  style={{
+                    background: `linear-gradient(135deg, ${presetVar(th.name, "--bg")} 20%, ${presetVar(th.name, "--accent2")} 55%, ${presetVar(th.name, "--panel")})`,
+                  }}
+                />
                 {th.label}
               </button>
             ))}

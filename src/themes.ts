@@ -72,6 +72,78 @@ export const THEMES: ThemeDef[] = [
       "--accent2": "#fdba74",
     },
   },
+  {
+    name: "sand",
+    label: "Sand",
+    vars: {
+      "--bg": "#14100a",
+      "--panel": "rgba(32, 26, 16, 0.68)",
+      "--text": "#faf6ee",
+      "--dim": "#cdc3ae",
+      "--accent": "#faf6ee",
+      "--accent2": "#d4b483",
+    },
+  },
+  {
+    name: "ocean",
+    label: "Ocean",
+    vars: {
+      "--bg": "#060e14",
+      "--panel": "rgba(10, 26, 36, 0.68)",
+      "--text": "#eef6fb",
+      "--dim": "#a8bfce",
+      "--accent": "#eef6fb",
+      "--accent2": "#5fb4d9",
+    },
+  },
+  {
+    name: "forest",
+    label: "Forest",
+    vars: {
+      "--bg": "#0a120b",
+      "--panel": "rgba(16, 30, 18, 0.68)",
+      "--text": "#f2f7f0",
+      "--dim": "#b3c4ae",
+      "--accent": "#f2f7f0",
+      "--accent2": "#7fc98a",
+    },
+  },
+  {
+    name: "wine",
+    label: "Wine",
+    vars: {
+      "--bg": "#140810",
+      "--panel": "rgba(34, 14, 24, 0.68)",
+      "--text": "#faf1f4",
+      "--dim": "#d0aebd",
+      "--accent": "#faf1f4",
+      "--accent2": "#d98aa8",
+    },
+  },
+  {
+    name: "slate",
+    label: "Slate",
+    vars: {
+      "--bg": "#0c0f12",
+      "--panel": "rgba(22, 27, 33, 0.68)",
+      "--text": "#f3f5f7",
+      "--dim": "#b3bcc7",
+      "--accent": "#f3f5f7",
+      "--accent2": "#8fa3b8",
+    },
+  },
+  {
+    name: "sunrise",
+    label: "Sunrise",
+    vars: {
+      "--bg": "#140c0c",
+      "--panel": "rgba(36, 18, 16, 0.68)",
+      "--text": "#fbf3f0",
+      "--dim": "#d3b3ac",
+      "--accent": "#fbf3f0",
+      "--accent2": "#f0997f",
+    },
+  },
 ];
 
 /** Values matching the :root block in styles.css, for preset fallbacks. */
