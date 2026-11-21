@@ -158,6 +158,7 @@ const ja: Record<keyof typeof en, string> = {
   "fs.lockSize": "サイズをロック",
   "fs.unlockSize": "サイズのロック",
   "fs.nowPlaying": "\u518d\u751f\u4e2d",
+  "fs.upNext": "次に再生",
   "fs.nothingPlaying": "\u518d\u751f\u4e2d\u306e\u66f2\u306f\u3042\u308a\u307e\u305b\u3093",
   "fs.provider": "\u97f3\u697d\u30d7\u30ed\u30d0\u30a4\u30c0\u30fc",
   "fs.queuePanel": "\u7d9a\u304d\u3092\u518d\u751f\u30d1\u30cd\u30eb",
