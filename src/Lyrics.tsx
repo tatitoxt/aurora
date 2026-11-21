@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { LrcLine } from "./bridge";
+import { adlibMask, adlibSegments } from "./lib";
 
 /** Spotify-style scrolling list: active line centered, neighbors dim. */
 export function LineLyrics({ lines, active }: { lines: LrcLine[]; active: number }) {
@@ -13,7 +14,15 @@ export function LineLyrics({ lines, active }: { lines: LrcLine[]; active: number
     <div className="player__lyrics" ref={box}>
       {lines.map((l, i) => (
         <div key={l.atMs} className={`lyric ${i === active ? "lyric--active" : ""}`}>
-          {l.text}
+          {adlibSegments(l.text).map((s, j) =>
+            s.adlib ? (
+              <span key={j} className="adlib">
+                {s.text}
+              </span>
+            ) : (
+              s.text
+            ),
+          )}
         </div>
       ))}
     </div>
@@ -53,13 +62,19 @@ export function KaraokeLyric({
           (Math.max(nextLine ? nextLine.atMs - line.atMs : 5000, 800) /
             Math.max(segments.length, 1)),
       );
+  const adlibs = adlibMask(segments);
 
   return (
     <div className="karaoke">
       <div className="karaoke__line" key={line.atMs}>
         {segments.map((w, i) => {
-          const cls =
-            i < current ? "kword kword--done" : i === current ? "kword kword--now" : "kword";
+          const cls = [
+            "kword",
+            i < current ? "kword--done" : i === current ? "kword--now" : "",
+            adlibs[i] ? "kword--adlib" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
           return (
             <span key={i} className={cls}>
               {w}

@@ -23,3 +23,47 @@ export function beatPulse(lastBeatMs: number, nowMs: number, decayMs = 320): num
   const t = Math.max(0, nowMs - lastBeatMs) / decayMs;
   return t >= 1 ? 0 : 1 - t * t;
 }
+
+/** Split a lyric line into text tokens, flagging adlibs — background
+ * vocals conventionally written inside parentheses — so renderers can
+ * style them smaller and dimmer than the lead words. */
+export function adlibSegments(text: string): { text: string; adlib: boolean }[] {
+  const out: { text: string; adlib: boolean }[] = [];
+  let depth = 0;
+  let buf = "";
+  const flush = () => {
+    if (buf) out.push({ text: buf, adlib: depth > 0 || /^\s*\(/.test(buf) || /\)\s*$/.test(buf) });
+    buf = "";
+  };
+  for (const ch of text) {
+    if (ch === "(") {
+      flush();
+      depth++;
+      buf += ch;
+    } else if (ch === ")") {
+      depth = Math.max(0, depth - 1);
+      buf += ch;
+      flush();
+    } else {
+      buf += ch;
+    }
+  }
+  flush();
+  return out;
+}
+
+/** Per-word adlib flags for already-tokenized lyrics: a word is an adlib
+ * when it sits inside an open parenthesis group. */
+export function adlibMask(words: string[]): boolean[] {
+  const mask: boolean[] = [];
+  let depth = 0;
+  for (const w of words) {
+    const starts = depth > 0 || w.includes("(");
+    mask.push(starts);
+    for (const ch of w) {
+      if (ch === "(") depth++;
+      else if (ch === ")") depth = Math.max(0, depth - 1);
+    }
+  }
+  return mask;
+}
