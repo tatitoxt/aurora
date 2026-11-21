@@ -104,16 +104,35 @@ impl<'a> LicenseClient<'a> {
         let url = format!("{}/v1/licenses/activate", self.base_url);
         match self.http.post_json(&url, &body) {
             Ok(text) => match parse_activate(&text, self.expected_product_id()) {
-                Ok(Some((customer_email, instance_id))) => {
+                Ok(Some(act)) => {
+                    let prev = self.read();
                     let st = StoredLicense {
                         key: key.to_string(),
-                        customer_email: customer_email.clone(),
+                        customer_email: act.customer_email.clone(),
                         last_validated_ms: (self.now_ms)(),
-                        instance_id,
+                        instance_id: act.instance_id,
                     };
-                    let _ = self.write(&st);
+                    if let Err(e) = self.write(&st) {
+                        // Roll back the activation we just consumed so a
+                        // retry can't exhaust the key's slots.
+                        if let Some(id) = &st.instance_id {
+                            self.post_deactivate(&st.key, id);
+                        }
+                        return LicenseState::Invalid {
+                            reason: format!("could not save license: {e}"),
+                        };
+                    }
+                    // Free the previous instance, if any — otherwise a
+                    // second activation would strand its slot forever.
+                    if let Some(prev) = prev {
+                        if let Some(id) = &prev.instance_id {
+                            if st.instance_id.as_deref() != Some(id.as_str()) {
+                                self.post_deactivate(&prev.key, id);
+                            }
+                        }
+                    }
                     LicenseState::Valid {
-                        customer_email,
+                        customer_email: st.customer_email.clone(),
                         last_validated_ms: st.last_validated_ms,
                     }
                 }
@@ -178,13 +197,7 @@ impl<'a> LicenseClient<'a> {
     pub fn deactivate(&self) -> std::io::Result<()> {
         if let Some(stored) = self.read() {
             if let Some(id) = &stored.instance_id {
-                let body = format!(
-                    "license_key={}&instance_id={}",
-                    urlencoded(&stored.key),
-                    urlencoded(id)
-                );
-                let url = format!("{}/v1/licenses/deactivate", self.base_url);
-                let _ = self.http.post_json(&url, &body);
+                self.post_deactivate(&stored.key, id);
             }
         }
         match std::fs::remove_file(&self.state_path) {
@@ -192,6 +205,18 @@ impl<'a> LicenseClient<'a> {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e),
         }
+    }
+
+    /// Best-effort `licenses/deactivate` for one instance. Errors are
+    /// ignored: callers use it to free slots, never to decide state.
+    fn post_deactivate(&self, key: &str, instance_id: &str) {
+        let body = format!(
+            "license_key={}&instance_id={}",
+            urlencoded(key),
+            urlencoded(instance_id)
+        );
+        let url = format!("{}/v1/licenses/deactivate", self.base_url);
+        let _ = self.http.post_json(&url, &body);
     }
 
     fn offline_or_invalid(&self, _net: &str) -> LicenseState {
@@ -234,15 +259,17 @@ fn urlencoded(s: &str) -> String {
         .collect()
 }
 
+struct Activation {
+    customer_email: Option<String>,
+    instance_id: Option<String>,
+}
+
 /// `licenses/activate` returns `{activated: bool, license_key:{status,
 /// product_id}, instance:{id}, meta:{...}}` — success = activated &&
 /// status=="active" and, once configured, the right product.
-/// Returns Ok(Some((email, instance_id))), Ok(None) not activated,
+/// Returns Ok(Some(Activation)), Ok(None) not activated,
 /// Err(reason) malformed.
-fn parse_activate(
-    text: &str,
-    expected_product_id: u64,
-) -> Result<Option<(Option<String>, Option<String>)>, String> {
+fn parse_activate(text: &str, expected_product_id: u64) -> Result<Option<Activation>, String> {
     let v: serde_json::Value =
         serde_json::from_str(text).map_err(|e| format!("bad response: {e}"))?;
     let activated = v
@@ -278,7 +305,10 @@ fn parse_activate(
         .pointer("/instance/id")
         .and_then(|i| i.as_str())
         .map(|s| s.to_string());
-    Ok(Some((email, instance_id)))
+    Ok(Some(Activation {
+        customer_email: email,
+        instance_id,
+    }))
 }
 
 /// Lemon Squeezy returns `{valid: bool, license_key: {status}, meta:{store_id},
@@ -407,6 +437,54 @@ mod tests {
         let posts = http.posts.borrow();
         assert_eq!(posts.len(), 2);
         assert!(posts[1].0.ends_with("/v1/licenses/validate"));
+        assert!(posts[1].1.contains("instance_id=inst1"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reactivate_releases_previous_instance() {
+        let http = RecordingHttp::ok(ACT);
+        let dir = tmp("rp");
+        let path = dir.join("license.json");
+        let c = LicenseClient::new(&http, &path);
+        c.activate("KEY1");
+        // Second activation mints a new instance; the old one must be freed.
+        let http2 = RecordingHttp::ok(
+            r#"{"activated":true,"valid":true,"license_key":{"status":"active"},
+                "instance":{"id":"inst2"},"customer_email":"a@b.c"}"#,
+        );
+        let c2 = LicenseClient {
+            http: &http2,
+            ..LicenseClient::new(&http2, &path)
+        };
+        match c2.activate("KEY2") {
+            LicenseState::Valid { .. } => {}
+            s => panic!("expected Valid, got {s:?}"),
+        }
+        let posts = http2.posts.borrow();
+        assert_eq!(posts.len(), 2);
+        assert!(posts[1].0.ends_with("/v1/licenses/deactivate"));
+        assert!(posts[1].1.contains("instance_id=inst1"));
+        assert!(posts[1].1.contains("license_key=KEY1"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn failed_save_rolls_back_activation() {
+        let http = RecordingHttp::ok(ACT);
+        let dir = tmp("fs");
+        std::fs::create_dir_all(&dir).unwrap();
+        // A file where the license directory should be: create_dir_all fails.
+        let blocker = dir.join("not-a-dir");
+        std::fs::write(&blocker, "x").unwrap();
+        let c = LicenseClient::new(&http, blocker.join("license.json"));
+        match c.activate("KEY") {
+            LicenseState::Invalid { reason } => assert!(reason.contains("save")),
+            s => panic!("expected Invalid, got {s:?}"),
+        }
+        let posts = http.posts.borrow();
+        assert_eq!(posts.len(), 2);
+        assert!(posts[1].0.ends_with("/v1/licenses/deactivate"));
         assert!(posts[1].1.contains("instance_id=inst1"));
         let _ = std::fs::remove_dir_all(&dir);
     }
