@@ -185,6 +185,7 @@ impl YtDlp {
                 template.to_str().ok_or("bad dest path")?,
                 "--no-playlist",
                 "--no-warnings",
+                "--",
                 url,
             ])
             .output()
@@ -207,6 +208,9 @@ impl YtDlp {
                 "--no-warnings",
                 "--playlist-end",
                 &limit.to_string(),
+                // `--` ends option parsing: a pasted value starting with a
+                // dash must reach yt-dlp as a URL, never as a flag.
+                "--",
                 url,
             ])
             .output()
@@ -260,11 +264,28 @@ fn parse_playlist(url: &str, v: &serde_json::Value) -> RemotePlaylist {
     }
 }
 
-/// Map one yt-dlp info JSON object to a RemoteTrack. Entries without an id or
-/// title are dropped.
+/// Human title from a URL's last path segment — flat playlist entries
+/// (SoundCloud sets especially) often carry id+url but no title.
+fn slug_title(v: &serde_json::Value) -> Option<String> {
+    let url = ["webpage_url", "url"]
+        .iter()
+        .find_map(|k| v.get(k)?.as_str())?;
+    let slug = url.rsplit('/').find(|s| !s.is_empty())?.split('?').next()?;
+    if slug.is_empty() {
+        None
+    } else {
+        Some(slug.replace(['-', '_'], " "))
+    }
+}
+
 fn parse_entry(source: &str, v: &serde_json::Value) -> Option<RemoteTrack> {
     let id = v.get("id")?.as_str()?.to_string();
-    let title = v.get("title")?.as_str()?.to_string();
+    let title = v
+        .get("title")
+        .and_then(|t| t.as_str())
+        .filter(|t| !t.is_empty())
+        .map(String::from)
+        .or_else(|| slug_title(v))?;
     // `artist: null` is a present-but-null value: or_else would accept it and
     // suppress the populated fallbacks — pick the first non-null string.
     let artist = ["artist", "channel", "uploader"]

@@ -47,6 +47,8 @@ struct AppState {
     /// Metadata for queue items whose `path` is a `remote:<source>:<id>`
     /// pseudo-path; the player's resolver downloads them on demand.
     remote: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>>,
+    /// Streams cache dir shared by the resolver and prefetch.
+    stream_cache: PathBuf,
     demo: bool,
 }
 
@@ -123,6 +125,64 @@ fn config_dir() -> PathBuf {
     base.join(&noctbeat_core::branding::branding().short_name)
 }
 
+/// Cache file name a downloaded stream lands under.
+fn remote_cache_name(rt: &RemoteTrack) -> String {
+    format!(
+        "{}-{}",
+        rt.source,
+        rt.id.replace(|c: char| !c.is_alphanumeric(), "_")
+    )
+}
+
+/// Map a `remote:` queue key to an on-disk file: reuse the cache hit or
+/// download with yt-dlp. Lock order is always player → remote: callers
+/// inside play paths already hold the player lock, so this never takes
+/// it.
+fn resolve_remote(
+    map: &Mutex<std::collections::HashMap<String, RemoteTrack>>,
+    settings: &Mutex<Settings>,
+    cache: &std::path::Path,
+    key: &str,
+) -> Result<PathBuf, String> {
+    let rt = map
+        .lock()
+        .map_err(|e| e.to_string())?
+        .get(key)
+        .cloned()
+        .ok_or_else(|| format!("unknown remote track {key}"))?;
+    let name = remote_cache_name(&rt);
+    if let Some(f) = providers::cached_file(cache, &name) {
+        return Ok(f);
+    }
+    let ytdlp = {
+        let s = settings.lock().map_err(|e| e.to_string())?;
+        YtDlp::detect(s.ytdlp_path.as_deref())
+    }
+    .ok_or("yt-dlp not installed")?;
+    ytdlp.download(&rt.url, cache, &name)
+}
+
+/// Kick a background download for the queue item right after `index` when
+/// it is a remote track, so auto-advance almost never waits on yt-dlp.
+fn prefetch_next(state: &AppState, index: usize) {
+    let Ok(p) = state.player.lock() else {
+        return;
+    };
+    let key = p
+        .queue()
+        .get(index + 1)
+        .and_then(|i| i.path.strip_prefix("remote:"))
+        .map(str::to_owned);
+    drop(p);
+    let Some(key) = key else { return };
+    let map = state.remote.clone();
+    let settings = state.settings.clone();
+    let cache = state.stream_cache.clone();
+    std::thread::spawn(move || {
+        let _ = resolve_remote(&map, &settings, &cache, &key);
+    });
+}
+
 /// The local player claims the transport while it is playing or paused;
 /// otherwise whatever the OS reports (Spotify, browser, …) wins.
 fn local_active(state: &AppState) -> bool {
@@ -136,7 +196,12 @@ fn local_active(state: &AppState) -> bool {
 fn poll_np(state: &AppState) -> NowPlaying {
     if local_active(state) {
         if let Ok(mut p) = state.player.lock() {
+            let idx = p.current_index();
             if let Ok(np) = p.poll() {
+                drop(p);
+                if let Some(i) = idx {
+                    prefetch_next(state, i);
+                }
                 return np;
             }
         }
@@ -173,8 +238,11 @@ fn clear_history(state: State<AppState>) -> Result<(), String> {
     h.save(&state.history_path).map_err(|e| e.to_string())
 }
 
+/// Async: a play/pause/next that lands on an uncached remote track can
+/// block for a yt-dlp download — that must happen on the runtime pool,
+/// not the IPC thread.
 #[tauri::command]
-fn media_control(state: State<AppState>, cmd: Control) -> Result<(), String> {
+async fn media_control(state: State<'_, AppState>, cmd: Control) -> Result<(), String> {
     if local_active(&state) {
         return state
             .player
@@ -230,12 +298,30 @@ fn get_queue(state: State<AppState>) -> Result<QueueOut, String> {
 }
 
 #[tauri::command]
-fn play_queue_index(state: State<AppState>, index: usize) -> Result<(), String> {
+async fn play_queue_index(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+    // Pre-resolve on the runtime pool: the resolver also runs under the
+    // player lock (auto-advance), but a UI-initiated first play must not
+    // hold it through a whole download.
+    let path = state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .queue()
+        .get(index)
+        .map(|i| i.path.clone());
+    if let Some(key) = path.and_then(|p| p.strip_prefix("remote:").map(str::to_owned)) {
+        let map = state.remote.clone();
+        let settings = state.settings.clone();
+        let cache = state.stream_cache.clone();
+        resolve_remote(&map, &settings, &cache, &key)?;
+    }
     state
         .player
         .lock()
         .map_err(|e| e.to_string())?
-        .play_index(index)
+        .play_index(index)?;
+    prefetch_next(&state, index);
+    Ok(())
 }
 
 #[tauri::command]
@@ -415,8 +501,10 @@ async fn import_playlist_url(
 ) -> Result<PlaylistUrlResult, String> {
     let ytdlp = detected_ytdlp(&state)?;
     let pl = ytdlp.playlist(&url, 200)?;
-    let mut map = state.remote.lock().map_err(|e| e.to_string())?;
+    // Lock order player → remote matches the resolver inside play_index;
+    // taking remote first here deadlocks against auto-advance.
     let mut player = state.player.lock().map_err(|e| e.to_string())?;
+    let mut map = state.remote.lock().map_err(|e| e.to_string())?;
     for t in &pl.tracks {
         let key = format!("{}:{}", t.source, t.id);
         map.insert(key.clone(), t.clone());
@@ -974,38 +1062,19 @@ pub fn run() {
     let settings_arc = std::sync::Arc::new(Mutex::new(settings.clone()));
     let remote_map: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>> =
         std::sync::Arc::new(Mutex::new(std::collections::HashMap::new()));
+    let stream_cache = dir.join("streams");
     let mut local_player = LocalPlayer::new(audio_out);
     {
         // Resolves `remote:<source>:<id>` queue paths to downloaded files
         // in the streams cache; everything else passes through unchanged.
         let map = remote_map.clone();
         let settings = settings_arc.clone();
-        let cache = dir.join("streams");
+        let cache = stream_cache.clone();
         local_player.set_resolver(Box::new(move |item| {
             let Some(key) = item.path.strip_prefix("remote:") else {
                 return Ok(item.path.clone());
             };
-            let rt = map
-                .lock()
-                .map_err(|e| e.to_string())?
-                .get(key)
-                .cloned()
-                .ok_or_else(|| format!("unknown remote track {key}"))?;
-            let name = format!(
-                "{}-{}",
-                rt.source,
-                rt.id.replace(|c: char| !c.is_alphanumeric(), "_")
-            );
-            if let Some(f) = providers::cached_file(&cache, &name) {
-                return Ok(f.display().to_string());
-            }
-            let ytdlp = {
-                let s = settings.lock().map_err(|e| e.to_string())?;
-                YtDlp::detect(s.ytdlp_path.as_deref())
-            }
-            .ok_or("yt-dlp not installed")?;
-            let f = ytdlp.download(&rt.url, &cache, &name)?;
-            Ok(f.display().to_string())
+            resolve_remote(&map, &settings, &cache, key).map(|f| f.display().to_string())
         }));
     }
 
@@ -1035,6 +1104,7 @@ pub fn run() {
             desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
             remote: remote_map,
+            stream_cache,
             demo,
         })
         .invoke_handler(tauri::generate_handler![
