@@ -111,6 +111,10 @@ pub struct LocalPlayer {
     index: Option<usize>,
     status: PlaybackStatus,
     resolver: Option<PathResolver>,
+    shuffle: bool,
+    /// xorshift64 state for shuffle picks — avoids pulling in `rand`
+    /// for one call site.
+    rng: u64,
 }
 
 impl LocalPlayer {
@@ -121,6 +125,32 @@ impl LocalPlayer {
             index: None,
             status: PlaybackStatus::Stopped,
             resolver: None,
+            shuffle: false,
+            rng: now_ms() | 1,
+        }
+    }
+
+    pub fn set_shuffle(&mut self, on: bool) {
+        self.shuffle = on;
+    }
+
+    pub fn shuffle(&self) -> bool {
+        self.shuffle
+    }
+
+    /// Next queue index under shuffle: any slot except the current one.
+    fn shuffled_index(&mut self) -> usize {
+        // xorshift64*
+        self.rng ^= self.rng >> 12;
+        self.rng ^= self.rng << 25;
+        self.rng ^= self.rng >> 27;
+        let r = (self.rng.wrapping_mul(0x2545F4914F6CDD1D) >> 32) as usize;
+        let n = self.queue.len();
+        let pick = r % n;
+        if Some(pick) == self.index && n > 1 {
+            (pick + 1) % n
+        } else {
+            pick
         }
     }
 
@@ -232,6 +262,10 @@ impl LocalPlayer {
             }
             return self.play_index(0);
         };
+        if dir == 1 && self.shuffle && self.queue.len() > 1 {
+            let pick = self.shuffled_index();
+            return self.play_index(pick);
+        }
         let next = i as i64 + dir;
         if next < 0 || next as usize >= self.queue.len() {
             return Err("end of queue".into());
@@ -421,6 +455,22 @@ mod tests {
                                                     // Previous within 3s boundary: position 0 → go to previous track.
         p.control(Control::Previous).unwrap();
         assert_eq!(p.tick().track.unwrap().title, "b");
+    }
+
+    #[test]
+    fn shuffle_advances_to_valid_varied_indices() {
+        let (mut p, _) = player();
+        p.set_queue(vec![item("a"), item("b"), item("c"), item("d"), item("e")]);
+        p.play_index(0).unwrap();
+        p.set_shuffle(true);
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..30 {
+            p.control(Control::Next).unwrap();
+            let i = p.current_index().unwrap();
+            assert!(i < 5);
+            seen.insert(i);
+        }
+        assert!(seen.len() > 1, "shuffle should visit more than one track");
     }
 
     #[test]

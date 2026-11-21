@@ -415,6 +415,10 @@ export const bridge = {
     mock.status = "playing";
     return Promise.resolve(null);
   },
+  setShuffle: (on: boolean): Promise<boolean> =>
+    isTauri() ? invokeCmd<boolean>("set_shuffle", { on }) : Promise.resolve(on),
+  getShuffle: (): Promise<boolean> =>
+    isTauri() ? invokeCmd<boolean>("get_shuffle") : Promise.resolve(false),
   clearQueue: () =>
     isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
   scanLibrary: (dir?: string) =>

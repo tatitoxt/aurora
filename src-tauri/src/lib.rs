@@ -364,6 +364,19 @@ async fn play_queue_index(
     Ok(())
 }
 
+/// Toggle queue shuffle; applies to explicit Next and auto-advance.
+#[tauri::command]
+fn set_shuffle(state: State<AppState>, on: bool) -> Result<bool, String> {
+    let mut p = state.player.lock().map_err(|e| e.to_string())?;
+    p.set_shuffle(on);
+    Ok(p.shuffle())
+}
+
+#[tauri::command]
+fn get_shuffle(state: State<AppState>) -> bool {
+    state.player.lock().map(|p| p.shuffle()).unwrap_or(false)
+}
+
 #[tauri::command]
 fn clear_queue(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
     state.player.lock().map_err(|e| e.to_string())?.clear();
@@ -1330,6 +1343,8 @@ pub fn run() {
             get_queue,
             play_queue_index,
             clear_queue,
+            set_shuffle,
+            get_shuffle,
             scan_library,
             provider_status,
             provider_search,

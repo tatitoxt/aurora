@@ -580,6 +580,16 @@ body {
   border-radius: 50%; font-size: 15px; transition: background .15s, color .15s;
 }
 .fs__icon:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.fs__icon--on { color: var(--accent); }
+.fs__bar { cursor: pointer; }
+.fs__barfill { transition: width 0.3s linear; }
+.fs__pill, .fs__queue, .fs__clockwrap { animation: fs-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+.fs__queue { animation-delay: 0.08s; }
+.fs__pill { animation-delay: 0.15s; }
+@keyframes fs-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
 .fs__play {
   width: 40px; height: 40px; border: none; border-radius: 50%;
   background: var(--text); color: var(--bg); cursor: pointer;
