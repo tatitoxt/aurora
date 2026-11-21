@@ -50,10 +50,40 @@ fn metadata(t: Option<&Track>) -> HashMap<String, Value<'static>> {
             ((t.duration_ms * 1000) as i64).into(),
         );
         if !t.artwork_url.is_empty() {
-            m.insert("mpris:artUrl".into(), t.artwork_url.clone().into());
+            m.insert("mpris:artUrl".into(), art_url(&t.artwork_url).into());
         }
     }
     m
+}
+
+/// `mpris:artUrl` must be a URI. Local artwork is stored as a plain
+/// absolute path (the webview reads it via the asset protocol); wrap it
+/// in file:// with percent-encoding for bus clients.
+fn art_url(raw: &str) -> String {
+    if raw.contains("://") {
+        return raw.to_string();
+    }
+    let mut s = String::from("file://");
+    for &b in raw.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
+                s.push(b as char)
+            }
+            _ => {
+                use std::fmt::Write;
+                let _ = write!(s, "%{b:02X}");
+            }
+        }
+    }
+    s
+}
+
+fn loop_str(m: RepeatMode) -> &'static str {
+    match m {
+        RepeatMode::Off => "None",
+        RepeatMode::All => "Playlist",
+        RepeatMode::One => "Track",
+    }
 }
 
 /// Root interface: window management and identity.
@@ -170,12 +200,16 @@ impl PlayerIface {
         self.ctrl(Control::PlayPause)
     }
 
+    /// MPRIS Stop: pause, rewind, and report Stopped so local_active
+    /// releases the transport (desktop clients can then follow others).
     fn stop(&self) -> fdo::Result<()> {
-        self.pause()?;
-        self.with_player((), |p| {
-            let _ = p.seek(0);
-        });
-        Ok(())
+        let state = self.app.state::<AppState>();
+        let r = state
+            .player
+            .lock()
+            .map(|mut p| p.stop())
+            .map_err(|_| fdo::Error::Failed("player lock poisoned".into()));
+        r
     }
 
     fn play(&self) -> fdo::Result<()> {
@@ -217,14 +251,7 @@ impl PlayerIface {
 
     #[zbus(property)]
     fn loop_status(&self) -> String {
-        self.with_player("None".to_string(), |p| {
-            match p.repeat() {
-                RepeatMode::Off => "None",
-                RepeatMode::All => "Playlist",
-                RepeatMode::One => "Track",
-            }
-            .to_string()
-        })
+        self.with_player("None".to_string(), |p| loop_str(p.repeat()).to_string())
     }
 
     #[zbus(property)]
@@ -328,6 +355,7 @@ impl PlayerIface {
 
 /// Live handle kept in `AppState`; `update` is called every poll tick.
 pub struct MprisHandle {
+    app: AppHandle,
     conn: zbus::blocking::Connection,
     seen: Mutex<Seen>,
 }
@@ -337,6 +365,11 @@ struct Seen {
     track_id: Option<String>,
     status: Option<PlaybackStatus>,
     position_ms: u64,
+    can_play: Option<bool>,
+    can_pause: Option<bool>,
+    volume_bits: Option<u32>,
+    shuffle: Option<bool>,
+    loop_status: Option<RepeatMode>,
 }
 
 /// Start serving on the session bus. Returns None when there is no bus
@@ -353,6 +386,7 @@ pub fn start(app: &AppHandle) -> Option<MprisHandle> {
         .build()
         .ok()?;
     Some(MprisHandle {
+        app: app.clone(),
         conn,
         seen: Mutex::new(Seen::default()),
     })
@@ -393,6 +427,35 @@ impl MprisHandle {
             changed.insert("PlaybackStatus".into(), status_str(status).into());
             seen.status = Some(status);
             transitioned = true;
+        }
+        // Clients cache Can*/Volume/Shuffle/LoopStatus; they only update on
+        // PropertiesChanged, so publish every property that can drift.
+        if let Ok(p) = self.app.state::<AppState>().player.lock() {
+            let caps = !p.queue().is_empty();
+            if seen.can_play != Some(caps) {
+                for k in ["CanPlay", "CanGoNext", "CanGoPrevious"] {
+                    changed.insert(k.into(), caps.into());
+                }
+                seen.can_play = Some(caps);
+            }
+            let can_pause = p.status() != PlaybackStatus::Stopped;
+            if seen.can_pause != Some(can_pause) {
+                changed.insert("CanPause".into(), can_pause.into());
+                seen.can_pause = Some(can_pause);
+            }
+            let vol = p.volume().to_bits();
+            if seen.volume_bits != Some(vol) {
+                changed.insert("Volume".into(), (p.volume() as f64).into());
+                seen.volume_bits = Some(vol);
+            }
+            if seen.shuffle != Some(p.shuffle()) {
+                changed.insert("Shuffle".into(), p.shuffle().into());
+                seen.shuffle = Some(p.shuffle());
+            }
+            if seen.loop_status != Some(p.repeat()) {
+                changed.insert("LoopStatus".into(), loop_str(p.repeat()).into());
+                seen.loop_status = Some(p.repeat());
+            }
         }
         // A jump > 1.5 s from where clients think we are means a seek. Not
         // on transitions — position legitimately resets when a track starts.
