@@ -288,7 +288,7 @@ body {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 10px; color: var(--dim); font-size: 13px;
 }
-..share canvas { width: 100%; height: auto; display: block; border-radius: 18px; }
+.share canvas { width: 100%; height: auto; display: block; border-radius: 18px; }
 .share__row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
 .share__row button {
   display: inline-flex; align-items: center; gap: 6px;
