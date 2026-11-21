@@ -6,6 +6,7 @@ import {
   type NowPlaying,
   type LrcLine,
   type QueueState,
+  type RemoteTrack,
   type Settings,
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
@@ -120,6 +121,10 @@ export default function Fullscreen() {
   const [lyricsOn, setLyricsOn] = useState(true);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
+  const [searchQ, setSearchQ] = useState("");
+  const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchErr, setSearchErr] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
   const [qpage, setQpage] = useState(0);
@@ -475,15 +480,51 @@ export default function Fullscreen() {
                         key={p.id}
                         className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
                         disabled={!p.live}
-                        onClick={() => {
-                          setSearchSrc(p.id);
-                          setProvOpen(false);
-                        }}
+                        onClick={() => setSearchSrc(p.id)}
                       >
                         <p.icon size={14} weight="fill" /> {p.label}
                         {!p.live && <span className="fs__soon">Soon</span>}
                       </button>
                     ))}
+                    <input
+                      className="fs__provq"
+                      value={searchQ}
+                      placeholder={`Search ${PROVIDERS.find((p) => p.id === searchSrc)?.label ?? ""}…`}
+                      onChange={(e) => setSearchQ(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" || !searchQ.trim() || searching) return;
+                        setSearching(true);
+                        setSearchErr("");
+                        void bridge
+                          .providerSearch(searchSrc, searchQ.trim())
+                          .then(setSearchRes)
+                          .catch((err) => setSearchErr(String(err)))
+                          .finally(() => setSearching(false));
+                      }}
+                    />
+                    {searchErr && <span className="fs__proverr">{searchErr}</span>}
+                    {searchRes.length > 0 && (
+                      <span className="fs__provres">
+                        {searchRes.map((t) => (
+                          <button
+                            key={`${t.source}:${t.id}`}
+                            className="fs__morebtn"
+                            onClick={() => {
+                              setSearchErr("");
+                              setProvOpen(false);
+                              void bridge
+                                .providerPlay(t)
+                                .catch((err) => setSearchErr(String(err)));
+                            }}
+                          >
+                            <span className="fs__provrow">
+                              <span className="fs__provtitle">{t.title}</span>
+                              <span className="fs__provsub">{t.artist}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </span>
+                    )}
                   </span>
                 )}
               </span>

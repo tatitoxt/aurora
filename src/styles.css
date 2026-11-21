@@ -743,7 +743,22 @@ body {
 .fs__morebtn--on { color: var(--accent); }
 .fs__morebtn:disabled { opacity: 0.45; cursor: default; }
 .fs__morebtn:disabled:hover { background: none; }
-.fs__provpop { min-width: 168px; }
+.fs__provpop { min-width: 200px; }
+.fs__provq {
+  margin: 4px 4px 0; background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 9px;
+  padding: 6px 10px; color: var(--text); font-size: 12px; outline: none;
+  font-family: inherit;
+}
+.fs__provq::placeholder { color: var(--dim); }
+.fs__proverr { font-size: 10.5px; color: #f1a8a8; padding: 0 10px; }
+.fs__provres {
+  display: flex; flex-direction: column; max-height: 168px;
+  overflow-y: auto; scrollbar-width: none;
+}
+.fs__provrow { display: flex; flex-direction: column; min-width: 0; }
+.fs__provtitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__provsub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__soon {
   margin-left: auto; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px;
