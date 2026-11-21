@@ -6,20 +6,6 @@ use std::path::Path;
 
 pub const CURRENT_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DisplayRule {
-    pub display_id: String,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "snake_case")]
-pub enum ColorMode {
-    Artwork,
-    Custom,
-}
-
 /// User theme: a preset name plus optional accent overrides applied on top.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,23 +45,9 @@ pub struct Profile {
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub version: u32,
-    pub edge_thickness_px: u32,
-    pub glow_strength: f32,
-    pub brightness: f32,
-    pub color_mode: ColorMode,
-    pub custom_color: String,
-    pub battery_saver: bool,
-    pub hide_in_fullscreen: bool,
-    /// Fade the edge glow out when nothing is playing.
-    #[serde(default = "default_true")]
-    pub lights_off_on_silence: bool,
-    /// Dim the edge glow while running on battery (discharging).
-    #[serde(default = "default_true")]
-    pub auto_dim_on_battery: bool,
     /// Show the track artwork with a beat/progress ring in the tray icon.
     #[serde(default = "default_true")]
     pub tray_live_icon: bool,
-    pub displays: Vec<DisplayRule>,
     #[serde(default)]
     pub license_key: Option<String>,
     /// Floating HUD mini-player window.
@@ -189,17 +161,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             version: CURRENT_VERSION,
-            edge_thickness_px: 24,
-            glow_strength: 0.7,
-            brightness: 0.8,
-            color_mode: ColorMode::Artwork,
-            custom_color: "#8b5cf6".into(),
-            battery_saver: false,
-            hide_in_fullscreen: true,
-            lights_off_on_silence: true,
-            auto_dim_on_battery: true,
             tray_live_icon: true,
-            displays: vec![],
             license_key: None,
             hud_enabled: true,
             hud_always_on_top: true,
@@ -349,13 +311,7 @@ mod tests {
     fn roundtrip() {
         let p = tmp("round.json");
         let s = Settings {
-            edge_thickness_px: 48,
-            color_mode: ColorMode::Custom,
-            custom_color: "#ff0080".into(),
-            displays: vec![DisplayRule {
-                display_id: "d1".into(),
-                enabled: false,
-            }],
+            crossfade_ms: 4000,
             license_key: Some("K".into()),
             ..Default::default()
         };
@@ -367,7 +323,7 @@ mod tests {
     #[test]
     fn old_version_migrates() {
         let p = tmp("old.json");
-        // v0 file without version/displays/license.
+        // v0 file without version/license; removed edge-glow keys are ignored.
         std::fs::write(
             &p,
             r##"{"edgeThicknessPx":12,"glowStrength":0.5,"brightness":0.9,
@@ -377,9 +333,7 @@ mod tests {
         .unwrap();
         let s = Settings::load(&p);
         assert_eq!(s.version, CURRENT_VERSION);
-        assert_eq!(s.edge_thickness_px, 12);
-        assert!(s.battery_saver);
-        assert_eq!(s.displays, vec![]);
+        assert!(s.license_key.is_none());
         let _ = std::fs::remove_file(&p);
     }
 
@@ -433,14 +387,7 @@ mod tests {
     #[test]
     fn v1_file_without_hud_fields_gets_hud_defaults() {
         let p = tmp("v1nohud.json");
-        std::fs::write(
-            &p,
-            r##"{"version":1,"edgeThicknessPx":24,"glowStrength":0.7,
-               "brightness":0.8,"colorMode":{"mode":"artwork"},
-               "customColor":"#8b5cf6","batterySaver":false,
-               "hideInFullscreen":true,"displays":[],"licenseKey":null}"##,
-        )
-        .unwrap();
+        std::fs::write(&p, r##"{"version":1,"licenseKey":null}"##).unwrap();
         let s = Settings::load(&p);
         assert!(s.hud_enabled);
         assert!(s.hud_always_on_top);

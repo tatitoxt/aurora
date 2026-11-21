@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Noctbeat — your music, on the edge of your screen</title>
+    <title>Noctbeat — your music, everywhere you look</title>
     <meta
       name="description"
-      content="Noctbeat wraps your screen edges in light that breathes with your music. A glass mini player, synced lyrics, per-display control."
+      content="Noctbeat floats your music over everything: a glass HUD, synced karaoke lyrics and a fullscreen stage."
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="edge-demo" aria-hidden="true"><div class="edge-demo__glow"></div></div>
+    <div class="edge-demo" aria-hidden="true"><div class="edge-demo__pill"></div></div>
 
     <nav class="nav">
       <span class="nav__mark" data-i18n="brand">Noctbeat</span>
@@ -19,10 +19,10 @@
     </nav>
 
     <header class="hero">
-      <h1 data-i18n="heroTitle">Your screen breathes with the music.</h1>
+      <h1 data-i18n="heroTitle">Your music floats over everything.</h1>
       <p class="hero__sub" data-i18n="heroSub">
-        A thin ribbon of light runs along your display edges, pulsing on every
-        beat and tinted by the artwork of what you're hearing.
+        A glass HUD pinned above every app, synced karaoke lyrics and a
+        fullscreen stage with nine looks.
       </p>
       <div class="hero__cta">
         <a class="btn btn--primary" id="buy-link" href="#" data-i18n="buy">Buy once</a>
@@ -33,8 +33,8 @@
 
     <section id="features" class="grid">
       <article class="card">
-        <h2 data-i18n="f1t">Edge light, in sync</h2>
-        <p data-i18n="f1b">A soft glow follows the edges of each display, pulsing with the tempo and colored from the album art.</p>
+        <h2 data-i18n="f1t">Floating HUD, always on top</h2>
+        <p data-i18n="f1b">A draggable, resizable glass panel above every window: your queue, transport and artwork — one click from a big now-playing view.</p>
       </article>
       <article class="card">
         <h2 data-i18n="f2t">Fullscreen stage</h2>
@@ -73,8 +73,8 @@
         <p data-i18n="f10b">A sleep timer that pauses at a set time, and relaunch picks your queue up exactly where it stopped.</p>
       </article>
       <article class="card">
-        <h2 data-i18n="f11t">Per-display, aware</h2>
-        <p data-i18n="f11b">Pick which monitors glow; the edge dims on battery, rests during fullscreen apps and fades out when the music stops.</p>
+        <h2 data-i18n="f11t">List ⇄ focus, one click</h2>
+        <p data-i18n="f11b">The HUD flips between your whole queue and a large now-playing card — pin it, move it, resize it, and it never leaves your screen.</p>
       </article>
       <article class="card">
         <h2 data-i18n="f12t">Native and light</h2>
@@ -92,14 +92,14 @@
       const I18N = {
         en: {
           brand: BRANDING.productName,
-          heroTitle: "Your screen breathes with the music.",
+          heroTitle: "Your music floats over everything.",
           heroSub:
-            "A thin ribbon of light runs along your display edges, pulsing on every beat and tinted by the artwork of what you're hearing.",
+            "A glass HUD pinned above every app, synced karaoke lyrics and a fullscreen stage with nine looks.",
           buy: "Buy once",
           features: "See what it does",
           heroNote: "macOS · Windows · Linux — one-time license, yours forever.",
-          f1t: "Edge light, in sync",
-          f1b: "A soft glow follows the edges of each display, pulsing with the tempo and colored from the album art.",
+          f1t: "Floating HUD, always on top",
+          f1b: "A draggable, resizable glass panel above every window: your queue, transport and artwork — one click from a big now-playing view.",
           f2t: "Fullscreen stage",
           f2b: "Nine full-screen looks — wall of covers, arc cover-flow, spinning dial, artist spotlight — with a giant clock, an editable queue and a glass transport pill.",
           f3t: "Karaoke lyrics + video",
@@ -118,22 +118,22 @@
           f9b: "Total time, plays, top tracks and artists, a daily activity strip and a monthly recap page — stored locally, yours alone.",
           f10t: "Sleep & resume",
           f10b: "A sleep timer that pauses at a set time, and relaunch picks your queue up exactly where it stopped.",
-          f11t: "Per-display, aware",
-          f11b: "Pick which monitors glow; the edge dims on battery, rests during fullscreen apps and fades out when the music stops.",
+          f11t: "List ⇄ focus, one click",
+          f11b: "The HUD flips between your whole queue and a large now-playing card — pin it, move it, resize it, and it never leaves your screen.",
           f12t: "Native and light",
           f12b: "Built on Tauri with a small Rust core — low CPU, low memory, no Electron weight.",
           openSource: "Open core — the engine is MIT-licensed.",
         },
         es: {
           brand: BRANDING.productName,
-          heroTitle: "Tu pantalla respira con la música.",
+          heroTitle: "Tu música flota sobre todo.",
           heroSub:
-            "Una franja de luz recorre los bordes de tu pantalla, latiendo con cada golpe y tiñéndose con la carátula de lo que escuchás.",
+            "Un HUD de vidrio anclado sobre cada app, letras karaoke sincronizadas y un escenario a pantalla completa con nueve looks.",
           buy: "Comprá una vez",
           features: "Mirá qué hace",
           heroNote: "macOS · Windows · Linux — licencia única, tuya para siempre.",
-          f1t: "Luz de borde en sincronía",
-          f1b: "Un brillo suave sigue los bordes de cada pantalla, latiendo con el tempo y coloreado con la carátula.",
+          f1t: "HUD flotante, siempre arriba",
+          f1b: "Un panel de vidrio movible y redimensionable sobre cada ventana: tu cola, transporte y carátula — a un clic de la vista grande de reproducción.",
           f2t: "Escenario fullscreen",
           f2b: "Nueve estilos a pantalla completa — pared de carátulas, cover-flow en arco, dial giratorio, spotlight de artista — con reloj gigante, cola editable y píldora de vidrio.",
           f3t: "Letras karaoke + video",
@@ -152,8 +152,8 @@
           f9b: "Tiempo total, reproducciones, temas y artistas top, una tira de actividad diaria y un resumen mensual — guardado local, solo tuyo.",
           f10t: "Sleep y resume",
           f10b: "Un sleep timer que pausa a la hora que elijas, y al reabrir la cola retoma exactamente donde quedó.",
-          f11t: "Por pantalla, consciente",
-          f11b: "Elegí qué monitores brillan; el borde se atenúa con batería, descansa en apps a pantalla completa y se apaga cuando para la música.",
+          f11t: "Lista ⇄ foco, un clic",
+          f11b: "El HUD alterna entre toda tu cola y una tarjeta grande de reproducción — anclalo, movelo, redimensionalo: nunca sale de tu pantalla.",
           f12t: "Nativo y liviano",
           f12b: "Hecho con Tauri y un núcleo Rust pequeño — bajo CPU, baja memoria, sin peso de Electron.",
           openSource: "Núcleo abierto — el motor está bajo licencia MIT.",
@@ -170,7 +170,7 @@
         document.getElementById("buy-link").href = BRANDING.checkoutUrl;
         document.title =
           lang === "en"
-            ? `${BRANDING.productName} — your music, on the edge of your screen`
+            ? `${BRANDING.productName} — your music, everywhere you look`
             : `${BRANDING.productName} — tu música, en el borde de tu pantalla`;
       };
       document.getElementById("lang-toggle").addEventListener("click", () => {

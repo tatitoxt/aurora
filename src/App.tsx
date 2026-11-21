@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Player from "./pages/Player";
-import Edge from "./pages/Edge";
 import Settings from "./pages/Settings";
 import Hud from "./pages/Hud";
 import DeskLyrics from "./pages/DeskLyrics";
@@ -28,7 +27,6 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<Player />} />
-        <Route path="/edge" element={<Edge />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/hud" element={<Hud />} />
         <Route path="/desklyrics" element={<DeskLyrics />} />
@@ -79,10 +77,10 @@ function UpdateGate() {
 }
 
 /** Ctrl+K palette lives in the player window only — never on the
- * click-through edge glow or the floating HUD/overlay surfaces. */
+ * floating HUD/overlay surfaces. */
 function PaletteGate() {
   const loc = useLocation();
-  if (["/edge", "/hud", "/desklyrics"].includes(loc.pathname)) return null;
+  if (["/hud", "/desklyrics"].includes(loc.pathname)) return null;
   return <Palette />;
 }
 
@@ -96,7 +94,7 @@ function ShortcutsGate() {
   const navRef = useRef(nav);
   navRef.current = nav;
   useEffect(() => {
-    if (["/edge", "/hud", "/desklyrics", "/fullscreen"].includes(loc.pathname))
+    if (["/hud", "/desklyrics", "/fullscreen"].includes(loc.pathname))
       return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -158,7 +156,7 @@ function DropGate() {
   const loc = useLocation();
   const [note, setNote] = useState("");
   useEffect(() => {
-    if (["/edge", "/hud", "/desklyrics"].includes(loc.pathname)) return;
+    if (["/hud", "/desklyrics"].includes(loc.pathname)) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const off = onFileDrop((paths) => {
       void bridge.enqueueFiles(paths).then((n) => {

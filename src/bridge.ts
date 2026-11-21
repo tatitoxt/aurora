@@ -33,34 +33,10 @@ export interface EnergyUpdate {
   bpm?: number;
   bands: number[];
 }
-export interface DisplayInfo {
-  id: string;
-  name: string;
-  primary: boolean;
-  /** Pre-upgrade positional id (`display-N`); saved rules may still use it. */
-  legacyId: string;
-}
-export type ColorMode = { mode: "artwork" } | { mode: "custom" };
-export interface DisplayRule {
-  displayId: string;
-  enabled: boolean;
-}
 export interface Settings {
   version: number;
-  edgeThicknessPx: number;
-  glowStrength: number;
-  brightness: number;
-  colorMode: ColorMode;
-  customColor: string;
-  batterySaver: boolean;
-  hideInFullscreen: boolean;
-  /** Fade the edge glow out while nothing is playing. */
-  lightsOffOnSilence: boolean;
-  /** Dim the edge glow when running on battery. */
-  autoDimOnBattery: boolean;
   /** Track artwork + beat/progress ring in the tray icon. */
   trayLiveIcon: boolean;
-  displays: DisplayRule[];
   licenseKey: string | null;
   hudEnabled: boolean;
   hudAlwaysOnTop: boolean;
@@ -221,17 +197,7 @@ export type LicenseState =
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
-  edgeThicknessPx: 24,
-  glowStrength: 0.7,
-  brightness: 0.8,
-  colorMode: { mode: "artwork" },
-  customColor: "#8b5cf6",
-  batterySaver: false,
-  hideInFullscreen: true,
-  lightsOffOnSilence: true,
-  autoDimOnBattery: true,
   trayLiveIcon: true,
-  displays: [],
   licenseKey: null,
   hudEnabled: true,
   hudAlwaysOnTop: true,
@@ -296,7 +262,7 @@ const DEMO_PLAYLIST: Array<[string, string, string, number, string]> = [
 const DEMO_LRC: LrcLine[] = [
   [0, "Lights out, the room goes quiet"],
   [4_000, "Synth lines running through the wires"],
-  [8_000, "Every edge begins to glow"],
+  [8_000, "Every word begins to glow"],
   [12_000, "Colors only night can know"],
   [16_000, "Hold the beat, don't let it die"],
   [20_000, "We glow like embers in the sky"],
@@ -496,10 +462,6 @@ export const bridge = {
   /** Open an external https:// URL in the system browser. */
   openUrl: (url: string): Promise<null> =>
     isTauri() ? invokeCmd<null>("open_url", { url }) : (window.open(url, "_blank"), Promise.resolve(null)),
-  getEnergy: () =>
-    isTauri()
-      ? invokeCmd<EnergyUpdate>("get_energy")
-      : Promise.resolve({ level: 0.5, beat: false, bpm: 120 }),
   seek: (positionMs: number) =>
     isTauri() ? invokeCmd<null>("seek", { positionMs }) : Promise.resolve(null),
   setVolume: (volume: number) =>
@@ -529,12 +491,6 @@ export const bridge = {
     isTauri() ? invokeCmd<"off" | "all" | "one">("get_repeat") : Promise.resolve("off"),
   getVolume: (): Promise<number> =>
     isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(1),
-  /** True while the system battery is discharging (edge auto-dim). */
-  getOnBattery: (): Promise<boolean> =>
-    isTauri() ? invokeCmd<boolean>("on_battery") : Promise.resolve(false),
-  /** True while another app owns a fullscreen window (edge auto-hide). */
-  getFullscreenAppActive: (): Promise<boolean> =>
-    isTauri() ? invokeCmd<boolean>("fullscreen_app_active") : Promise.resolve(false),
   clearQueue: () => {
     if (isTauri()) return invokeCmd<null>("clear_queue");
     mock.playlist = [];
@@ -779,17 +735,6 @@ export const bridge = {
     isTauri()
       ? invokeCmd<number>("playlist_add_tracks", { path, paths })
       : Promise.resolve(paths.length),
-  listDisplays: () =>
-    isTauri()
-      ? invokeCmd<DisplayInfo[]>("list_displays")
-      : Promise.resolve([
-          {
-            id: "display-0",
-            name: "Display 1",
-            primary: true,
-            legacyId: "display-0",
-          },
-        ]),
   getArtistStats: (artist: string): Promise<ArtistStats> =>
     isTauri()
       ? invokeCmd<ArtistStats>("get_artist_stats", { artist })
