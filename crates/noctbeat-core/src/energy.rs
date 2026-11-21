@@ -144,8 +144,15 @@ impl BeatDetector {
 
         // Spectrum: per-band amplitude with the same attack/release as
         // the level so bars rise fast and fall smoothly.
+        let nyquist = self.sample_rate as f32 / 2.0;
         for (i, &f) in band_freqs().iter().enumerate() {
-            let amp = self.band_amp(f).sqrt().min(1.0);
+            // Above Nyquist the Goertzel aliases lower frequencies into the
+            // band — report silence instead of fake high-band energy.
+            let amp = if f < nyquist {
+                self.band_amp(f).sqrt().min(1.0)
+            } else {
+                0.0
+            };
             let k = if amp > self.band_state[i] {
                 SMOOTH_ATTACK
             } else {
