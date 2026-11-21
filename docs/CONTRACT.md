@@ -99,6 +99,8 @@ pub struct Settings {
     pub lyrics_mode: String,               // "lines" (default) | "karaoke"
     pub video_backdrop: bool,              // karaoke plays the music video, default true
     pub audio_output: Option<String>,      // sink device name, None = OS default
+    pub eq_preset: String,                 // "flat"|"bass"|"vocal"|"treble"|"custom"
+    pub eq_bands: Vec<f32>,                // dB per band (60/250/1k/4k/12k), empty = flat
 }
 impl Settings { pub fn load(path: &Path) -> Self; pub fn save(&self, path: &Path) -> io::Result<()>; }
 // load(): missing file -> defaults; older version -> migrate; corrupt -> defaults (never panic)
@@ -172,6 +174,7 @@ All via `invoke`, camelCase names:
 | `providerPlay`         | `{ track: RemoteTrack }`               | `QueueItem`                   |
 | `listOutputs`          | —                                      | `string[]` (sink names)       |
 | `setOutputDevice`      | `{ name: string \| null }`              | `null` (swaps sink live)      |
+| `setEq`                | `{ preset, bands: number[] }`          | `null` (retunes live)         |
 
 Events emitted to frontend: `now-playing` (NowPlaying), `energy` (EnergyUpdate).
 
@@ -232,6 +235,13 @@ Audio output devices are enumerated via cpal (`list_outputs`); `set_output_devic
 swaps the rodio sink live and `LocalPlayer::reopen_current` re-opens the track
 at its position so playback resumes — useful for routing to a Bluetooth speaker
 paired in the OS. The choice persists as `settings.audio_output`.
+
+`noctbeat-core::eq` is a 5-band peaking biquad EQ (60/250/1k/4k/12k Hz, RBJ
+cookbook). `EqState` shares gains via atomics and a generation counter; each
+decoded source is wrapped in `EqSource` (src-tauri) which retunes its `EqBank`
+lock-free when the generation changes — sliders and presets apply live without
+restarting the track. `set_eq` persists `eq_preset`/`eq_bands` and the startup
+path re-applies them.
 
 ## Non-negotiables
 
