@@ -8,6 +8,7 @@ import {
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
 import {
+  CaretDown,
   CornersIn,
   GearSix,
   Moon,
@@ -42,6 +43,7 @@ export default function Fullscreen() {
   const [art, setArt] = useState("");
   const [now, setNow] = useState(() => new Date());
   const [shuffle, setShuffle] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(true);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -61,8 +63,8 @@ export default function Fullscreen() {
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 0;
 
-  // Blurred mosaic of queue artwork, like iBaila's albums wall.
-  const [wall, setWall] = useState<string[]>([]);
+  // Resolved artwork URLs for the mosaic wall and the cover carousel.
+  const [artMap, setArtMap] = useState<Record<string, string>>({});
   useEffect(() => {
     const urls = [
       ...new Set(
@@ -72,13 +74,19 @@ export default function Fullscreen() {
     let dead = false;
     void Promise.all(urls.map((u) => bridge.artSrc(u).catch(() => ""))).then(
       (srcs) => {
-        if (!dead) setWall(srcs.filter(Boolean));
+        if (dead) return;
+        const m: Record<string, string> = {};
+        urls.forEach((u, i) => {
+          if (srcs[i]) m[u] = srcs[i];
+        });
+        setArtMap(m);
       }
     );
     return () => {
       dead = true;
     };
   }, [queue.items]);
+  const wall = Object.values(artMap);
 
   // Keyboard: space toggles play, arrows seek/skip, Esc exits.
   useEffect(() => {
@@ -123,6 +131,19 @@ export default function Fullscreen() {
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
 
+  // Cover carousel: a window of queue items centered on the current one.
+  const ci = queue.currentIndex ?? 0;
+  const covers = queue.items
+    .map((it, i) => ({ it, i }))
+    .filter(({ i }) => Math.abs(i - ci) <= 3)
+    .map(({ it, i }) => ({
+      key: it.path + i,
+      src: artMap[it.track.artworkUrl],
+      title: it.track.title,
+      artist: it.track.artist,
+      on: i === ci,
+    }));
+
   const hh = String(now.getHours() % 12 || 12);
   const mm = String(now.getMinutes()).padStart(2, "0");
   const date = now.toLocaleDateString(undefined, {
@@ -165,10 +186,28 @@ export default function Fullscreen() {
 
       {queue.items.length > 0 && (
         <aside className="fs__queue">
-          <div className="fs__qhead">Continue Playing</div>
-          <div className="fs__qsub2">
-            Up next{{ local: " in your library", youtube: " on YouTube", soundcloud: " on SoundCloud", mpris: " on your player", demo: "" }[np?.source ?? "local"] ?? ""}
-          </div>
+          <button
+            className="fs__qheadrow"
+            onClick={() => setQueueOpen((o) => !o)}
+            aria-expanded={queueOpen}
+          >
+            <span className="fs__qmosaic" aria-hidden="true">
+              {wall.slice(0, 4).map((src, i) => (
+                <img key={i} src={src} alt="" />
+              ))}
+            </span>
+            <span className="fs__qheadtxt">
+              <span className="fs__qhead">Continue Playing</span>
+              <span className="fs__qsub2">
+                Up next{{ local: " in your library", youtube: " on YouTube", soundcloud: " on SoundCloud", mpris: " on your player", demo: "" }[np?.source ?? "local"] ?? ""}
+              </span>
+            </span>
+            <CaretDown
+              size={13}
+              className={`fs__qchev ${queueOpen ? "fs__qchev--open" : ""}`}
+            />
+          </button>
+          {queueOpen && (
           <div className="fs__qlist">
             {queue.items.slice(0, 12).map((it, i) => (
               <button
@@ -193,6 +232,7 @@ export default function Fullscreen() {
               </button>
             ))}
           </div>
+          )}
         </aside>
       )}
 
@@ -207,6 +247,21 @@ export default function Fullscreen() {
           <div className="fs__lyric fs__lyric--title">{bridge.productName}</div>
         )}
       </div>
+
+      {covers.length > 1 && (
+        <div className="fs__covers">
+          {covers.map((c) => (
+            <div
+              key={c.key}
+              className={`fs__cover ${c.on ? "fs__cover--on" : ""}`}
+            >
+              {c.src ? <img src={c.src} alt="" /> : <div className="fs__cover-img fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 12 }} />}
+              <div className="fs__cname">{c.title}</div>
+              <div className="fs__cart">{c.artist}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="fs__bottom">
         <div className="fs__prog">
