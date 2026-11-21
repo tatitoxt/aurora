@@ -144,6 +144,15 @@ export interface ImportResult {
   remote: number;
   missing: number;
 }
+export interface ExportResult {
+  path: string;
+  exported: number;
+  skippedRemote: number;
+}
+export interface PlaylistFile {
+  name: string;
+  path: string;
+}
 export interface TopEntry {
   name: string;
   /** Track artist; empty for artist entries. */
@@ -661,6 +670,16 @@ export const bridge = {
     isTauri()
       ? invokeCmd<PlaylistUrlResult>("import_playlist_url", { url })
       : Promise.resolve({ title: "Demo mix", imported: 0 }),
+  /** Write the queue as an .m3u8 in the music folder; returns the path. */
+  exportPlaylist: (name: string): Promise<ExportResult> =>
+    isTauri()
+      ? invokeCmd<ExportResult>("export_playlist", { name })
+      : Promise.resolve({ path: "/demo/playlist.m3u8", exported: 9, skippedRemote: 0 }),
+  /** Playlist files at the top level of the music folder. */
+  listPlaylists: (): Promise<PlaylistFile[]> =>
+    isTauri()
+      ? invokeCmd<PlaylistFile[]>("list_playlists")
+      : Promise.resolve([{ name: "Favorites", path: "/demo/favorites.m3u8" }]),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
