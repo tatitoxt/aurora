@@ -32,6 +32,9 @@ struct AppState {
     /// Latest HUD position reported by the Moved event, debounced before
     /// persisting so a drag does not write settings on every pixel.
     hud_pos_pending: Mutex<Option<((i32, i32), std::time::Instant)>>,
+    /// Concrete audio output, kept beside the trait object so the output
+    /// device can be swapped live.
+    rodio: Option<std::sync::Arc<audio::RodioOut>>,
     demo: bool,
 }
 
@@ -244,6 +247,37 @@ async fn provider_play(
     p.set_queue(std::slice::from_ref(&item).to_vec());
     p.play_index(0)?;
     Ok(item)
+}
+
+/// OS audio output device names for the settings picker.
+#[tauri::command]
+fn list_outputs() -> Vec<String> {
+    audio::RodioOut::list_outputs()
+}
+
+/// Switch the output device live: swap the sink, persist the choice, and
+/// re-open the current track so playback resumes where it was.
+#[tauri::command]
+fn set_output_device(app: tauri::AppHandle, name: Option<String>) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        // Hold the player lock across the whole swap: the poller can never
+        // observe the empty stream and mistake it for a finished track.
+        let mut player = state.player.lock().map_err(|e| e.to_string())?;
+        if let Some(rodio) = &state.rodio {
+            // Read the position from the old stream before it is dropped.
+            let (pos, playing) = player.reopen_snapshot();
+            rodio.set_device(name.as_deref())?;
+            player.reopen_current(pos, playing)?;
+        }
+    }
+    // Persist after playback is already safe — a save failure must not
+    // strand the track on the new sink.
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    s.audio_output = name;
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
+    Ok(())
 }
 
 /// Resolve the track's music video to a direct stream URL for the karaoke
@@ -642,11 +676,13 @@ pub fn run() {
     let settings = Settings::load(&settings_path);
     // Tag reader drops embedded artwork here for the UI to file://.
     std::env::set_var("NOCTBEAT_ART_DIR", dir.join("art"));
-    let audio_out: std::sync::Arc<dyn noctbeat_core::player::AudioOut> =
-        match audio::RodioOut::open_default() {
-            Some(out) => std::sync::Arc::new(out),
-            None => std::sync::Arc::new(noctbeat_core::player::NullAudio::new()),
-        };
+    let rodio = audio::RodioOut::open_named(settings.audio_output.as_deref())
+        .or_else(audio::RodioOut::open_default)
+        .map(std::sync::Arc::new);
+    let audio_out: std::sync::Arc<dyn noctbeat_core::player::AudioOut> = match rodio.clone() {
+        Some(out) => out,
+        None => std::sync::Arc::new(noctbeat_core::player::NullAudio::new()),
+    };
 
     tauri::Builder::default()
         .manage(AppState {
@@ -667,6 +703,7 @@ pub fn run() {
             ),
             license_path: dir.join("license.json"),
             hud_pos_pending: Mutex::new(None),
+            rodio,
             demo,
         })
         .invoke_handler(tauri::generate_handler![
@@ -694,6 +731,8 @@ pub fn run() {
             provider_search,
             provider_play,
             resolve_video,
+            list_outputs,
+            set_output_device,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());
