@@ -799,9 +799,9 @@ body {
   transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
 }
 .fs__covers--panel { padding-left: calc(3.5vw + min(240px, 24vw) + 32px); }
-.fs__cover { width: clamp(70px, 8.5vh, 108px); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
+.fs__cover { width: calc(clamp(70px, 8.5vh, 108px) * var(--cscale, 1)); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 20px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
-.fs__cover--on { width: clamp(240px, 26vh, 380px); opacity: 1; }
+.fs__cover--on { width: calc(clamp(240px, 26vh, 380px) * var(--cscale, 1)); opacity: 1; }
 .fs__cover--on img { border-radius: 22px; }
 /* Media fills the card, meta overlaid on a scrim. */
 .fs__coverimg { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 26px 70px -12px rgba(0,0,0,0.75); background: rgba(255,255,255,0.05); }
@@ -848,6 +848,12 @@ body {
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 14px 40px rgba(0,0,0,0.45);
 }
+/* Cover-size slider + lock inside the "…" menu. */
+.fs__sizerow { display: flex; align-items: center; gap: 8px; padding: 2px 10px 6px; }
+.fs__sizeslider { flex: 1; min-width: 0; }
+.fs__sizelock { width: 24px; height: 24px; flex: none; }
+.fs__sizeslider:disabled { opacity: 0.45; }
+
 .fs__volpop input[type="range"] {
   width: 110px; accent-color: #fff; cursor: pointer;
 }
@@ -906,7 +912,7 @@ body {
 }
 /* Lyrics-off: thumbnails take the stage. */
 .fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
-.fs__covers--big .fs__cover--on { width: clamp(320px, 38vh, 560px); }
+.fs__covers--big .fs__cover--on { width: calc(clamp(320px, 38vh, 560px) * var(--cscale, 1)); }
 .fs__covers { transition: transform .35s cubic-bezier(.2,.9,.25,1); }
 /* Film grain over the whole surface — the iBaila wall has texture, not flat blur. */
 .fs__grain {
@@ -968,7 +974,7 @@ body {
 .fs--arc .fs__covers { perspective: 900px; justify-content: center; }
 .fs--arc .fs__cover--l { transform: rotateY(52deg) scale(0.72) translateZ(-40px); transform-origin: right center; opacity: 0.4; }
 .fs--arc .fs__cover--r { transform: rotateY(-52deg) scale(0.72) translateZ(-40px); transform-origin: left center; opacity: 0.4; }
-.fs--arc .fs__cover--on { width: clamp(300px, 34vh, 480px); }
+.fs--arc .fs__cover--on { width: calc(clamp(300px, 34vh, 480px) * var(--cscale, 1)); }
 .fs--arc .fs__hairfill { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, #fff), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
 .fs--arc .fs__pill, .fs--pearl .fs__pill, .fs--studio .fs__pill, .fs--vision .fs__pill {
   background: transparent; border: none; box-shadow: none;
@@ -984,7 +990,7 @@ body {
 .fs--pearl .fs__covers { justify-content: center; padding-left: 0; }
 .fs--pearl .fs__center--panel { padding-left: 8vw; }
 .fs--pearl .fs__cover:not(.fs__cover--on) { display: none; }
-.fs--pearl .fs__cover--on { width: clamp(340px, 44vh, 620px); }
+.fs--pearl .fs__cover--on { width: calc(clamp(340px, 44vh, 620px) * var(--cscale, 1)); }
 
 /* studio: queue docked right as a numbered list, carousel stays left */
 .fs--studio .fs__queue { left: auto; right: 3.5vw; width: min(320px, 32vw); }
@@ -1096,7 +1102,7 @@ body {
 /* dial: side covers orbiting the disc (right arc) */
 .fs__orbit { position: absolute; inset: 0; pointer-events: none; }
 .fs__orbititem {
-  position: absolute; left: 56%; top: 42%; width: 92px;
+  position: absolute; left: 56%; top: 42%; width: calc(92px * var(--cscale, 1));
   transition: transform 0.5s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 .fs__orbititem img {
