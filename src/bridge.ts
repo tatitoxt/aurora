@@ -365,7 +365,7 @@ export function onFileDrop(cb: (paths: string[]) => void): () => void {
   return () => {};
 }
 
-export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen", cb: (p: T) => void): () => void {
+export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen" | "fullscreen", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -442,12 +442,13 @@ export const bridge = {
   productName: branding.productName,
 
   getNowPlaying: () => (isTauri() ? invokeCmd<NowPlaying>("get_now_playing") : Promise.resolve(mock.poll())),
-  /** Browser-extension bridge: { tabs, provider host } — null without a bridge. */
+  /** Browser-extension bridge: { tabs, provider host } — null without a bridge.
+   * The web preview simulates a connected Spotify tab so the provider picker
+   * and the live-dot state demo what the desktop app looks like bridged. */
   getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
-      : /* no bridge in the web preview — the picker shows the install hint. */
-        Promise.resolve(null),
+      : Promise.resolve({ tabs: 1, provider: "open.spotify.com" }),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);
@@ -477,6 +478,8 @@ export const bridge = {
     isTauri() ? invokeCmd<null>("hud_start_drag") : Promise.resolve(null),
   deskLyricsStartDrag: () =>
     isTauri() ? invokeCmd<null>("desk_lyrics_start_drag") : Promise.resolve(null),
+  playerStartDrag: () =>
+    isTauri() ? invokeCmd<null>("player_start_drag") : Promise.resolve(null),
   showPlayer: () => {
     if (isTauri()) return invokeCmd<null>("show_player");
     window.location.hash = "#/";
@@ -485,6 +488,10 @@ export const bridge = {
   /** Fullscreen the player window (karaoke / visualizer wallpaper mode). */
   toggleFullscreen: (): Promise<boolean> => {
     if (isTauri()) return invokeCmd<boolean>("toggle_fullscreen");
+    return Promise.resolve(false);
+  },
+  isFullscreen: (): Promise<boolean> => {
+    if (isTauri()) return invokeCmd<boolean>("window_is_fullscreen");
     return Promise.resolve(false);
   },
   getLicenseState: (): Promise<LicenseState> =>

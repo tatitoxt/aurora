@@ -7,6 +7,7 @@ const en = {
   "nav.back": "Back",
   "nav.share": "Share now playing",
   "nav.commands": "Commands (Ctrl K)",
+  "nav.hud": "Open HUD",
   "nav.fullscreen": "Fullscreen",
   // settings page
   "set.title": "Settings",

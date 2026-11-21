@@ -1652,9 +1652,31 @@ fn hud_start_drag(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Bring the full player window forward (HUD expand button).
+/// Begin an OS-native drag of the main player window (mousedown on empty
+/// glass areas — the window is borderless so there's no titlebar).
+#[tauri::command]
+fn player_start_drag(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("player") {
+        win.start_dragging().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Bring the full player window forward (HUD expand button / tray Open).
+/// The player and the HUD never coexist: showing the player turns the
+/// HUD off (the settings flag is updated so nothing resurrects it).
 #[tauri::command]
 fn show_player(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+        if s.hud_enabled {
+            s.hud_enabled = false;
+            s.save(&state.settings_path).map_err(|e| e.to_string())?;
+            let _ = app.emit("settings", s.clone());
+        }
+        sync_hud_window(&app, &s);
+    }
     if let Some(win) = app.get_webview_window("player") {
         let _ = win.show();
         let _ = win.unminimize();
@@ -1670,7 +1692,16 @@ fn toggle_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
     let win = app.get_webview_window("player").ok_or("no player window")?;
     let on = !win.is_fullscreen().map_err(|e| e.to_string())?;
     win.set_fullscreen(on).map_err(|e| e.to_string())?;
+    let _ = app.emit("fullscreen", on);
     Ok(on)
+}
+
+/// Whether the player window is currently fullscreen — the UI keeps its
+/// route in sync with the real OS state (Esc / green button included).
+#[tauri::command]
+fn window_is_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
+    let win = app.get_webview_window("player").ok_or("no player window")?;
+    win.is_fullscreen().map_err(|e| e.to_string())
 }
 
 fn license_client<'a>(http: &'a dyn Http, state: &AppState) -> LicenseClient<'a> {
@@ -1728,11 +1759,21 @@ fn open_url(url: String) -> Result<(), String> {
 /// Floating HUD pill: borderless, transparent, draggable anywhere, optionally
 /// pinned above other windows. Position persists via the Moved event.
 fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
+    // HUD and player are exclusive surfaces: while the HUD lives, the
+    // player window stays hidden (its transport keeps working — this is
+    // the same playback, just a smaller remote for it).
     if let Some(win) = app.get_webview_window("hud") {
         if settings.hud_enabled {
             let _ = win.set_always_on_top(settings.hud_always_on_top);
+            let _ = win.show();
+            if let Some(player) = app.get_webview_window("player") {
+                let _ = player.hide();
+            }
         } else {
             let _ = win.close();
+            if let Some(player) = app.get_webview_window("player") {
+                let _ = player.show();
+            }
         }
         return;
     }
@@ -1776,6 +1817,10 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
                 };
             }
         });
+        // The HUD owns the screen now — tuck the player window away.
+        if let Some(player) = app.get_webview_window("player") {
+            let _ = player.hide();
+        }
     }
 }
 
@@ -2335,6 +2380,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
+        let mut last_fs = false;
         let mut last_qidx: Option<usize> = None;
         let mut last_track_id: Option<String> = None;
         loop {
@@ -2504,6 +2550,14 @@ fn spawn_poller(app: &tauri::AppHandle) {
             // Next/Prev and natural advance move the queue cursor without a
             // queue mutation: re-emit so panels keep the highlight current.
             let qidx = state.player.lock().ok().and_then(|p| p.current_index());
+            let fs_now = app
+                .get_webview_window("player")
+                .and_then(|w| w.is_fullscreen().ok())
+                .unwrap_or(false);
+            if fs_now != last_fs {
+                last_fs = fs_now;
+                let _ = app.emit("fullscreen", fs_now);
+            }
             if qidx != last_qidx {
                 last_qidx = qidx;
                 emit_queue(&app, &state);
@@ -2652,8 +2706,10 @@ pub fn run() {
             set_hud_pinned,
             hud_start_drag,
             desk_lyrics_start_drag,
+            player_start_drag,
             show_player,
             toggle_fullscreen,
+            window_is_fullscreen,
             seek,
             set_speed,
             set_volume,
@@ -2760,6 +2816,18 @@ pub fn run() {
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_hud_window(app.handle(), &s);
             sync_desk_lyrics_window(app.handle(), &s);
+            // The player is the only recoverable window: closing it must
+            // hide (HUD/tray can reopen), never destroy — a destroyed
+            // player takes the whole app down and leaves no way back.
+            if let Some(player) = app.get_webview_window("player") {
+                let p2 = player.clone();
+                player.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = p2.hide();
+                    }
+                });
+            }
             build_tray(app.handle())?;
             register_media_hotkeys(app.handle());
             Ok(())
@@ -2861,17 +2929,16 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open" => {
-                if let Some(w) = app.get_webview_window("player") {
-                    let _ = w.show();
-                    let _ = w.set_focus();
-                }
+                // show_player clears hud_enabled first — otherwise the next
+                // settings save re-hides the player under the HUD.
+                let _ = show_player(app.clone());
             }
             "playpause" => tray_media_control(app, Control::PlayPause),
             "next" => tray_media_control(app, Control::Next),
             "prev" => tray_media_control(app, Control::Previous),
             "settings" => {
+                let _ = show_player(app.clone());
                 if let Some(w) = app.get_webview_window("player") {
-                    let _ = w.show();
                     let _ = w.eval("location.hash = '#/settings'");
                 }
             }

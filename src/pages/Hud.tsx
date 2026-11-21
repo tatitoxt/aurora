@@ -21,7 +21,6 @@ import {
   Heart,
   ListBullets,
   MusicNote,
-  Shuffle,
   Image,
   Subtitles,
 } from "@phosphor-icons/react";
@@ -44,6 +43,10 @@ function fmt(ms: number | undefined) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** The HUD is a single picture-in-picture surface: clock on top, a square
+ * that swaps between the artwork and the videoclip (lyrics can overlay
+ * either), title + hairline progress, and the transport row. The player
+ * window hides while the HUD is up — never both at once. */
 export default function Hud() {
   const t = useT();
   const [np, setNp] = useState<NowPlaying | null>(null);
@@ -52,12 +55,12 @@ export default function Hud() {
   const [art, setArt] = useState("");
   const [artMap, setArtMap] = useState<Record<string, string>>({});
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
-  const [shuffleOn, setShuffleOn] = useState(false);
-  const [mode, setMode] = useState<"list" | "focus">(
-    () => (localStorage.getItem("noctbeat.hudmode") as "list" | "focus") || "list",
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [mediaMode, setMediaMode] = useState<"art" | "video">(
+    () => (localStorage.getItem("noctbeat.hudmedia") as "art" | "video") || "art",
   );
-  const [mediaMode, setMediaMode] = useState<"art" | "video" | "lyrics">(
-    () => (localStorage.getItem("noctbeat.hudmedia") as "art" | "video" | "lyrics") || "art",
+  const [lyricsOn, setLyricsOn] = useState(
+    () => localStorage.getItem("noctbeat.hudlyrics") !== "0",
   );
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
@@ -74,7 +77,6 @@ export default function Hud() {
     bridge.getNowPlaying().then(setNp);
     bridge.getSettings().then(setSettings);
     bridge.getQueue().then(setQueue);
-    bridge.getShuffle().then(setShuffleOn);
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
     const offS = subscribe<Settings>("settings", setSettings);
     const offQ = subscribe<QueueState>("queue", setQueue);
@@ -95,6 +97,7 @@ export default function Hud() {
   void lyroffTick;
   useEffect(() => {
     if (artworkUrl) void bridge.artSrc(artworkUrl).then(setArt);
+    else setArt("");
   }, [artworkUrl]);
   useEffect(() => {
     void bridge.getLyrics().then(setLyrics);
@@ -102,8 +105,8 @@ export default function Hud() {
   }, [trackKey]);
   useEffect(() => {
     setVideoUrl(null);
-    // video mode plays the clip; lyrics mode shows it behind the words
-    if (mediaMode === "art" || !trackKey || !track) return;
+    // Only the video mode resolves the clip; art mode never spins yt-dlp.
+    if (mediaMode !== "video" || !trackKey || !track) return;
     const req = ++videoReq.current;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (videoReq.current === req && u) setVideoUrl(u);
@@ -122,10 +125,22 @@ export default function Hud() {
   const playing = np?.status === "playing";
   const active = lyrics ? activeLyricIndex(lyrics, pos + lyricOffsetFor(np)) : -1;
   const canSeek = np?.source === "local" || np?.source === "demo";
-  const seekBar = (e: React.MouseEvent<HTMLDivElement>) => {
+  const scrubTo = (el: HTMLElement, clientX: number) => {
     if (!canSeek || !track?.durationMs) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    void bridge.seek(Math.floor(((e.clientX - r.left) / r.width) * track.durationMs));
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    void bridge.seek(Math.floor(frac * track.durationMs));
+  };
+  // Click AND drag to scrub; pointer capture keeps scrubbing outside the bar.
+  const seekBar = {
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!canSeek || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      scrubTo(e.currentTarget, e.clientX);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.buttons & 1) scrubTo(e.currentTarget, e.clientX);
+    },
   };
   const pinned = settings.hudAlwaysOnTop;
   const fav = favKeys(favs).has(favKeyFor(np));
@@ -133,71 +148,55 @@ export default function Hud() {
     const entry = favEntryFor(np);
     if (entry) setFavs((prev) => toggleFav(prev, entry));
   };
-  const toggleMode = () => {
-    const next = mode === "list" ? "focus" : "list";
-    setMode(next);
-    localStorage.setItem("noctbeat.hudmode", next);
-  };
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest("button, input, .hud__progress")) return;
+    if ((e.target as HTMLElement).closest("button, input, .hud__progress, .hud__list")) return;
     void bridge.hudStartDrag();
   };
 
+  // Closing the HUD hands the screen back to the player window (the Rust
+  // side shows it again — the two surfaces never coexist).
   const close = () =>
     void bridge
       .getSettings()
       .then((fresh) => bridge.updateSettings({ ...fresh, hudEnabled: false }));
 
+  const swapMedia = () => {
+    const next = mediaMode === "art" ? "video" : "art";
+    setMediaMode(next);
+    localStorage.setItem("noctbeat.hudmedia", next);
+  };
+  const toggleLyrics = () => {
+    setLyricsOn((v) => {
+      localStorage.setItem("noctbeat.hudlyrics", v ? "0" : "1");
+      return !v;
+    });
+  };
+
   return (
-    <div className={`hud hud--${mode}`} onMouseDown={onMouseDown}>
-      {mode === "list" ? (
-        <>
-          <div className="hud__now">
-            <div className="hud__art">
-              {art ? <img src={art} alt="" /> : null}
-              <div className={`hud__beat ${playing ? "on" : ""}`} />
+    <div className="hud hud--focus" onMouseDown={onMouseDown}>
+      <div className="hud__focus">
+        <div className="hud__clock">
+          {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </div>
+        <div className="hud__focusart">
+          {mediaMode === "video" && videoUrl ? (
+            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+          ) : art ? (
+            <img src={art} alt="" />
+          ) : (
+            <MusicNote size={40} weight="thin" />
+          )}
+          {lyricsOn ? (
+            <div className="hud__lyrover">
+              {lyrics && lyrics.length > 0 ? (
+                <LineLyrics lines={lyrics} active={active} />
+              ) : null}
             </div>
-            <div className="hud__body">
-              <div className="hud__title">{track?.title ?? "Nothing playing"}</div>
-              <div className="hud__sub">{track ? track.artist : bridge.productName}</div>
-              <div
-                className="hud__progress"
-                style={{ cursor: canSeek ? "pointer" : "default" }}
-                onClick={seekBar}
-              >
-                <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
-              </div>
-            </div>
-            <div className="hud__side">
-              <button
-                className={`hctl ${fav ? "hctl--on" : ""}`}
-                aria-label={fav ? "Unlike" : "Like"}
-                title={fav ? t("hud.unlike") : t("hud.like")}
-                onClick={onToggleFav}
-                disabled={!track}
-              >
-                <Heart weight={fav ? "fill" : "regular"} size={15} />
-              </button>
-              <button
-                className={`hctl ${pinned ? "hctl--on" : ""}`}
-                aria-label={pinned ? "Unpin from top" : "Keep on top"}
-                title={pinned ? t("hud.unpin") : t("hud.pin")}
-                onClick={() => void bridge.setHudPinned(!pinned)}
-              >
-                <PushPin weight={pinned ? "fill" : "regular"} size={15} />
-              </button>
-              <button className="hctl" aria-label="Open player" title="Open player" onClick={() => void bridge.showPlayer()}>
-                <Monitor weight="regular" size={15} />
-              </button>
-              <button className="hctl" aria-label="Hide HUD" title="Hide HUD" onClick={close}>
-                <X weight="regular" size={15} />
-              </button>
-            </div>
-          </div>
-          {queue.items.length > 0 && (
-            <div className="hud__list">
+          ) : null}
+          {queueOpen && queue.items.length > 0 ? (
+            <div className="hud__list hud__list--overlay">
               {queue.items.map((it, i) => (
                 <button
                   key={it.path + i}
@@ -217,143 +216,82 @@ export default function Hud() {
                 </button>
               ))}
             </div>
-          )}
-          <div className="hud__pill">
-            <button
-              className={`hctl ${shuffleOn ? "hctl--on" : ""}`}
-              aria-label="Shuffle"
-              title="Shuffle"
-              onClick={() =>
-                void bridge.getShuffle().then((cur) =>
-                  bridge.setShuffle(!cur).then(setShuffleOn),
-                )
-              }
-            >
-              <Shuffle size={14} />
-            </button>
-            <button className="hctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>
-              <SkipBack weight="fill" size={15} />
-            </button>
-            <button
-              className="hctl hctl--play"
-              aria-label={playing ? "Pause" : "Play"}
-              onClick={() => bridge.mediaControl("play-pause")}
-            >
-              {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
-            </button>
-            <button className="hctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>
-              <SkipForward weight="fill" size={15} />
-            </button>
-            <button
-              className="hctl"
-              aria-label="Now playing view"
-              title="Now playing view"
-              onClick={toggleMode}
-            >
-              <MusicNote size={15} />
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="hud__focus">
-          <div className="hud__clock">
-            {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </div>
-          <div className="hud__focusart">
-            {mediaMode === "video" && videoUrl ? (
-              <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-            ) : mediaMode === "lyrics" ? (
-              <>
-                {videoUrl ? (
-                  <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-                ) : art ? (
-                  <img src={art} alt="" />
-                ) : null}
-                <div className="hud__lyrover">
-                  {lyrics && lyrics.length > 0 ? (
-                    <LineLyrics lines={lyrics} active={active} />
-                  ) : (
-                    <span className="hud__lyridle">{track?.title ?? "—"}</span>
-                  )}
-                </div>
-              </>
-            ) : art ? (
-              <img src={art} alt="" />
-            ) : (
-              <MusicNote size={40} weight="thin" />
-            )}
-            <button
-              className="hud__artswap"
-              aria-label="Swap art / video / lyrics"
-              title="Swap art / video / lyrics"
-              onClick={() => {
-                const order = ["art", "video", "lyrics"] as const;
-                const next = order[(order.indexOf(mediaMode) + 1) % order.length];
-                setMediaMode(next);
-                localStorage.setItem("noctbeat.hudmedia", next);
-              }}
-            >
-              {mediaMode === "art" ? (
-                <Monitor size={13} />
-              ) : mediaMode === "video" ? (
-                <Subtitles size={13} />
-              ) : (
-                <Image size={13} />
-              )}
-            </button>
-          </div>
-          <div className="hud__focustitle">{track?.title ?? "Nothing playing"}</div>
-          <div className="hud__focussub">{track ? track.artist : ""}</div>
-          <div
-            className="hud__progress"
-            style={{ cursor: canSeek ? "pointer" : "default" }}
-            onClick={seekBar}
+          ) : null}
+          <button
+            className="hud__artswap"
+            aria-label="Swap art / videoclip"
+            title="Swap art / videoclip"
+            onClick={swapMedia}
           >
-            <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
-          </div>
-          <div className="hud__pill">
-            <button className="hctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>
-              <SkipBack weight="fill" size={15} />
-            </button>
-            <button
-              className="hctl hctl--play"
-              aria-label={playing ? "Pause" : "Play"}
-              onClick={() => bridge.mediaControl("play-pause")}
-            >
-              {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
-            </button>
-            <button className="hctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>
-              <SkipForward weight="fill" size={15} />
-            </button>
-            <button className="hctl" aria-label="Playlist view" title="Playlist view" onClick={toggleMode}>
-              <ListBullets size={15} />
-            </button>
-          </div>
-          <div className="hud__focusrow">
-            <button
-              className={`hctl ${fav ? "hctl--on" : ""}`}
-              aria-label={fav ? "Unlike" : "Like"}
-              onClick={onToggleFav}
-              disabled={!track}
-            >
-              <Heart weight={fav ? "fill" : "regular"} size={14} />
-            </button>
-            <button
-              className={`hctl ${pinned ? "hctl--on" : ""}`}
-              aria-label={pinned ? "Unpin" : "Pin"}
-              onClick={() => void bridge.setHudPinned(!pinned)}
-            >
-              <PushPin weight={pinned ? "fill" : "regular"} size={14} />
-            </button>
-            <button className="hctl" aria-label="Open player" onClick={() => void bridge.showPlayer()}>
-              <Monitor size={14} />
-            </button>
-            <button className="hctl" aria-label="Hide HUD" onClick={close}>
-              <X size={14} />
-            </button>
-          </div>
+            {mediaMode === "art" ? <Monitor size={13} /> : <Image size={13} />}
+          </button>
+          <button
+            className={`hud__lyrswap ${lyricsOn ? "on" : ""}`}
+            aria-label="Lyrics overlay"
+            title="Lyrics overlay"
+            onClick={toggleLyrics}
+          >
+            <Subtitles size={13} weight={lyricsOn ? "fill" : "regular"} />
+          </button>
         </div>
-      )}
+        <div className="hud__focustitle">{track?.title ?? "Nothing playing"}</div>
+        <div className="hud__focussub">{track ? track.artist : ""}</div>
+        <div
+          className="hud__progress"
+          style={{ cursor: canSeek ? "pointer" : "default" }}
+          {...seekBar}
+        >
+          <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
+        </div>
+        <div className="hud__pill">
+          <button
+            className={`hctl ${queueOpen ? "hctl--on" : ""}`}
+            aria-label="Queue"
+            title="Queue"
+            onClick={() => setQueueOpen((v) => !v)}
+          >
+            <ListBullets size={15} />
+          </button>
+          <button className="hctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>
+            <SkipBack weight="fill" size={15} />
+          </button>
+          <button
+            className="hctl hctl--play"
+            aria-label={playing ? "Pause" : "Play"}
+            onClick={() => bridge.mediaControl("play-pause")}
+          >
+            {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
+          </button>
+          <button className="hctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>
+            <SkipForward weight="fill" size={15} />
+          </button>
+        </div>
+        <div className="hud__focusrow">
+          <button
+            className={`hctl ${fav ? "hctl--on" : ""}`}
+            aria-label={fav ? "Unlike" : "Like"}
+            title={fav ? t("hud.unlike") : t("hud.like")}
+            onClick={onToggleFav}
+            disabled={!track}
+          >
+            <Heart weight={fav ? "fill" : "regular"} size={14} />
+          </button>
+          <button
+            className={`hctl ${pinned ? "hctl--on" : ""}`}
+            aria-label={pinned ? "Unpin" : "Pin"}
+            title={pinned ? t("hud.unpin") : t("hud.pin")}
+            onClick={() => void bridge.setHudPinned(!pinned)}
+          >
+            <PushPin weight={pinned ? "fill" : "regular"} size={14} />
+          </button>
+          <button className="hctl" aria-label="Open player" title="Open player" onClick={() => void bridge.showPlayer()}>
+            <Monitor size={14} />
+          </button>
+          <button className="hctl" aria-label="Hide HUD" title="Hide HUD" onClick={close}>
+            <X size={14} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

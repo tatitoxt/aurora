@@ -8,6 +8,7 @@ const ja: Record<keyof typeof en, string> = {
   "nav.back": "\u623b\u308b",
   "nav.share": "\u518d\u751f\u4e2d\u3092\u5171\u6709",
   "nav.commands": "\u30b3\u30de\u30f3\u30c9 (Ctrl K)",
+  "nav.hud": "HUD をく",
   "nav.fullscreen": "\u5168\u753b\u9762",
   "set.title": "\u8a2d\u5b9a",
   "set.edgeThickness": "\u30a8\u30c3\u30b8\u306e\u539a\u3055",
