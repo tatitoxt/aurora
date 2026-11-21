@@ -53,6 +53,8 @@ const FS_STYLES = [
   { id: "studio", label: "Studio" },
   { id: "spotlight", label: "Spotlight" },
   { id: "vision", label: "Vision" },
+  { id: "dial", label: "Dial" },
+  { id: "tile", label: "Tile" },
 ] as const;
 
 function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
@@ -419,7 +421,7 @@ export default function Fullscreen() {
       )}
 
       <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
-        {lyricsOn && fsStyle !== "spotlight" && fsStyle !== "vision" ? (
+        {lyricsOn && !["spotlight", "vision", "dial", "tile"].includes(fsStyle) ? (
           line ? (
             <div className="fs__lyric" key={active}>
               {line}
@@ -483,6 +485,50 @@ export default function Fullscreen() {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {fsStyle === "dial" && (
+        <div className="fs__dial">
+          <div className={`fs__disc ${playing ? "fs__disc--spin" : ""}`}>
+            <svg className="fs__ring" viewBox="0 0 100 100" aria-hidden="true">
+              <circle className="fs__ringbg" cx="50" cy="50" r="46" />
+              <circle
+                className="fs__ringfill"
+                cx="50" cy="50" r="46"
+                style={{ strokeDashoffset: 289 - 289 * (dur ? Math.min(1, pos / dur) : 0) }}
+              />
+            </svg>
+            {art ? (
+              <img className="fs__discart" src={art} alt="" />
+            ) : (
+              <div className="fs__discart fs__meta-art" />
+            )}
+            <span className="fs__discdot" />
+          </div>
+          <div className="fs__dialmeta">
+            <span className="fs__dialtitle">{track?.title ?? "Nothing playing"}</span>
+            <span className="fs__dialsub">{track ? `${track.artist} · ${track.album}` : ""}</span>
+          </div>
+        </div>
+      )}
+
+      {fsStyle === "tile" && (
+        <div className="fs__tile">
+          {queue.items.slice(0, 12).map((it, i) => (
+            <button
+              key={it.path + i}
+              className={`fs__tileitem ${i === ci ? "fs__tileitem--on" : ""}`}
+              onClick={() => void bridge.playQueueIndex(i)}
+            >
+              {artMap[it.track.artworkUrl] ? (
+                <img src={artMap[it.track.artworkUrl]} alt="" />
+              ) : (
+                <span className="fs__meta-art" style={{ display: "block", width: "100%", height: "100%" }} />
+              )}
+              {i === ci && <span className="fs__tilemeta">{it.track.title}</span>}
+            </button>
+          ))}
         </div>
       )}
 
@@ -567,7 +613,7 @@ export default function Fullscreen() {
         </div>
       )}
 
-      {fsStyle !== "spotlight" && fsStyle !== "vision" && covers.length > 1 && (
+      {!["spotlight", "vision", "dial", "tile"].includes(fsStyle) && covers.length > 1 && (
         <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"} ${panelShown && queueOpen ? "fs__covers--panel" : ""}`}>
           {covers.map((c) =>
             c.on ? (
