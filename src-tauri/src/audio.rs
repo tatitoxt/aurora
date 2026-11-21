@@ -414,6 +414,9 @@ impl AudioOut for RodioOut {
         let file = File::open(path).map_err(|e| format!("open {path}: {e}"))?;
         let decoder = Decoder::try_from(file).map_err(|e| e.to_string())?;
         let dur = decoder.total_duration().map(|d| d.as_millis() as u64);
+        // Never fade longer than the incoming track — otherwise a short
+        // interlude would finish under the outgoing one and be skipped.
+        let fade_ms = dur.map_or(fade_ms, |d| fade_ms.min(d).max(1));
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_mut().ok_or("no audio device")?;
         // Replace any earlier armed fade.
@@ -441,7 +444,8 @@ impl AudioOut for RodioOut {
         std::thread::spawn(move || {
             let steps = 30u32;
             let step = Duration::from_millis((fade_ms / steps as u64).max(10));
-            for i in 1..=steps {
+            let mut i = 0u32;
+            while i < steps {
                 {
                     let Ok(mut g) = inner2.lock() else { return };
                     let Some(inner) = g.as_mut() else { return };
@@ -454,10 +458,15 @@ impl AudioOut for RodioOut {
                         inner.b_player = None;
                         return;
                     }
-                    let t = i as f32 / steps as f32;
-                    inner.player.set_volume(base * (1.0 - t));
-                    if let Some(b) = inner.b_player.as_ref() {
-                        b.set_volume(base * t);
+                    if !inner.player.is_paused() {
+                        // Freeze the ramp while paused — otherwise the
+                        // fade would complete and cut the paused track.
+                        i += 1;
+                        let t = i as f32 / steps as f32;
+                        inner.player.set_volume(base * (1.0 - t));
+                        if let Some(b) = inner.b_player.as_ref() {
+                            b.set_volume(base * t);
+                        }
                     }
                 }
                 std::thread::sleep(step);
@@ -494,10 +503,23 @@ impl AudioOut for RodioOut {
         if let Ok(mut g) = self.inner.lock() {
             if let Some(inner) = g.as_mut() {
                 if let Some(b) = inner.b_player.take() {
+                    if b.empty() {
+                        // The incoming track already ran its full length
+                        // under the fade (shorter than the window) — let
+                        // the caller open it fresh instead of swapping
+                        // in an exhausted channel.
+                        return None;
+                    }
                     let _old = std::mem::replace(&mut inner.player, b);
                 }
             }
         }
         Some(armed.1.unwrap_or(0))
+    }
+
+    /// Abort a pending fade (queue mutation, explicit stop): the ramp
+    /// restores the main channel and the fading-in one is dropped.
+    fn cancel_crossfade(&self) {
+        self.disarm();
     }
 }

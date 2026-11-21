@@ -40,6 +40,10 @@ pub trait AudioOut: Send + Sync {
     fn take_crossfaded(&self, _path: &str) -> Option<u64> {
         None
     }
+    /// Abort a pending crossfade (queue edited under it, stop, explicit
+    /// cut): the fading-in channel stops and the current track's volume
+    /// is restored. Default: nothing pending.
+    fn cancel_crossfade(&self) {}
 }
 
 /// Queue repeat behaviour: `Off` stops at the end, `All` wraps to the
@@ -248,6 +252,7 @@ impl LocalPlayer {
         // Stop any in-flight playback first: otherwise the old track keeps
         // sounding while the player reports Stopped.
         self.audio.pause();
+        self.audio.cancel_crossfade();
         self.queue = items;
         self.index = None;
         self.loaded = false;
@@ -272,6 +277,9 @@ impl LocalPlayer {
             return Err("cannot remove the selected track".into());
         }
         self.queue.remove(index);
+        // An armed fade may be fading in exactly this (or a shifted)
+        // queue item — kill it so removed audio can't keep playing.
+        self.audio.cancel_crossfade();
         self.xfade_armed = None;
         if let Some(i) = self.index {
             if index < i {
@@ -295,6 +303,7 @@ impl LocalPlayer {
         }
         let item = self.queue.remove(from);
         self.queue.insert(to, item);
+        self.audio.cancel_crossfade();
         self.xfade_armed = None;
         if let Some(i) = self.index {
             self.index = Some(if i == from {
@@ -312,6 +321,7 @@ impl LocalPlayer {
 
     pub fn clear(&mut self) {
         self.audio.pause();
+        self.audio.cancel_crossfade();
         self.queue.clear();
         self.index = None;
         self.loaded = false;
@@ -665,6 +675,9 @@ mod tests {
         fn take_crossfaded(&self, path: &str) -> Option<u64> {
             let x = self.xfaded.lock().unwrap().take()?;
             (x.0 == path).then_some(x.1)
+        }
+        fn cancel_crossfade(&self) {
+            *self.xfaded.lock().unwrap() = None;
         }
     }
 
@@ -1056,5 +1069,29 @@ mod tests {
         audio.pos.store(59_000, Ordering::SeqCst);
         p.tick();
         assert!(audio.xfaded.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn removing_the_armed_track_cancels_its_fade() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("one"), item("two"), item("three")]);
+        p.set_crossfade_ms(5_000);
+        p.play_index(0).unwrap();
+        audio.pos.store(56_000, Ordering::SeqCst);
+        p.tick();
+        assert!(audio.xfaded.lock().unwrap().is_some());
+        // Drop the track that is fading in — its audio must stop too.
+        p.remove(1).unwrap();
+        assert!(audio.xfaded.lock().unwrap().is_none());
+        audio.finished.store(true, Ordering::SeqCst);
+        let np = p.tick();
+        // Re-arming for the still-queued "three" is fine; the cursor
+        // must land on it and "two" must never be opened.
+        assert_eq!(np.track.unwrap().title, "three");
+        assert!(!audio
+            .opened
+            .lock()
+            .unwrap()
+            .contains(&"/music/two.mp3".into()));
     }
 }
