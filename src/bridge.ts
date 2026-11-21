@@ -31,6 +31,7 @@ export interface EnergyUpdate {
   level: number;
   beat: boolean;
   bpm?: number;
+  bands: number[];
 }
 export interface DisplayInfo {
   id: string;
@@ -308,10 +309,18 @@ function ensureMockLoop() {
     emitMock("now-playing", np);
     const playing = np.status === "playing";
     const beat = playing && np.positionMs % 500 < 200;
+    const level = playing ? (beat ? 0.85 : 0.5) : 0;
+    // Rotating hump mirroring the backend synthetic spectrum.
+    const center = Math.floor(np.positionMs / 400) % 16;
+    const bands = Array.from({ length: 16 }, (_, i) => {
+      const d = Math.min(Math.abs(i - center), 16 - Math.abs(i - center));
+      return Math.min(1, level * Math.max(0.08, 1 - d / 7));
+    });
     emitMock("energy", {
-      level: playing ? (beat ? 0.85 : 0.5) : 0,
+      level,
       beat,
       bpm: playing ? 120 : undefined,
+      bands,
     } satisfies EnergyUpdate);
   }, 200);
 }

@@ -172,6 +172,9 @@ export default function Player() {
       <Link to="/library" className="wordmark" style={{ textDecoration: "none" }}>
         Library
       </Link>
+      <Link to="/visualizer" className="wordmark" style={{ textDecoration: "none" }}>
+        Visualizer
+      </Link>
       <Link to="/stats" className="wordmark" style={{ textDecoration: "none" }}>
         Stats
       </Link>

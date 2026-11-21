@@ -190,7 +190,7 @@ body {
   font-size: 10px; letter-spacing: .35em; text-transform: uppercase;
   color: var(--dim); text-align: center; padding-top: 2px;
 }
-.player__nav { display: flex; justify-content: center; gap: 22px; }
+.player__nav { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 16px; row-gap: 4px; }
 .player__nav .wordmark:hover { color: var(--text); }
 .palette-open {
   background: none; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
@@ -459,3 +459,14 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---- Visualizer ---- */
+.viz { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+.viz__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.viz__meta {
+  position: absolute; top: 12px; left: 12px; right: 12px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+  padding: 10px 14px; border-radius: 14px;
+}
+.viz__title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.viz__artist { color: var(--dim); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

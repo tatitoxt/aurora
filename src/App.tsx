@@ -8,6 +8,7 @@ import DeskLyrics from "./pages/DeskLyrics";
 import Library from "./pages/Library";
 import Stats from "./pages/Stats";
 import Wrapped from "./pages/Wrapped";
+import Visualizer from "./pages/Visualizer";
 import Palette from "./Palette";
 import { bridge, subscribe, type Settings as AppSettings } from "./bridge";
 import { applyTheme } from "./themes";
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/library" element={<Library />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/wrapped" element={<Wrapped />} />
+        <Route path="/visualizer" element={<Visualizer />} />
       </Routes>
       <PaletteGate />
     </>
