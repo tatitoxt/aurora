@@ -329,8 +329,9 @@ body {
   min-width: 0;
 }
 .stat-card em {
-  font-style: normal; font-size: 15px; font-weight: 600;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-style: normal; font-size: 13px; font-weight: 600; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: break-word;
 }
 .stat-card span { font-size: 10px; color: var(--dim); }
 .wrapped__hero {
