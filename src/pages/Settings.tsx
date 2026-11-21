@@ -355,6 +355,14 @@ export default function Settings() {
             onClick={() => patch({ resumeOnLaunch: !s.resumeOnLaunch })}
           />
         </div>
+        <div className="row">
+          <span>Notify when the track changes</span>
+          <button
+            className={`toggle ${s.notifyTrackChange ? "on" : ""}`}
+            aria-label="Notify when the track changes"
+            onClick={() => patch({ notifyTrackChange: !s.notifyTrackChange })}
+          />
+        </div>
 
         <div className="field">
           <span>Music folder</span>

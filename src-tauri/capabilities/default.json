@@ -9,6 +9,7 @@
     "core:event:allow-emit",
     "core:window:default",
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "notification:default"
   ]
 }
