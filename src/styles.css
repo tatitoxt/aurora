@@ -626,7 +626,12 @@ body {
 }
 .fs__center {
   position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 0 12vw; pointer-events: none;
+  padding: 0 8vw; pointer-events: none; transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
+}
+/* Shift the stage right of the open Continue Playing panel so nothing overlaps. */
+.fs__center--panel {
+  padding-left: calc(3.5vw + min(240px, 24vw) + 32px);
+  padding-right: 4vw;
 }
 .fs__lyric {
   font-family: "Bebas Neue", var(--serif);
@@ -645,7 +650,9 @@ body {
 .fs__covers {
   display: flex; align-items: flex-end; justify-content: center;
   gap: 18px; width: 100%; pointer-events: none;
+  transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
 }
+.fs__covers--panel { padding-left: calc(3.5vw + min(240px, 24vw) + 32px); }
 .fs__cover { width: clamp(90px, 11vh, 140px); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
 .fs__cover--on { width: clamp(240px, 26vh, 380px); opacity: 1; }

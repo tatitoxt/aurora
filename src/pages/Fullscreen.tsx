@@ -147,6 +147,7 @@ export default function Fullscreen() {
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 0;
+  const panelShown = queue.items.length > 0 || streamReady;
   const qpages = Math.ceil(queue.items.length / 8);
   const qp = Math.min(qpage, Math.max(0, qpages - 1));
   const favKey = track ? `${np?.source ?? ""}:${track.id}` : "";
@@ -303,7 +304,7 @@ export default function Fullscreen() {
         </div>
       </div>
 
-      {(queue.items.length > 0 || streamReady) && (
+      {panelShown && (
         <aside className="fs__queue">
           <button
             className="fs__qheadrow"
@@ -421,7 +422,7 @@ export default function Fullscreen() {
         </aside>
       )}
 
-      <div className="fs__center">
+      <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
         {lyricsOn ? (
           line ? (
             <div className="fs__lyric" key={active}>
@@ -436,7 +437,7 @@ export default function Fullscreen() {
       </div>
 
       {covers.length > 1 && (
-        <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}>
+        <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"} ${panelShown && queueOpen ? "fs__covers--panel" : ""}`}>
           {covers.map((c) =>
             c.on ? (
               /* iBaila center card: video/art inside, meta overlaid on scrim. */
