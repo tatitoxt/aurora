@@ -72,7 +72,7 @@ export default function Stats() {
                 {stats.days.map((d) => (
                   <div
                     key={d.date}
-                    className="days__bar"
+                    className={`days__bar ${d.ms === maxMs ? "days__bar--max" : ""}`}
                     title={`${d.date} · ${d.plays} plays · ${fmtDur(d.ms)}`}
                     style={{ height: `${Math.max(6, (d.ms / maxMs) * 100)}%` }}
                   />

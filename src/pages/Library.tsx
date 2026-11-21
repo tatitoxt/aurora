@@ -32,6 +32,19 @@ const SOURCES = [
   { id: "soundcloud", label: "SoundCloud" },
 ];
 
+function LibThumb({ url }: { url?: string }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    if (url) void bridge.artSrc(url).then(setSrc).catch(() => {});
+    else setSrc("");
+  }, [url]);
+  return src ? (
+    <img className="lib__thumb" src={src} alt="" />
+  ) : (
+    <div className="lib__thumb lib__thumb--ph" aria-hidden="true">♪</div>
+  );
+}
+
 export default function Library() {
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [np, setNp] = useState<NowPlaying | null>(null);
@@ -356,6 +369,7 @@ export default function Library() {
               onClick={() => playRemote(t)}
               disabled={downloading !== null}
             >
+              <LibThumb url={t.artworkUrl} />
               <span className="lib__title">
                 {downloading === t.id ? "⤓ " : ""}
                 {t.title}
@@ -439,6 +453,7 @@ export default function Library() {
                 className={`lib__row ${current ? "lib__row--current" : ""}`}
                 onClick={() => void bridge.playQueueIndex(i).then(refresh)}
               >
+                <LibThumb url={item.track.artworkUrl} />
                 <span className="lib__title">{item.track.title}</span>
                 <span className="lib__sub">
                   <Link
@@ -473,6 +488,7 @@ export default function Library() {
                     onClick={() => playLiked(e)}
                     disabled={downloading !== null}
                   >
+                    <LibThumb />
                     <span className="lib__title">
                       {downloading === e.key ? "⤓ " : "♥ "}
                       {e.title}
@@ -513,6 +529,7 @@ export default function Library() {
                       }
                     }}
                   >
+                    <LibThumb />
                     {renaming === p.path ? (
                       <input
                         className="lib__rename"
