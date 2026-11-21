@@ -193,8 +193,7 @@ impl PlayerIface {
             .lock()
             .map_err(|_| fdo::Error::Failed("player lock poisoned".into()))?;
         let target = p.position_ms() as i64 + offset_us / 1000;
-        p.seek(target.max(0) as u64)
-            .map_err(fdo::Error::Failed)
+        p.seek(target.max(0) as u64).map_err(fdo::Error::Failed)
     }
 
     /// Absolute position for the given track id (id is advisory here).
