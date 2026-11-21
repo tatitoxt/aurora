@@ -294,9 +294,10 @@ fn clear_history(state: State<AppState>) -> Result<(), String> {
 /// Async: a play/pause/next that lands on an uncached remote track can
 /// block for a yt-dlp download — that must happen on the runtime pool,
 /// not the IPC thread.
-#[tauri::command]
-async fn media_control(state: State<'_, AppState>, cmd: Control) -> Result<(), String> {
-    if local_active(&state) {
+/// Transport routing shared by the IPC command and the tray menu: the
+/// local player when it holds the queue, the external source otherwise.
+fn media_control_inner(state: &AppState, cmd: Control) -> Result<(), String> {
+    if local_active(state) {
         return state
             .player
             .lock()
@@ -310,6 +311,11 @@ async fn media_control(state: State<'_, AppState>, cmd: Control) -> Result<(), S
         .map_err(|e| e.to_string())?
         .control(cmd)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn media_control(state: State<'_, AppState>, cmd: Control) -> Result<(), String> {
+    media_control_inner(&state, cmd)
 }
 
 #[tauri::command]
@@ -2180,15 +2186,35 @@ pub fn run() {
         });
 }
 
+/// Tray menu events run on the main thread; a next/prev that lands on an
+/// uncached remote track blocks on a yt-dlp resolve, so bounce to a
+/// worker thread — same reason `media_control` is an async command.
+fn tray_media_control(app: &tauri::AppHandle, cmd: Control) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let state = app.state::<AppState>();
+        let _ = media_control_inner(&state, cmd);
+    });
+}
+
 fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
-    use tauri::menu::{Menu, MenuItem};
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     use tauri::tray::TrayIconBuilder;
     let open = MenuItem::with_id(app, "open", "Open", true, None::<&str>)?;
+    let playpause = MenuItem::with_id(app, "playpause", "Play / Pause", true, None::<&str>)?;
+    let next = MenuItem::with_id(app, "next", "Next track", true, None::<&str>)?;
+    let prev = MenuItem::with_id(app, "prev", "Previous track", true, None::<&str>)?;
+    let sep = PredefinedMenuItem::separator(app)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let hud = MenuItem::with_id(app, "hud", "Floating HUD", true, None::<&str>)?;
     let dlyrics = MenuItem::with_id(app, "dlyrics", "Desktop lyrics", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &settings, &hud, &dlyrics, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open, &playpause, &next, &prev, &sep, &settings, &hud, &dlyrics, &quit,
+        ],
+    )?;
     // Owned 'static icon: the live tray state keeps a copy to restore when
     // the live cover is disabled, and `default_window_icon` is borrowed.
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
@@ -2203,6 +2229,9 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     let _ = w.set_focus();
                 }
             }
+            "playpause" => tray_media_control(app, Control::PlayPause),
+            "next" => tray_media_control(app, Control::Next),
+            "prev" => tray_media_control(app, Control::Previous),
             "settings" => {
                 if let Some(w) = app.get_webview_window("player") {
                     let _ = w.show();
