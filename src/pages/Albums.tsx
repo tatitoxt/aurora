@@ -26,7 +26,7 @@ export default function Albums() {
         for (const i of all) {
           const artist = i.track.artist || "Unknown Artist";
           const name = i.track.album || "Singles";
-          const key = `${artist}${name}`;
+          const key = `${artist} ${name}`;
           const g =
             by.get(key) ??
             by
