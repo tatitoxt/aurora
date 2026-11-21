@@ -1853,8 +1853,14 @@ fn list_displays(app: tauri::AppHandle) -> Result<Vec<DisplayInfo>, String> {
 }
 
 /// One click-through, transparent overlay window per enabled display.
+/// Also tears down edge windows whose display was disabled or unplugged.
 fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
-    let monitors = app.available_monitors().unwrap_or_default();
+    // Bail on enumeration errors: with no monitor list the cleanup below
+    // would read every edge window as stale and close them all.
+    let Ok(monitors) = app.available_monitors() else {
+        return;
+    };
+    let mut expected: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, monitor) in monitors.iter().enumerate() {
         let id = format!("display-{i}");
         let label = format!("edge-{id}");
@@ -1864,15 +1870,16 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
             .find(|d| d.display_id == id)
             .map(|d| d.enabled)
             .unwrap_or(true);
-        if let Some(win) = app.get_webview_window(&label) {
-            if !enabled {
-                let _ = win.close();
-            }
-            continue;
-        }
         if !enabled {
             continue;
         }
+        expected.insert(label.clone());
+        if app.get_webview_window(&label).is_some() {
+            continue;
+        }
+        // Monitor size()/position() are physical; the builder wants logical
+        // or a scaled display would double-apply the scale factor.
+        let scale = monitor.scale_factor();
         let size = monitor.size();
         let pos = monitor.position();
         if let Ok(win) = tauri::WebviewWindowBuilder::new(
@@ -1885,11 +1892,16 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
-        .inner_size(size.width as f64, size.height as f64)
-        .position(pos.x as f64, pos.y as f64)
+        .inner_size(size.width as f64 / scale, size.height as f64 / scale)
+        .position(pos.x as f64 / scale, pos.y as f64 / scale)
         .build()
         {
             let _ = win.set_ignore_cursor_events(true);
+        }
+    }
+    for (label, win) in app.webview_windows() {
+        if label.starts_with("edge-") && !expected.contains(&label) {
+            let _ = win.close();
         }
     }
 }
@@ -2268,6 +2280,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
         let mut last_track_id: Option<String> = None;
+        let mut last_monitor_count = usize::MAX;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
@@ -2276,6 +2289,20 @@ fn spawn_poller(app: &tauri::AppHandle) {
             let tick_ms = last_tick.elapsed().as_millis() as u64;
             last_tick = std::time::Instant::now();
             let state = app.state::<AppState>();
+            // Reconcile edge overlays with the monitor set ~1/s: a hotplugged
+            // display gets its glow (or loses its stale window) without a
+            // settings write.
+            if ticks.is_multiple_of(5) {
+                if let Ok(monitors) = app.available_monitors() {
+                    let n = monitors.len();
+                    if n != last_monitor_count {
+                        last_monitor_count = n;
+                        if let Ok(s) = state.settings.lock() {
+                            sync_edge_windows(&app, &s);
+                        }
+                    }
+                }
+            }
             let np = {
                 if !local_active(&state) {
                     // Rediscover the platform player source while idle.
