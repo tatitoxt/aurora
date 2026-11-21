@@ -135,6 +135,7 @@ const es: Record<keyof typeof en, string> = {
   "set.sources": "Fuente actual",
   "set.sourceLive": "Puente del navegador · en vivo",
   "set.sourceSys": "Reproductor del sistema",
+  "set.sourceHint": "Instalá la extensión del navegador para seguir YouTube Music, Spotify, SoundCloud, Apple Music, Tidal o Amazon — ver README › Browser extension.",
   "set.minutes90": "90 min",
   "set.licensed": "Con licencia",
   "set.licensedTo": "Con licencia para",

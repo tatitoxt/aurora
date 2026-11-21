@@ -135,6 +135,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.sources": "当前来源",
   "set.sourceLive": "浏览器桥接 · 实时",
   "set.sourceSys": "系统播放器",
+  "set.sourceHint": "安装浏览器扩展即可跟随 YouTube Music、Spotify、SoundCloud、Apple Music、Tidal 或 Amazon — 见 README › Browser extension。",
   "set.minutes90": "90\u5206\u949f",
   "set.licensed": "\u5df2\u6388\u6743",
   "set.licensedTo": "\u5df2\u6388\u6743\u7ed9",

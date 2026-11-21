@@ -66,6 +66,7 @@ const en = {
   "set.sources": "Now playing source",
   "set.sourceLive": "Browser bridge · live",
   "set.sourceSys": "System player",
+  "set.sourceHint": "Install the browser extension to follow YouTube Music, Spotify, SoundCloud, Apple Music, Tidal or Amazon — see README › Browser extension.",
   "set.minutes90": "90 min",
   "set.licensed": "Licensed",
   "set.licensedTo": "Licensed to",
