@@ -66,6 +66,15 @@ pub struct Settings {
     pub custom_color: String,
     pub battery_saver: bool,
     pub hide_in_fullscreen: bool,
+    /// Fade the edge glow out when nothing is playing.
+    #[serde(default = "default_true")]
+    pub lights_off_on_silence: bool,
+    /// Dim the edge glow while running on battery (discharging).
+    #[serde(default = "default_true")]
+    pub auto_dim_on_battery: bool,
+    /// Show the track artwork with a beat/progress ring in the tray icon.
+    #[serde(default = "default_true")]
+    pub tray_live_icon: bool,
     pub displays: Vec<DisplayRule>,
     #[serde(default)]
     pub license_key: Option<String>,
@@ -146,6 +155,9 @@ impl Default for Settings {
             custom_color: "#8b5cf6".into(),
             battery_saver: false,
             hide_in_fullscreen: true,
+            lights_off_on_silence: true,
+            auto_dim_on_battery: true,
+            tray_live_icon: true,
             displays: vec![],
             license_key: None,
             hud_enabled: true,

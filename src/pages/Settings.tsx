@@ -368,6 +368,30 @@ export default function Settings() {
           />
         </div>
         <div className="row">
+          <span>Dim on battery</span>
+          <button
+            className={`toggle ${s.autoDimOnBattery ? "on" : ""}`}
+            aria-label="Dim on battery"
+            onClick={() => patch({ autoDimOnBattery: !s.autoDimOnBattery })}
+          />
+        </div>
+        <div className="row">
+          <span>Lights off when music stops</span>
+          <button
+            className={`toggle ${s.lightsOffOnSilence ? "on" : ""}`}
+            aria-label="Lights off when music stops"
+            onClick={() => patch({ lightsOffOnSilence: !s.lightsOffOnSilence })}
+          />
+        </div>
+        <div className="row">
+          <span>Live tray icon</span>
+          <button
+            className={`toggle ${s.trayLiveIcon ? "on" : ""}`}
+            aria-label="Live tray icon"
+            onClick={() => patch({ trayLiveIcon: !s.trayLiveIcon })}
+          />
+        </div>
+        <div className="row">
           <span>Floating HUD</span>
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}

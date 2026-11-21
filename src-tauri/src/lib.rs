@@ -8,7 +8,7 @@ use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
 use noctbeat_core::media::{
     now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus, Track,
 };
-use noctbeat_core::palette::{extract_palette_bytes, Palette};
+use noctbeat_core::palette::{extract_palette_bytes, Palette, Rgb};
 use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
 use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
@@ -52,6 +52,12 @@ struct AppState {
     /// Remote keys with a prefetch download already running, so the
     /// per-tick poller does not stack duplicate yt-dlp workers.
     prefetching: std::sync::Arc<Mutex<std::collections::HashSet<String>>>,
+    /// Tray icon handle for the live cover + beat ring (iBaila-style).
+    tray: Mutex<Option<tauri::tray::TrayIcon>>,
+    /// Bundled icon restored when the live icon is disabled.
+    tray_default: Mutex<Option<tauri::image::Image<'static>>>,
+    /// Arc-shared so the artwork fetch thread can store into it.
+    tray_dyn: std::sync::Arc<Mutex<TrayDyn>>,
     demo: bool,
 }
 
@@ -928,6 +934,54 @@ fn get_energy(state: State<AppState>) -> Result<EnergyUpdate, String> {
     Ok(*state.last_energy.lock().map_err(|e| e.to_string())?)
 }
 
+/// True while any system battery is discharging. The edge auto-dim polls
+/// this because WebKit/WKWebView webviews lack `navigator.getBattery`.
+#[tauri::command]
+fn on_battery() -> bool {
+    system_on_battery()
+}
+
+#[cfg(target_os = "linux")]
+fn system_on_battery() -> bool {
+    let Ok(rd) = std::fs::read_dir("/sys/class/power_supply") else {
+        return false;
+    };
+    rd.flatten().any(|e| {
+        // Only the system battery dims: peripheral entries (hidpp_*,
+        // xpadneo_*, ...) also report type "Battery" and discharging status.
+        // scope is absent on many fuel-gauge drivers (cw2015, rk817), so
+        // fall back to excluding known peripheral name prefixes.
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        let peripheral = ["hid", "xpadneo", "bluez", "sony_controller", "devc_"]
+            .iter()
+            .any(|p| name.starts_with(p));
+        let system = std::fs::read_to_string(e.path().join("scope"))
+            .map(|s| s.trim().eq_ignore_ascii_case("system"))
+            .unwrap_or(!peripheral);
+        system
+            && std::fs::read_to_string(e.path().join("type"))
+                .map(|t| t.trim() == "Battery")
+                .unwrap_or(false)
+            && std::fs::read_to_string(e.path().join("status"))
+                .map(|s| s.trim() == "Discharging")
+                .unwrap_or(false)
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn system_on_battery() -> bool {
+    std::process::Command::new("pmset")
+        .args(["-g", "batt"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("'Battery Power'"))
+        .unwrap_or(false)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn system_on_battery() -> bool {
+    false
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DisplayInfo {
@@ -1131,6 +1185,202 @@ fn flush_desk_lyrics_position(app: &tauri::AppHandle) {
     );
 }
 
+const TRAY_SIZE: u32 = 64;
+
+/// Live tray icon state: decoded cover + accent + the inputs of the last
+/// render, so `set_icon` only runs when the ring would visibly change.
+#[derive(Default)]
+struct TrayDyn {
+    /// (artwork url, 64x64 cover-cropped pixels, dominant accent)
+    art: Option<(String, image::RgbaImage, Rgb)>,
+    /// Artwork url with a fetch already in flight.
+    pending: Option<String>,
+    /// Artwork url that failed to fetch or decode; not retried while the
+    /// track stays the same, or a broken cover would re-download every tick.
+    failed: Option<String>,
+    last_bucket: u32,
+    last_level: u8,
+    last_playing: Option<bool>,
+    last_art_url: String,
+    last_had_art: bool,
+    last_tip: String,
+    using_live: bool,
+}
+
+/// iBaila-style live tray icon: the cover with an accent ring that fills
+/// with progress and brightens on the beat. Artwork fetch+decode runs on a
+/// side thread so an http fetch never stalls the poller.
+fn update_tray(state: &AppState, np: &NowPlaying, energy: &EnergyUpdate) {
+    let live = state
+        .settings
+        .lock()
+        .map(|s| s.tray_live_icon)
+        .unwrap_or(true);
+    let Ok(tray_guard) = state.tray.lock() else {
+        return;
+    };
+    let Some(tray) = tray_guard.as_ref() else {
+        return;
+    };
+    let Ok(default_icon) = state.tray_default.lock().map(|d| d.clone()) else {
+        return;
+    };
+
+    let playing = np.status == PlaybackStatus::Playing;
+    let art_url = np
+        .track
+        .as_ref()
+        .map(|t| t.artwork_url.clone())
+        .unwrap_or_default();
+
+    {
+        let Ok(mut d) = state.tray_dyn.lock() else {
+            return;
+        };
+        if !art_url.is_empty()
+            && d.art.as_ref().map(|a| a.0 != art_url).unwrap_or(true)
+            && d.pending.as_deref() != Some(art_url.as_str())
+            && d.failed.as_deref() != Some(art_url.as_str())
+        {
+            d.pending = Some(art_url.clone());
+            let dyn2 = state.tray_dyn.clone();
+            let url = art_url.clone();
+            std::thread::spawn(move || {
+                let art = fetch_artwork(&url).ok().and_then(|bytes| {
+                    let img = image::load_from_memory(&bytes).ok()?;
+                    let accent = extract_palette_bytes(&bytes)
+                        .map(|p| p.dominant)
+                        .unwrap_or(Rgb(150, 120, 255));
+                    let side = img.width().min(img.height());
+                    let cropped = image::imageops::crop_imm(
+                        &img.to_rgba8(),
+                        (img.width() - side) / 2,
+                        (img.height() - side) / 2,
+                        side,
+                        side,
+                    )
+                    .to_image();
+                    let px = image::imageops::resize(
+                        &cropped,
+                        TRAY_SIZE,
+                        TRAY_SIZE,
+                        image::imageops::FilterType::Triangle,
+                    );
+                    Some((url.clone(), px, accent))
+                });
+                if let Ok(mut d) = dyn2.lock() {
+                    if d.pending.as_deref() == Some(url.as_str()) {
+                        d.pending = None;
+                    }
+                    match art {
+                        Some(art) => d.art = Some(art),
+                        None => d.failed = Some(url),
+                    }
+                }
+            });
+        }
+
+        let tip = np
+            .track
+            .as_ref()
+            .map(|t| {
+                format!(
+                    "{} — {} · {}",
+                    noctbeat_core::branding::branding().short_name,
+                    t.title,
+                    t.artist
+                )
+            })
+            .unwrap_or_else(|| noctbeat_core::branding::branding().short_name.clone());
+        if tip != d.last_tip {
+            let _ = tray.set_tooltip(Some(tip.as_str()));
+            d.last_tip = tip;
+        }
+
+        if !live {
+            if d.using_live || d.last_playing.is_none() {
+                if let Some(icon) = default_icon {
+                    let _ = tray.set_icon(Some(icon));
+                }
+                d.using_live = false;
+                d.last_playing = None;
+            }
+            return;
+        }
+
+        let progress = np
+            .track
+            .as_ref()
+            .filter(|t| t.duration_ms > 0)
+            .map(|t| (np.position_ms as f32 / t.duration_ms as f32).clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        // Never paint the previous track's cover under the new track's
+        // progress: art counts only while its url matches the live track.
+        let art = d.art.as_ref().filter(|a| a.0 == art_url);
+        let has_art = art.is_some();
+        let level_q = (energy.level.clamp(0.0, 1.0) * 16.0) as u8;
+        let bucket = (progress * 64.0) as u32;
+        let changed = bucket != d.last_bucket
+            || level_q != d.last_level
+            || d.last_playing != Some(playing)
+            || d.last_art_url != art_url
+            || d.last_had_art != has_art;
+        if !changed {
+            return;
+        }
+        let icon = compose_tray_icon(art.map(|a| (&a.1, a.2)), progress, energy.level, playing);
+        let _ = tray.set_icon(Some(icon));
+        d.using_live = true;
+        d.last_bucket = bucket;
+        d.last_level = level_q;
+        d.last_playing = Some(playing);
+        d.last_art_url = art_url;
+        d.last_had_art = has_art;
+    }
+}
+
+/// 64x64 RGBA: circular cover inside a ring whose arc fills with playback
+/// progress (top, clockwise) and whose lit section brightens with energy.
+fn compose_tray_icon(
+    art: Option<(&image::RgbaImage, Rgb)>,
+    progress: f32,
+    level: f32,
+    playing: bool,
+) -> tauri::image::Image<'static> {
+    const S: u32 = TRAY_SIZE;
+    let c = S as f32 / 2.0 - 0.5;
+    let accent = art.map(|(_, a)| a).unwrap_or(Rgb(150, 120, 255));
+    let art_alpha = if playing { 255 } else { 150 };
+    let lit_alpha = if playing {
+        (140.0 + level.clamp(0.0, 1.0) * 115.0) as u8
+    } else {
+        70
+    };
+    let mut buf = image::RgbaImage::new(S, S);
+    for y in 0..S {
+        for x in 0..S {
+            let dx = x as f32 - c;
+            let dy = y as f32 - c;
+            let r = (dx * dx + dy * dy).sqrt();
+            if r > 31.5 {
+                continue;
+            }
+            if r >= 26.0 {
+                let frac = ((dy.atan2(dx) + std::f32::consts::FRAC_PI_2) / std::f32::consts::TAU)
+                    .rem_euclid(1.0);
+                let a = if frac <= progress { lit_alpha } else { 60 };
+                buf.put_pixel(x, y, image::Rgba([accent.0, accent.1, accent.2, a]));
+            } else if let Some((img, _)) = art {
+                let px = img.get_pixel(x, y);
+                buf.put_pixel(x, y, image::Rgba([px[0], px[1], px[2], art_alpha]));
+            } else {
+                buf.put_pixel(x, y, image::Rgba([24, 24, 28, art_alpha]));
+            }
+        }
+    }
+    tauri::image::Image::new_owned(buf.into_raw(), S, S)
+}
+
 /// Synthetic energy for demo/fallback: tempo-synced pulses while playing,
 /// with a rotating spectrum so the visualizer still reads as music.
 fn synthetic_energy(np: &NowPlaying, prev: &EnergyUpdate) -> EnergyUpdate {
@@ -1273,6 +1523,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
             }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
+            update_tray(&state, &np, &energy);
             flush_hud_position(&app);
             flush_desk_lyrics_position(&app);
         }
@@ -1347,6 +1598,9 @@ pub fn run() {
             remote: remote_map,
             stream_cache,
             prefetching: std::sync::Arc::new(Mutex::new(std::collections::HashSet::new())),
+            tray: Mutex::new(None),
+            tray_default: Mutex::new(None),
+            tray_dyn: std::sync::Arc::new(Mutex::new(TrayDyn::default())),
             demo,
         })
         .invoke_handler(tauri::generate_handler![
@@ -1360,6 +1614,7 @@ pub fn run() {
             get_license_state,
             activate_license,
             get_energy,
+            on_battery,
             list_displays,
             set_hud_pinned,
             hud_start_drag,
@@ -1432,10 +1687,11 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let dlyrics = MenuItem::with_id(app, "dlyrics", "Desktop lyrics", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &settings, &hud, &dlyrics, &quit])?;
-    let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
-        tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).expect("icon")
-    });
-    TrayIconBuilder::new()
+    // Owned 'static icon: the live tray state keeps a copy to restore when
+    // the live cover is disabled, and `default_window_icon` is borrowed.
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
+    let default_icon = icon.clone();
+    let tray = TrayIconBuilder::new()
         .icon(icon)
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -1475,5 +1731,12 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .build(app)?;
+    let state = app.state::<AppState>();
+    if let Ok(mut t) = state.tray.lock() {
+        *t = Some(tray);
+    }
+    if let Ok(mut d) = state.tray_default.lock() {
+        *d = Some(default_icon);
+    }
     Ok(())
 }
