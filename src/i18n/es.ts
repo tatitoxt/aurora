@@ -127,6 +127,7 @@ const es: Record<keyof typeof en, string> = {
   "set.custom": "Personalizado",
   "set.accent": "Acento",
   "set.accent2": "Acento 2",
+  "set.dynAccent": "El acento sigue a la carátula",
   "set.saveCurrent": "Guardar actual",
   "set.profilesNote": "Guarda el tema, el EQ y el modo de letras en un perfil con nombre",
   "set.crossfade": "Crossfade",
