@@ -42,16 +42,22 @@ const conf = {
         title: brand.productName,
         width: 340,
         height: 560,
-        resizable: false,
-        decorations: false,
+        resizable: true,
+        minWidth: 300,
+        minHeight: 480,
+        // Normal desktop window: native close/min/zoom (traffic lights on
+        // macOS via the overlay titlebar), Dock-visible, not always-on-top.
+        decorations: true,
+        titleBarStyle: "Overlay",
+        hiddenTitle: true,
         transparent: true,
         windowEffects: {
           effects: ["sidebar", "acrylic", "blur"],
           state: "active",
           radius: 18.0,
         },
-        alwaysOnTop: true,
-        skipTaskbar: true,
+        alwaysOnTop: false,
+        skipTaskbar: false,
       },
     ],
     security: {

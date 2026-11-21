@@ -8,6 +8,7 @@ const ko: Record<keyof typeof en, string> = {
   "nav.back": "\ub4a4\ub85c",
   "nav.share": "\uc7ac\uc0dd \uc911\uc778 \uace1 \uacf5\uc720",
   "nav.commands": "\uba85\ub839 (Ctrl K)",
+  "nav.hud": "HUD 열기",
   "nav.fullscreen": "\uc804\uccb4\ud654\uba74",
   "set.title": "\uc124\uc815",
   "set.edgeThickness": "\ud14c\ub450\ub9ac \uad75\uae30",

@@ -48,7 +48,7 @@ try {
   // Read the title via execute/sync: the element/text endpoint is flaky on
   // webkitgtk (returns "" for found elements).
   let text = "";
-  const script = "return document.querySelector('.player__title')?.textContent ?? null";
+  const script = "return document.querySelector('.fs__mtitle, .hud__focustitle')?.textContent ?? null";
   for (let i = 0; i < 45 && !/Aurora Reversal|Slow Meridian|Glass Tide/.test(text); i++) {
     const handles = await wd("GET", `/session/${session}/window`);
     for (const h of handles.body.value ?? []) {

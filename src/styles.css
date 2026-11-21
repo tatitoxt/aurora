@@ -42,12 +42,14 @@ body {
     var(--panel);
   backdrop-filter: blur(var(--gblur, 80px)) saturate(1.8);
   -webkit-backdrop-filter: blur(var(--gblur, 80px)) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 26px;
+  /* No border/drop-shadow of its own: the decorated window frame already
+     supplies the rounded edge — drawing a second one produced the
+     double-corner artifact. */
+  border: none;
+  border-radius: 18px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 24px 60px -20px rgba(0, 0, 0, 0.7);
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -59,12 +61,14 @@ body {
 
 /* videoclip view: the video is the window background; the art card goes
  * transparent so lyrics float directly over the stream. */
-.glass--videobg { background: rgba(8, 8, 12, 0.35); }
+.glass--videobg { background: rgba(8, 8, 12, 0.1); }
 .glass--videobg .kbg__video { z-index: 0; }
 .glass--videobg .player { z-index: 1; }
+/* Only the bottom edge gets a scrim so the transport stays legible — the
+   videoclip stays plainly visible everywhere else. */
 .glass__veil {
-  position: absolute; inset: 0; z-index: 0;
-  background: linear-gradient(180deg, rgba(6,6,9,0.15), rgba(6,6,9,0.05) 45%, rgba(6,6,9,0.55));
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, transparent 52%, rgba(6,6,9,0.5) 100%);
 }
 .player__art--video {
   background: transparent;
@@ -74,8 +78,10 @@ body {
 /* ---------- mini player ---------- */
 .player { padding: 14px 16px 12px; gap: 12px; display: flex; flex-direction: column; height: 100%; }
 .player__art {
-  flex: 1 1 auto;
-  min-height: 170px;
+  flex: 0 0 auto;
+  height: min(44%, 260px);
+  aspect-ratio: 1;
+  align-self: center;
   border-radius: 18px;
   background: #17171d;
   box-shadow:
@@ -83,6 +89,14 @@ body {
     0 18px 48px -14px rgba(0, 0, 0, 0.9);
   position: relative;
   overflow: hidden;
+}
+/* video/lyrics modes keep the full height — only the cover view is capped. */
+.player__art--video, .player__art--lyrics {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 170px;
+  aspect-ratio: auto;
+  align-self: stretch;
 }
 .player__art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .player__art--lyrics { background: rgba(10, 10, 14, 0.35); }
@@ -95,12 +109,13 @@ body {
 .player__lyrfill .lyric { font-size: 15px; padding: 6px 10px; }
 .player__lyrfill .karaoke__idle { align-self: center; }
 
-/* videoclip view: lyrics floated over the video, legible via a soft scrim */
+/* videoclip view: lyrics float directly on the stream — no panel at all,
+   legibility comes from the word shadows alone. */
 .player__lyrover {
   position: absolute; inset: 0; overflow: hidden;
   display: flex; flex-direction: column; justify-content: center;
   padding: 14px 10px;
-  background: linear-gradient(180deg, rgba(6,6,9,0.28), rgba(6,6,9,0.05) 35%, rgba(6,6,9,0.05) 65%, rgba(6,6,9,0.4));
+  background: none;
   pointer-events: none;
 }
 .player__lyrover .player__lyrics { min-height: 0; }
@@ -163,6 +178,7 @@ body {
 .ctl--play { width: 42px; height: 42px; background: var(--text); color: var(--bg); }
 .ctl--play svg { width: 20px; height: 20px; }
 
+.player__lyrics::-webkit-scrollbar { display: none; }
 .player__lyrics { flex: 1; min-height: 72px; overflow-y: auto; scrollbar-width: none; position: relative; mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent); -webkit-mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent); }
 .lyric { font-size: 12.5px; color: var(--dim); padding: 4px 8px; transition: color .35s, filter .35s, transform .35s; text-align: center; filter: blur(0.4px); }
 .lyric--active {
@@ -330,9 +346,10 @@ body {
 }
 
 /* Liquid-glass icon pill nav (iBaila grammar: one floating bar, icon chips). */
+/* pinned to the bottom of the window — no dead gap below it. */
 .pnav {
   display: flex; align-items: center; justify-content: center; gap: 2px;
-  align-self: center;
+  align-self: center; margin-top: auto;
   padding: 5px 8px; border-radius: 999px;
   background: rgba(14, 14, 20, 0.55);
   backdrop-filter: blur(22px) saturate(1.4);
@@ -576,7 +593,7 @@ body {
 .panel > span { font-size: 11px; color: var(--dim); }
 
 /* ---------- settings ---------- */
-.settings { padding: 18px 16px; gap: 18px; overflow-y: auto; height: 100%; }
+.settings { padding: 20px 18px; gap: 24px; overflow-y: auto; height: 100%; }
 .settings > .field, .settings > .row {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -587,13 +604,16 @@ body {
 /* Grouped bubbles: each preference domain is its own glass card with a
    micro-header — iOS-style grouped list. */
 .setgroup {
-  display: flex; flex-direction: column; gap: 12px;
-  background: rgba(255, 255, 255, 0.055);
-  backdrop-filter: blur(calc(var(--gblur, 80px) * 0.4));
-  -webkit-backdrop-filter: blur(calc(var(--gblur, 80px) * 0.4));
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 22px; padding: 16px 18px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+  display: flex; flex-direction: column; gap: 14px;
+  background: linear-gradient(165deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035) 45%);
+  backdrop-filter: blur(calc(var(--gblur, 80px) * 0.5)) saturate(1.5);
+  -webkit-backdrop-filter: blur(calc(var(--gblur, 80px) * 0.5)) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 26px; padding: 18px 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    inset 0 -1px 0 rgba(255,255,255,0.05),
+    0 14px 34px -18px rgba(0,0,0,0.55);
 }
 .setgroup > .field, .setgroup > .row {
   background: none; padding: 2px 0; border: none; border-radius: 0;
@@ -613,23 +633,66 @@ body {
   font-size: 10px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.09em; color: rgba(255, 255, 255, 0.72);
 }
-.field input[type="range"] { width: 100%; accent-color: var(--accent); }
+/* Liquid slider: frosted track + white glass thumb. */
+.field input[type="range"] {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+  outline: none; cursor: pointer;
+}
+.field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+.field input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.field input[type="range"]::-moz-range-track {
+  height: 6px; border-radius: 999px; background: rgba(255,255,255,0.14);
+}
 .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: rgba(255,255,255,.86); }
 .row--tight { justify-content: flex-start; gap: 22px; }
 .row--tight .field { flex: none; }
 .field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--dim); }
-.seg { display: flex; gap: 6px; }
-.seg button {
-  font-size: 11px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04); color: var(--dim); cursor: pointer;
-  transition: background .15s, color .15s, border-color .15s;
+/* Liquid segmented control: one frosted track, the active option is a
+   brighter glass pill sliding inside it (Apple-style switch). */
+.seg {
+  display: inline-flex; gap: 2px; padding: 3px;
+  border-radius: 999px; border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.18);
 }
-.seg button:hover { color: var(--text); background: rgba(255, 255, 255, 0.09); }
-.seg button.on { background: rgba(255, 255, 255, 0.16); color: var(--text); border-color: rgba(255, 255, 255, 0.34); box-shadow: inset 0 1px 0 rgba(255,255,255,.16); }
-.toggle { width: 34px; height: 20px; border-radius: 10px; background: rgba(255,255,255,.15); border: none; cursor: pointer; position: relative; transition: background .15s; }
-.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
-.toggle.on { background: var(--accent); }
-.toggle.on::after { left: 16px; }
+.seg button {
+  font-size: 11px; padding: 6px 14px; border-radius: 999px; border: none;
+  background: transparent; color: var(--dim); cursor: pointer;
+  transition: background .18s, color .18s, box-shadow .18s;
+}
+.seg button:hover { color: var(--text); }
+.seg button.on {
+  background: rgba(255, 255, 255, 0.18); color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 4px 12px -4px rgba(0,0,0,0.4);
+}
+/* Liquid toggle: frosted track, white glass thumb, accent-tinted when on. */
+.toggle {
+  width: 44px; height: 26px; border-radius: 999px; flex: none;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.14);
+  cursor: pointer; position: relative;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.28);
+  transition: background .2s, border-color .2s;
+}
+.toggle::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.6);
+  transition: left .18s cubic-bezier(.3,.9,.3,1.2);
+}
+.toggle.on { background: color-mix(in srgb, var(--accent) 72%, rgba(255,255,255,0.08)); border-color: transparent; }
+.toggle.on::after { left: 20px; }
 .field input[type="text"], .field input[type="color"], .field select {
   background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.16); border-radius: 14px;
   color: var(--text); padding: 8px 12px; font-size: 12.5px; font-family: inherit;
@@ -791,8 +854,8 @@ body {
 .hud__lyrover .player__lyrics { min-height: 0; }
 .hud__lyrover .lyric { font-size: 11.5px; padding: 3px 6px; text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
 .hud__lyridle { align-self: center; font-family: var(--serif); font-style: italic; font-size: 15px; color: rgba(242,242,245,0.85); text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
-.hud__artswap {
-  position: absolute; right: 8px; bottom: 8px;
+.hud__artswap, .hud__lyrswap {
+  position: absolute; bottom: 8px;
   width: 26px; height: 26px; border-radius: 50%;
   background: rgba(12,14,20,0.55); border: 1px solid rgba(255,255,255,0.16);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -800,8 +863,19 @@ body {
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .2s;
 }
-.hud__focusart:hover .hud__artswap { opacity: 1; }
-.hud__artswap:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+.hud__artswap { right: 8px; }
+.hud__lyrswap { left: 8px; }
+.hud__lyrswap.on { color: var(--accent); opacity: 1; }
+.hud__focusart:hover .hud__artswap, .hud__focusart:hover .hud__lyrswap { opacity: 1; }
+.hud__artswap:hover, .hud__lyrswap:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+/* Queue browsed as a scrim inside the square — one HUD layout, no modes. */
+.hud__list--overlay {
+  position: absolute; inset: 0; margin: 0; padding: 8px;
+  border-radius: inherit; border: none;
+  background: rgba(8,8,12,0.72);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  overflow-y: auto; z-index: 3;
+}
 .hud__focustitle { font-size: 17px; font-weight: 700; text-align: center; font-family: var(--serif); font-style: italic; margin-top: 2px; }
 .hud__focussub { font-size: 12px; color: var(--dim); text-align: center; }
 .hud__focus .hud__progress { width: min(100%, 300px); margin-top: 4px; }
@@ -866,6 +940,9 @@ body {
   font-display: swap;
 }
 .fs { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; background: #050508; }
+/* Windowed (not native fullscreen): clip to the same rounded corner the
+   macOS frame cuts, or the opaque stage shows a square corner artifact. */
+.fs--win { border-radius: 14px; }
 /* Liquid ambient wash: artwork-tinted gradient blobs drifting slowly.
    Opacity stays low so glass and text keep their contrast over it. */
 .amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
@@ -1029,6 +1106,14 @@ body {
 .fs__cvart { font-size: clamp(11px, 1.5vh, 15px); color: rgba(242,242,245,0.78); margin-top: 2px; text-shadow: 0 2px 10px rgba(0,0,0,.65); }
 .fs__cname { font-size: 12px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__cart { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 9;
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: 4px; padding: 14px 16px;
+}
+.fs__topbar .fs__icon { color: var(--text); }
+.fs__topbar .fs__icon:hover { background: rgba(255,255,255,0.14); }
+
 .fs__bottom { position: relative; z-index: 6; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 /* The progress is a hairline inside the pill, under the track meta. */
 .fs__metacol { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -1092,7 +1177,16 @@ body {
 .fs__morebtn--on { color: var(--accent); }
 .fs__morebtn:disabled { opacity: 0.45; cursor: default; }
 .fs__morebtn:disabled:hover { background: none; }
-.fs__provpop { min-width: 230px; left: -6px; transform: none; }
+/* provider picker: floats centered well above the transport pill so it
+   never covers the now-playing controls. */
+.fs__provpop {
+  min-width: 240px; max-width: 320px; max-height: 46vh;
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
+}
+.fs__moresep {
+  height: 1px; margin: 6px 10px; flex: none;
+  background: rgba(255, 255, 255, 0.10);
+}
 .fs__extlive {
   display: block; font-size: 10px; font-weight: 600;
   color: #34d399; padding: 2px 8px 6px; letter-spacing: 0.02em;
@@ -1899,4 +1993,32 @@ body {
 .themechip__sw {
   width: 100%; height: 34px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.14); display: block;
+}
+
+/* Compact stage for the small player window: same layout, tighter pill —
+   optional controls fold into the "…" menu, meta keeps only the hairline. */
+@media (max-width: 560px) {
+  .fs__pill { gap: 4px; padding: 5px 8px; }
+  .fs__pillopt, .fs__srcsep { display: none; }
+  .fs__meta { display: none; }
+  .fs__metacol { flex: 1; min-width: 0; }
+  .fs__clockwrap { padding-top: 3vh; }
+  .fs__topbar { padding: 10px 12px; }
+  .fs__covers { margin-bottom: 2vh; gap: 10px; }
+  .fs__cover--on { width: calc(clamp(180px, 40vh, 320px) * var(--cscale, 1)); }
+}
+@media (max-height: 620px) {
+  .fs__clockwrap { padding-top: 1.5vh; }
+  .fs__center { padding: 0 6vw; }
+}
+
+/* Overflow section inside the "…" menu — only rendered below 560px where the
+   pill hides the optional controls. */
+.fs__menuopt { display: none; }
+@media (max-width: 560px) {
+  .fs__menuopt {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 6px 6px;
+  }
+  .fs__menuopt .fs__slider { flex: 1; min-width: 60px; }
 }

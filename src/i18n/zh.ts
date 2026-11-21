@@ -8,6 +8,7 @@ const zh: Record<keyof typeof en, string> = {
   "nav.back": "\u8fd4\u56de",
   "nav.share": "\u5206\u4eab\u6b63\u5728\u64ad\u653e",
   "nav.commands": "\u547d\u4ee4 (Ctrl K)",
+  "nav.hud": " HUD",
   "nav.fullscreen": "\u5168\u5c4f",
   "set.title": "\u8bbe\u7f6e",
   "set.edgeThickness": "\u8fb9\u6846\u7c97\u7ec6",
