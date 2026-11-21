@@ -172,6 +172,7 @@ const es: Record<keyof typeof en, string> = {
   "fs.extHint": "Extensión: instalala para seguir la música de tus pestañas",
   "fs.extStep1": "1. chrome://extensions → activa Modo desarrollador",
   "fs.extStep2": "2. Cargar sin empaquetar → la carpeta extension/ dentro de la app",
+  "fs.extDownload": "Descargar la extensión bridge (zip)",
   "fs.queuePanel": "Panel Continuar reproduciendo",
   "fs.lyricsToggle": "Letras / miniaturas",
   "fs.startMusic": "Empezar m\u00fasica",

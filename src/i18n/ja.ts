@@ -172,6 +172,7 @@ const ja: Record<keyof typeof en, string> = {
   "fs.extHint": "拡張機能をインストールするとタブの音楽を追跡します",
   "fs.extStep1": "1. chrome://extensions → デベロッパーモードをオン",
   "fs.extStep2": "2. パッケージ化されていない拡張機能を読み込む → アプリ内の extension/ フォルダ",
+  "fs.extDownload": "ブリッジ拡張機能をダウンロード (zip)",
   "fs.queuePanel": "\u7d9a\u304d\u3092\u518d\u751f\u30d1\u30cd\u30eb",
   "fs.lyricsToggle": "\u6b4c\u8a5e / \u30b5\u30e0\u30cd\u30a4\u30eb",
   "fs.startMusic": "\u97f3\u697d\u3092\u59cb\u3081\u308b",

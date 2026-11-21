@@ -172,6 +172,7 @@ const de: Record<keyof typeof en, string> = {
   "fs.extHint": "Erweiterung: installieren, um Musik-Tabs zu folgen",
   "fs.extStep1": "1. chrome://extensions → Entwicklermodus aktivieren",
   "fs.extStep2": "2. Entpackte laden → den Ordner extension/ in der App",
+  "fs.extDownload": "Bridge-Erweiterung herunterladen (zip)",
   "fs.queuePanel": "Weiter-h\u00f6ren-Panel",
   "fs.lyricsToggle": "Lyrics / Thumbnails",
   "fs.startMusic": "Musik starten",

@@ -57,6 +57,20 @@ body {
   position: relative;
 }
 
+/* videoclip view: the video is the window background; the art card goes
+ * transparent so lyrics float directly over the stream. */
+.glass--videobg { background: rgba(8, 8, 12, 0.35); }
+.glass--videobg .kbg__video { z-index: 0; }
+.glass--videobg .player { z-index: 1; }
+.glass__veil {
+  position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(180deg, rgba(6,6,9,0.15), rgba(6,6,9,0.05) 45%, rgba(6,6,9,0.55));
+}
+.player__art--video {
+  background: transparent;
+  box-shadow: none;
+}
+
 /* ---------- mini player ---------- */
 .player { padding: 14px 16px 12px; gap: 12px; display: flex; flex-direction: column; height: 100%; }
 .player__art {
@@ -80,6 +94,32 @@ body {
 .player__lyrfill .player__lyrics { min-height: 0; }
 .player__lyrfill .lyric { font-size: 15px; padding: 6px 10px; }
 .player__lyrfill .karaoke__idle { align-self: center; }
+
+/* videoclip view: lyrics floated over the video, legible via a soft scrim */
+.player__lyrover {
+  position: absolute; inset: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 14px 10px;
+  background: linear-gradient(180deg, rgba(6,6,9,0.28), rgba(6,6,9,0.05) 35%, rgba(6,6,9,0.05) 65%, rgba(6,6,9,0.4));
+  pointer-events: none;
+}
+.player__lyrover .player__lyrics { min-height: 0; }
+.player__lyrover .lyric { font-size: 15px; padding: 6px 10px; text-shadow: 0 2px 14px rgba(0,0,0,0.85); }
+.player__lyrover .lyric--active { text-shadow: 0 0 22px rgba(255,255,255,0.45), 0 2px 14px rgba(0,0,0,0.9); }
+
+/* lyrics on/off toggle inside the videoclip view */
+.player__lyrtoggle {
+  position: absolute; right: 10px; bottom: 10px; z-index: 4;
+  width: 28px; height: 28px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(12,12,18,0.55);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  color: rgba(242,242,245,0.65); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .2s, color .2s;
+}
+.player__lyrtoggle:hover { color: #fff; background: rgba(12,12,18,0.7); }
+.player__lyrtoggle.on { color: #fff; background: rgba(255,255,255,0.2); }
 
 /* view-mode segmented switch (art / video / lyrics), floats over the card */
 .player__modes {
@@ -724,8 +764,13 @@ body {
 .hud__pill .hctl--play { width: 40px; height: 40px; }
 .hud__focus {
   flex: 1; display: grid; justify-items: center; align-content: center;
-  grid-template-rows: minmax(48px, 1fr) auto auto auto auto auto;
+  grid-template-rows: auto minmax(48px, 1fr) auto auto auto auto auto;
   gap: 4px; padding: 12px; min-height: 0;
+}
+.hud__clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+  color: rgba(242,242,245,0.85); text-align: center;
 }
 .hud__focusart {
   height: 100%; max-height: 280px; aspect-ratio: 1; max-width: 100%;
@@ -737,6 +782,15 @@ body {
 .hud__focusart img, .hud__focusart .kbg__video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hud__focusart { position: relative; }
 .hud__focusart .kbg__video { position: absolute; inset: 0; }
+.hud__lyrover {
+  position: absolute; inset: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 10px 8px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(6,6,9,0.3), rgba(6,6,9,0.06) 40%, rgba(6,6,9,0.45));
+}
+.hud__lyrover .player__lyrics { min-height: 0; }
+.hud__lyrover .lyric { font-size: 11.5px; padding: 3px 6px; text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
+.hud__lyridle { align-self: center; font-family: var(--serif); font-style: italic; font-size: 15px; color: rgba(242,242,245,0.85); text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
 .hud__artswap {
   position: absolute; right: 8px; bottom: 8px;
   width: 26px; height: 26px; border-radius: 50%;
@@ -1044,6 +1098,8 @@ body {
   color: #34d399; padding: 2px 8px 6px; letter-spacing: 0.02em;
 }
 .fs__extlive--off { color: var(--dim); font-weight: 500; }
+.fs__extdl { color: var(--text); font-weight: 600; text-decoration: none; }
+.fs__extdl:hover { text-decoration: underline; }
 .fs__provq {
   margin: 6px 4px 0; background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.14); border-radius: 999px;

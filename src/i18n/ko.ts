@@ -172,6 +172,7 @@ const ko: Record<keyof typeof en, string> = {
   "fs.extHint": "확장 프로그램을 설치하면 탭의 음악을 따라갑니다",
   "fs.extStep1": "1. chrome://extensions → 개발자 모드 켜기",
   "fs.extStep2": "2. 압축해제된 확장 프로그램 로드 → 앱 안의 extension/ 폴더",
+  "fs.extDownload": "브리지 확장 프로그램 다운로드 (zip)",
   "fs.queuePanel": "\uc774\uc5b4\uc11c \uc7ac\uc0dd \ud328\ub110",
   "fs.lyricsToggle": "\uac00\uc0ac / \uc378\ub124\uc77c",
   "fs.startMusic": "\uc74c\uc545 \uc2dc\uc791",
