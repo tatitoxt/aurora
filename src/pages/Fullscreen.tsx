@@ -11,6 +11,11 @@ import {
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
 import {
+  lyricOffsetFor,
+  setLyricOffset,
+  subscribeLyroff,
+} from "../lyroff";
+import {
   favEntryFor,
   favKeyFor,
   favKeys,
@@ -144,6 +149,7 @@ export default function Fullscreen() {
   const [share, setShare] = useState(false);
   const [speed, setSpeed] = useState(1.0);
   const [lyricsOn, setLyricsOn] = useState(true);
+  const [timingOpen, setTimingOpen] = useState(false);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
   const [searchQ, setSearchQ] = useState("");
@@ -229,6 +235,8 @@ export default function Fullscreen() {
       )
         return;
       if (e.key === " ") {
+        // Buttons (incl. role=button lyrics) own Space themselves.
+        if (t?.closest("button, [role='button']")) return;
         e.preventDefault();
         void bridge.mediaControl("play-pause");
       } else if (e.key === "ArrowRight") {
@@ -275,7 +283,22 @@ export default function Fullscreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantVideo, trackKey]);
 
-  const active = lyrics ? activeLyricIndex(lyrics, pos) : -1;
+  const [lyroffTick, setLyroffTick] = useState(0);
+  useEffect(() => subscribeLyroff(() => setLyroffTick((t) => t + 1)), []);
+  void lyroffTick;
+  const lyroff = lyricOffsetFor(np);
+  const active = lyrics ? activeLyricIndex(lyrics, pos + lyroff) : -1;
+
+  // Close the timing editor when the playing track changes — its nudges
+  // would otherwise save to the new track instead of the edited one.
+  const timingKey = np?.track ? `${np.source}:${np.track.id}` : "";
+  const prevTimingKey = useRef(timingKey);
+  useEffect(() => {
+    if (prevTimingKey.current !== timingKey) {
+      prevTimingKey.current = timingKey;
+      setTimingOpen(false);
+    }
+  }, [timingKey]);
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
 
@@ -390,8 +413,13 @@ export default function Fullscreen() {
                 tabIndex={0}
                 onClick={() => void bridge.playQueueIndex(idx)}
                 onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && e.key === "Enter")
+                  if (
+                    e.target === e.currentTarget &&
+                    (e.key === "Enter" || e.key === " ")
+                  ) {
+                    e.preventDefault();
                     void bridge.playQueueIndex(idx);
+                  }
                 }}
               >
                 <div className="fs__qbody">
@@ -463,7 +491,15 @@ export default function Fullscreen() {
       <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
         {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
           line ? (
-            <div className="fs__lyric" key={active}>
+            <div
+              className="fs__lyric"
+              key={active}
+              role="button"
+              tabIndex={0}
+              onClick={() => setTimingOpen((v) => !v)}
+              onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
+            >
               {line}
             </div>
           ) : track ? (
@@ -472,6 +508,25 @@ export default function Fullscreen() {
             <div className="fs__lyric fs__lyric--title">{bridge.productName}</div>
           )
         ) : null}
+        {timingOpen && (
+          <span className="fs__timing">
+            {([-200, -50, 50, 200] as number[]).map((d) => (
+              <button
+                key={d}
+                className="fs__morebtn"
+                onClick={() => setLyricOffset(np, lyroff + d)}
+              >
+                {d > 0 ? `+${d}` : d}ms
+              </button>
+            ))}
+            <button
+              className="fs__morebtn"
+              onClick={() => { setLyricOffset(np, 0); setTimingOpen(false); }}
+            >
+              Reset{lyroff !== 0 ? ` (${lyroff > 0 ? "+" : ""}${lyroff}ms)` : ""}
+            </button>
+          </span>
+        )}
       </div>
 
       {fsStyle === "spotlight" && (
@@ -841,7 +896,16 @@ export default function Fullscreen() {
               </div>
             </div>
             {lyricsOn && (fsStyle === "tile" || fsStyle === "showcase") && line && (
-              <div className="fs__cardlyric">{line}</div>
+              <div
+                className="fs__cardlyric"
+                role="button"
+                tabIndex={0}
+                onClick={() => setTimingOpen((v) => !v)}
+                onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
+              >
+                {line}
+              </div>
             )}
             <div
               className={`fs__hair ${np?.source === "local" && dur ? "" : "fs__hair--off"}`}
