@@ -183,6 +183,16 @@ const en = {
   "anim.scatter": "Scatter",
   "anim.focus": "Focus",
   "anim.letters": "Letters",
+  "anim.split": "Split",
+  "anim.glitch": "Glitch",
+  "anim.orbit": "Orbit",
+  "anim.ripple": "Ripple",
+  "anim.cascade": "Cascade",
+  "anim.drift": "Drift",
+  "anim.mask": "Mask",
+  "anim.swing": "Swing",
+  "anim.ink": "Ink",
+  "anim.shimmer": "Shimmer",
   "anim.none": "None",
 } as const;
 

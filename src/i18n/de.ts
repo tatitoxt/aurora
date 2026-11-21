@@ -174,6 +174,16 @@ const de: Record<keyof typeof en, string> = {
   "anim.scatter": "Streuung",
   "anim.focus": "Fokus",
   "anim.letters": "Buchstaben",
+  "anim.split": "Split",
+  "anim.glitch": "Glitch",
+  "anim.orbit": "Orbit",
+  "anim.ripple": "Welle",
+  "anim.cascade": "Kaskade",
+  "anim.drift": "Drift",
+  "anim.mask": "Maske",
+  "anim.swing": "Schwung",
+  "anim.ink": "Tinte",
+  "anim.shimmer": "Schimmer",
   "anim.none": "Keine",
 };
 

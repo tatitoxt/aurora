@@ -19,6 +19,16 @@ export const LYRIC_ANIMS = [
   "scatter",
   "focus",
   "letters",
+  "split",
+  "glitch",
+  "orbit",
+  "ripple",
+  "cascade",
+  "drift",
+  "mask",
+  "swing",
+  "ink",
+  "shimmer",
   "none",
 ] as const;
 export type LyricAnim = (typeof LYRIC_ANIMS)[number];

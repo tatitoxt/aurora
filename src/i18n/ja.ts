@@ -174,6 +174,16 @@ const ja: Record<keyof typeof en, string> = {
   "anim.scatter": "\u30b9\u30ad\u30e3\u30c3\u30bf\u30fc",
   "anim.focus": "\u30d5\u30a9\u30fc\u30ab\u30b9",
   "anim.letters": "\u30ec\u30bf\u30fc",
+  "anim.split": "\u30b9\u30d7\u30ea\u30c3\u30c8",
+  "anim.glitch": "\u30b0\u30ea\u30c3\u30c1",
+  "anim.orbit": "\u30aa\u30fc\u30d3\u30c3\u30c8",
+  "anim.ripple": "\u30ea\u30d7\u30eb",
+  "anim.cascade": "\u30ab\u30b9\u30b1\u30fc\u30c9",
+  "anim.drift": "\u30c9\u30ea\u30d5\u30c8",
+  "anim.mask": "\u30de\u30b9\u30af",
+  "anim.swing": "\u30b9\u30a4\u30f3\u30b0",
+  "anim.ink": "\u30a4\u30f3\u30af",
+  "anim.shimmer": "\u30b7\u30de\u30fc",
   "anim.none": "\u306a\u3057",
 };
 
