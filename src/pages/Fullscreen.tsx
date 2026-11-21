@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   bridge,
   subscribe,
+  DEFAULT_SETTINGS,
   type NowPlaying,
   type LrcLine,
   type QueueState,
+  type Settings,
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
 import {
@@ -33,6 +35,46 @@ function QueueThumb({ track }: { track: { artworkUrl: string; title: string } })
   );
 }
 
+/** Sharp video backdrop for the iBaila "albums" background: muted, synced to
+ * the track position, faded in once it can play. */
+function FsVideo({
+  url,
+  posMs,
+  playing,
+}: {
+  url: string;
+  posMs: number;
+  playing: boolean;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (playing) void v.play().catch(() => {});
+    else v.pause();
+  }, [playing, url]);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !ready) return;
+    const target = Math.min(posMs / 1000, v.duration || Infinity);
+    if (Math.abs(v.currentTime - target) > 0.6) v.currentTime = target;
+  }, [posMs, ready]);
+
+  return (
+    <video
+      ref={ref}
+      className={`fs__video ${ready ? "fs__video--ready" : ""}`}
+      src={url}
+      muted
+      playsInline
+      onCanPlay={() => setReady(true)}
+    />
+  );
+}
+
 /** iBaila "Albums"-style fullscreen: blurred art wall, giant outlined clock,
  * Continue Playing panel left, lyric center, transport pill bottom. */
 export default function Fullscreen() {
@@ -44,17 +86,22 @@ export default function Fullscreen() {
   const [now, setNow] = useState(() => new Date());
   const [shuffle, setShuffle] = useState(false);
   const [queueOpen, setQueueOpen] = useState(true);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
     bridge.getQueue().then(setQueue);
     bridge.getShuffle().then(setShuffle);
+    bridge.getSettings().then(setSettings);
     const off = subscribe<NowPlaying>("now-playing", setNp);
     const offQ = subscribe<QueueState>("queue", setQueue);
+    const offS = subscribe<Settings>("settings", setSettings);
     const clock = setInterval(() => setNow(new Date()), 1000);
     return () => {
       off();
       offQ();
+      offS();
       clearInterval(clock);
     };
   }, []);
@@ -127,6 +174,24 @@ export default function Fullscreen() {
     else setArt("");
   }, [track?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // iBaila "albums" backdrop: the music video plays sharp behind everything.
+  // Resolved once per track (track?.id dep — np object changes every tick),
+  // only when the video-backdrop setting is on. Falls back to the art wall.
+  const wantVideo = settings.videoBackdrop;
+  const trackKey = track?.id ?? null;
+  useEffect(() => {
+    setVideoUrl(null);
+    if (!wantVideo || !trackKey || !track) return;
+    let stale = false;
+    bridge.resolveVideo(track.artist, track.title).then((u) => {
+      if (!stale && u) setVideoUrl(u);
+    });
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantVideo, trackKey]);
+
   const active = lyrics ? activeLyricIndex(lyrics, pos) : -1;
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
@@ -155,7 +220,9 @@ export default function Fullscreen() {
   return (
     <div className="fs">
       <div className="fs__bg">
-        {wall.length > 1 ? (
+        {videoUrl ? (
+          <FsVideo url={videoUrl} posMs={pos} playing={playing} />
+        ) : wall.length > 1 ? (
           <div className="fs__wall">
             {(wall.length < 12
               ? Array.from({ length: Math.ceil(12 / wall.length) }, () => wall).flat()
