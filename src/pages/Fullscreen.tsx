@@ -795,7 +795,13 @@ export default function Fullscreen() {
                         <br />
                         {t("fs.extStep1")}
                         <br />
-                        {t("fs.extStep2")}
+                        {bridge.isTauri() ? (
+                          t("fs.extStep2")
+                        ) : (
+                          <a href="noctbeat-bridge.zip" download className="fs__extdl">
+                            ↓ {t("fs.extDownload")}
+                          </a>
+                        )}
                       </span>
                     )}
                     {PROVIDERS.map((p) => {

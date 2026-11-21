@@ -172,6 +172,7 @@ const it: Record<keyof typeof en, string> = {
   "fs.extHint": "Estensione: installala per seguire la musica delle schede",
   "fs.extStep1": "1. chrome://extensions → attiva Modalità sviluppatore",
   "fs.extStep2": "2. Carica non pacchettizzata → la cartella extension/ nell’app",
+  "fs.extDownload": "Scarica l’estensione bridge (zip)",
   "fs.queuePanel": "Pannello Continua a riprodurre",
   "fs.lyricsToggle": "Testi / miniature",
   "fs.startMusic": "Avvia musica",

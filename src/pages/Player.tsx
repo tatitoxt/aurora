@@ -21,6 +21,7 @@ import {
   Queue,
   SkipBack,
   SkipForward,
+  Subtitles,
 } from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
@@ -51,6 +52,7 @@ export default function Player() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [share, setShare] = useState(false);
   const [view, setView] = useState<"art" | "video" | "lyrics">("art");
+  const [lyricsOn, setLyricsOn] = useState(true);
   const trackId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -110,8 +112,11 @@ export default function Player() {
   const playing = np?.status === "playing";
   const karaoke = settings.lyricsMode === "karaoke";
 
+  // "local" files seek via rodio; "demo" (web preview / mock) seeks its own
+  // clock. Other sources (mpris, browser bridge) may not support seeking.
+  const canSeek = np?.source === "local" || np?.source === "demo";
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (np?.source !== "local") return;
+    if (!canSeek) return;
     const r = e.currentTarget.getBoundingClientRect();
     const frac = (e.clientX - r.left) / r.width;
     if (track?.durationMs) void bridge.seek(Math.floor(frac * track.durationMs));
@@ -141,7 +146,7 @@ export default function Player() {
         className="player__progress"
         role="slider"
         aria-label="Seek"
-        style={{ cursor: np?.source === "local" ? "pointer" : "default" }}
+        style={{ cursor: canSeek ? "pointer" : "default" }}
         onClick={seek}
       >
         <div className="player__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
@@ -225,9 +230,9 @@ export default function Player() {
                 className="kbar__prog"
                 role="slider"
                 aria-label="Seek"
-                style={{ cursor: np?.source === "local" ? "pointer" : "default" }}
+                style={{ cursor: canSeek ? "pointer" : "default" }}
                 onClick={(e) => {
-                  if (np?.source !== "local" || !track?.durationMs) return;
+                  if (!canSeek || !track?.durationMs) return;
                   const r = e.currentTarget.getBoundingClientRect();
                   const frac = (e.clientX - r.left) / r.width;
                   void bridge.seek(Math.floor(frac * track.durationMs));
@@ -272,7 +277,9 @@ export default function Player() {
             <MicrophoneStage size={13} />
           </button>
         </div>
-        <div className={`player__art ${showBigLyrics ? "player__art--lyrics" : ""}`}>
+        <div
+          className={`player__art ${showBigLyrics ? "player__art--lyrics" : ""} ${view === "video" ? "player__art--video" : ""}`}
+        >
           {showBigLyrics ? (
             <div className="player__lyrfill">
               {lyrics && lyrics.length > 0 ? (
@@ -286,6 +293,21 @@ export default function Player() {
               {art ? <img src={art} alt={track?.album ?? ""} /> : null}
               {showVideo ? (
                 <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+              ) : null}
+              {view === "video" && lyricsOn && lyrics && lyrics.length > 0 ? (
+                <div className="player__lyrover">
+                  <LineLyrics lines={lyrics} active={active} />
+                </div>
+              ) : null}
+              {view === "video" ? (
+                <button
+                  className={`player__lyrtoggle ${lyricsOn ? "on" : ""}`}
+                  aria-label="Toggle lyrics over video"
+                  title="Lyrics over video"
+                  onClick={() => setLyricsOn((v) => !v)}
+                >
+                  <Subtitles size={14} weight={lyricsOn ? "fill" : "regular"} />
+                </button>
               ) : null}
             </>
           )}
