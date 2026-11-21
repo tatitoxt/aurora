@@ -324,15 +324,24 @@ export default function Fullscreen() {
   const ci = queue.currentIndex ?? 0;
   const covers = queue.items
     .map((it, i) => ({ it, i }))
-    .filter(({ i }) => Math.abs(i - ci) <= 3)
     .map(({ it, i }) => ({
       key: it.path + i,
+      i,
       src: artMap[it.track.artworkUrl],
       title: it.track.title,
       artist: it.track.artist,
       on: i === ci,
       side: i < ci ? "l" : i > ci ? "r" : "",
     }));
+
+  /* Scroll the carousel so the playing cover stays centered; clicking a
+     side cover jumps the queue to that index. */
+  const coversRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    coversRef.current
+      ?.querySelector(".fs__cover--on")
+      ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [ci, queue.items.length]);
 
   const pickStyle = (s: string) => {
     setFsStyle(s);
@@ -389,7 +398,7 @@ export default function Fullscreen() {
         <div className="fs__date">{date}</div>
         <div className="fs__clock">
           {hh}
-          <span className="fs__colon">:</span>
+          <span className="fs__colon"><i /><i /></span>
           {mm}
         </div>
       </div>
@@ -398,25 +407,37 @@ export default function Fullscreen() {
       <div className="fs__center">
         {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
           line ? (
-            <div
-              className={`fs__lyric ${lanim}`}
-              key={active}
-              role="button"
-              tabIndex={0}
-              onClick={() => setTimingOpen((v) => !v)}
-              onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
-            >
-              {lineTokens!.map((s, i) =>
-                s.adlib ? (
-                  <span key={i} className="adlib fsword" style={{ "--i": i } as CSSProperties}>
-                    {s.text}
-                  </span>
-                ) : (
-                  <span key={i} className="fsword" style={{ "--i": i } as CSSProperties}>
-                    {s.text}
-                  </span>
-                ),
+            <div className="fs__lyrics">
+              {active > 0 && (
+                <div className="fs__lyrctx fs__lyrctx--up" key={`p${active}`}>
+                  {adlibSegments(lyrics![active - 1].text).map((s) => s.text).join("")}
+                </div>
+              )}
+              <div
+                className={`fs__lyric ${lanim}`}
+                key={active}
+                role="button"
+                tabIndex={0}
+                onClick={() => setTimingOpen((v) => !v)}
+                onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
+              >
+                {lineTokens!.map((s, i) =>
+                  s.adlib ? (
+                    <span key={i} className="adlib fsword" style={{ "--i": i } as CSSProperties}>
+                      {s.text}
+                    </span>
+                  ) : (
+                    <span key={i} className="fsword" style={{ "--i": i } as CSSProperties}>
+                      {s.text}
+                    </span>
+                  ),
+                )}
+              </div>
+              {lyrics && active + 1 < lyrics.length && (
+                <div className="fs__lyrctx fs__lyrctx--dn" key={`n${active}`}>
+                  {adlibSegments(lyrics[active + 1].text).map((s) => s.text).join("")}
+                </div>
               )}
             </div>
           ) : track ? (
@@ -502,49 +523,45 @@ export default function Fullscreen() {
 
       {fsStyle === "dial" && (
         <div className="fs__dial">
-          <div className={`fs__disc ${playing ? "fs__disc--spin" : ""}`}>
-            <svg className="fs__ring" viewBox="0 0 100 100" aria-hidden="true">
-              <circle className="fs__ringbg" cx="50" cy="50" r="46" />
-              <circle
-                className="fs__ringfill"
-                cx="50" cy="50" r="46"
-                style={{ strokeDashoffset: 289 - 289 * (dur ? Math.min(1, pos / dur) : 0) }}
+          <div className="fs__halo">
+            <svg className="fs__hring" viewBox="0 0 100 100" aria-hidden="true">
+              <rect className="fs__hringbg" x="4" y="4" width="92" height="92" rx="26" pathLength="100" />
+              <rect
+                className="fs__hringfill"
+                x="4" y="4" width="92" height="92" rx="26" pathLength="100"
+                style={{ strokeDashoffset: 100 - 100 * (dur ? Math.min(1, pos / dur) : 0) }}
               />
             </svg>
-            {art ? (
-              <img className="fs__discart" src={art} alt="" />
+            {videoUrl ? (
+              <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__haloart" />
+            ) : art ? (
+              <img className="fs__haloart" src={art} alt="" />
             ) : (
-              <div className="fs__discart fs__meta-art" />
+              <div className="fs__haloart fs__meta-art" />
             )}
-            <span className="fs__discdot" />
           </div>
           <div className="fs__dialmeta">
             <span className="fs__dialtitle">{track?.title ?? t("fs.nothingPlaying")}</span>
             <span className="fs__dialsub">{track ? `${track.artist} · ${track.album}` : ""}</span>
           </div>
-          <div className="fs__orbit" aria-hidden="true">
+          <div className="fs__dialstrip">
             {covers
               .filter((c) => !c.on)
-              .map((c, idx, arr) => {
-                /* Right hemisphere only (45°..135°): the 15°..165° sweep
-                   dropped covers onto the clock and the track title. */
-                const angle = arr.length > 1 ? 45 + (idx * 90) / (arr.length - 1) : 90;
-                return (
-                  <span
-                    key={c.key}
-                    className="fs__orbititem"
-                    style={{
-                      transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-30vh) rotate(${-angle}deg)`,
-                    }}
-                  >
-                    {c.src ? (
-                      <img src={c.src} alt="" />
-                    ) : (
-                      <span className="fs__meta-art" style={{ display: "block", width: "100%", aspectRatio: "1", borderRadius: 10 }} />
-                    )}
-                  </span>
-                );
-              })}
+              .map((c, idx) => (
+                <button
+                  key={c.key}
+                  className="fs__striptumb"
+                  style={{ "--i": idx } as CSSProperties}
+                  onClick={() => void bridge.playQueueIndex(c.i)}
+                  title={c.title}
+                >
+                  {c.src ? (
+                    <img src={c.src} alt="" />
+                  ) : (
+                    <span className="fs__meta-art" style={{ display: "block", width: "100%", aspectRatio: "1", borderRadius: 10 }} />
+                  )}
+                </button>
+              ))}
           </div>
         </div>
       )}
@@ -631,7 +648,7 @@ export default function Fullscreen() {
       )}
 
       {!["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) && covers.length > 1 && (
-        <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}>
+        <div ref={coversRef} className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}>
           {covers.map((c) =>
             c.on ? (
               /* iBaila center card: video/art inside, meta overlaid on scrim. */
@@ -652,11 +669,17 @@ export default function Fullscreen() {
                 </div>
               </div>
             ) : (
-              <div key={c.key} className={`fs__cover fs__cover--${c.side}`}>
+              <button
+                key={c.key}
+                className={`fs__cover fs__cover--${c.side}`}
+                style={{ "--i": Math.min(Math.abs(c.i - ci), 4) } as CSSProperties}
+                onClick={() => void bridge.playQueueIndex(c.i)}
+                title={`${c.title} — ${c.artist}`}
+              >
                 {c.src ? <img src={c.src} alt="" /> : <div className="fs__cover-img fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 12 }} />}
                 <div className="fs__cname">{c.title}</div>
                 <div className="fs__cart">{c.artist}</div>
-              </div>
+              </button>
             )
           )}
         </div>

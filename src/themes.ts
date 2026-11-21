@@ -15,8 +15,8 @@ export const THEMES: ThemeDef[] = [
     vars: {
       "--bg": "#120a0a",
       "--panel": "rgba(36, 20, 16, 0.68)",
-      "--accent": "#f97316",
-      "--accent2": "#f43f5e",
+      "--accent": "#f5f5f4",
+      "--accent2": "#fb923c",
     },
   },
   {
@@ -27,8 +27,8 @@ export const THEMES: ThemeDef[] = [
       "--panel": "rgba(12, 22, 38, 0.68)",
       "--text": "#eaf2ff",
       "--dim": "#a7b8dd",
-      "--accent": "#38bdf8",
-      "--accent2": "#818cf8",
+      "--accent": "#f1f5f9",
+      "--accent2": "#7dd3fc",
     },
   },
   {
@@ -48,8 +48,8 @@ export const THEMES: ThemeDef[] = [
     vars: {
       "--bg": "#150a10",
       "--panel": "rgba(34, 14, 24, 0.68)",
-      "--accent": "#f472b6",
-      "--accent2": "#fb7185",
+      "--accent": "#fdf2f8",
+      "--accent2": "#f472b6",
     },
   },
   {
@@ -58,8 +58,8 @@ export const THEMES: ThemeDef[] = [
     vars: {
       "--bg": "#08120c",
       "--panel": "rgba(12, 26, 18, 0.68)",
-      "--accent": "#34d399",
-      "--accent2": "#a3e635",
+      "--accent": "#ecfdf5",
+      "--accent2": "#4ade80",
     },
   },
   {
@@ -68,8 +68,8 @@ export const THEMES: ThemeDef[] = [
     vars: {
       "--bg": "#100a16",
       "--panel": "rgba(26, 14, 36, 0.68)",
-      "--accent": "#fb923c",
-      "--accent2": "#c084fc",
+      "--accent": "#fafaf9",
+      "--accent2": "#fdba74",
     },
   },
 ];
@@ -81,8 +81,8 @@ export const ROOT_VARS: Record<string, string> = {
   "--line": "rgba(255, 255, 255, 0.16)",
   "--text": "#f4f5fa",
   "--dim": "#c6cbdb",
-  "--accent": "#8b5cf6",
-  "--accent2": "#22d3ee",
+  "--accent": "#e5e7eb",
+  "--accent2": "#9ca3af",
 };
 
 /** Resolved value of a theme variable for a preset (preset var, else :root). */

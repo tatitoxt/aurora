@@ -30,51 +30,13 @@ import { useT } from "../i18n";
 import { StickerLayer, StickerPicker } from "../Stickers";
 import { Sticker as StickerIcon } from "@phosphor-icons/react";
 import AmbientBg from "../AmbientBg";
+import { VideoBackdrop } from "../VideoBackdrop";
 
 const PREV = <SkipBack weight="fill" size={18} />;
 const NEXT = <SkipForward weight="fill" size={18} />;
 const PAUSE = <Pause weight="fill" size={20} />;
 const PLAY = <Play weight="fill" size={20} />;
 
-/** Music-video backdrop for karaoke mode: plays the resolved stream muted and
- * blurred behind the lyrics, kept in sync with the track position. */
-function VideoBackdrop({
-  url,
-  posMs,
-  playing,
-}: {
-  url: string;
-  posMs: number;
-  playing: boolean;
-}) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    if (playing) void v.play().catch(() => {});
-    else v.pause();
-  }, [playing, url]);
-
-  useEffect(() => {
-    const v = ref.current;
-    if (!v || !ready) return;
-    const target = Math.min(posMs / 1000, v.duration || Infinity);
-    if (Math.abs(v.currentTime - target) > 0.6) v.currentTime = target;
-  }, [posMs, ready]);
-
-  return (
-    <video
-      ref={ref}
-      className={`kbg__video ${ready ? "kbg__video--ready" : ""}`}
-      src={url}
-      muted
-      playsInline
-      onCanPlay={() => setReady(true)}
-    />
-  );
-}
 
 export default function Player() {
   const t = useT();
@@ -121,12 +83,12 @@ export default function Player() {
     }
   }, [track]);
 
-  // Resolve the music video lazily: only in karaoke mode with the backdrop
-  // enabled, only once per track. Falls back to blurred artwork on any
-  // failure (no yt-dlp, no video result, unreachable stream).
+  // Resolve the music video once per track when the backdrop pref is on —
+  // karaoke uses it behind the lyrics; the card layout shows it where the
+  // cover art sits. Falls back to artwork on any failure.
   // Dep is track?.id, not track: the now-playing poll emits a new object
   // every ~200ms and would restart the yt-dlp resolve on every tick.
-  const wantVideo = settings.lyricsMode === "karaoke" && settings.videoBackdrop;
+  const wantVideo = settings.videoBackdrop;
   const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
@@ -297,7 +259,12 @@ export default function Player() {
   return (
     <div className="glass">
       <div className="player">
-        <div className="player__art">{art ? <img src={art} alt={track?.album ?? ""} /> : null}</div>
+        <div className="player__art">
+          {art ? <img src={art} alt={track?.album ?? ""} /> : null}
+          {videoUrl ? (
+            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+          ) : null}
+        </div>
         <div className="player__meta">
           <div className="player__title">{track?.title ?? "Nothing playing"}</div>
           <div className="player__sub">
@@ -306,7 +273,17 @@ export default function Player() {
         </div>
         {progress}
         {controls}
-        {lyrics && lyrics.length > 0 && <LineLyrics lines={lyrics} active={active} />}
+        {lyrics &&
+          lyrics.length > 0 &&
+          (karaoke ? (
+            <KaraokeLyric
+              line={active >= 0 ? lyrics[active] : null}
+              nextLine={active >= 0 ? (lyrics[active + 1] ?? null) : null}
+              posMs={lyricPos}
+            />
+          ) : (
+            <LineLyrics lines={lyrics} active={active} />
+          ))}
         {nav}
       </div>
       {shareCard}

@@ -121,6 +121,8 @@ export default function Settings() {
           <h1 className="pagehead__name">{t("set.title")}</h1>
         </div>
 
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.lyrics")}</span>
         <div className="row">
           <span>{t("set.lyrics")}</span>
           <div className="seg">
@@ -175,6 +177,10 @@ export default function Settings() {
           />
         </div>
 
+        </div>
+
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.look")}</span>
         <div className="field">
           <span>{t("set.theme")}</span>
           <div className="seg">
@@ -245,6 +251,10 @@ export default function Settings() {
         </div>
         {importErr && <div className="set__err">{importErr}</div>}
 
+        </div>
+
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.sound")}</span>
         <div className="field">
           <span>{t("set.eq")}</span>
           <div className="seg">
@@ -333,6 +343,10 @@ export default function Settings() {
           )}
         </div>
 
+        </div>
+
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.play")}</span>
         {outputs.length > 0 && (
           <div className="field">
             <span>{t("set.audioOutput")}</span>
@@ -415,6 +429,10 @@ export default function Settings() {
           </div>
         )}
 
+        </div>
+
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.sources")}</span>
         <div className="field">
           <span>{t("set.musicFolder")}</span>
           <input
@@ -514,6 +532,10 @@ export default function Settings() {
           />
         </div>
 
+        </div>
+
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.windows")}</span>
         <div className="row">
           <span>{t("set.liveTrayIcon")}</span>
           <button
@@ -559,6 +581,10 @@ export default function Settings() {
           </select>
         </div>
 
+        </div>
+
+        <div className="setgroup">
+          <span className="setghead">{t("set.grp.license")}</span>
         <div className="field">
           <span>{t("set.license")}</span>
           {license.state === "valid" && (
@@ -592,6 +618,7 @@ export default function Settings() {
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
