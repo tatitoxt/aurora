@@ -198,7 +198,10 @@ fn spawn_server(shared: Arc<Mutex<Shared>>, port: u16) {
             Err(_) => return, // another instance already serving
         };
         for stream in listener.incoming().flatten() {
-            handle(stream, &shared);
+            // One thread per connection: a slow or stalled tab must not
+            // starve the others' reports and command polling.
+            let shared = Arc::clone(&shared);
+            std::thread::spawn(move || handle(stream, &shared));
         }
     });
 }
