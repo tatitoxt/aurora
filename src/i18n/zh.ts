@@ -35,6 +35,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.musicFolder": "\u97f3\u4e50\u6587\u4ef6\u5939",
   "set.chooseFolder": "\u9009\u62e9\u6587\u4ef6\u5939",
   "set.resumeOnLaunch": "\u542f\u52a8\u65f6\u7ee7\u7eed\u64ad\u653e",
+  "set.discordRpc": "Discord \u4e30\u5bcc\u72b6\u6001",
   "set.notifyTrack": "\u5207\u66f2\u65f6\u901a\u77e5",
   "set.batterySaver": "\u7701\u7535\u6a21\u5f0f",
   "set.dimOnBattery": "\u7535\u6c60\u4f9b\u7535\u65f6\u8c03\u6697",

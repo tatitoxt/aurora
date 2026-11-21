@@ -152,6 +152,10 @@ pub struct Settings {
     /// Desktop notification when the track changes.
     #[serde(default = "default_true")]
     pub notify_track_change: bool,
+    /// Publish now-playing to Discord Rich Presence. Only takes effect
+    /// when branding.json carries a real `discordClientId`.
+    #[serde(default = "default_true")]
+    pub discord_rpc: bool,
 }
 
 fn default_sound_fx() -> String {
@@ -219,6 +223,7 @@ impl Default for Settings {
             sleep_timer_ends_ms: None,
             resume_on_launch: true,
             notify_track_change: true,
+            discord_rpc: true,
         }
     }
 }

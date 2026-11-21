@@ -35,6 +35,7 @@ const ja: Record<keyof typeof en, string> = {
   "set.musicFolder": "\u30df\u30e5\u30fc\u30b8\u30c3\u30af\u30d5\u30a9\u30eb\u30c0\u30fc",
   "set.chooseFolder": "\u30d5\u30a9\u30eb\u30c0\u30fc\u3092\u9078\u629e",
   "set.resumeOnLaunch": "\u8d77\u52d5\u6642\u306b\u518d\u958b",
+  "set.discordRpc": "Discord \u30ea\u30c3\u30c1\u30d7\u30ec\u30bc\u30f3\u30b9",
   "set.notifyTrack": "\u66f2\u304c\u5909\u308f\u3063\u305f\u3089\u901a\u77e5",
   "set.batterySaver": "\u30d0\u30c3\u30c6\u30ea\u30fc\u7bc0\u7d04",
   "set.dimOnBattery": "\u30d0\u30c3\u30c6\u30ea\u30fc\u6642\u306b\u6e1b\u5149",

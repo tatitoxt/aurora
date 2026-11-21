@@ -35,6 +35,7 @@ const en = {
   "set.musicFolder": "Music folder",
   "set.chooseFolder": "Choose folder",
   "set.resumeOnLaunch": "Resume playback on launch",
+  "set.discordRpc": "Discord Rich Presence",
   "set.notifyTrack": "Notify when the track changes",
   "set.batterySaver": "Battery saver",
   "set.dimOnBattery": "Dim on battery",

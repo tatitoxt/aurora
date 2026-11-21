@@ -35,6 +35,7 @@ const ko: Record<keyof typeof en, string> = {
   "set.musicFolder": "\uc74c\uc545 \ud3f4\ub354",
   "set.chooseFolder": "\ud3f4\ub354 \uc120\ud0dd",
   "set.resumeOnLaunch": "\uc2dc\uc791 \uc2dc \uc774\uc5b4\uc11c \uc7ac\uc0dd",
+  "set.discordRpc": "Discord Rich Presence",
   "set.notifyTrack": "\uace1\uc774 \ubc14\ub07d \ub54c \uc54c\ub9bc",
   "set.batterySaver": "\ubc30\ud130\ub9ac \uc808\uc57d",
   "set.dimOnBattery": "\ubc30\ud130\ub9ac \uc0ac\uc6a9 \uc2dc \ub514\ubc0d",
