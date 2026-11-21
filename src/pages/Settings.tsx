@@ -324,6 +324,16 @@ export default function Settings() {
         )}
 
         <div className="field">
+          <span>
+            Crossfade · {s.crossfadeMs > 0 ? `${(s.crossfadeMs / 1000).toFixed(1)}s` : "off"}
+          </span>
+          <input
+            type="range" min={0} max={12000} step={500} value={s.crossfadeMs}
+            onChange={(e) => patch({ crossfadeMs: +e.target.value })}
+          />
+        </div>
+
+        <div className="field">
           <span>Sleep timer</span>
           <select
             value={s.sleepTimerEndsMs === null ? "" : "armed"}

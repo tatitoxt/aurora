@@ -76,6 +76,8 @@ export interface Settings {
   eqPreset: string;
   /** Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat. */
   eqBands: number[];
+  /** Crossfade length in ms between tracks; 0 = hard cut. */
+  crossfadeMs: number;
   /** Floating karaoke overlay window on the desktop. */
   deskLyricsEnabled: boolean;
   /** Restored overlay position, physical px. */
@@ -226,6 +228,7 @@ export const DEFAULT_SETTINGS: Settings = {
   audioOutput: null,
   eqPreset: "flat",
   eqBands: [],
+  crossfadeMs: 3000,
   deskLyricsEnabled: false,
   deskLyricsPosition: null,
   sleepTimerEndsMs: null,

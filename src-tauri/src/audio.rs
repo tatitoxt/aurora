@@ -1,17 +1,29 @@
-//! rodio-backed `AudioOut` for the local player. One OS output stream with a
-//! single Player; `open` replaces its contents so `get_pos` stays correct.
+//! rodio-backed `AudioOut` for the local player. One OS output stream;
+//! `open` replaces the main channel's contents so `get_pos` stays correct.
+//! `crossfade_to` runs the next track on a second channel of the same
+//! mixer and fades the two volumes across `fade_ms`.
 
 use noctbeat_core::eq::{EqBank, EqState};
 use noctbeat_core::player::AudioOut;
 use rodio::cpal::traits::{DeviceTrait, HostTrait};
 use rodio::{Decoder, Sample, Source};
 use std::fs::File;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 struct Inner {
     _sink: rodio::MixerDeviceSink,
+    mixer: rodio::mixer::Mixer,
     player: rodio::Player,
+    /// Second channel fading the next track in during a crossfade.
+    b_player: Option<rodio::Player>,
+}
+
+/// Cancellation token for an in-flight crossfade; the ramp thread
+/// polls it between volume steps.
+struct Fade {
+    cancel: Arc<AtomicBool>,
 }
 
 /// `Source` wrapper that applies the shared EQ bank to every sample.
@@ -182,7 +194,7 @@ where
 }
 
 pub struct RodioOut {
-    inner: Mutex<Option<Inner>>,
+    inner: Arc<Mutex<Option<Inner>>>,
     /// Position to report after `seek` (rodio counts source position, and a
     /// `try_seek` can fail silently on some codecs — clamp honestly).
     fallback_pos: Mutex<Option<Duration>>,
@@ -190,6 +202,14 @@ pub struct RodioOut {
     eq: Arc<EqState>,
     /// Shared analysis tap for the beat/spectrum poller.
     tap: Arc<Tap>,
+    /// User volume (f32 bits) — the ramp thread targets this so a volume
+    /// change mid-fade still lands on the latest value.
+    base_volume: Arc<AtomicU32>,
+    /// Live crossfade job, if any.
+    fade: Mutex<Option<Fade>>,
+    /// (path, duration) the second channel is fading in; consumed by
+    /// `take_crossfaded` when the player cursor catches up.
+    armed: Mutex<Option<(String, Option<u64>)>>,
 }
 
 fn device_name(d: &rodio::cpal::Device) -> String {
@@ -234,17 +254,43 @@ impl RodioOut {
         let sink = Self::open_sink(name)?;
         let player = rodio::Player::connect_new(sink.mixer());
         Some(Self {
-            inner: Mutex::new(Some(Inner {
+            inner: Arc::new(Mutex::new(Some(Inner {
+                mixer: sink.mixer().clone(),
                 _sink: sink,
                 player,
-            })),
+                b_player: None,
+            }))),
             fallback_pos: Mutex::new(None),
             eq: Arc::new(EqState::new()),
             tap: Arc::new(Tap {
                 mono: Mutex::new(Vec::new()),
                 rate: std::sync::atomic::AtomicU32::new(0),
             }),
+            base_volume: Arc::new(AtomicU32::new(1.0f32.to_bits())),
+            fade: Mutex::new(None),
+            armed: Mutex::new(None),
         })
+    }
+
+    /// Cancel an in-flight crossfade: the ramp thread restores the main
+    /// channel's volume and the second channel is dropped.
+    fn disarm(&self) {
+        if let Ok(mut f) = self.fade.lock() {
+            if let Some(fade) = f.take() {
+                fade.cancel.store(true, Ordering::Relaxed);
+            }
+        }
+        if let Ok(mut a) = self.armed.lock() {
+            *a = None;
+        }
+        if let Ok(mut g) = self.inner.lock() {
+            if let Some(inner) = g.as_mut() {
+                inner.b_player = None;
+                inner
+                    .player
+                    .set_volume(f32::from_bits(self.base_volume.load(Ordering::Relaxed)));
+            }
+        }
     }
 
     /// Shared EQ handle — `set` retunes every source live.
@@ -269,11 +315,14 @@ impl RodioOut {
     /// previous stream is dropped, so the caller must re-open the current
     /// track to resume it.
     pub fn set_device(&self, name: Option<&str>) -> Result<(), String> {
+        self.disarm();
         let sink = Self::open_sink(name).ok_or("audio device unavailable")?;
         let player = rodio::Player::connect_new(sink.mixer());
         *self.inner.lock().map_err(|e| e.to_string())? = Some(Inner {
+            mixer: sink.mixer().clone(),
             _sink: sink,
             player,
+            b_player: None,
         });
         Ok(())
     }
@@ -281,12 +330,17 @@ impl RodioOut {
 
 impl AudioOut for RodioOut {
     fn open(&self, path: &str) -> Result<Option<u64>, String> {
+        self.disarm();
         let file = File::open(path).map_err(|e| format!("open {path}: {e}"))?;
         let decoder = Decoder::try_from(file).map_err(|e| e.to_string())?;
         let dur = decoder.total_duration().map(|d| d.as_millis() as u64);
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_mut().ok_or("no audio device")?;
         inner.player.clear();
+        // A fade may have left the main channel turned down — restore it.
+        inner
+            .player
+            .set_volume(f32::from_bits(self.base_volume.load(Ordering::Relaxed)));
         inner.player.append(TapSource::wrap(
             EqSource::wrap(decoder, self.eq.clone()),
             self.tap.clone(),
@@ -298,6 +352,9 @@ impl AudioOut for RodioOut {
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {
                 i.player.play();
+                if let Some(b) = i.b_player.as_ref() {
+                    b.play();
+                }
             }
         }
     }
@@ -305,6 +362,9 @@ impl AudioOut for RodioOut {
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {
                 i.player.pause();
+                if let Some(b) = i.b_player.as_ref() {
+                    b.pause();
+                }
             }
         }
     }
@@ -317,6 +377,8 @@ impl AudioOut for RodioOut {
         0
     }
     fn seek(&self, position_ms: u64) -> Result<(), String> {
+        // Seeking back kills a pending fade — the track is staying.
+        self.disarm();
         let guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_ref().ok_or("no audio device")?;
         inner
@@ -325,6 +387,8 @@ impl AudioOut for RodioOut {
             .map_err(|e| e.to_string())
     }
     fn set_volume(&self, volume: f32) {
+        self.base_volume
+            .store(volume.to_bits(), Ordering::Relaxed);
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {
                 i.player.set_volume(volume);
@@ -338,5 +402,103 @@ impl AudioOut for RodioOut {
             }
         }
         false
+    }
+
+    /// Start `path` on a second mixer channel at volume 0 and spawn the
+    /// ramp: main channel fades base→0 while the new one fades 0→base,
+    /// then the old channel is cleared (which is what `is_finished`
+    /// reports, driving the queue advance).
+    fn crossfade_to(&self, path: &str, fade_ms: u64) -> Result<Option<u64>, String> {
+        if fade_ms == 0 {
+            return Err("crossfade disabled".into());
+        }
+        let file = File::open(path).map_err(|e| format!("open {path}: {e}"))?;
+        let decoder = Decoder::try_from(file).map_err(|e| e.to_string())?;
+        let dur = decoder.total_duration().map(|d| d.as_millis() as u64);
+        let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
+        let inner = guard.as_mut().ok_or("no audio device")?;
+        // Replace any earlier armed fade.
+        if let Ok(mut f) = self.fade.lock() {
+            if let Some(prev) = f.take() {
+                prev.cancel.store(true, Ordering::Relaxed);
+            }
+        }
+        inner.b_player = None;
+        let b = rodio::Player::connect_new(&inner.mixer);
+        b.append(TapSource::wrap(
+            EqSource::wrap(decoder, self.eq.clone()),
+            self.tap.clone(),
+        ));
+        b.set_volume(0.0);
+        b.play();
+        inner.b_player = Some(b);
+        let cancel = Arc::new(AtomicBool::new(false));
+        *self.fade.lock().map_err(|e| e.to_string())? = Some(Fade {
+            cancel: cancel.clone(),
+        });
+        *self.armed.lock().map_err(|e| e.to_string())? = Some((path.to_string(), dur));
+        let base_volume = self.base_volume.clone();
+        let inner2 = self.inner.clone();
+        std::thread::spawn(move || {
+            let steps = 30u32;
+            let step = Duration::from_millis((fade_ms / steps as u64).max(10));
+            for i in 1..=steps {
+                {
+                    let Ok(mut g) = inner2.lock() else { return };
+                    let Some(inner) = g.as_mut() else { return };
+                    let base = f32::from_bits(base_volume.load(Ordering::Relaxed));
+                    if cancel.load(Ordering::Relaxed) {
+                        // Cancel path: whichever channel is in `player`
+                        // (a swap may already have put B there) goes to
+                        // full volume and the extra channel is dropped.
+                        inner.player.set_volume(base);
+                        inner.b_player = None;
+                        return;
+                    }
+                    let t = i as f32 / steps as f32;
+                    inner.player.set_volume(base * (1.0 - t));
+                    if let Some(b) = inner.b_player.as_ref() {
+                        b.set_volume(base * t);
+                    }
+                }
+                std::thread::sleep(step);
+            }
+            // Fade finished: empty the old channel so `is_finished`
+            // drives the queue advance; `take_crossfaded` swaps B in.
+            if !cancel.load(Ordering::Relaxed) {
+                if let Ok(mut g) = inner2.lock() {
+                    if let Some(inner) = g.as_mut() {
+                        inner.player.clear();
+                    }
+                }
+            }
+        });
+        Ok(dur)
+    }
+
+    /// When `path` is the track the second channel is fading in, make it
+    /// the live channel (the fading-out player is dropped) and report
+    /// its duration. The player's `open` is then skipped.
+    fn take_crossfaded(&self, path: &str) -> Option<u64> {
+        let armed = self.armed.lock().ok()?.clone()?;
+        if armed.0 != path {
+            return None;
+        }
+        *self.armed.lock().ok()? = None;
+        // Stop the ramp first — on cancel the thread normalizes whatever
+        // sits in `player` to full volume and clears `b_player`.
+        if let Ok(mut f) = self.fade.lock() {
+            if let Some(fade) = f.take() {
+                fade.cancel.store(true, Ordering::Relaxed);
+            }
+        }
+        if let Ok(mut g) = self.inner.lock() {
+            if let Some(inner) = g.as_mut() {
+                if let Some(b) = inner.b_player.take() {
+                    let _old = std::mem::replace(&mut inner.player, b);
+                }
+            }
+        }
+        Some(armed.1.unwrap_or(0))
     }
 }

@@ -27,6 +27,19 @@ pub trait AudioOut: Send + Sync {
     fn set_volume(&self, volume: f32);
     /// True once the current file has finished playing.
     fn is_finished(&self) -> bool;
+    /// Fade the current track out while `path` fades in on a second
+    /// channel over `fade_ms`. Returns the next track's duration in ms
+    /// when known. Default: unsupported — callers fall back to the hard
+    /// cut on `is_finished`.
+    fn crossfade_to(&self, _path: &str, _fade_ms: u64) -> Result<Option<u64>, String> {
+        Err("crossfade unsupported".into())
+    }
+    /// Nonzero when `path` is already playing because a crossfade handed
+    /// it off — the caller advances its cursor without re-opening audio.
+    /// Returns the track's duration in ms (0 = unknown).
+    fn take_crossfaded(&self, _path: &str) -> Option<u64> {
+        None
+    }
 }
 
 /// Queue repeat behaviour: `Off` stops at the end, `All` wraps to the
@@ -133,6 +146,14 @@ pub struct LocalPlayer {
     loaded: bool,
     /// Position to seek to when a restored (not yet loaded) track starts.
     resume_position_ms: u64,
+    /// Crossfade length in ms; 0 keeps the hard cut between tracks.
+    xfade_ms: u64,
+    /// Queue index the audio backend is already fading in for the
+    /// natural advance — `advance(1)` jumps straight to it.
+    xfade_armed: Option<usize>,
+    /// Duration reported by `open` for the playing track (needed to know
+    /// when the fade-out window starts).
+    current_duration_ms: Option<u64>,
 }
 
 impl LocalPlayer {
@@ -149,7 +170,15 @@ impl LocalPlayer {
             rng: now_ms() | 1,
             loaded: false,
             resume_position_ms: 0,
+            xfade_ms: 0,
+            xfade_armed: None,
+            current_duration_ms: None,
         }
+    }
+
+    /// Crossfade length in ms for natural track advance; 0 disables.
+    pub fn set_crossfade_ms(&mut self, ms: u64) {
+        self.xfade_ms = ms;
     }
 
     pub fn set_shuffle(&mut self, on: bool) {
@@ -223,6 +252,8 @@ impl LocalPlayer {
         self.index = None;
         self.loaded = false;
         self.resume_position_ms = 0;
+        self.xfade_armed = None;
+        self.current_duration_ms = None;
         self.status = PlaybackStatus::Stopped;
     }
 
@@ -241,6 +272,7 @@ impl LocalPlayer {
             return Err("cannot remove the selected track".into());
         }
         self.queue.remove(index);
+        self.xfade_armed = None;
         if let Some(i) = self.index {
             if index < i {
                 self.index = Some(i - 1);
@@ -263,6 +295,7 @@ impl LocalPlayer {
         }
         let item = self.queue.remove(from);
         self.queue.insert(to, item);
+        self.xfade_armed = None;
         if let Some(i) = self.index {
             self.index = Some(if i == from {
                 to
@@ -283,6 +316,8 @@ impl LocalPlayer {
         self.index = None;
         self.loaded = false;
         self.resume_position_ms = 0;
+        self.xfade_armed = None;
+        self.current_duration_ms = None;
         self.status = PlaybackStatus::Stopped;
     }
 
@@ -294,8 +329,14 @@ impl LocalPlayer {
             .cloned()
             .ok_or_else(|| format!("no item at index {index}"))?;
         let path = self.item_path(&item)?;
-        self.audio.open(&path)?;
-        self.audio.play();
+        self.xfade_armed = None;
+        if let Some(d) = self.audio.take_crossfaded(&path) {
+            // The fade already swapped this file onto the live channel.
+            self.current_duration_ms = (d > 0).then_some(d);
+        } else {
+            self.current_duration_ms = self.audio.open(&path)?;
+            self.audio.play();
+        }
         self.index = Some(index);
         self.loaded = true;
         self.resume_position_ms = 0;
@@ -340,6 +381,7 @@ impl LocalPlayer {
     }
 
     pub fn seek(&mut self, position_ms: u64) -> Result<(), String> {
+        self.xfade_armed = None;
         if !self.loaded {
             self.resume_position_ms = position_ms;
             return Ok(());
@@ -404,6 +446,11 @@ impl LocalPlayer {
     }
 
     fn advance(&mut self, dir: i64) -> Result<(), String> {
+        if dir == 1 {
+            if let Some(armed) = self.xfade_armed.take() {
+                return self.play_index(armed);
+            }
+        }
         let Some(i) = self.index else {
             if self.queue.is_empty() {
                 return Err("empty queue".into());
@@ -426,6 +473,7 @@ impl LocalPlayer {
 
     /// Poll that also advances the queue when a track finished.
     pub fn tick(&mut self) -> NowPlaying {
+        self.arm_crossfade();
         if self.status == PlaybackStatus::Playing && self.audio.is_finished() {
             if self.repeat == RepeatMode::One {
                 if let Some(i) = self.index {
@@ -440,6 +488,44 @@ impl LocalPlayer {
             }
         }
         self.snapshot()
+    }
+
+    /// Inside the fade-out window of the current track, hand the next
+    /// queue item to the audio backend so it can start the overlap. The
+    /// armed index is recorded up front so a failed arm never retries
+    /// (and possibly re-downloads a remote item) on every poll.
+    fn arm_crossfade(&mut self) {
+        if self.xfade_ms == 0
+            || self.status != PlaybackStatus::Playing
+            || !self.loaded
+            || self.xfade_armed.is_some()
+            || self.repeat == RepeatMode::One
+        {
+            return;
+        }
+        let Some(dur) = self.current_duration_ms else {
+            return;
+        };
+        let pos = self.audio.position_ms();
+        if dur == 0 || pos.saturating_add(self.xfade_ms) < dur {
+            return;
+        }
+        let Some(i) = self.index else { return };
+        let next = if self.shuffle && self.queue.len() > 1 {
+            self.shuffled_index()
+        } else if i + 1 < self.queue.len() {
+            i + 1
+        } else if self.repeat == RepeatMode::All && !self.queue.is_empty() {
+            0
+        } else {
+            return;
+        };
+        self.xfade_armed = Some(next);
+        if let Some(item) = self.queue.get(next).cloned() {
+            if let Ok(path) = self.item_path(&item) {
+                let _ = self.audio.crossfade_to(&path, self.xfade_ms);
+            }
+        }
     }
 
     fn snapshot(&self) -> NowPlaying {
@@ -535,6 +621,7 @@ mod tests {
         playing: std::sync::atomic::AtomicBool,
         finished: std::sync::atomic::AtomicBool,
         opened: std::sync::Mutex<Vec<String>>,
+        xfaded: std::sync::Mutex<Option<(String, u64)>>,
     }
     impl FakeAudio {
         fn new() -> Self {
@@ -543,6 +630,7 @@ mod tests {
                 playing: false.into(),
                 finished: false.into(),
                 opened: vec![].into(),
+                xfaded: None.into(),
             }
         }
     }
@@ -569,6 +657,14 @@ mod tests {
         fn set_volume(&self, _v: f32) {}
         fn is_finished(&self) -> bool {
             self.finished.load(Ordering::SeqCst)
+        }
+        fn crossfade_to(&self, path: &str, _fade_ms: u64) -> Result<Option<u64>, String> {
+            *self.xfaded.lock().unwrap() = Some((path.into(), 60_000));
+            Ok(Some(60_000))
+        }
+        fn take_crossfaded(&self, path: &str) -> Option<u64> {
+            let x = self.xfaded.lock().unwrap().take()?;
+            (x.0 == path).then_some(x.1)
         }
     }
 
@@ -914,5 +1010,51 @@ mod tests {
         assert!(p.move_item(0, 9).is_err());
         p.move_item(3, 3).unwrap();
         assert_eq!(p.current_index(), Some(3));
+    }
+
+    #[test]
+    fn crossfade_arms_in_fade_window_and_advances_without_reopen() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("one"), item("two")]);
+        p.set_crossfade_ms(5_000);
+        p.play_index(0).unwrap();
+        // 4s left of a 60s track: inside the 5s fade window.
+        audio.pos.store(56_000, Ordering::SeqCst);
+        p.tick();
+        assert_eq!(
+            audio.xfaded.lock().unwrap().as_ref().map(|x| x.0.as_str()),
+            Some("/music/two.mp3")
+        );
+        audio.finished.store(true, Ordering::SeqCst);
+        let np = p.tick();
+        assert_eq!(np.status, PlaybackStatus::Playing);
+        assert_eq!(np.track.unwrap().title, "two");
+        // The handoff already swapped the file in — no second `open`.
+        assert_eq!(audio.opened.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn crossfade_off_by_default_hard_cuts_on_finish() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("one"), item("two")]);
+        p.play_index(0).unwrap();
+        audio.pos.store(59_999, Ordering::SeqCst);
+        p.tick();
+        assert!(audio.xfaded.lock().unwrap().is_none());
+        audio.finished.store(true, Ordering::SeqCst);
+        p.tick();
+        assert_eq!(audio.opened.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn repeat_one_never_crossfades() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("one")]);
+        p.set_repeat(RepeatMode::One);
+        p.set_crossfade_ms(5_000);
+        p.play_index(0).unwrap();
+        audio.pos.store(59_000, Ordering::SeqCst);
+        p.tick();
+        assert!(audio.xfaded.lock().unwrap().is_none());
     }
 }

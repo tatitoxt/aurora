@@ -1300,6 +1300,11 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     sync_edge_windows(&app, &incoming);
     sync_hud_window(&app, &incoming);
     sync_desk_lyrics_window(&app, &incoming);
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .set_crossfade_ms(incoming.crossfade_ms);
     let _ = app.emit("settings", incoming);
     Ok(())
 }
@@ -2205,6 +2210,7 @@ pub fn run() {
         std::sync::Arc::new(Mutex::new(std::collections::HashMap::new()));
     let stream_cache = dir.join("streams");
     let mut local_player = LocalPlayer::new(audio_out);
+    local_player.set_crossfade_ms(settings.crossfade_ms);
     {
         // Resolves `remote:<source>:<id>` queue paths to downloaded files
         // in the streams cache; everything else passes through unchanged.
