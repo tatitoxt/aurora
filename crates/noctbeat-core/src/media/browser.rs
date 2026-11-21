@@ -20,7 +20,10 @@ const MAX_BODY: usize = 64 * 1024;
 
 struct Shared {
     np: NowPlaying,
+    /// When the extension last POSTed state; drives freshness only.
     received_at: Option<Instant>,
+    /// When poll() last ran; drives position extrapolation between reports.
+    last_poll: Option<Instant>,
     commands: Vec<Control>,
 }
 
@@ -45,6 +48,7 @@ impl BrowserSource {
                 updated_at_ms: 0,
             },
             received_at: None,
+            last_poll: None,
             commands: Vec::new(),
         }));
         spawn_server(Arc::clone(&shared), port);
@@ -72,12 +76,15 @@ impl NowPlayingSource for BrowserSource {
         }
         let mut s = self.shared.lock().unwrap();
         let mut np = s.np.clone();
-        // Extrapolate position between extension reports.
+        // Extrapolate position between extension reports using the time
+        // since the last poll — never touches received_at, so snapshots
+        // still expire when the extension goes quiet.
         if np.status == PlaybackStatus::Playing {
-            if let Some(t) = s.received_at {
+            if let Some(t) = s.last_poll {
                 np.position_ms += t.elapsed().as_millis() as u64;
             }
         }
+        s.last_poll = Some(Instant::now());
         if let Some(tr) = &np.track {
             if tr.duration_ms > 0 {
                 np.position_ms = np.position_ms.min(tr.duration_ms);
@@ -170,6 +177,23 @@ fn handle(mut stream: std::net::TcpStream, shared: &Arc<Mutex<Shared>>) {
         }
     };
     let head = String::from_utf8_lossy(&buf[..header_end]);
+    // Only browser-extension origins may post state or drain commands:
+    // websites can reach 127.0.0.1 with text/plain POSTs, so we reject any
+    // Origin that is not an extension scheme (no Origin = non-browser client,
+    // allowed for curl/debugging).
+    if let Some(origin) = head.lines().find_map(|l| {
+        l.to_ascii_lowercase()
+            .strip_prefix("origin:")
+            .map(|v| v.trim().to_string())
+    }) {
+        let ok = origin.starts_with("chrome-extension://")
+            || origin.starts_with("moz-extension://")
+            || origin.starts_with("safari-web-extension://");
+        if !ok {
+            write_response(&mut stream, 403, "{\"commands\":[]}");
+            return;
+        }
+    }
     if head.starts_with("OPTIONS") {
         write_response(&mut stream, 204, "{}");
         return;

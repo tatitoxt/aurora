@@ -16,7 +16,17 @@
         "*://music.apple.com/*",
         "*://listen.tidal.com/*",
         "*://music.amazon.com/*",
-        "*://music.amazon.*/*"
+        "*://music.amazon.co.uk/*",
+        "*://music.amazon.de/*",
+        "*://music.amazon.fr/*",
+        "*://music.amazon.es/*",
+        "*://music.amazon.it/*",
+        "*://music.amazon.co.jp/*",
+        "*://music.amazon.ca/*",
+        "*://music.amazon.com.au/*",
+        "*://music.amazon.com.br/*",
+        "*://music.amazon.com.mx/*",
+        "*://music.amazon.in/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

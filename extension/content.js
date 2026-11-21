@@ -79,13 +79,11 @@ function run(cmd) {
   }
 }
 
-let last = "";
+// Post every tick even when nothing changed: the reply is also the
+// transport-command channel, so a paused tab must keep polling or desktop
+// controls (resume/skip) would sit queued forever.
 function tick() {
-  const p = collect();
-  const key = `${p.provider}|${p.title}|${p.artist}|${p.playing}|${Math.floor(p.positionMs / 5000)}`;
-  if (key === last) return;
-  last = key;
-  chrome.runtime.sendMessage({ type: "now-playing", payload: p }, (resp) => {
+  chrome.runtime.sendMessage({ type: "now-playing", payload: collect() }, (resp) => {
     void chrome.runtime.lastError;
     (resp?.commands || []).forEach(run);
   });
