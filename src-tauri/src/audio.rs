@@ -143,10 +143,11 @@ where
             self.acc = 0.0;
             self.ch = 0;
             if let Ok(mut v) = self.tap.mono.lock() {
-                // Bound the backlog: ~2 s at 48 kHz, oldest dropped first.
-                if v.len() > 96_000 {
-                    let drop = v.len() - 96_000;
-                    v.drain(..drop);
+                // Bound the backlog at ~2 s at 48 kHz. Clear (O(1)), never
+                // drain-and-shift — when the poller isn't reading (demo
+                // mode), per-sample drains would copy megabytes a second.
+                if v.len() >= 96_000 {
+                    v.clear();
                 }
                 v.push(mono);
             }
