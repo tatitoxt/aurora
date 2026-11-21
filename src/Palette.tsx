@@ -154,12 +154,15 @@ export default function Palette() {
       run: () => void bridge.playQueueIndex(i),
     }));
     const all = [...acts, ...tracks];
-    if (!query.trim()) return all;
+    // Cap the list here — keyboard selection must never reach a row the
+    // user cannot see.
+    if (!query.trim()) return all.slice(0, 40);
     return all
       .map((it) => ({ it, s: Math.max(fuzzy(query, it.label), fuzzy(query, it.hint ?? "") * 0.9) }))
       .filter((x) => x.s >= 0)
       .sort((a, b) => b.s - a.s)
-      .map((x) => x.it);
+      .map((x) => x.it)
+      .slice(0, 40);
   }, [query, queue, settings, nav]);
 
   useEffect(() => {
@@ -190,6 +193,9 @@ export default function Palette() {
       e.preventDefault();
       setSel((s) => Math.max(s - 1, 0));
     } else if (e.key === "Enter") {
+      // A focused result button fires its own click — running `sel` here
+      // too would trigger the wrong row (or a toggle twice).
+      if ((e.target as HTMLElement).closest("button")) return;
       runItem(sel);
     }
   };
@@ -206,11 +212,12 @@ export default function Palette() {
         />
         <div className="palette__list" ref={listRef}>
           {items.length === 0 && <div className="palette__empty">No matches</div>}
-          {items.slice(0, 40).map((it, i) => (
+          {items.map((it, i) => (
             <button
               key={it.id}
               className={`palette__item ${i === sel ? "palette__item--sel" : ""}`}
               onMouseEnter={() => setSel(i)}
+              onFocus={() => setSel(i)}
               onClick={() => runItem(i)}
             >
               <span>{it.label}</span>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { THEMES, presetVar } from "../themes";
 import {
   bridge,
+  subscribe,
   DEFAULT_SETTINGS,
   EQ_FREQS,
   EQ_PRESETS,
@@ -33,6 +34,10 @@ export default function Settings() {
       setLoaded(true);
     });
   }, []);
+
+  // Other surfaces (palette, tray, HUD pin) also save settings — keep the
+  // form's copy current or the next save would silently undo them.
+  useEffect(() => subscribe<Settings>("settings", setS), []);
 
   const save = (next: Settings) => {
     setS(next);
