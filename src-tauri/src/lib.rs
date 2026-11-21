@@ -244,7 +244,7 @@ fn local_active(state: &AppState) -> bool {
         .lock()
         .ok()
         .and_then(|mut s| s.poll().ok())
-        .map(|np| np.status == PlaybackStatus::Stopped || np.track.is_none())
+        .map(|np| np.status == PlaybackStatus::Stopped)
         .unwrap_or(true)
 }
 
