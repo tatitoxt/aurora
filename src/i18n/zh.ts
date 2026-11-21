@@ -175,6 +175,16 @@ const zh: Record<keyof typeof en, string> = {
   "anim.scatter": "\u6563\u5f00",
   "anim.focus": "\u805a\u7126",
   "anim.letters": "\u5b57\u6bcd",
+  "anim.split": "\u5206\u88c2",
+  "anim.glitch": "\u6545\u969c",
+  "anim.orbit": "\u8f68\u9053",
+  "anim.ripple": "\u6d9f\u6f2a",
+  "anim.cascade": "\u5c42\u53e0",
+  "anim.drift": "\u6f02\u79fb",
+  "anim.mask": "\u906e\u7f69",
+  "anim.swing": "\u6446\u52a8",
+  "anim.ink": "\u58a8\u6c34",
+  "anim.shimmer": "\u95ea\u70c1",
   "anim.none": "\u65e0",
 };
 

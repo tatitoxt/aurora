@@ -175,6 +175,16 @@ const ko: Record<keyof typeof en, string> = {
   "anim.scatter": "\uc2a4\uce90\ud130",
   "anim.focus": "\ud3ec\ucee4\uc2a4",
   "anim.letters": "\uae00\uc790",
+  "anim.split": "\ubd84\ud560",
+  "anim.glitch": "\uae00\ub9ac\uce58",
+  "anim.orbit": "\uad64\ub3c4",
+  "anim.ripple": "\ubb3c\uacb0",
+  "anim.cascade": "\uacc4\ub2e8",
+  "anim.drift": "\ud750\ub984",
+  "anim.mask": "\ub9c8\uc2a4\ud06c",
+  "anim.swing": "\ud759\ub4e4\uae30",
+  "anim.ink": "\uc789\ud06c",
+  "anim.shimmer": "\ubc18\uc9dd\uc784",
   "anim.none": "\uc5c6\uc74c",
 };
 

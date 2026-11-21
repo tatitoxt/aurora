@@ -175,6 +175,16 @@ const es: Record<keyof typeof en, string> = {
   "anim.scatter": "Dispersi\u00f3n",
   "anim.focus": "Enfoque",
   "anim.letters": "Letras",
+  "anim.split": "División",
+  "anim.glitch": "Glitch",
+  "anim.orbit": "Órbita",
+  "anim.ripple": "Onda",
+  "anim.cascade": "Cascada",
+  "anim.drift": "Deriva",
+  "anim.mask": "Máscara",
+  "anim.swing": "Vaivén",
+  "anim.ink": "Tinta",
+  "anim.shimmer": "Destello",
   "anim.none": "Ninguna",
 };
 
