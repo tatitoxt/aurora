@@ -4,6 +4,7 @@
 //! mixer and fades the two volumes across `fade_ms`.
 
 use noctbeat_core::eq::{EqBank, EqState};
+use noctbeat_core::fx::{FxBank, FxState};
 use noctbeat_core::player::AudioOut;
 use rodio::cpal::traits::{DeviceTrait, HostTrait};
 use rodio::{Decoder, Sample, Source};
@@ -33,6 +34,86 @@ struct EqSource<I> {
     bank: EqBank,
     /// Interleaved channel cursor, cycles 0..channels-1 per sample.
     channel: usize,
+}
+
+/// `Source` wrapper that applies the shared FX bank (reverb/8D/echo) to
+/// every sample; rebuilt when the mode changes or on seek.
+struct FxSource<I> {
+    inner: I,
+    state: Arc<FxState>,
+    bank: FxBank,
+    /// Interleaved channel cursor, cycles 0..channels-1 per sample.
+    channel: usize,
+}
+
+impl<I> FxSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    fn wrap(inner: I, state: Arc<FxState>) -> Self {
+        let bank = FxBank::new(
+            inner.channels().get() as usize,
+            inner.sample_rate().get(),
+            state.mode(),
+        );
+        Self {
+            inner,
+            state,
+            bank,
+            channel: 0,
+        }
+    }
+}
+
+impl<I> Iterator for FxSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    type Item = Sample;
+
+    #[inline]
+    fn next(&mut self) -> Option<Sample> {
+        let x = self.inner.next()?;
+        let mode = self.state.mode();
+        if mode != self.bank.mode() {
+            // Mode switched mid-stream: drop stale delay-line tails.
+            self.bank.reset(mode);
+        }
+        let ch = self.channel;
+        self.channel = (self.channel + 1) % (self.inner.channels().get() as usize).max(1);
+        Some(self.bank.process(ch, x, &self.state))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl<I> Source for FxSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len()
+    }
+    fn channels(&self) -> rodio::ChannelCount {
+        self.inner.channels()
+    }
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.inner.sample_rate()
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+    fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
+        let r = self.inner.try_seek(pos);
+        if r.is_ok() {
+            // Drop delay-line memory so the seek doesn't ring stale tails.
+            self.bank.reset(self.state.mode());
+            self.channel = 0;
+        }
+        r
+    }
 }
 
 impl<I> EqSource<I>
@@ -202,6 +283,8 @@ pub struct RodioOut {
     eq: Arc<EqState>,
     /// Shared analysis tap for the beat/spectrum poller.
     tap: Arc<Tap>,
+    /// Live FX mode shared with every wrapped source.
+    fx: Arc<FxState>,
     /// User volume (f32 bits) — the ramp thread targets this so a volume
     /// change mid-fade still lands on the latest value.
     base_volume: Arc<AtomicU32>,
@@ -270,6 +353,7 @@ impl RodioOut {
                 mono: Mutex::new(Vec::new()),
                 rate: std::sync::atomic::AtomicU32::new(0),
             }),
+            fx: Arc::new(FxState::new()),
             base_volume: Arc::new(AtomicU32::new(1.0f32.to_bits())),
             speed: Arc::new(AtomicU32::new(1.0f32.to_bits())),
             fade: Mutex::new(None),
@@ -301,6 +385,11 @@ impl RodioOut {
     /// Shared EQ handle — `set` retunes every source live.
     pub fn eq(&self) -> Arc<EqState> {
         self.eq.clone()
+    }
+
+    /// Shared FX handle — `set` switches the live effect mode.
+    pub fn fx(&self) -> Arc<FxState> {
+        self.fx.clone()
     }
 
     /// Analysis tap: drains mono samples and reports the current rate so
@@ -352,7 +441,7 @@ impl AudioOut for RodioOut {
             .player
             .set_volume(f32::from_bits(self.base_volume.load(Ordering::Relaxed)));
         inner.player.append(TapSource::wrap(
-            EqSource::wrap(decoder, self.eq.clone()),
+            EqSource::wrap(FxSource::wrap(decoder, self.fx.clone()), self.eq.clone()),
             self.tap.clone(),
         ));
         *self.fallback_pos.lock().map_err(|e| e.to_string())? = Some(Duration::ZERO);
@@ -456,7 +545,7 @@ impl AudioOut for RodioOut {
         let b = rodio::Player::connect_new(&inner.mixer);
         b.set_speed(f32::from_bits(self.speed.load(Ordering::Relaxed)));
         b.append(TapSource::wrap(
-            EqSource::wrap(decoder, self.eq.clone()),
+            EqSource::wrap(FxSource::wrap(decoder, self.fx.clone()), self.eq.clone()),
             self.tap.clone(),
         ));
         b.set_volume(0.0);

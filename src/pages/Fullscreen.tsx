@@ -1014,6 +1014,21 @@ export default function Fullscreen() {
                 >
                   <CornersIn size={13} /> Exit fullscreen
                 </button>
+                <span className="fs__stylehead">Sound FX</span>
+                {([
+                  ["Off", "off"],
+                  ["Reverb", "reverb"],
+                  ["8D Audio", "8d"],
+                  ["Echo", "echo"],
+                ] as Array<[string, string]>).map(([label, m]) => (
+                  <button
+                    key={m}
+                    className={`fs__morebtn ${settings.soundFx === m ? "fs__morebtn--on" : ""}`}
+                    onClick={() => void bridge.setFx(m)}
+                  >
+                    {label}
+                  </button>
+                ))}
                 <span className="fs__stylehead">Style</span>
                 {FS_STYLES.map((s) => (
                   <button
