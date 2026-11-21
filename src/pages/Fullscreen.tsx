@@ -63,9 +63,11 @@ export default function Fullscreen() {
   return (
     <div className="fs">
       <div className="fs__bg">
-        {art ? <img src={art} alt="" /> : null}
+        {art ? <img src={art} alt="" /> : <div className="fs__mesh" />}
         <div className="fs__veil" />
       </div>
+      <div className="fs__sparks" aria-hidden="true" />
+      <div className="fs__rim" aria-hidden="true" />
 
       <div className="fs__clockwrap">
         <div className="fs__date">{date}</div>
@@ -88,6 +90,13 @@ export default function Fullscreen() {
               >
                 <span className="fs__qtitle">{it.track.title}</span>
                 <span className="fs__qsub">{it.track.artist}</span>
+                {i === queue.currentIndex && playing && (
+                  <span className="fs__eq" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -96,7 +105,9 @@ export default function Fullscreen() {
 
       <div className="fs__center">
         {line ? (
-          <div className="fs__lyric">{line}</div>
+          <div className="fs__lyric" key={active}>
+            {line}
+          </div>
         ) : track ? (
           <div className="fs__lyric fs__lyric--title">{track.title}</div>
         ) : (
@@ -130,7 +141,11 @@ export default function Fullscreen() {
             <SkipForward weight="fill" size={17} />
           </button>
           <div className="fs__meta">
-            {art ? <img src={art} alt="" /> : null}
+            {art ? (
+              <img src={art} alt="" />
+            ) : (
+              <div className="fs__meta-art" />
+            )}
             <div className="fs__meta-txt">
               <div className="fs__mtitle">{track?.title ?? "Nothing playing"}</div>
               <div className="fs__msub">
