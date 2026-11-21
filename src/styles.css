@@ -972,7 +972,7 @@ body {
 /* tile: sharp current cover as the backdrop */
 .fs__tilebg {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  animation: fs-fade 0.6s ease;
+  animation: fs-lyric-in 0.6s ease;
 }
 
 /* tile/showcase: the transport pill becomes the iBaila corner player card */
