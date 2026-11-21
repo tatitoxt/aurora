@@ -454,7 +454,7 @@ export default function Library() {
             <Plus />
             <input
               type="text"
-              placeholder="Playlist URL (YouTube, SoundCloud…)"
+              placeholder="Playlist URL"
               value={plUrl}
               onChange={(e) => setPlUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && importUrl()}
