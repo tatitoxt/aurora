@@ -225,11 +225,27 @@ fn prefetch_next(state: &AppState, index: usize) {
 /// The local player claims the transport while it is playing or paused;
 /// otherwise whatever the OS reports (Spotify, browser, …) wins.
 fn local_active(state: &AppState) -> bool {
+    let Ok(p) = state.player.lock() else {
+        return false;
+    };
+    if p.status() != PlaybackStatus::Stopped {
+        return true;
+    }
+    if p.queue().is_empty() {
+        return false;
+    }
+    // Stopped but holding a queue: claim the transport only when the
+    // external source isn't reporting playback — Play then starts the
+    // local queue instead of being routed away, without hijacking an
+    // actively playing Spotify/browser session.
+    drop(p);
     state
-        .player
+        .source
         .lock()
-        .map(|p| p.status() != PlaybackStatus::Stopped)
-        .unwrap_or(false)
+        .ok()
+        .and_then(|mut s| s.poll().ok())
+        .map(|np| np.status == PlaybackStatus::Stopped || np.track.is_none())
+        .unwrap_or(true)
 }
 
 fn poll_np(state: &AppState) -> NowPlaying {
@@ -2727,11 +2743,11 @@ pub fn run() {
                             if !items.is_empty() {
                                 if let Ok(mut p) = state.player.lock() {
                                     if p.queue().is_empty() {
-                                        // Seed as a paused selection, like a
-                                        // restored session: Play then starts
-                                        // track 0 locally instead of routing
-                                        // to an external source.
-                                        p.restore(items, Some(0), 0, RepeatMode::Off, false);
+                                        // No pre-selected track: the queue
+                                        // shows clean until the user plays;
+                                        // Play still starts track 0 through
+                                        // the stopped-queue transport rule.
+                                        p.set_queue(items);
                                     }
                                 }
                                 emit_queue(&app, &state);
