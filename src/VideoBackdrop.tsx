@@ -24,7 +24,10 @@ export function VideoBackdrop({
   useEffect(() => {
     const v = ref.current;
     if (!v || !ready) return;
-    const target = Math.min(posMs / 1000, v.duration || Infinity);
+    const vt = v.duration;
+    if (!vt) return;
+    // The element loops, so a clip shorter than the song wraps with it.
+    const target = posMs / 1000 < vt ? posMs / 1000 : (posMs / 1000) % vt;
     if (Math.abs(v.currentTime - target) > 0.6) v.currentTime = target;
   }, [posMs, ready]);
 
@@ -35,6 +38,9 @@ export function VideoBackdrop({
       src={url}
       muted
       playsInline
+      /* if the clip is shorter than the song it replays instead of
+       * freezing on the last frame (demo clips are a few seconds). */
+      loop
       onCanPlay={() => setReady(true)}
     />
   );

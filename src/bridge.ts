@@ -336,6 +336,12 @@ class MockSource {
     this.positionMs = 0;
     this.anchor = Date.now();
   }
+
+  seek(positionMs: number) {
+    const dur = this.track()?.durationMs ?? Infinity;
+    this.positionMs = Math.max(0, Math.min(positionMs, dur));
+    this.anchor = Date.now();
+  }
 }
 
 const mock = new MockSource();
@@ -440,7 +446,8 @@ export const bridge = {
   getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
-      : Promise.resolve({ tabs: 1, provider: "music.youtube.com" }),
+      : /* no bridge in the web preview — the picker shows the install hint. */
+        Promise.resolve(null),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);
@@ -495,8 +502,11 @@ export const bridge = {
   /** Open an external https:// URL in the system browser. */
   openUrl: (url: string): Promise<null> =>
     isTauri() ? invokeCmd<null>("open_url", { url }) : (window.open(url, "_blank"), Promise.resolve(null)),
-  seek: (positionMs: number) =>
-    isTauri() ? invokeCmd<null>("seek", { positionMs }) : Promise.resolve(null),
+  seek: (positionMs: number) => {
+    if (isTauri()) return invokeCmd<null>("seek", { positionMs });
+    mock.seek(positionMs);
+    return Promise.resolve(null);
+  },
   setVolume: (volume: number) =>
     isTauri() ? invokeCmd<null>("set_volume", { volume }) : Promise.resolve(null),
   setSpeed: (speed: number) =>
@@ -624,10 +634,10 @@ export const bridge = {
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
       ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
-      : /* demo preview only: public sample stream so the videoclip backdrop is
+      : /* demo preview only: public CC0 sample so the videoclip backdrop is
          * testable outside Tauri; the real app resolves via yt-dlp. */
         Promise.resolve(
-          "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+          "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
         ),
   listOutputs: (): Promise<string[]> =>
     isTauri() ? invokeCmd<string[]>("list_outputs") : Promise.resolve([]),

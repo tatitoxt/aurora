@@ -23,6 +23,32 @@ test.describe("Noctbeat player", () => {
     await page.getByLabel("Cover art").click();
     await expect(page.locator(".player__lyrfill")).toHaveCount(0);
   });
+
+  test("videoclip mode: lyrics overlay + toggle", async ({ page }) => {
+    await page.goto(`${APP}/#/`);
+    await page.getByLabel("Music video").click();
+    const overlay = page.locator(".player__lyrover");
+    await expect(overlay).toBeVisible();
+    const toggle = page.locator(".player__lyrtoggle");
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(overlay).toHaveCount(0);
+    await toggle.click();
+    await expect(overlay).toBeVisible();
+  });
+
+  test("progress bar seeks the track", async ({ page }) => {
+    await page.goto(`${APP}/#/`);
+    const time = page.locator(".player__times span").first();
+    await expect(time).toBeVisible();
+    const before = await time.textContent();
+    const bar = page.locator(".player__progress");
+    const box = await bar.boundingBox();
+    await bar.click({ position: { x: box!.width * 0.8, y: box!.height / 2 } });
+    await expect.poll(async () => (await time.textContent()) ?? "").not.toBe(before ?? "");
+    const [m, s] = ((await time.textContent()) ?? "0:00").split(":").map(Number);
+    expect(m * 60 + s).toBeGreaterThan(120);
+  });
 });
 
 test.describe("Fullscreen carousel", () => {

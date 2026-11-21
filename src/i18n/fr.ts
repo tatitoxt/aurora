@@ -172,6 +172,7 @@ const fr: Record<keyof typeof en, string> = {
   "fs.extHint": "Extension : installez-la pour suivre vos onglets musique",
   "fs.extStep1": "1. chrome://extensions → activez le Mode développeur",
   "fs.extStep2": "2. Charger non empaquetée → le dossier extension/ dans l’app",
+  "fs.extDownload": "Télécharger l’extension bridge (zip)",
   "fs.queuePanel": "Panneau Continuer la lecture",
   "fs.lyricsToggle": "Paroles / miniatures",
   "fs.startMusic": "Lancer la musique",
