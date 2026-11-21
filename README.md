@@ -1,12 +1,12 @@
 # Noctbeat
 
-A thin ribbon of light along your screen edges that breathes with your music — plus a glass mini player with synced lyrics and per-display control. Open core: the engine (`crates/noctbeat-core`) is MIT-licensed; signed, licensed builds are the commercial product.
+A floating, always-on-top glass HUD with your queue and transport — synced lyrics, a fullscreen stage with nine looks and a native Tauri core. Open core: the engine (`crates/noctbeat-core`) is MIT-licensed; signed, licensed builds are the commercial product.
 
 **Stack:** Tauri 2 · Rust core · React 18 + TypeScript + Vite · static landing in `site/`.
 
 ## Features
 
-- **Edge-light overlay** — transparent, click-through, always-on-top window per display; glow follows the beat and tints from album art.
+- **Floating HUD** — transparent, always-on-top glass panel: now-playing + queue list and a big now-playing focus view, draggable, resizable and pinnable above every window.
 - **Now Playing** — MPRIS (Linux), `osascript` Spotify/Music (macOS), SMTC (Windows).
 - **Palette extraction** — deterministic k-means over artwork, in Rust.
 - **Beat energy** — onset detection in `noctbeat-core`; demo mode synthesizes a 120 BPM grid.

@@ -59,13 +59,12 @@ describe("browser mock bridge", () => {
   });
 
   it("persists settings in-session", async () => {
-    const s = { ...DEFAULT_SETTINGS, edgeThicknessPx: 48 };
+    const s = { ...DEFAULT_SETTINGS, crossfadeMs: 4000 };
     await bridge.updateSettings(s);
-    expect((await bridge.getSettings()).edgeThicknessPx).toBe(48);
+    expect((await bridge.getSettings()).crossfadeMs).toBe(4000);
   });
 
-  it("reports mock displays and license", async () => {
-    expect((await bridge.listDisplays()).length).toBeGreaterThan(0);
+  it("reports license state", async () => {
     expect((await bridge.getLicenseState()).state).toBe("unlicensed");
     const res = await bridge.activateLicense("X");
     expect(res.state).toBe("invalid");

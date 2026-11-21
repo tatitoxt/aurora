@@ -1550,7 +1550,6 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
             .map_err(|e| e.to_string())?;
         *guard = incoming.clone();
     }
-    sync_edge_windows(&app, &incoming);
     sync_hud_window(&app, &incoming);
     sync_desk_lyrics_window(&app, &incoming);
     state
@@ -1665,327 +1664,6 @@ fn open_url(url: String) -> Result<(), String> {
             Ok(())
         }
         Err(e) => Err(e.to_string()),
-    }
-}
-
-#[tauri::command]
-fn get_energy(state: State<AppState>) -> Result<EnergyUpdate, String> {
-    Ok(*state.last_energy.lock().map_err(|e| e.to_string())?)
-}
-
-/// True while any system battery is discharging. The edge auto-dim polls
-/// this because WebKit/WKWebView webviews lack `navigator.getBattery`.
-#[tauri::command]
-fn on_battery() -> bool {
-    system_on_battery()
-}
-
-#[cfg(target_os = "linux")]
-fn system_on_battery() -> bool {
-    let Ok(rd) = std::fs::read_dir("/sys/class/power_supply") else {
-        return false;
-    };
-    rd.flatten().any(|e| {
-        // Only the system battery dims: peripheral entries (hidpp_*,
-        // xpadneo_*, ...) also report type "Battery" and discharging status.
-        // scope is absent on many fuel-gauge drivers (cw2015, rk817), so
-        // fall back to excluding known peripheral name prefixes.
-        let name = e.file_name().to_string_lossy().to_lowercase();
-        let peripheral = ["hid", "xpadneo", "bluez", "sony_controller", "devc_"]
-            .iter()
-            .any(|p| name.starts_with(p));
-        let system = std::fs::read_to_string(e.path().join("scope"))
-            .map(|s| s.trim().eq_ignore_ascii_case("system"))
-            .unwrap_or(!peripheral);
-        system
-            && std::fs::read_to_string(e.path().join("type"))
-                .map(|t| t.trim() == "Battery")
-                .unwrap_or(false)
-            && std::fs::read_to_string(e.path().join("status"))
-                .map(|s| s.trim() == "Discharging")
-                .unwrap_or(false)
-    })
-}
-
-#[cfg(target_os = "macos")]
-fn system_on_battery() -> bool {
-    std::process::Command::new("pmset")
-        .args(["-g", "batt"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("'Battery Power'"))
-        .unwrap_or(false)
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
-fn system_on_battery() -> bool {
-    false
-}
-
-/// True while another application owns a fullscreen window. The edge hides
-/// then; own windows (e.g. the fullscreen player) are excluded by pid.
-/// Async so the per-OS subprocess probes never stall Tauri's event thread.
-#[tauri::command]
-async fn fullscreen_app_active() -> bool {
-    system_fullscreen_app_active()
-}
-
-#[cfg(target_os = "linux")]
-fn system_fullscreen_app_active() -> bool {
-    // X11 only; Wayland gives no cross-app window state, so report false.
-    if std::env::var_os("DISPLAY").is_none() {
-        return false;
-    }
-    let out = std::process::Command::new("xprop")
-        .args(["-root", "_NET_ACTIVE_WINDOW"])
-        .output();
-    let Ok(out) = out else { return false };
-    let text = String::from_utf8_lossy(&out.stdout);
-    // "_NET_ACTIVE_WINDOW(WINDOW): window id # 0x3c00007"
-    let id = text.split('#').nth(1).map(str::trim).unwrap_or("");
-    if id.is_empty() || id == "0x0" {
-        return false;
-    }
-    let own = std::process::id().to_string();
-    let mine = std::process::Command::new("xprop")
-        .args(["-id", id, "_NET_WM_PID"])
-        .output()
-        .map(|o| {
-            // "_NET_WM_PID(CARDINAL) = 2698" — exact match, not substring
-            // (a foreign pid containing ours must not self-exclude).
-            String::from_utf8_lossy(&o.stdout)
-                .rsplit('=')
-                .next()
-                .map(str::trim)
-                == Some(own.as_str())
-        })
-        .unwrap_or(false);
-    if mine {
-        return false;
-    }
-    std::process::Command::new("xprop")
-        .args(["-id", id, "_NET_WM_STATE"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("_NET_WM_STATE_FULLSCREEN"))
-        .unwrap_or(false)
-}
-
-#[cfg(target_os = "windows")]
-fn system_fullscreen_app_active() -> bool {
-    // Foreground window covering its whole monitor = fullscreen; maximized
-    // windows stop at the taskbar so they do not match. Shell windows and
-    // our own pid are excluded. Prints "1" or "0".
-    let script = format!(
-        r#"$own={}
-$sig=@'
-using System;
-using System.Runtime.InteropServices;
-public static class U32 {{
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-  [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
-  [DllImport("user32.dll")] public static extern long GetWindowLongPtr(IntPtr h, int i);
-  [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr m, ref MI i);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
-  public struct RECT {{ public int Left, Top, Right, Bottom; }}
-  public struct MI {{ public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint flags; }}
-}}
-'@
-Add-Type -TypeDefinition $sig
-$h=[U32]::GetForegroundWindow()
-if($h -eq [IntPtr]::Zero){{'0';exit}}
-$p=[uint32]0;[void][U32]::GetWindowThreadProcessId($h,[ref]$p)
-if($p -eq $own){{'0';exit}}
-$cls=New-Object System.Text.StringBuilder 256;[void][U32]::GetClassName($h,$cls,256)
-if(@('Progman','WorkerW','Shell_TrayWnd','Shell_SecondaryTrayWnd') -contains $cls.ToString()){{'0';exit}}
-$wr=New-Object U32+RECT;[void][U32]::GetWindowRect($h,[ref]$wr)
-$mi=New-Object U32+MI;$mi.cbSize=[Runtime.InteropServices.Marshal]::SizeOf([U32+MI])
-[void][U32]::GetMonitorInfo([U32]::MonitorFromWindow($h,2),[ref]$mi)
-$covers=$wr.Left -le $mi.rcMonitor.Left -and $wr.Top -le $mi.rcMonitor.Top -and $wr.Right -ge $mi.rcMonitor.Right -and $wr.Bottom -ge $mi.rcMonitor.Bottom
-# A maximized window on a taskbar-free monitor also covers it; real
-# fullscreen windows strip WS_CAPTION (0x00C00000).
-$borderless=([U32]::GetWindowLongPtr($h,-16) -band 0xC00000L) -eq 0
-if($covers -and $borderless){{'1'}}else{{'0'}}"#,
-        std::process::id()
-    );
-    std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "1")
-        .unwrap_or(false)
-}
-
-#[cfg(target_os = "macos")]
-fn system_fullscreen_app_active() -> bool {
-    // AXFullScreen on the frontmost process needs accessibility permission;
-    // any error means "cannot determine" -> false, never hide on a guess.
-    std::process::Command::new("osascript")
-        .args([
-            "-e",
-            "tell application \"System Events\"",
-            "-e",
-            "set p to first process whose frontmost is true",
-            "-e",
-            &format!(
-                "if unix id of p is {} then return false",
-                std::process::id()
-            ),
-            "-e",
-            "if (count of windows of p) is 0 then return false",
-            "-e",
-            "try",
-            "-e",
-            "return value of attribute \"AXFullScreen\" of window 1 of p",
-            "-e",
-            "on error",
-            "-e",
-            "return false",
-            "-e",
-            "end try",
-            "-e",
-            "end tell",
-        ])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "true")
-        .unwrap_or(false)
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
-fn system_fullscreen_app_active() -> bool {
-    false
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DisplayInfo {
-    id: String,
-    name: String,
-    primary: bool,
-    /// Pre-upgrade positional id (`display-N`); saved rules may still use it.
-    legacy_id: String,
-}
-
-/// Stable ids for the current monitor set: the OS name (output connector /
-/// EDID) survives re-enumeration when a sibling is unplugged, where an index
-/// would shift and apply one display's rules to another. Same-model monitors
-/// get a `-<x>x<y>` position suffix so each still owns its rules and the id
-/// survives a sibling unplugging.
-fn display_ids(monitors: &[tauri::Monitor]) -> Vec<String> {
-    let mut totals: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for m in monitors {
-        if let Some(name) = m.name() {
-            *totals.entry(name.clone()).or_insert(0) += 1;
-        }
-    }
-    monitors
-        .iter()
-        .enumerate()
-        .map(|(i, m)| {
-            let base = m.name().cloned().unwrap_or_else(|| format!("display-{i}"));
-            if totals.get(&base).copied().unwrap_or(0) > 1 {
-                // Same-model duplicates: anchor on the physical position so
-                // unplugging a sibling keeps this monitor's id (and rules).
-                let pos = m.position();
-                format!("{base}-{}x{}", pos.x, pos.y)
-            } else {
-                base
-            }
-        })
-        .collect()
-}
-
-/// Window labels accept a limited charset (alphanumeric plus `-_/:.`);
-/// map anything else to `-` so an exotic monitor name still builds.
-fn label_safe(id: &str) -> String {
-    id.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || matches!(c, '-' | '/' | ':' | '_' | '.') {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect()
-}
-
-#[tauri::command]
-fn list_displays(app: tauri::AppHandle) -> Result<Vec<DisplayInfo>, String> {
-    let monitors = app.available_monitors().map_err(|e| e.to_string())?;
-    let ids = display_ids(&monitors);
-    Ok(monitors
-        .into_iter()
-        .enumerate()
-        .map(|(i, m)| DisplayInfo {
-            id: ids[i].clone(),
-            name: m
-                .name()
-                .cloned()
-                .unwrap_or_else(|| format!("Display {}", i + 1)),
-            primary: i == 0,
-            legacy_id: format!("display-{i}"),
-        })
-        .collect())
-}
-
-/// One click-through, transparent overlay window per enabled display.
-/// Also tears down edge windows whose display was disabled or unplugged.
-fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
-    // Bail on enumeration errors: with no monitor list the cleanup below
-    // would read every edge window as stale and close them all.
-    let Ok(monitors) = app.available_monitors() else {
-        return;
-    };
-    let ids = display_ids(&monitors);
-    let mut expected: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (i, monitor) in monitors.iter().enumerate() {
-        let id = &ids[i];
-        let label = format!("edge-{}", label_safe(id));
-        // Rules saved before the name-based ids still carry `display-N`.
-        let enabled = settings
-            .displays
-            .iter()
-            .find(|d| &d.display_id == id)
-            .or_else(|| {
-                settings
-                    .displays
-                    .iter()
-                    .find(|d| d.display_id == format!("display-{i}"))
-            })
-            .map(|d| d.enabled)
-            .unwrap_or(true);
-        if !enabled {
-            continue;
-        }
-        expected.insert(label.clone());
-        if app.get_webview_window(&label).is_some() {
-            continue;
-        }
-        // Monitor size()/position() are physical; the builder wants logical
-        // or a scaled display would double-apply the scale factor.
-        let scale = monitor.scale_factor();
-        let size = monitor.size();
-        let pos = monitor.position();
-        if let Ok(win) = tauri::WebviewWindowBuilder::new(
-            app,
-            &label,
-            tauri::WebviewUrl::App("index.html#/edge".into()),
-        )
-        .transparent(true)
-        .decorations(false)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .resizable(false)
-        .inner_size(size.width as f64 / scale, size.height as f64 / scale)
-        .position(pos.x as f64 / scale, pos.y as f64 / scale)
-        .build()
-        {
-            let _ = win.set_ignore_cursor_events(true);
-        }
-    }
-    for (label, win) in app.webview_windows() {
-        if label.starts_with("edge-") && !expected.contains(&label) {
-            let _ = win.close();
-        }
     }
 }
 
@@ -2365,7 +2043,6 @@ fn spawn_poller(app: &tauri::AppHandle) {
         let mut last_tick = std::time::Instant::now();
         let mut last_qidx: Option<usize> = None;
         let mut last_track_id: Option<String> = None;
-        let mut last_monitor_sig = String::new();
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
@@ -2374,22 +2051,6 @@ fn spawn_poller(app: &tauri::AppHandle) {
             let tick_ms = last_tick.elapsed().as_millis() as u64;
             last_tick = std::time::Instant::now();
             let state = app.state::<AppState>();
-            // Reconcile edge overlays with the monitor set ~1/s: a hotplugged
-            // display gets its glow (or loses its stale window) without a
-            // settings write.
-            if ticks.is_multiple_of(5) {
-                if let Ok(monitors) = app.available_monitors() {
-                    // Compare identities, not the count: swapping one monitor
-                    // for another keeps the total but needs a re-sync.
-                    let sig = display_ids(&monitors).join(",");
-                    if sig != last_monitor_sig {
-                        last_monitor_sig = sig;
-                        if let Ok(s) = state.settings.lock() {
-                            sync_edge_windows(&app, &s);
-                        }
-                    }
-                }
-            }
             let np = {
                 if !local_active(&state) {
                     // Rediscover the platform player source while idle.
@@ -2668,10 +2329,6 @@ pub fn run() {
             activate_license,
             deactivate_license,
             open_url,
-            get_energy,
-            on_battery,
-            fullscreen_app_active,
-            list_displays,
             set_hud_pinned,
             hud_start_drag,
             desk_lyrics_start_drag,
@@ -2774,7 +2431,6 @@ pub fn run() {
                 }
             }
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
-            sync_edge_windows(app.handle(), &s);
             sync_hud_window(app.handle(), &s);
             sync_desk_lyrics_window(app.handle(), &s);
             build_tray(app.handle())?;

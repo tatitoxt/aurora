@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window and edge overlays may listen to app events and read windows.",
-  "windows": ["player", "edge-*", "settings-*", "hud", "desklyrics"],
+  "description": "Main window and overlay surfaces may listen to app events and read windows.",
+  "windows": ["player", "settings-*", "hud", "desklyrics"],
   "permissions": [
     "core:event:default",
     "core:event:allow-listen",

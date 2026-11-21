@@ -563,21 +563,6 @@ body {
 }
 .stats__clear:hover { color: var(--text); border-color: var(--accent); }
 
-/* ---------- edge overlay ---------- */
-.edge { position: fixed; inset: 0; pointer-events: none; }
-.edge__glow {
-  position: absolute; inset: 0;
-  border-radius: 0;
-  box-shadow:
-    inset 0 0 calc(var(--t) * 2.6) calc(var(--t) * 0.35) var(--c1),
-    inset 0 0 calc(var(--t) * 1.4) 0 var(--c2);
-  opacity: var(--o);
-  transition: box-shadow .5s ease, opacity .4s ease;
-}
-.edge__pulse { position: absolute; inset: 0; box-shadow: inset 0 0 calc(var(--t)) calc(var(--t) * .3) var(--c2); opacity: 0; }
-.edge__pulse.on { animation: beatPulse .32s ease-out; }
-@keyframes beatPulse { 0% { opacity: .9; } 100% { opacity: 0; } }
-
 /* ---------- floating HUD pill ---------- */
 .hud {
   position: fixed; inset: 0;
@@ -594,6 +579,7 @@ body {
   overflow: hidden;
   cursor: grab;
 }
+
 .hud:active { cursor: grabbing; }
 .hud__now { flex: none; display: flex; align-items: center; gap: 10px; }
 .hud__list {
