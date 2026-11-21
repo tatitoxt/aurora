@@ -1591,3 +1591,12 @@ body {
     animation: none;
   }
 }
+
+.srcdot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 999px;
+  background: #34d399; margin-right: 6px;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.55);
+  animation: srcpulse 2.4s ease-in-out infinite;
+}
+@keyframes srcpulse { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .srcdot { animation: none; } }
