@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { bridge, subscribe, type QueueState, type Settings } from "./bridge";
+import { openShare } from "./ShareCard";
 import { THEMES } from "./themes";
 
 interface Item {
@@ -42,6 +43,7 @@ export default function Palette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const nav = useNavigate();
+  const loc = useLocation();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -99,6 +101,10 @@ export default function Palette() {
             .then((np) => bridge.seek(Math.max(0, np.positionMs - 10_000))),
       },
       { id: "player", label: "Back to player", hint: "nav", run: () => nav("/") },
+      // Share lives on the player route — the only place the card is mounted.
+      ...(loc.pathname === "/"
+        ? [{ id: "share", label: "Share now playing", hint: "card", run: () => openShare() }]
+        : []),
       { id: "library", label: "Open library", hint: "nav", run: () => nav("/library") },
       { id: "stats", label: "Open listening stats", hint: "nav", run: () => nav("/stats") },
       { id: "settings", label: "Open settings", hint: "nav", run: () => nav("/settings") },
@@ -164,7 +170,7 @@ export default function Palette() {
       .sort((a, b) => b.s - a.s)
       .map((x) => x.it)
       .slice(0, 40);
-  }, [query, queue, settings, nav]);
+  }, [query, queue, settings, nav, loc.pathname]);
 
   useEffect(() => {
     setSel(0);
