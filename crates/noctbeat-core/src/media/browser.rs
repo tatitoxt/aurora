@@ -112,6 +112,17 @@ impl NowPlayingSource for BrowserSource {
             self.fallback.control(cmd)
         }
     }
+
+    fn ext_status(&self) -> Option<(usize, Option<String>)> {
+        let s = self.shared.lock().unwrap();
+        let fresh = s
+            .tabs
+            .values()
+            .filter(|t| t.received_at.elapsed() < STALE)
+            .count();
+        let provider = s.active().map(|(_, t)| t.np.source.clone());
+        Some((fresh, provider))
+    }
 }
 
 #[derive(serde::Deserialize)]

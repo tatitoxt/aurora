@@ -162,6 +162,7 @@ const es: Record<keyof typeof en, string> = {
   "fs.upNext": "A continuación",
   "fs.nothingPlaying": "Nada sonando",
   "fs.provider": "Proveedor de m\u00fasica",
+  "fs.extHint": "Extensión: instalala para seguir la música de tus pestañas",
   "fs.queuePanel": "Panel Continuar reproduciendo",
   "fs.lyricsToggle": "Letras / miniaturas",
   "fs.startMusic": "Empezar m\u00fasica",

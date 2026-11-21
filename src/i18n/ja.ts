@@ -162,6 +162,7 @@ const ja: Record<keyof typeof en, string> = {
   "fs.upNext": "次に再生",
   "fs.nothingPlaying": "\u518d\u751f\u4e2d\u306e\u66f2\u306f\u3042\u308a\u307e\u305b\u3093",
   "fs.provider": "\u97f3\u697d\u30d7\u30ed\u30d0\u30a4\u30c0\u30fc",
+  "fs.extHint": "拡張機能をインストールするとタブの音楽を追跡します",
   "fs.queuePanel": "\u7d9a\u304d\u3092\u518d\u751f\u30d1\u30cd\u30eb",
   "fs.lyricsToggle": "\u6b4c\u8a5e / \u30b5\u30e0\u30cd\u30a4\u30eb",
   "fs.startMusic": "\u97f3\u697d\u3092\u59cb\u3081\u308b",
