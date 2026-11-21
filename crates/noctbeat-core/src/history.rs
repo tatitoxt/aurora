@@ -57,6 +57,24 @@ pub struct DayStat {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Wrapped {
+    /// Calendar month the recap covers, "YYYY-MM".
+    pub month: String,
+    pub total_ms: u64,
+    pub plays: u64,
+    pub unique_tracks: u64,
+    pub unique_artists: u64,
+    /// Consecutive days with at least one play ending at the month's last
+    /// listened day (or its last day).
+    pub streak_days: u64,
+    /// Most listened calendar day in the month.
+    pub best_day: Option<DayStat>,
+    pub top_tracks: Vec<TopEntry>,
+    pub top_artists: Vec<TopEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Stats {
     pub total_ms: u64,
     pub plays: u64,
@@ -171,6 +189,96 @@ impl History {
             days,
         }
     }
+
+    /// Monthly recap for the calendar month containing `now_ms` (UTC):
+    /// totals, uniques, listening streak, best day and top-5 lists.
+    pub fn wrapped(&self, now_ms: u64) -> Wrapped {
+        let month = civil_date(now_ms / 86_400_000)[..7].to_string();
+        let mut plays = 0u64;
+        let mut total_ms = 0u64;
+        let mut track_ids = std::collections::HashSet::new();
+        let mut artist_names = std::collections::HashSet::new();
+        let mut tracks: BTreeMap<(String, String), (u64, u64)> = BTreeMap::new();
+        let mut artists: BTreeMap<String, (u64, u64)> = BTreeMap::new();
+        let mut by_day: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
+        for r in &self.records {
+            let d = r.played_at_ms / 86_400_000;
+            if !civil_date(d).starts_with(&month) {
+                continue;
+            }
+            plays += 1;
+            total_ms += r.ms_listened;
+            track_ids.insert(r.track_id.clone());
+            if !r.artist.is_empty() {
+                artist_names.insert(r.artist.clone());
+            }
+            let e = tracks
+                .entry((r.title.clone(), r.artist.clone()))
+                .or_default();
+            e.0 += 1;
+            e.1 += r.ms_listened;
+            if !r.artist.is_empty() {
+                let a = artists.entry(r.artist.clone()).or_default();
+                a.0 += 1;
+                a.1 += r.ms_listened;
+            }
+            let e = by_day.entry(d).or_default();
+            e.0 += 1;
+            e.1 += r.ms_listened;
+        }
+        let mut streak_days = 0u64;
+        if let Some(&last) = by_day.keys().next_back() {
+            let mut d = last;
+            while by_day.contains_key(&d) {
+                streak_days += 1;
+                if d == 0 {
+                    break;
+                }
+                d -= 1;
+            }
+        }
+        let best_day = by_day
+            .iter()
+            .max_by_key(|(_, (plays, ms))| (*plays, *ms))
+            .map(|(d, (plays, ms))| DayStat {
+                date: civil_date(*d),
+                plays: *plays,
+                ms: *ms,
+            });
+        let mut top_tracks: Vec<TopEntry> = tracks
+            .into_iter()
+            .map(|((title, artist), (plays, ms))| TopEntry {
+                name: title,
+                sub: artist,
+                plays,
+                ms,
+            })
+            .collect();
+        top_tracks.sort_by(|a, b| b.plays.cmp(&a.plays).then(b.ms.cmp(&a.ms)));
+        top_tracks.truncate(5);
+        let mut top_artists: Vec<TopEntry> = artists
+            .into_iter()
+            .map(|(name, (plays, ms))| TopEntry {
+                name,
+                sub: String::new(),
+                plays,
+                ms,
+            })
+            .collect();
+        top_artists.sort_by(|a, b| b.plays.cmp(&a.plays).then(b.ms.cmp(&a.ms)));
+        top_artists.truncate(5);
+        Wrapped {
+            month,
+            total_ms,
+            plays,
+            unique_tracks: track_ids.len() as u64,
+            unique_artists: artist_names.len() as u64,
+            streak_days,
+            best_day,
+            top_tracks,
+            top_artists,
+        }
+    }
 }
 
 /// Days since the Unix epoch → "YYYY-MM-DD" (Hinnant's civil algorithm).
@@ -244,6 +352,42 @@ mod tests {
         assert_eq!(s.days.len(), 2);
         assert_eq!(s.days[1].plays, 4);
         assert_eq!(s.days[0].plays, 1);
+    }
+
+    #[test]
+    fn wrapped_counts_month_uniques_and_streak() {
+        let day = |d: i64| (20_470 + d) as u64 * 86_400_000; // 2026-01-17 +d
+        let mut h = History::default();
+        // 3-day streak: Jan 15, 16, 17; a play on Jan 10 breaks it.
+        h.record(rec("a", "Song A", "Artist X", 100_000, day(-2)));
+        h.record(rec("b", "Song B", "Artist Y", 200_000, day(-1)));
+        h.record(rec("a", "Song A", "Artist X", 150_000, day(0)));
+        h.record(rec("a", "Song A", "Artist X", 150_000, day(0) + 500));
+        h.record(rec("c", "Song C", "Artist Z", 50_000, day(-7)));
+        // December: excluded.
+        h.record(rec("d", "Song D", "Artist W", 999_000, day(-20)));
+        let w = h.wrapped(day(0));
+        assert_eq!(w.month, "2026-01");
+        assert_eq!(w.plays, 5);
+        assert_eq!(w.total_ms, 650_000);
+        assert_eq!(w.unique_tracks, 3);
+        assert_eq!(w.unique_artists, 3);
+        assert_eq!(w.streak_days, 3);
+        assert_eq!(w.best_day.as_ref().unwrap().date, "2026-01-17");
+        assert_eq!(w.top_tracks[0].name, "Song A");
+        assert_eq!(w.top_tracks[0].plays, 3);
+        assert_eq!(w.top_artists[0].name, "Artist X");
+        assert!(w.top_tracks.iter().all(|t| t.name != "Song D"));
+    }
+
+    #[test]
+    fn wrapped_empty_month_is_zero() {
+        let h = History::default();
+        let w = h.wrapped(20_470 * 86_400_000);
+        assert_eq!(w.plays, 0);
+        assert_eq!(w.streak_days, 0);
+        assert!(w.best_day.is_none());
+        assert!(w.top_tracks.is_empty());
     }
 
     #[test]
