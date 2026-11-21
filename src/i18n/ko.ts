@@ -17,6 +17,7 @@ const ko: Record<keyof typeof en, string> = {
   "set.lines": "\uc904",
   "set.karaoke": "\uc74c\uc0c9",
   "set.videoBackdrop": "\ubc30\uacbd \ubba4\uc9c1\ube44\ub514\uc624",
+  "set.ambientBg": "앰비언트 리퀴드 배경",
   "set.theme": "\ud14c\ub9c8",
   "set.customColor": "\uc0ac\uc6a9\uc790 \uc0c9\uc0c1",
   "set.eq": "\uc774\ucff4\ub77c\uc774\uc800",

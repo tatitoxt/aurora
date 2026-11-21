@@ -17,6 +17,7 @@ const fr: Record<keyof typeof en, string> = {
   "set.lines": "Lignes",
   "set.karaoke": "Karaoké",
   "set.videoBackdrop": "Clip vidéo en fond",
+  "set.ambientBg": "Fond liquide d'ambiance",
   "set.theme": "Thème",
   "set.customColor": "Couleur personnalisée",
   "set.eq": "Égaliseur",

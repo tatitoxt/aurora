@@ -29,6 +29,7 @@ import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import { useT } from "../i18n";
 import { StickerLayer, StickerPicker } from "../Stickers";
 import { Sticker as StickerIcon } from "@phosphor-icons/react";
+import AmbientBg from "../AmbientBg";
 
 const PREV = <SkipBack weight="fill" size={18} />;
 const NEXT = <SkipForward weight="fill" size={18} />;
@@ -244,6 +245,7 @@ export default function Player() {
           {art ? <img src={art} alt="" /> : null}
           {videoUrl ? <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} /> : null}
           <div className="kbg__veil" />
+          {settings.ambientBg && !videoUrl && <AmbientBg />}
         </div>
         <div className="player player--karaoke">
           <div className="kcenter">

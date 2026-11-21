@@ -17,6 +17,7 @@ const ja: Record<keyof typeof en, string> = {
   "set.lines": "\u30e9\u30a4\u30f3",
   "set.karaoke": "\u30ab\u30e9\u30aa\u30b1",
   "set.videoBackdrop": "\u80cc\u666f\u306e\u30d3\u30c7\u30aa\u30af\u30ea\u30c3\u30d7",
+  "set.ambientBg": "アンビエントのリキッド背景",
   "set.theme": "\u30c6\u30fc\u30de",
   "set.customColor": "\u30ab\u30b9\u30bf\u30e0\u30ab\u30e9\u30fc",
   "set.eq": "\u30a4\u30b3\u30e9\u30a4\u30b6\u30fc",
