@@ -1283,3 +1283,68 @@ body {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
+
+/* lyric animation presets — applied via .lanim--<name> on the lyric container */
+@keyframes lanim-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lanim-slide {
+  from { opacity: 0; transform: translateY(0.6em); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes lanim-pop {
+  0% { opacity: 0; transform: scale(0.82); }
+  60% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes lanim-tw {
+  from { opacity: 0; transform: translateY(0.15em); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes lanim-pulse {
+  0% { transform: scale(0.94); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.lanim--fade .karaoke__line,
+.lanim--fade.fs__lyric,
+.lanim--fade .lyric--active {
+  animation: lanim-fade 0.5s ease both;
+}
+.lanim--slide .karaoke__line,
+.lanim--slide.fs__lyric,
+.lanim--slide .lyric--active {
+  animation: lanim-slide 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--pop .karaoke__line,
+.lanim--pop.fs__lyric,
+.lanim--pop .lyric--active {
+  animation: lanim-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.lanim--typewriter .kword,
+.lanim--typewriter .fsword {
+  animation: lanim-tw 0.25s ease both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.lanim--typewriter .lyric--active {
+  animation: lanim-tw 0.3s ease both;
+}
+.lanim--none .karaoke__line,
+.lanim--none.fs__lyric {
+  animation: none;
+}
+.lanim--pulse .karaoke__line,
+.lanim--pulse.fs__lyric,
+.lanim--pulse .lyric--active {
+  animation: lanim-pulse 0.55s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lanim--fade .karaoke__line, .lanim--fade.fs__lyric, .lanim--fade .lyric--active,
+  .lanim--slide .karaoke__line, .lanim--slide.fs__lyric, .lanim--slide .lyric--active,
+  .lanim--pop .karaoke__line, .lanim--pop.fs__lyric, .lanim--pop .lyric--active,
+  .lanim--typewriter .kword, .lanim--typewriter .fsword, .lanim--typewriter .lyric--active, .lanim--typewriter.fs__lyric,
+  .lanim--pulse .karaoke__line, .lanim--pulse.fs__lyric, .lanim--pulse .lyric--active {
+    animation: none;
+  }
+}

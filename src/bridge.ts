@@ -80,6 +80,8 @@ export interface Settings {
   soundFx: string;
   /** UI language code: en, es, pt, fr, de, it, ja, zh, ko. */
   language: string;
+  /** Karaoke lyric animation preset. */
+  lyricAnim: string;
   /** Crossfade length in ms between tracks; 0 = hard cut. */
   crossfadeMs: number;
   /** Floating karaoke overlay window on the desktop. */
@@ -241,6 +243,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eqBands: [],
   soundFx: "off",
   language: "en",
+  lyricAnim: "fade",
   crossfadeMs: 3000,
   deskLyricsEnabled: false,
   deskLyricsPosition: null,

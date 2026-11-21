@@ -156,6 +156,13 @@ const pt: Record<keyof typeof en, string> = {
   "stats.recap": "Resumo",
   "stats.insights": "An\u00e1lises",
   "player.stickers": "Adesivos",
+  "set.lyricAnim": "Anima\u00e7\u00e3o das letras",
+  "anim.fade": "Fade",
+  "anim.slide": "Deslizar",
+  "anim.pop": "Pop",
+  "anim.typewriter": "M\u00e1quina de escrever",
+  "anim.pulse": "Pulso",
+  "anim.none": "Nenhuma",
 };
 
 export default pt;

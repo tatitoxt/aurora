@@ -156,6 +156,13 @@ const ko: Record<keyof typeof en, string> = {
   "stats.recap": "\ub9ac\ucea1",
   "stats.insights": "\uc778\uc0ac\uc774\ud2b8",
   "player.stickers": "\uc2a4\ud2f0\ucee4",
+  "set.lyricAnim": "\uac00\uc0ac \uc560\ub2c8\uba54\uc774\uc158",
+  "anim.fade": "\ud398\uc774\ub4dc",
+  "anim.slide": "\uc2ac\ub77c\uc774\ub4dc",
+  "anim.pop": "\ud31d",
+  "anim.typewriter": "\ud0c0\uc790\uae30",
+  "anim.pulse": "\ud384\uc2a4",
+  "anim.none": "\uc5c6\uc74c",
 };
 
 export default ko;

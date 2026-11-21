@@ -156,6 +156,13 @@ const it: Record<keyof typeof en, string> = {
   "stats.recap": "Riepilogo",
   "stats.insights": "Approfondimenti",
   "player.stickers": "Adesivi",
+  "set.lyricAnim": "Animazione dei testi",
+  "anim.fade": "Dissolvenza",
+  "anim.slide": "Scorrimento",
+  "anim.pop": "Pop",
+  "anim.typewriter": "Macchina da scrivere",
+  "anim.pulse": "Impulso",
+  "anim.none": "Nessuna",
 };
 
 export default it;

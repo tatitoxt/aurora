@@ -156,6 +156,13 @@ const ja: Record<keyof typeof en, string> = {
   "stats.recap": "\u30ea\u30ad\u30e3\u30c3\u30d7",
   "stats.insights": "\u30a4\u30f3\u30b5\u30a4\u30c8",
   "player.stickers": "\u30b9\u30c6\u30c3\u30ab\u30fc",
+  "set.lyricAnim": "\u6b4c\u8a5e\u30a2\u30cb\u30e1\u30fc\u30b7\u30e7\u30f3",
+  "anim.fade": "\u30d5\u30a7\u30fc\u30c9",
+  "anim.slide": "\u30b9\u30e9\u30a4\u30c9",
+  "anim.pop": "\u30dd\u30c3\u30d7",
+  "anim.typewriter": "\u30bf\u30a4\u30d7\u30e9\u30a4\u30bf\u30fc",
+  "anim.pulse": "\u30d1\u30eb\u30b9",
+  "anim.none": "\u306a\u3057",
 };
 
 export default ja;
