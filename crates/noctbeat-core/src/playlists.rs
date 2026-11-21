@@ -33,25 +33,28 @@ fn is_remote(loc: &str) -> bool {
     loc.starts_with("http://") || loc.starts_with("https://")
 }
 
+/// `uri`: true when `loc` is a URI reference (XSPF `<location>`) whose
+/// percent-encoding must be decoded even without a `file://` scheme.
 fn file_entry(
     base: &Path,
     loc: &str,
     title: Option<String>,
     artist: Option<String>,
     duration_ms: Option<u64>,
+    uri: bool,
 ) -> PlaylistEntry {
     let loc = loc.trim();
     if is_remote(loc) {
         return PlaylistEntry::Remote(loc.to_string());
     }
-    // `file://` URIs may be percent-encoded; a plain path may be relative
-    // but keeps literal '%' sequences (e.g. "100%fA.mp3") — M3U does not
-    // encode plain paths, so decoding them would rename the file.
+    // `file://` URIs and XSPF locations are percent-encoded; plain M3U/PLS
+    // paths are not — decoding them would rename files with literal '%'
+    // sequences (e.g. "100%fA.mp3").
     let file_uri = loc.starts_with("file://");
     let raw = loc.strip_prefix("file://").unwrap_or(loc);
     // Windows URIs decode to `/C:/...`; the leading slash is URI syntax,
     // not part of the drive path.
-    let decoded = if file_uri {
+    let decoded = if file_uri || uri {
         strip_drive_slash(percent_decode(raw))
     } else {
         raw.to_string()
@@ -199,7 +202,7 @@ fn parse_m3u(path: &Path, content: &str) -> Vec<PlaylistEntry> {
             continue;
         }
         let (title, artist, dur) = pending.take().unwrap_or_default();
-        out.push(file_entry(base, line, title, artist, dur));
+        out.push(file_entry(base, line, title, artist, dur, false));
     }
     out
 }
@@ -241,7 +244,7 @@ fn parse_pls(path: &Path, content: &str) -> Vec<PlaylistEntry> {
                 .and_then(|(_, s)| s.trim().parse::<f64>().ok())
                 .filter(|s| *s > 0.0)
                 .map(|s| (s * 1000.0) as u64);
-            file_entry(base, &loc, title, None, duration_ms)
+            file_entry(base, &loc, title, None, duration_ms, false)
         })
         .collect()
 }
@@ -273,6 +276,7 @@ fn parse_xspf(path: &Path, content: &str) -> Vec<PlaylistEntry> {
                 text_of("title"),
                 text_of("creator"),
                 text_of("duration").and_then(|d| d.parse::<u64>().ok()),
+                true,
             )
         })
         .filter(|e| e != &PlaylistEntry::Remote(String::new()))
@@ -366,10 +370,11 @@ mod tests {
         <playlist xmlns="http://xspf.org/ns/0/"><trackList>
           <track><location>file:///music/a%20b.mp3</location><title>A B</title><creator>Me</creator><duration>60000</duration></track>
           <track><location>rel/c.mp3</location><title>C</title></track>
+          <track><location>music/a%20b.mp3</location></track>
           <track><location>https://x.test/s</location></track>
         </trackList></playlist>"#;
         let out = parse(Path::new("/x/list.xspf"), content);
-        assert_eq!(out.len(), 3);
+        assert_eq!(out.len(), 4);
         match &out[0] {
             PlaylistEntry::File {
                 path,
@@ -385,7 +390,9 @@ mod tests {
             _ => panic!("expected File"),
         }
         assert_eq!(file(&out[1]), &PathBuf::from("/x/rel/c.mp3"));
-        assert!(matches!(out[2], PlaylistEntry::Remote(_)));
+        // XSPF locations are URI references: percent-decoded even relative.
+        assert_eq!(file(&out[2]), &PathBuf::from("/x/music/a b.mp3"));
+        assert!(matches!(out[3], PlaylistEntry::Remote(_)));
     }
 
     #[test]
