@@ -168,6 +168,9 @@ fn apply_update(s: &mut Shared, u: Update) {
         source: provider,
         updated_at_ms: now_ms(),
     };
+    // Evict long-dead tabs so page reloads don't accumulate snapshots.
+    s.tabs
+        .retain(|_, t| t.received_at.elapsed() < Duration::from_secs(60));
     s.tabs.insert(
         key,
         TabState {
