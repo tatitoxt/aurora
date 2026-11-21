@@ -88,7 +88,7 @@ export default function Settings() {
     <div className="glass">
       <div className="settings">
         <div className="row">
-          <h1>{bridge.productName} settings</h1>
+          <h1>Settings</h1>
           <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
             Back
           </Link>
