@@ -10,6 +10,19 @@ import { activeLyricIndex, formatTime } from "../lib";
 import { CornersIn, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 
+function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    if (track.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setSrc);
+    else setSrc("");
+  }, [track.artworkUrl]);
+  return src ? (
+    <img className="fs__qthumb" src={src} alt="" />
+  ) : (
+    <div className="fs__qthumb fs__meta-art" aria-hidden="true" />
+  );
+}
+
 /** iBaila "Albums"-style fullscreen: blurred art wall, giant outlined clock,
  * Continue Playing panel left, lyric center, transport pill bottom. */
 export default function Fullscreen() {
@@ -81,6 +94,7 @@ export default function Fullscreen() {
       {queue.items.length > 0 && (
         <aside className="fs__queue">
           <div className="fs__qhead">Continue Playing</div>
+          <div className="fs__qsub2">Up next on your queue</div>
           <div className="fs__qlist">
             {queue.items.slice(0, 12).map((it, i) => (
               <button
@@ -88,15 +102,20 @@ export default function Fullscreen() {
                 className={`fs__qrow ${i === queue.currentIndex ? "fs__qrow--on" : ""}`}
                 onClick={() => void bridge.playQueueIndex(i)}
               >
-                <span className="fs__qtitle">{it.track.title}</span>
-                <span className="fs__qsub">{it.track.artist}</span>
-                {i === queue.currentIndex && playing && (
-                  <span className="fs__eq" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
+                <div className="fs__qbody">
+                  <QueueThumb track={it.track} />
+                  <span className="fs__qtxt">
+                    <span className="fs__qtitle">{it.track.title}</span>
+                    <span className="fs__qsub">{it.track.artist}</span>
                   </span>
-                )}
+                  {i === queue.currentIndex && playing && (
+                    <span className="fs__eq" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  )}
+                </div>
               </button>
             ))}
           </div>
