@@ -75,6 +75,7 @@ function ShortcutsGate() {
         t?.closest("input, textarea, select, [contenteditable]")
       )
         return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const b = bridge;
       if (e.key === " ") {
         if (t?.closest("button, [role='button'], a")) return;
@@ -107,7 +108,9 @@ function ShortcutsGate() {
           if (entry) toggleFav(loadFavs(), entry);
         });
       } else if (e.key === "f" || e.key === "F") {
-        navRef.current("/fullscreen");
+        void b.toggleFullscreen().then((on) => {
+          if (on) navRef.current("/fullscreen");
+        });
       }
     };
     window.addEventListener("keydown", onKey);
