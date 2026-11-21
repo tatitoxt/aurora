@@ -86,6 +86,8 @@ export interface Settings {
   activeProfile: string | null;
   /** Epoch ms when the sleep timer fires; null = off. */
   sleepTimerEndsMs: number | null;
+  /** Restore the last queue paused at its position on launch. */
+  resumeOnLaunch: boolean;
 }
 
 /** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
@@ -216,6 +218,7 @@ export const DEFAULT_SETTINGS: Settings = {
   deskLyricsEnabled: false,
   deskLyricsPosition: null,
   sleepTimerEndsMs: null,
+  resumeOnLaunch: true,
   profiles: [],
   activeProfile: null,
 };

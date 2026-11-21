@@ -47,6 +47,8 @@ struct AppState {
     #[cfg(target_os = "linux")]
     mpris: std::sync::OnceLock<mpris::MprisHandle>,
     history_path: PathBuf,
+    /// session.json beside settings: queue + position for resume-on-launch.
+    session_path: PathBuf,
     /// Wall-clock time accumulated on the track currently playing.
     listen: Mutex<ListenTracker>,
     /// Metadata for queue items whose `path` is a `remote:<source>:<id>`
@@ -158,12 +160,21 @@ fn resolve_remote(
     cache: &std::path::Path,
     key: &str,
 ) -> Result<PathBuf, String> {
-    let rt = map
-        .lock()
-        .map_err(|e| e.to_string())?
-        .get(key)
-        .cloned()
-        .ok_or_else(|| format!("unknown remote track {key}"))?;
+    let rt = map.lock().map_err(|e| e.to_string())?.get(key).cloned();
+    let Some(rt) = rt else {
+        // A restored queue can reference a remote track whose metadata
+        // is gone; the cache name derives from the key alone, so a
+        // downloaded file still plays.
+        let (source, id) = key
+            .split_once(':')
+            .ok_or_else(|| format!("unknown remote track {key}"))?;
+        let name = format!(
+            "{source}-{}",
+            id.replace(|c: char| !c.is_alphanumeric(), "_")
+        );
+        return providers::cached_file(cache, &name)
+            .ok_or_else(|| format!("unknown remote track {key}"));
+    };
     let name = remote_cache_name(&rt);
     if let Some(f) = providers::cached_file(cache, &name) {
         return Ok(f);
@@ -328,6 +339,74 @@ fn set_volume(state: State<AppState>, volume: f32) -> Result<(), String> {
 struct QueueOut {
     items: Vec<QueueItem>,
     current_index: Option<usize>,
+}
+
+/// Last local playback context, persisted so the next launch can offer
+/// "Continue Playing" paused where the user left off.
+#[derive(Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionState {
+    items: Vec<QueueItem>,
+    index: Option<usize>,
+    position_ms: u64,
+    repeat: RepeatMode,
+    shuffle: bool,
+    /// Remote metadata for `remote:` queue paths, so a relaunched app
+    /// can resolve them even if they were never cached.
+    #[serde(default)]
+    remote: std::collections::HashMap<String, RemoteTrack>,
+}
+
+/// Write the player's queue + cursor + position to session.json; an
+/// empty queue removes the file (nothing to continue).
+fn write_session(state: &AppState) {
+    let Ok(p) = state.player.lock() else { return };
+    let (items, index, position_ms, repeat, shuffle) = p.session();
+    if items.is_empty() {
+        let _ = std::fs::remove_file(&state.session_path);
+        return;
+    }
+    let session = SessionState {
+        items: items.to_vec(),
+        index,
+        position_ms,
+        repeat,
+        shuffle,
+        remote: state.remote.lock().map(|m| m.clone()).unwrap_or_default(),
+    };
+    if let Ok(json) = serde_json::to_string(&session) {
+        let _ = std::fs::write(&state.session_path, json);
+    }
+}
+
+/// Restore the saved session paused at its position — no file or
+/// stream is opened until the user presses play.
+fn restore_session(state: &AppState) {
+    let resume = state
+        .settings
+        .lock()
+        .map(|s| s.resume_on_launch)
+        .unwrap_or(false);
+    if !resume {
+        return;
+    }
+    let Ok(text) = std::fs::read_to_string(&state.session_path) else {
+        return;
+    };
+    let Ok(s) = serde_json::from_str::<SessionState>(&text) else {
+        return;
+    };
+    if s.items.is_empty() {
+        return;
+    }
+    // Repopulate resolver metadata first — the resolver rejects remote
+    // keys it doesn't know, even for files already in the cache.
+    if let Ok(mut m) = state.remote.lock() {
+        m.extend(s.remote);
+    }
+    if let Ok(mut p) = state.player.lock() {
+        p.restore(s.items, s.index, s.position_ms, s.repeat, s.shuffle);
+    }
 }
 
 #[tauri::command]
@@ -1675,6 +1754,11 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 }
                 poll_np(&state)
             };
+            // Persist the local queue + position ~every 5s so the next
+            // launch can offer Continue Playing (final flush on Exit).
+            if ticks.is_multiple_of(25) {
+                write_session(&state);
+            }
             // Sleep timer: pause whatever is playing when the deadline hits.
             {
                 let ends = state
@@ -1822,6 +1906,7 @@ pub fn run() {
             license_path: dir.join("license.json"),
             history: Mutex::new(History::load(&dir.join("history.json"))),
             history_path: dir.join("history.json"),
+            session_path: dir.join("session.json"),
             listen: Mutex::new(ListenTracker::default()),
             hud_pos_pending: Mutex::new(None),
             desk_lyrics_pos_pending: Mutex::new(None),
@@ -1893,8 +1978,10 @@ pub fn run() {
             if let Some(h) = mpris::start(app.handle()) {
                 let _ = app.state::<AppState>().mpris.set(h);
             }
-            spawn_poller(app.handle());
             let state = app.state::<AppState>();
+            restore_session(&state);
+            emit_queue(app.handle(), &state);
+            spawn_poller(app.handle());
             if let Some(rodio) = &state.rodio {
                 if let Ok(s) = state.settings.lock() {
                     rodio.eq().set(&s.eq_bands);
@@ -1917,6 +2004,9 @@ pub fn run() {
                 if let Ok(mut t) = state.listen.lock() {
                     t.flush(&state.history, &state.history_path);
                 };
+                // Final position flush — the periodic save can lag a
+                // few seconds behind an abrupt quit.
+                write_session(&state);
             }
         });
 }

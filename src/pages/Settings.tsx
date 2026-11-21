@@ -347,6 +347,14 @@ export default function Settings() {
             </span>
           )}
         </div>
+        <div className="row">
+          <span>Resume playback on launch</span>
+          <button
+            className={`toggle ${s.resumeOnLaunch ? "on" : ""}`}
+            aria-label="Resume playback on launch"
+            onClick={() => patch({ resumeOnLaunch: !s.resumeOnLaunch })}
+          />
+        </div>
 
         <div className="field">
           <span>Music folder</span>
