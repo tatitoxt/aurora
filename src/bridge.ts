@@ -69,6 +69,10 @@ export interface Settings {
   eqPreset: string;
   /** Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat. */
   eqBands: number[];
+  /** Floating karaoke overlay window on the desktop. */
+  deskLyricsEnabled: boolean;
+  /** Restored overlay position, physical px. */
+  deskLyricsPosition: [number, number] | null;
 }
 
 /** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
@@ -133,6 +137,8 @@ export const DEFAULT_SETTINGS: Settings = {
   audioOutput: null,
   eqPreset: "flat",
   eqBands: [],
+  deskLyricsEnabled: false,
+  deskLyricsPosition: null,
 };
 
 const isTauri = () =>
@@ -285,6 +291,8 @@ export const bridge = {
   },
   hudStartDrag: () =>
     isTauri() ? invokeCmd<null>("hud_start_drag") : Promise.resolve(null),
+  deskLyricsStartDrag: () =>
+    isTauri() ? invokeCmd<null>("desk_lyrics_start_drag") : Promise.resolve(null),
   showPlayer: () => {
     if (isTauri()) return invokeCmd<null>("show_player");
     window.location.hash = "#/";
