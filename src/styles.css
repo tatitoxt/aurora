@@ -978,7 +978,7 @@ body {
 .fs__orbititem { left: 50%; top: 44%; }
 
 /* ---------- artist page ---------- */
-.art { height: 100%; display: flex; flex-direction: column; }
+.art { display: flex; flex-direction: column; }
 .art__hero {
   position: relative; overflow: hidden;
   padding: 10px 16px 16px;

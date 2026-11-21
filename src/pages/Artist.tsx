@@ -100,7 +100,7 @@ export default function Artist() {
   const heroArt = covers[0];
 
   return (
-    <div className="art">
+    <div className="glass art">
       <div className="art__hero">
         {heroArt && arts[heroArt] && (
           <img className="art__heroBg" src={arts[heroArt]} alt="" aria-hidden />
