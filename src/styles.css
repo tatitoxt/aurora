@@ -1048,6 +1048,7 @@ body {
   display: flex; flex-direction: column; gap: 4px; align-items: stretch;
   background: none; border: none; cursor: pointer; text-align: left;
   font: inherit; color: var(--text); padding: 4px; border-radius: 10px;
+  text-decoration: none;
 }
 .art__album:hover { background: rgba(255,255,255,.05); }
 .art__albumCover {
