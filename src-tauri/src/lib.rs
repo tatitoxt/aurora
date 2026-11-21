@@ -1275,12 +1275,7 @@ fn update_tray(state: &AppState, np: &NowPlaying, energy: &EnergyUpdate) {
         if !changed {
             return;
         }
-        let icon = compose_tray_icon(
-            art.map(|a| (&a.1, a.2)),
-            progress,
-            energy.level,
-            playing,
-        );
+        let icon = compose_tray_icon(art.map(|a| (&a.1, a.2)), progress, energy.level, playing);
         let _ = tray.set_icon(Some(icon));
         d.using_live = true;
         d.last_bucket = bucket;
@@ -1318,8 +1313,7 @@ fn compose_tray_icon(
                 continue;
             }
             if r >= 26.0 {
-                let frac = ((dy.atan2(dx) + std::f32::consts::FRAC_PI_2)
-                    / std::f32::consts::TAU)
+                let frac = ((dy.atan2(dx) + std::f32::consts::FRAC_PI_2) / std::f32::consts::TAU)
                     .rem_euclid(1.0);
                 let a = if frac <= progress { lit_alpha } else { 60 };
                 buf.put_pixel(x, y, image::Rgba([accent.0, accent.1, accent.2, a]));
