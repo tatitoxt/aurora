@@ -25,6 +25,7 @@ import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
 import { activeLyricIndex, formatTime } from "../lib";
+import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 
 const PREV = <SkipBack weight="fill" size={18} />;
 const NEXT = <SkipForward weight="fill" size={18} />;
@@ -75,6 +76,9 @@ export default function Player() {
   const go = useNavigate();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
+  const [lyroffTick, setLyroffTick] = useState(0);
+  useEffect(() => subscribeLyroff(() => setLyroffTick((t) => t + 1)), []);
+  void lyroffTick;
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [art, setArt] = useState<string>("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -133,7 +137,7 @@ export default function Player() {
 
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 1;
-  const active = lyrics ? activeLyricIndex(lyrics, pos) : -1;
+  const active = lyrics ? activeLyricIndex(lyrics, pos + lyricOffsetFor(np)) : -1;
   const playing = np?.status === "playing";
   const karaoke = settings.lyricsMode === "karaoke";
 
