@@ -7,6 +7,12 @@ const PLAYLIST: &[(&str, &str, &str, u64)] = &[
     ("Neon Reversal", "Violet Sector", "Parallax Bloom", 214_000),
     ("Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000),
     ("Glass Tide", "Ultramar", "Field Lines", 243_000),
+    ("Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000),
+    ("Midnight Relay", "Chromewave", "Night Grid", 201_000),
+    ("Velvet Static", "Ultramar", "Field Lines", 176_000),
+    ("Afterglow Avenue", "Neon Fields", "Daybreak", 224_000),
+    ("Low Orbit", "Lunar Plain", "Earthrise", 198_000),
+    ("Paper Satellites", "Violet Sector", "Parallax Bloom", 232_000),
 ];
 
 pub struct DemoSource {
