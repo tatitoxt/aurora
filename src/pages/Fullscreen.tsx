@@ -55,6 +55,7 @@ import {
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import ShareCard from "../ShareCard";
+import AmbientBg from "../AmbientBg";
 
 const PROVIDERS = [
   { id: "youtube", label: "YouTube Music", icon: YoutubeLogo, live: true },
@@ -380,6 +381,7 @@ export default function Fullscreen() {
           <div className="fs__mesh" />
         )}
         <div className="fs__veil" />
+        {settings.ambientBg && !videoUrl && <AmbientBg />}
       </div>
       <div className="fs__grain" aria-hidden="true" />
 

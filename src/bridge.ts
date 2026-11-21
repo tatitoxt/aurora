@@ -48,6 +48,8 @@ export interface Settings {
   lyricsMode: string;
   /** Karaoke backdrop plays the music video (yt-dlp) instead of blurred art. */
   videoBackdrop: boolean;
+  /** Animated "liquid" gradient blobs behind player surfaces. */
+  ambientBg: boolean;
   /** Audio output device name; null = OS default. */
   audioOutput: string | null;
   /** Active EQ preset name; "custom" after a slider moves. */
@@ -219,6 +221,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: { name: "noct", accent: null, accent2: null, dynamic: true },
   lyricsMode: "lines",
   videoBackdrop: true,
+  ambientBg: true,
   audioOutput: null,
   eqPreset: "flat",
   eqBands: [],
