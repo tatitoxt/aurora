@@ -173,7 +173,11 @@ export default function Hud() {
               className={`hctl ${shuffleOn ? "hctl--on" : ""}`}
               aria-label="Shuffle"
               title="Shuffle"
-              onClick={() => void bridge.setShuffle(!shuffleOn).then(setShuffleOn)}
+              onClick={() =>
+                void bridge.getShuffle().then((cur) =>
+                  bridge.setShuffle(!cur).then(setShuffleOn),
+                )
+              }
             >
               <Shuffle size={14} />
             </button>

@@ -2338,6 +2338,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
+        let mut last_qidx: Option<usize> = None;
         let mut last_track_id: Option<String> = None;
         let mut last_monitor_sig = String::new();
         loop {
@@ -2499,6 +2500,13 @@ fn spawn_poller(app: &tauri::AppHandle) {
             }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
+            // Next/Prev and natural advance move the queue cursor without a
+            // queue mutation: re-emit so panels keep the highlight current.
+            let qidx = state.player.lock().ok().and_then(|p| p.current_index());
+            if qidx != last_qidx {
+                last_qidx = qidx;
+                emit_queue(&app, &state);
+            }
             #[cfg(target_os = "linux")]
             if let Some(m) = state.mpris.get() {
                 m.update(&np, local_active(&state));
