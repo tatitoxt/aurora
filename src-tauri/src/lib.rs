@@ -2,7 +2,7 @@
 //! Commands/event names are the contract in docs/CONTRACT.md.
 
 use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
-use noctbeat_core::history::{play_threshold_ms, History, PlayRecord, Stats};
+use noctbeat_core::history::{play_threshold_ms, History, PlayRecord, Stats, Wrapped};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
 use noctbeat_core::media::{
@@ -243,6 +243,13 @@ fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
 fn get_stats(state: State<AppState>) -> Result<Stats, String> {
     let h = state.history.lock().map_err(|e| e.to_string())?;
     Ok(h.stats(14, now_ms()))
+}
+
+/// Monthly recap (wrapped) for the calendar month containing now.
+#[tauri::command]
+fn get_wrapped(state: State<AppState>) -> Result<Wrapped, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    Ok(h.wrapped(now_ms()))
 }
 
 #[tauri::command]
@@ -1154,6 +1161,7 @@ pub fn run() {
             import_playlist,
             import_playlist_url,
             get_stats,
+            get_wrapped,
             clear_history,
         ])
         .setup(move |app| {

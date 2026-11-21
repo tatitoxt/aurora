@@ -140,6 +140,18 @@ export interface Stats {
   /** Daily activity, oldest first. */
   days: DayStat[];
 }
+export interface Wrapped {
+  /** Calendar month, "YYYY-MM". */
+  month: string;
+  totalMs: number;
+  plays: number;
+  uniqueTracks: number;
+  uniqueArtists: number;
+  streakDays: number;
+  bestDay: DayStat | null;
+  topTracks: TopEntry[];
+  topArtists: TopEntry[];
+}
 export type LicenseState =
   | { state: "unlicensed" }
   | { state: "valid"; customer_email: string | null; last_validated_ms: number }
@@ -476,4 +488,28 @@ export const bridge = {
   },
   clearHistory: () =>
     isTauri() ? invokeCmd<null>("clear_history") : Promise.resolve(null),
+  getWrapped: (): Promise<Wrapped> => {
+    if (isTauri()) return invokeCmd<Wrapped>("get_wrapped");
+    const month = new Date().toISOString().slice(0, 7);
+    return Promise.resolve({
+      month,
+      totalMs: 4_980_000,
+      plays: 23,
+      uniqueTracks: 9,
+      uniqueArtists: 4,
+      streakDays: 4,
+      bestDay: { date: `${month}-12`, plays: 8, ms: 1_700_000 },
+      topTracks: DEMO_PLAYLIST.slice(0, 5).map(([title, artist], i) => ({
+        name: title,
+        sub: artist,
+        plays: 7 - i,
+        ms: 1_100_000 - i * 160_000,
+      })),
+      topArtists: [
+        { name: "Violet Sector", sub: "", plays: 9, ms: 2_100_000 },
+        { name: "Ultramar", sub: "", plays: 6, ms: 1_400_000 },
+        { name: "Neon Fields", sub: "", plays: 5, ms: 900_000 },
+      ],
+    });
+  },
 };
