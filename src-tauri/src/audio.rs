@@ -387,8 +387,7 @@ impl AudioOut for RodioOut {
             .map_err(|e| e.to_string())
     }
     fn set_volume(&self, volume: f32) {
-        self.base_volume
-            .store(volume.to_bits(), Ordering::Relaxed);
+        self.base_volume.store(volume.to_bits(), Ordering::Relaxed);
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {
                 i.player.set_volume(volume);
