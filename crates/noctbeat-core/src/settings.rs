@@ -117,6 +117,10 @@ pub struct Settings {
     /// Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat.
     #[serde(default)]
     pub eq_bands: Vec<f32>,
+    /// Master sound effect: "off" (default), "reverb", "8d", "echo" —
+    /// applied live in the decode chain.
+    #[serde(default = "default_sound_fx")]
+    pub sound_fx: String,
     /// Floating always-on-top desktop lyrics overlay.
     #[serde(default)]
     pub desk_lyrics_enabled: bool,
@@ -143,6 +147,9 @@ pub struct Settings {
     pub notify_track_change: bool,
 }
 
+fn default_sound_fx() -> String {
+    "off".into()
+}
 fn default_eq_preset() -> String {
     "flat".into()
 }
@@ -187,6 +194,7 @@ impl Default for Settings {
             crossfade_ms: default_crossfade(),
             eq_preset: default_eq_preset(),
             eq_bands: Vec::new(),
+            sound_fx: default_sound_fx(),
             desk_lyrics_enabled: false,
             desk_lyrics_position: None,
             profiles: Vec::new(),
