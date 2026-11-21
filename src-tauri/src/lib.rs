@@ -934,6 +934,42 @@ fn get_energy(state: State<AppState>) -> Result<EnergyUpdate, String> {
     Ok(*state.last_energy.lock().map_err(|e| e.to_string())?)
 }
 
+/// True while any system battery is discharging. The edge auto-dim polls
+/// this because WebKit/WKWebView webviews lack `navigator.getBattery`.
+#[tauri::command]
+fn on_battery() -> bool {
+    system_on_battery()
+}
+
+#[cfg(target_os = "linux")]
+fn system_on_battery() -> bool {
+    let Ok(rd) = std::fs::read_dir("/sys/class/power_supply") else {
+        return false;
+    };
+    rd.flatten().any(|e| {
+        std::fs::read_to_string(e.path().join("type"))
+            .map(|t| t.trim() == "Battery")
+            .unwrap_or(false)
+            && std::fs::read_to_string(e.path().join("status"))
+                .map(|s| s.trim() == "Discharging")
+                .unwrap_or(false)
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn system_on_battery() -> bool {
+    std::process::Command::new("pmset")
+        .args(["-g", "batt"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("'Battery Power'"))
+        .unwrap_or(false)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn system_on_battery() -> bool {
+    false
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DisplayInfo {
@@ -1147,6 +1183,9 @@ struct TrayDyn {
     art: Option<(String, image::RgbaImage, Rgb)>,
     /// Artwork url with a fetch already in flight.
     pending: Option<String>,
+    /// Artwork url that failed to fetch or decode; not retried while the
+    /// track stays the same, or a broken cover would re-download every tick.
+    failed: Option<String>,
     last_bucket: u32,
     last_level: u8,
     last_playing: Option<bool>,
@@ -1189,6 +1228,7 @@ fn update_tray(state: &AppState, np: &NowPlaying, energy: &EnergyUpdate) {
         if !art_url.is_empty()
             && d.art.as_ref().map(|a| a.0 != art_url).unwrap_or(true)
             && d.pending.as_deref() != Some(art_url.as_str())
+            && d.failed.as_deref() != Some(art_url.as_str())
         {
             d.pending = Some(art_url.clone());
             let dyn2 = state.tray_dyn.clone();
@@ -1220,8 +1260,9 @@ fn update_tray(state: &AppState, np: &NowPlaying, energy: &EnergyUpdate) {
                     if d.pending.as_deref() == Some(url.as_str()) {
                         d.pending = None;
                     }
-                    if let Some(art) = art {
-                        d.art = Some(art);
+                    match art {
+                        Some(art) => d.art = Some(art),
+                        None => d.failed = Some(url),
                     }
                 }
             });
@@ -1561,6 +1602,7 @@ pub fn run() {
             get_license_state,
             activate_license,
             get_energy,
+            on_battery,
             list_displays,
             set_hud_pinned,
             hud_start_drag,

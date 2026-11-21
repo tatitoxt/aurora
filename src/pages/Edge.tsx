@@ -47,28 +47,37 @@ export default function Edge() {
 
   // Battery status: dim the glow while discharging (auto-dim setting).
   useEffect(() => {
-    let bat: { charging: boolean; onchargingchange: unknown; onlevelchange: unknown } | null = null;
-    const upd = () => bat && setOnBattery(!bat.charging);
     interface BatteryLike {
       charging: boolean;
       onchargingchange: unknown;
       onlevelchange: unknown;
     }
     const nav = navigator as Navigator & { getBattery?: () => Promise<BatteryLike> };
-    nav.getBattery?.()
-      .then((b) => {
-        bat = b;
-        upd();
-        b.onchargingchange = upd;
-        b.onlevelchange = upd;
-      })
-      .catch(() => {});
-    return () => {
-      if (bat) {
-        bat.onchargingchange = null;
-        bat.onlevelchange = null;
-      }
-    };
+    if (nav.getBattery) {
+      let bat: BatteryLike | null = null;
+      const upd = () => bat && setOnBattery(!bat.charging);
+      nav
+        .getBattery()
+        .then((b) => {
+          bat = b;
+          upd();
+          b.onchargingchange = upd;
+          b.onlevelchange = upd;
+        })
+        .catch(() => {});
+      return () => {
+        if (bat) {
+          bat.onchargingchange = null;
+          bat.onlevelchange = null;
+        }
+      };
+    }
+    // Desktop webviews (WebKit/WKWebView) lack getBattery — the shell
+    // reads the OS power state instead.
+    const poll = () => bridge.getOnBattery().then(setOnBattery).catch(() => {});
+    poll();
+    const timer = window.setInterval(poll, 30_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const silent = settings.lightsOffOnSilence && npStatus !== "playing";
