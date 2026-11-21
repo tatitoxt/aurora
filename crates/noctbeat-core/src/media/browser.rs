@@ -143,8 +143,9 @@ fn apply_update(s: &mut Shared, u: Update) {
     let provider = u.provider.clone().unwrap_or_else(|| "browser".into());
     let title = u.title.clone().unwrap_or_default();
     let artist = u.artist.clone().unwrap_or_default();
+    let empty = title.is_empty();
     let np = NowPlaying {
-        track: if title.is_empty() {
+        track: if empty {
             None
         } else {
             Some(Track {
@@ -156,7 +157,7 @@ fn apply_update(s: &mut Shared, u: Update) {
                 duration_ms: u.duration_ms.unwrap_or(0),
             })
         },
-        status: if title.is_empty() {
+        status: if empty {
             PlaybackStatus::Stopped
         } else if u.playing.unwrap_or(true) {
             PlaybackStatus::Playing
