@@ -27,11 +27,16 @@ export default function WrappedPage() {
   return (
     <div className="glass">
       <div className="settings">
-        <div className="row">
-          <h1>{m.headline}</h1>
-          <Link to="/stats" className="wordmark" style={{ textDecoration: "none" }}>
-            Stats
-          </Link>
+        <div className="pagehead" style={{ padding: "0 0 4px" }}>
+          <div className="pagehead__top">
+            <span className="art__kicker">Recap</span>
+            <span className="pagehead__links">
+              <Link to="/stats" className="pagehead__link">
+                Stats
+              </Link>
+            </span>
+          </div>
+          <h1 className="pagehead__name">{m.headline}</h1>
         </div>
 
         {wrapped.plays === 0 ? (
@@ -69,7 +74,7 @@ export default function WrappedPage() {
               </div>
             </div>
 
-            <div className="field">
+            <div className="panel">
               <span>Top tracks this month</span>
               <div className="tops">
                 {wrapped.topTracks.map((t, i) => (
@@ -87,7 +92,7 @@ export default function WrappedPage() {
               </div>
             </div>
 
-            <div className="field">
+            <div className="panel">
               <span>Top artists this month</span>
               <div className="tops">
                 {wrapped.topArtists.map((a, i) => (

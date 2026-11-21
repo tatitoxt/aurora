@@ -20,30 +20,45 @@ import {
 } from "../favs";
 import { formatTime } from "../lib";
 import {
+  Heart,
   ListBullets,
+  Playlist,
+  MagnifyingGlass,
+  MusicNote,
   PencilSimple,
   Plus,
   Trash,
   X,
 } from "@phosphor-icons/react";
+import { artSrc } from "../bridge";
+
+/** 32px rounded row cover: real artwork when the file has art, else a
+ * soft glass disc with an icon. */
+function LibThumb({ url, icon }: { url?: string; icon?: React.ReactNode }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    setSrc("");
+    if (!url) return;
+    let live = true;
+    void artSrc(url).then((s) => {
+      if (live) setSrc(s);
+    });
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  if (src) return <img className="lib__thumb" src={src} alt="" />;
+  return (
+    <span className="lib__thumb lib__thumb--ph" aria-hidden>
+      {icon ?? <MusicNote />}
+    </span>
+  );
+}
 
 const SOURCES = [
   { id: "youtube", label: "YouTube" },
   { id: "soundcloud", label: "SoundCloud" },
 ];
-
-function LibThumb({ url }: { url?: string }) {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    if (url) void bridge.artSrc(url).then(setSrc).catch(() => {});
-    else setSrc("");
-  }, [url]);
-  return src ? (
-    <img className="lib__thumb" src={src} alt="" />
-  ) : (
-    <div className="lib__thumb lib__thumb--ph" aria-hidden="true">♪</div>
-  );
-}
 
 export default function Library() {
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
@@ -318,20 +333,27 @@ export default function Library() {
   return (
     <div className="glass">
       <div className="settings">
-        <div className="row">
-          <h1>Library</h1>
-          <span style={{ display: "flex", gap: 12 }}>
-            <Link to="/albums" className="wordmark" style={{ textDecoration: "none" }}>
-              Albums
-            </Link>
-            <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
-              Back
-            </Link>
+        <div className="pagehead" style={{ padding: "0 0 4px" }}>
+          <div className="pagehead__top">
+            <span className="art__kicker">Collection</span>
+            <span className="pagehead__links">
+              <Link to="/albums" className="pagehead__link">
+                Albums
+              </Link>
+              <Link to="/" className="pagehead__link">
+                Back
+              </Link>
+            </span>
+          </div>
+          <h1 className="pagehead__name">Library</h1>
+          <span className="pagehead__meta">
+            {queue.items.length} {queue.items.length === 1 ? "track" : "tracks"}
+            {playlists.length > 0 && ` · ${playlists.length} playlists`}
           </span>
         </div>
 
-        <div className="row">
-          <span>Stream</span>
+        <div className="sechead">
+          <h2 className="art__h">Stream</h2>
           <div className="seg">
             {SOURCES.map((s) => (
               <button
@@ -344,7 +366,8 @@ export default function Library() {
             ))}
           </div>
         </div>
-        <div className="row">
+        <div className="inrow">
+          <MagnifyingGlass />
           <input
             type="text"
             placeholder="Search tracks…"
@@ -357,7 +380,7 @@ export default function Library() {
           </button>
         </div>
         {!ytReady && (
-          <span className="field">
+          <span className="note">
             Streaming needs <code style={{whiteSpace:"nowrap"}}>yt-dlp</code> installed (brew or pip).
           </span>
         )}
@@ -397,8 +420,8 @@ export default function Library() {
           ))}
         </div>
 
-        <div className="row">
-          <span>{queue.items.length} tracks</span>
+        <div className="sechead">
+          <h2 className="art__h">Queue</h2>
           <div className="seg">
             <button onClick={rescan}>Rescan</button>
             <button onClick={importPlaylist}>Import</button>
@@ -412,7 +435,8 @@ export default function Library() {
           </div>
         </div>
         {saveOpen && (
-          <div className="row">
+          <div className="inrow">
+            <Playlist />
             <input
               type="text"
               placeholder="Playlist name"
@@ -426,10 +450,11 @@ export default function Library() {
           </div>
         )}
         {ytReady && (
-          <div className="row">
+          <div className="inrow">
+            <Plus />
             <input
               type="text"
-              placeholder="Playlist URL (YouTube, SoundCloud…)"
+              placeholder="Playlist URL"
               value={plUrl}
               onChange={(e) => setPlUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && importUrl()}
@@ -439,10 +464,10 @@ export default function Library() {
             </button>
           </div>
         )}
-        {importNote && <span className="field">{importNote}</span>}
+        {importNote && <span className="note">{importNote}</span>}
         {error && <span className="license-bad">{error}</span>}
         {queue.items.length === 0 && !error && (
-          <span className="field">Set a music folder in settings, then press Rescan.</span>
+          <span className="note">Set a music folder in settings, then press Rescan.</span>
         )}
         <div className="lib">
           {queue.items.map((item, i) => {
@@ -474,9 +499,7 @@ export default function Library() {
         </div>
         {liked.length > 0 && (
           <>
-            <div className="row">
-              <span>Liked</span>
-            </div>
+            <h2 className="art__h">Liked</h2>
             <div className="lib">
               {liked.map((e) => {
                 const replay = replayFor(e);
@@ -488,9 +511,9 @@ export default function Library() {
                     onClick={() => playLiked(e)}
                     disabled={downloading !== null}
                   >
-                    <LibThumb />
+                    <LibThumb icon={<Heart weight="fill" />} />
                     <span className="lib__title">
-                      {downloading === e.key ? "⤓ " : "♥ "}
+                      {downloading === e.key ? "⤓ " : ""}
                       {e.title}
                     </span>
                     <span className="lib__sub">
@@ -512,9 +535,7 @@ export default function Library() {
         )}
         {playlists.length > 0 && (
           <>
-            <div className="row">
-              <span>Playlists</span>
-            </div>
+            <h2 className="art__h">Playlists</h2>
             <div className="lib">
               {playlists.map((p) => (
                 <div key={p.path}>
@@ -529,7 +550,7 @@ export default function Library() {
                       }
                     }}
                   >
-                    <LibThumb />
+                    <LibThumb icon={<Playlist />} />
                     {renaming === p.path ? (
                       <input
                         className="lib__rename"
