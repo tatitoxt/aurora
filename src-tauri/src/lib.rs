@@ -2355,7 +2355,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
         let mut last_fs = false;
-    let mut last_qidx: Option<usize> = None;
+        let mut last_qidx: Option<usize> = None;
         let mut last_track_id: Option<String> = None;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
@@ -2790,6 +2790,18 @@ pub fn run() {
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_hud_window(app.handle(), &s);
             sync_desk_lyrics_window(app.handle(), &s);
+            // The player is the only recoverable window: closing it must
+            // hide (HUD/tray can reopen), never destroy — a destroyed
+            // player takes the whole app down and leaves no way back.
+            if let Some(player) = app.get_webview_window("player") {
+                let p2 = player.clone();
+                player.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = p2.hide();
+                    }
+                });
+            }
             build_tray(app.handle())?;
             register_media_hotkeys(app.handle());
             Ok(())
