@@ -84,6 +84,10 @@ pub struct Settings {
     /// (resolved via yt-dlp); false keeps the blurred artwork backdrop.
     #[serde(default = "default_true")]
     pub video_backdrop: bool,
+    /// Animated "liquid" gradient blobs behind player surfaces, tinted by
+    /// the artwork palette; false keeps the static backdrop.
+    #[serde(default = "default_true")]
+    pub ambient_bg: bool,
     /// Audio output device name (e.g. a Bluetooth speaker); None = OS default.
     #[serde(default)]
     pub audio_output: Option<String>,
@@ -180,6 +184,7 @@ impl Default for Settings {
             theme: ThemeSettings::default(),
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
+            ambient_bg: true,
             audio_output: None,
             crossfade_ms: default_crossfade(),
             eq_preset: default_eq_preset(),

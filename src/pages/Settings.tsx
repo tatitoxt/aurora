@@ -165,6 +165,15 @@ export default function Settings() {
           </div>
         )}
 
+        <div className="row">
+          <span>{t("set.ambientBg")}</span>
+          <button
+            className={`toggle ${s.ambientBg ? "on" : ""}`}
+            aria-label="Ambient background"
+            onClick={() => patch({ ambientBg: !s.ambientBg })}
+          />
+        </div>
+
         <div className="field">
           <span>{t("set.theme")}</span>
           <div className="seg">

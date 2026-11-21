@@ -717,6 +717,33 @@ body {
   font-display: swap;
 }
 .fs { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; background: #050508; }
+/* Liquid ambient wash: artwork-tinted gradient blobs drifting slowly.
+   Opacity stays low so glass and text keep their contrast over it. */
+.amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.amb__b {
+  position: absolute; width: 58vmax; height: 58vmax; border-radius: 50%;
+  filter: blur(70px); opacity: 0.32; will-change: transform;
+}
+.amb__b1 {
+  top: -20%; left: -14%;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 66%);
+  animation: ambDrift1 34s ease-in-out infinite alternate;
+}
+.amb__b2 {
+  bottom: -24%; right: -16%;
+  background: radial-gradient(circle, var(--accent2, var(--accent)) 0%, transparent 66%);
+  animation: ambDrift2 44s ease-in-out infinite alternate;
+}
+.amb__b3 {
+  top: 28%; left: 34%; opacity: 0.2;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, var(--accent2, var(--accent))) 0%, transparent 66%);
+  animation: ambDrift3 52s ease-in-out infinite alternate;
+}
+@keyframes ambDrift1 { to { transform: translate(18vw, 12vh) scale(1.18); } }
+@keyframes ambDrift2 { to { transform: translate(-16vw, -14vh) scale(0.82) rotate(40deg); } }
+@keyframes ambDrift3 { to { transform: translate(-10vw, 16vh) scale(1.24); } }
+@media (prefers-reduced-motion: reduce) { .amb__b { animation: none; } }
+
 .fs__bg { position: absolute; inset: 0; }
 .fs__bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.06); filter: blur(12px) saturate(1.15) brightness(0.62); }
 /* Mosaic of queue covers, blurred into a living wall like iBaila albums. */

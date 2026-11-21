@@ -17,6 +17,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.lines": "\u9010\u884c",
   "set.karaoke": "\u5361\u62c9OK",
   "set.videoBackdrop": "\u80cc\u666f\u89c6\u9891",
+  "set.ambientBg": "液态环境背景",
   "set.theme": "\u4e3b\u9898",
   "set.customColor": "\u81ea\u5b9a\u4e49\u989c\u8272",
   "set.eq": "\u5747\u8861\u5668",
