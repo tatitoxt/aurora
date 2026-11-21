@@ -10,9 +10,10 @@ test.describe("Noctbeat player", () => {
     await page.goto(`${APP}/#/`);
     const nav = page.locator(".pnav");
     await expect(nav).toBeVisible();
-    await expect(nav.locator("a,button")).toHaveCount(5);
+    await expect(nav.locator("a,button")).toHaveCount(6);
     await expect(nav.locator('a[href="#/library"]')).toBeVisible();
     await expect(nav.locator('a[href="#/settings"]')).toBeVisible();
+    await expect(nav.locator('button[aria-label*="HUD"]')).toBeVisible();
   });
 
   test("view modes switch art / lyrics", async ({ page }) => {
