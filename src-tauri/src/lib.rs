@@ -979,11 +979,11 @@ fn playlist_path_checked(
             .filter(|p| p.to_string_lossy() == path)
             .collect();
     match matches.as_slice() {
-        // Canonicalize so `parse`'s base dir is always absolute: with a
-        // relative music dir (e.g. "Music") a relative playlist path
-        // would make `file_entry` produce `Music/song.mp3`, which a
-        // rewrite then saves back and reimports as `Music/Music/…`.
-        [one] => std::fs::canonicalize(one).map_err(|e| e.to_string()),
+        // Make it absolute without resolving links — `parse`'s base dir
+        // must be absolute so relative entries don't double-prefix on
+        // rewrite, but canonicalize would point delete/rename at the
+        // symlink's target instead of the link itself.
+        [one] => std::path::absolute(one).map_err(|e| e.to_string()),
         [] => Err("not a playlist in the music folder".into()),
         _ => Err("name isn't representable — rename it in a file manager first".into()),
     }
@@ -1126,11 +1126,40 @@ fn rewrite_playlist(
         .collect();
     // Write-then-rename: a failed `write` (e.g. full disk) would leave
     // the original truncated, so stage the new content in a sibling
-    // file and swap it in atomically.
-    let tmp = file.with_extension("noctbeat-tmp");
-    std::fs::write(&tmp, noctbeat_core::playlists::write_m3u(&items))
-        .map_err(|e| format!("write {}: {e}", tmp.display()))?;
-    std::fs::rename(&tmp, file).map_err(|e| format!("write {}: {e}", file.display()))
+    // file and swap it in atomically. `create_new` (O_EXCL) picks a
+    // name that cannot clobber an existing file — a fixed tmp name
+    // could silently destroy an unrelated sibling.
+    let body = noctbeat_core::playlists::write_m3u(&items);
+    let stem = file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "playlist".into());
+    let mut tmp = None;
+    for n in 0..100u32 {
+        let candidate = file.with_file_name(format!(".{stem}.noctbeat-tmp{n}"));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(mut f) => {
+                use std::io::Write;
+                if let Err(e) = f.write_all(body.as_bytes()) {
+                    let _ = std::fs::remove_file(&candidate);
+                    return Err(format!("write {}: {e}", candidate.display()));
+                }
+                tmp = Some(candidate);
+                break;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(format!("write {}: {e}", candidate.display())),
+        }
+    }
+    let tmp = tmp.ok_or_else(|| "no free temp name beside the playlist".to_string())?;
+    std::fs::rename(&tmp, file).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("write {}: {e}", file.display())
+    })
 }
 
 /// Drop the entry at `index` from a playlist and rewrite it in place.
