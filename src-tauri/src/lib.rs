@@ -984,8 +984,9 @@ fn system_on_battery() -> bool {
 
 /// True while another application owns a fullscreen window. The edge hides
 /// then; own windows (e.g. the fullscreen player) are excluded by pid.
+/// Async so the per-OS subprocess probes never stall Tauri's event thread.
 #[tauri::command]
-fn fullscreen_app_active() -> bool {
+async fn fullscreen_app_active() -> bool {
     system_fullscreen_app_active()
 }
 
@@ -1009,7 +1010,15 @@ fn system_fullscreen_app_active() -> bool {
     let mine = std::process::Command::new("xprop")
         .args(["-id", id, "_NET_WM_PID"])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains(&own))
+        .map(|o| {
+            // "_NET_WM_PID(CARDINAL) = 2698" — exact match, not substring
+            // (a foreign pid containing ours must not self-exclude).
+            String::from_utf8_lossy(&o.stdout)
+                .rsplit('=')
+                .next()
+                .map(str::trim)
+                == Some(own.as_str())
+        })
         .unwrap_or(false);
     if mine {
         return false;
@@ -1036,6 +1045,7 @@ public static class U32 {{
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
+  [DllImport("user32.dll")] public static extern long GetWindowLongPtr(IntPtr h, int i);
   [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr m, ref MI i);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
   public struct RECT {{ public int Left, Top, Right, Bottom; }}
@@ -1052,7 +1062,11 @@ if(@('Progman','WorkerW','Shell_TrayWnd','Shell_SecondaryTrayWnd') -contains $cl
 $wr=New-Object U32+RECT;[void][U32]::GetWindowRect($h,[ref]$wr)
 $mi=New-Object U32+MI;$mi.cbSize=[Runtime.InteropServices.Marshal]::SizeOf([U32+MI])
 [void][U32]::GetMonitorInfo([U32]::MonitorFromWindow($h,2),[ref]$mi)
-if($wr.Left -le $mi.rcMonitor.Left -and $wr.Top -le $mi.rcMonitor.Top -and $wr.Right -ge $mi.rcMonitor.Right -and $wr.Bottom -ge $mi.rcMonitor.Bottom){{'1'}}else{{'0'}}"#,
+$covers=$wr.Left -le $mi.rcMonitor.Left -and $wr.Top -le $mi.rcMonitor.Top -and $wr.Right -ge $mi.rcMonitor.Right -and $wr.Bottom -ge $mi.rcMonitor.Bottom
+# A maximized window on a taskbar-free monitor also covers it; real
+# fullscreen windows strip WS_CAPTION (0x00C00000).
+$borderless=([U32]::GetWindowLongPtr($h,-16) -band 0xC00000L) -eq 0
+if($covers -and $borderless){{'1'}}else{{'0'}}"#,
         std::process::id()
     );
     std::process::Command::new("powershell")
