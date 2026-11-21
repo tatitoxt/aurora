@@ -269,6 +269,7 @@ mod tests {
                 updated_at_ms: 0,
             },
             received_at: None,
+            last_poll: None,
             commands: Vec::new(),
         };
         apply_update(
@@ -301,6 +302,7 @@ mod tests {
                 updated_at_ms: 0,
             },
             received_at: None,
+            last_poll: None,
             commands: vec![Control::Next],
         }));
         let mut s = shared.lock().unwrap();
