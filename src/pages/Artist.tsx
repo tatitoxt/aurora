@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { artSrc, bridge, subscribe, type NowPlaying, type QueueItem, type Stats } from "../bridge";
+import { artSrc, bridge, subscribe, type ArtistStats, type NowPlaying, type QueueItem } from "../bridge";
 import { formatTime } from "../lib";
 
 function fmtLong(ms: number): string {
@@ -20,7 +20,7 @@ export default function Artist() {
   // useParams already decodes — a second decodeURIComponent crashes on %.
   const artist = name;
   const [items, setItems] = useState<QueueItem[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<ArtistStats | null>(null);
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [arts, setArts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
@@ -44,21 +44,20 @@ export default function Artist() {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-    void bridge.getStats().then(setStats).catch(() => {});
+    void bridge.getArtistStats(artist).then(setStats).catch(() => {});
     const off = subscribe<NowPlaying>("now-playing", setNp);
     return off;
   }, [artist]);
 
-  // History play counts keyed by title (TopEntry.sub is the artist).
+  // History play counts keyed by title — artist_stats is per-artist and
+  // untruncated (get_stats caps both top lists at 10).
   const playMap = useMemo(() => {
     const m = new Map<string, { plays: number; ms: number }>();
-    for (const t of stats?.topTracks ?? []) {
-      if (t.sub.trim().toLowerCase() === artist.trim().toLowerCase()) {
-        m.set(t.name, { plays: t.plays, ms: t.ms });
-      }
+    for (const t of stats?.tracks ?? []) {
+      m.set(t.name, { plays: t.plays, ms: t.ms });
     }
     return m;
-  }, [stats, artist]);
+  }, [stats]);
 
   // Popular first (history-ranked), then the rest alphabetically.
   const popular = useMemo(() => {
@@ -84,9 +83,7 @@ export default function Artist() {
       }));
   }, [items]);
 
-  const totalPlays = stats?.topArtists.find(
-    (a) => a.name.trim().toLowerCase() === artist.trim().toLowerCase(),
-  );
+  const totalPlays = stats && stats.plays > 0 ? stats : null;
 
   const play = (list: QueueItem[], index: number) => {
     setError("");
@@ -115,7 +112,7 @@ export default function Artist() {
           <h1 className="art__name">{artist}</h1>
           <span className="art__meta">
             {items.length} {items.length === 1 ? "track" : "tracks"}
-            {totalPlays ? ` · ${totalPlays.plays} plays · ${fmtLong(totalPlays.ms)}` : ""}
+            {totalPlays ? ` · ${totalPlays.plays} plays · ${fmtLong(totalPlays.totalMs)}` : ""}
           </span>
         </div>
         {items.length > 0 && (

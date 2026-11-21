@@ -163,6 +163,13 @@ export interface Stats {
   /** Daily activity, oldest first. */
   days: DayStat[];
 }
+export interface ArtistStats {
+  artist: string;
+  plays: number;
+  totalMs: number;
+  tracks: TopEntry[];
+}
+
 export interface Wrapped {
   /** Calendar month, "YYYY-MM". */
   month: string;
@@ -612,6 +619,17 @@ export const bridge = {
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
       : Promise.resolve([{ id: "display-0", name: "Display 1", primary: true }]),
+  getArtistStats: (artist: string): Promise<ArtistStats> =>
+    isTauri()
+      ? invokeCmd<ArtistStats>("get_artist_stats", { artist })
+      : Promise.resolve({
+          artist,
+          plays: 3,
+          totalMs: 700_000,
+          tracks: mock.playlist
+            .filter(([, a]) => a.toLowerCase() === artist.toLowerCase())
+            .map(([title, a]) => ({ name: title, sub: a, plays: 3, ms: 700_000 })),
+        }),
   getStats: (): Promise<Stats> => {
     if (isTauri()) return invokeCmd<Stats>("get_stats");
     // Deterministic sample so the page renders in browser dev.

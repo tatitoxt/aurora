@@ -256,6 +256,16 @@ fn get_stats(state: State<AppState>) -> Result<Stats, String> {
     Ok(h.stats(14, now_ms()))
 }
 
+/// Per-artist totals + full ranked track list (unlike stats()' top-10).
+#[tauri::command]
+fn get_artist_stats(
+    state: State<AppState>,
+    artist: String,
+) -> Result<noctbeat_core::history::ArtistStats, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    Ok(h.artist_stats(&artist))
+}
+
 /// Monthly recap (wrapped) for the calendar month containing now.
 #[tauri::command]
 fn get_wrapped(state: State<AppState>) -> Result<Wrapped, String> {
@@ -1874,6 +1884,7 @@ pub fn run() {
             import_playlist,
             import_playlist_url,
             get_stats,
+            get_artist_stats,
             get_wrapped,
             clear_history,
         ])
