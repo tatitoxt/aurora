@@ -397,6 +397,16 @@ export default function Settings() {
             onClick={() => patch({ notifyTrackChange: !s.notifyTrackChange })}
           />
         </div>
+        {branding.discordClientId !== "" && (
+          <div className="row">
+            <span>{t("set.discordRpc")}</span>
+            <button
+              className={`toggle ${s.discordRpc ? "on" : ""}`}
+              aria-label="Discord Rich Presence"
+              onClick={() => patch({ discordRpc: !s.discordRpc })}
+            />
+          </div>
+        )}
 
         <div className="field">
           <span>{t("set.musicFolder")}</span>

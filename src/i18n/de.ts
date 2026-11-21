@@ -35,6 +35,7 @@ const de: Record<keyof typeof en, string> = {
   "set.musicFolder": "Musikordner",
   "set.chooseFolder": "Ordner wählen",
   "set.resumeOnLaunch": "Beim Start fortsetzen",
+  "set.discordRpc": "Discord Rich Presence",
   "set.notifyTrack": "Bei Titelwechsel benachrichtigen",
   "set.batterySaver": "Energiesparmodus",
   "set.dimOnBattery": "Im Akkubetrieb dimmen",

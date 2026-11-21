@@ -98,6 +98,7 @@ export interface Settings {
   resumeOnLaunch: boolean;
   /** Desktop notification when the track changes. */
   notifyTrackChange: boolean;
+  discordRpc: boolean;
 }
 
 /** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
@@ -250,6 +251,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sleepTimerEndsMs: null,
   resumeOnLaunch: true,
   notifyTrackChange: true,
+  discordRpc: true,
   profiles: [],
   activeProfile: null,
 };
