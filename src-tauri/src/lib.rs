@@ -2012,8 +2012,9 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     .decorations(false)
     .always_on_top(settings.hud_always_on_top)
     .skip_taskbar(true)
-    .resizable(false)
-    .inner_size(460.0, 76.0);
+    .resizable(true)
+    .min_inner_size(260.0, 140.0)
+    .inner_size(320.0, 440.0);
     if let Ok(win) = builder.build() {
         // Moved reports physical pixels; restore them physically too, or a
         // scaled display would double-apply the scale factor.
@@ -2362,6 +2363,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
+        let mut last_qidx: Option<usize> = None;
         let mut last_track_id: Option<String> = None;
         let mut last_monitor_sig = String::new();
         loop {
@@ -2523,6 +2525,13 @@ fn spawn_poller(app: &tauri::AppHandle) {
             }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
+            // Next/Prev and natural advance move the queue cursor without a
+            // queue mutation: re-emit so panels keep the highlight current.
+            let qidx = state.player.lock().ok().and_then(|p| p.current_index());
+            if qidx != last_qidx {
+                last_qidx = qidx;
+                emit_queue(&app, &state);
+            }
             #[cfg(target_os = "linux")]
             if let Some(m) = state.mpris.get() {
                 m.update(&np, local_active(&state));
