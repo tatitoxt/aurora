@@ -913,6 +913,7 @@ body {
 .fs__provq:focus { border-color: rgba(255,255,255,0.28); }
 .fs__provq::placeholder { color: var(--dim); }
 .fs__proverr { font-size: 10.5px; color: #f1a8a8; padding: 0 10px; }
+.set__err { font-size: 11px; color: #f1a8a8; padding: 0 14px 8px; }
 .fs__provres {
   display: flex; flex-direction: column; max-height: 168px;
   overflow-y: auto; scrollbar-width: none;

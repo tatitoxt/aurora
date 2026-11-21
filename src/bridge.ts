@@ -705,6 +705,30 @@ export const bridge = {
     emitMock("settings", settingsStore);
     return Promise.resolve(null);
   },
+  /** Save the current theme as a shareable .nbtheme JSON. */
+  exportTheme: (path: string): Promise<null> =>
+    isTauri() ? invokeCmd<null>("export_theme", { path }) : Promise.resolve(null),
+  /** Load + validate a theme file; mock returns a Rose demo theme. */
+  importTheme: (path: string): Promise<ThemeSettings> =>
+    isTauri()
+      ? invokeCmd<ThemeSettings>("import_theme", { path })
+      : Promise.resolve({ name: "rose", accent: null, accent2: null, dynamic: false }),
+  pickThemeImport: async (): Promise<string | null> => {
+    if (!isTauri()) return null;
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const sel = await open({
+      filters: [{ name: "Noctbeat theme", extensions: ["nbtheme", "json"] }],
+    });
+    return typeof sel === "string" ? sel : null;
+  },
+  pickThemeExport: async (name: string): Promise<string | null> => {
+    if (!isTauri()) return null;
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    return save({
+      defaultPath: `${name}.nbtheme`,
+      filters: [{ name: "Noctbeat theme", extensions: ["nbtheme", "json"] }],
+    });
+  },
   /** Native file picker for a playlist file; null when cancelled or mocked. */
   pickPlaylist: async (): Promise<string | null> => {
     if (!isTauri()) return null;

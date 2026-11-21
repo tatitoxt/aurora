@@ -22,6 +22,7 @@ export default function Settings() {
   const [outputs, setOutputs] = useState<string[]>([]);
   const [license, setLicense] = useState<LicenseState>({ state: "unlicensed" });
   const [key, setKey] = useState("");
+  const [importErr, setImportErr] = useState("");
   const [activating, setActivating] = useState(false);
   const activate = () => {
     if (activating || !key.trim()) return;
@@ -214,6 +215,35 @@ export default function Settings() {
             onClick={() => patch({ theme: { ...s.theme, dynamic: !s.theme.dynamic } })}
           />
         </div>
+
+        <div className="row">
+          <span>{t("set.shareTheme")}</span>
+          <span className="seg">
+            <button
+              onClick={() =>
+                void bridge
+                  .pickThemeExport(s.theme.name)
+                  .then((p) => p && bridge.exportTheme(p))
+              }
+            >
+              {t("set.export")}
+            </button>
+            <button
+              onClick={() =>
+                void bridge.pickThemeImport().then((p) => {
+                  if (!p) return;
+                  bridge
+                    .importTheme(p)
+                    .then((th) => patch({ theme: { ...s.theme, ...th } }))
+                    .catch((e) => setImportErr(String(e)));
+                })
+              }
+            >
+              {t("set.import")}
+            </button>
+          </span>
+        </div>
+        {importErr && <div className="set__err">{importErr}</div>}
 
         <div className="field">
           <span>{t("set.eq")}</span>
