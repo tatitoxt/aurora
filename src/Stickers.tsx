@@ -52,21 +52,26 @@ export function StickerLayer() {
     e.stopPropagation();
     const box = host.current?.getBoundingClientRect();
     if (!box) return;
+    // Keep the grab offset so the sticker doesn't jump to the pointer.
+    const grabX = (e.clientX - box.left) / box.width - s.x;
+    const grabY = (e.clientY - box.top) / box.height - s.y;
     const move = (ev: PointerEvent) => {
       setList(
         moveSticker(
           s.id,
-          (ev.clientX - box.left) / box.width,
-          (ev.clientY - box.top) / box.height,
+          (ev.clientX - box.left) / box.width - grabX,
+          (ev.clientY - box.top) / box.height - grabY,
         ),
       );
     };
-    const up = () => {
+    const end = () => {
       window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
     };
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
   };
 
   return (

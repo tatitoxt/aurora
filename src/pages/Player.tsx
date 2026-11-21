@@ -209,7 +209,7 @@ export default function Player() {
         <Export size={14} />
       </button>
       <span style={{ position: "relative" }}>
-        <button className="pnav__btn" aria-label={t("player.stickers")} title={t("player.stickers")} onClick={() => setStickOpen((v) => !v)}>
+        <button className="pnav__btn" aria-label={t("player.stickers")} title={t("player.stickers")} onPointerDown={(e) => e.stopPropagation()} onClick={() => setStickOpen((v) => !v)}>
           <StickerIcon size={14} />
         </button>
         {stickOpen && <StickerPicker onDone={() => setStickOpen(false)} />}
