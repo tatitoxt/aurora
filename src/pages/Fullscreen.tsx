@@ -234,6 +234,8 @@ export default function Fullscreen() {
       )
         return;
       if (e.key === " ") {
+        // Buttons (incl. role=button lyrics) own Space themselves.
+        if (t?.closest("button, [role='button']")) return;
         e.preventDefault();
         void bridge.mediaControl("play-pause");
       } else if (e.key === "ArrowRight") {
@@ -488,6 +490,7 @@ export default function Fullscreen() {
               key={active}
               role="button"
               tabIndex={0}
+              onClick={() => setTimingOpen((v) => !v)}
               onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
             >
@@ -891,6 +894,7 @@ export default function Fullscreen() {
                 className="fs__cardlyric"
                 role="button"
                 tabIndex={0}
+                onClick={() => setTimingOpen((v) => !v)}
                 onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
               >
