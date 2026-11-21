@@ -68,7 +68,7 @@ fn base_track(path: &Path) -> Track {
 }
 
 /// Read tags + duration with lofty; falls back to filename-derived fields.
-fn tag_track(path: &Path) -> Track {
+pub fn tag_track(path: &Path) -> Track {
     use lofty::file::{AudioFile, TaggedFileExt};
     use lofty::probe::Probe;
     use lofty::tag::Accessor;
