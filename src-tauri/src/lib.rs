@@ -2080,7 +2080,10 @@ fn listen_status(state: State<AppState>) -> listen::ListenStatus {
 /// Hosting and following are mutually exclusive — a host plays, it doesn't
 /// mirror someone else's.
 #[tauri::command]
-fn listen_host_start(state: State<AppState>, name: Option<String>) -> Result<listen::ListenStatus, String> {
+fn listen_host_start(
+    state: State<AppState>,
+    name: Option<String>,
+) -> Result<listen::ListenStatus, String> {
     let name = name
         .map(|n| n.trim().to_string())
         .filter(|n| !n.is_empty())
@@ -2172,8 +2175,7 @@ fn apply_listen_sync(app: &tauri::AppHandle, state: &State<AppState>, local: &No
             };
             let want = (listen::norm(&title), listen::norm(&artist));
             let idx = player.queue().iter().position(|it| {
-                listen::norm(&it.track.title) == want.0
-                    && listen::norm(&it.track.artist) == want.1
+                listen::norm(&it.track.title) == want.0 && listen::norm(&it.track.artist) == want.1
             });
             let idx = match idx {
                 Some(i) => Some(i),
@@ -2217,7 +2219,14 @@ fn apply_listen_sync(app: &tauri::AppHandle, state: &State<AppState>, local: &No
                 if player
                     .queue()
                     .get(i)
-                    .map(|it| it.track.id != local.track.as_ref().map(|t| t.id.clone()).unwrap_or_default())
+                    .map(|it| {
+                        it.track.id
+                            != local
+                                .track
+                                .as_ref()
+                                .map(|t| t.id.clone())
+                                .unwrap_or_default()
+                    })
                     .unwrap_or(false)
                 {
                     let _ = player.play_index(i);

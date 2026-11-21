@@ -114,8 +114,16 @@ impl Host {
                 }
             }
         });
-        let addr = format!("{}:{}", lan_ip().unwrap_or_else(|| "127.0.0.1".into()), port);
-        Some(Self { shared, alive, addr })
+        let addr = format!(
+            "{}:{}",
+            lan_ip().unwrap_or_else(|| "127.0.0.1".into()),
+            port
+        );
+        Some(Self {
+            shared,
+            alive,
+            addr,
+        })
     }
 
     /// Publish the latest now-playing snapshot for followers.
@@ -148,7 +156,8 @@ impl Drop for Host {
 
 fn record_peer(shared: &Arc<Mutex<HostShared>>, ip: String) {
     let mut s = shared.lock().unwrap();
-    s.peers.retain(|_, t| t.elapsed() < Duration::from_secs(120));
+    s.peers
+        .retain(|_, t| t.elapsed() < Duration::from_secs(120));
     s.peers.insert(ip, Instant::now());
 }
 
@@ -235,7 +244,11 @@ impl Follower {
                 }
             }
         });
-        Ok(Self { shared, alive, addr })
+        Ok(Self {
+            shared,
+            alive,
+            addr,
+        })
     }
 
     /// Latest host snapshot, if one was ever received.
@@ -275,8 +288,8 @@ fn fetch_broadcast(addr: &str) -> Result<Option<Broadcast>, String> {
     let sock: std::net::SocketAddr = addr
         .parse()
         .map_err(|_| "bad address (expected ip:port)".to_string())?;
-    let mut stream =
-        TcpStream::connect_timeout(&sock, Duration::from_millis(1_500)).map_err(|e| e.to_string())?;
+    let mut stream = TcpStream::connect_timeout(&sock, Duration::from_millis(1_500))
+        .map_err(|e| e.to_string())?;
     stream
         .set_read_timeout(Some(Duration::from_millis(1_500)))
         .ok();
@@ -298,8 +311,8 @@ fn fetch_broadcast(addr: &str) -> Result<Option<Broadcast>, String> {
         }
     }
     let head_end = find(&buf, b"\r\n\r\n").ok_or("not an HTTP response")? + 4;
-    let mut b: Option<Broadcast> = serde_json::from_slice(&buf[head_end..])
-        .map_err(|_| "bad state payload".to_string())?;
+    let mut b: Option<Broadcast> =
+        serde_json::from_slice(&buf[head_end..]).map_err(|_| "bad state payload".to_string())?;
     if let Some(b) = b.as_mut() {
         b.received_at = Some(Instant::now());
     }
@@ -326,11 +339,7 @@ pub enum SyncAction {
 
 /// Pure sync rule: compare the host broadcast with the local now-playing.
 /// `drift_ms` is the tolerance before seeking.
-pub fn sync_decision(
-    host: &Broadcast,
-    local: Option<&NowPlaying>,
-    drift_ms: u64,
-) -> SyncAction {
+pub fn sync_decision(host: &Broadcast, local: Option<&NowPlaying>, drift_ms: u64) -> SyncAction {
     let Some(ht) = &host.np.track else {
         // Host stopped entirely — pause if we were following along.
         return match local.map(|l| l.status) {
@@ -482,7 +491,10 @@ mod tests {
     #[test]
     fn addr_normalization() {
         assert_eq!(normalize_addr("192.168.1.5"), "192.168.1.5:17894");
-        assert_eq!(normalize_addr("http://192.168.1.5:9999"), "192.168.1.5:9999");
+        assert_eq!(
+            normalize_addr("http://192.168.1.5:9999"),
+            "192.168.1.5:9999"
+        );
         assert_eq!(normalize_addr("10.0.0.2:17894/"), "10.0.0.2:17894");
         assert_eq!(normalize_addr("10.0.0.2:1/state"), "10.0.0.2:1");
     }
