@@ -45,10 +45,36 @@ function mediaEl() {
   return document.querySelector("audio, video");
 }
 
+// Media Session artwork is usually offered in several sizes; also rewrite
+// host-specific URL sizing suffixes to pull the original/hi-res variant.
+function hiResArt(src) {
+  if (!src) return src;
+  try {
+    const u = new URL(src);
+    // YouTube Music / Google: =w120-h120-l90-rj style suffix -> w1200.
+    if (/(^|\.)googleusercontent\.com$/.test(u.hostname)) {
+      return src.replace(/=w\d+(-h\d+)?[^/]*$/, "=w1200-h1200");
+    }
+    // SoundCloud: -large/-t300x300/-t500x500 -> -original (full-size upload).
+    if (/(^|\.)sndcdn\.com$/.test(u.hostname)) {
+      return src.replace(/-(large|t\d+x\d+|crop|original)\.(jpg|jpeg|png|webp)$/i, "-original.$2");
+    }
+    // Apple Music: /{w}x{h}bb.jpg -> 1200x1200.
+    if (/(^|\.)mzstatic\.com$/.test(u.hostname)) {
+      return src.replace(/\/\d+x\d+(bb|cc|sc)\.(jpg|jpeg|png|webp)/i, "/1200x1200$1.$2");
+    }
+    // Tidal: .../80x80.jpg, /320x320.jpg ... -> 1280x1280.
+    if (/(^|\.)tidalh\.com$/.test(u.hostname) || /(^|\.)tidal\.com$/.test(u.hostname)) {
+      return src.replace(/\/\d+x\d+\.(jpg|jpeg|png|webp)/i, "/1280x1280.$1");
+    }
+  } catch (e) { /* malformed URL: return as-is */ }
+  return src;
+}
+
 function collect() {
   const m = navigator.mediaSession?.metadata;
   const el = mediaEl();
-  const art = (m?.artwork || []).slice(-1)[0]?.src || "";
+  const art = hiResArt((m?.artwork || []).slice(-1)[0]?.src || "");
   return {
     tabId: TAB_ID,
     provider: host,
