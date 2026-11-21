@@ -260,10 +260,9 @@ export default function Player() {
     <div className="glass">
       <div className="player">
         <div className="player__art">
+          {art ? <img src={art} alt={track?.album ?? ""} /> : null}
           {videoUrl ? (
             <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-          ) : art ? (
-            <img src={art} alt={track?.album ?? ""} />
           ) : null}
         </div>
         <div className="player__meta">
@@ -274,13 +273,17 @@ export default function Player() {
         </div>
         {progress}
         {controls}
-        {lyrics && lyrics.length > 0 && (
-          <KaraokeLyric
-            line={active >= 0 ? lyrics[active] : null}
-            nextLine={active >= 0 ? (lyrics[active + 1] ?? null) : null}
-            posMs={lyricPos}
-          />
-        )}
+        {lyrics &&
+          lyrics.length > 0 &&
+          (karaoke ? (
+            <KaraokeLyric
+              line={active >= 0 ? lyrics[active] : null}
+              nextLine={active >= 0 ? (lyrics[active + 1] ?? null) : null}
+              posMs={lyricPos}
+            />
+          ) : (
+            <LineLyrics lines={lyrics} active={active} />
+          ))}
         {nav}
       </div>
       {shareCard}
