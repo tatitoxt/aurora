@@ -1113,7 +1113,13 @@ fn spawn_poller(app: &tauri::AppHandle) {
                     if rate != 0 && det.sample_rate() != rate {
                         *det = BeatDetector::new(rate);
                     }
-                    det.push(&samples)
+                    if samples.is_empty() {
+                        // Nothing playing (or paused): feed silence so the
+                        // spectrum decays to rest instead of freezing.
+                        det.push(&[0.0f32; 1024])
+                    } else {
+                        det.push(&samples)
+                    }
                 };
                 *state.last_energy.lock().unwrap_or_else(|e| e.into_inner()) = next;
                 next
