@@ -438,10 +438,7 @@ mod tests {
         p.play_index(1).unwrap();
         audio.pos.store(12_000, Ordering::SeqCst);
         p.reopen_current().unwrap();
-        assert_eq!(
-            audio.opened.lock().unwrap().last().unwrap(),
-            "/music/b.mp3"
-        );
+        assert_eq!(audio.opened.lock().unwrap().last().unwrap(), "/music/b.mp3");
         assert_eq!(audio.position_ms(), 12_000);
         assert!(audio.playing.load(Ordering::SeqCst));
         assert_eq!(p.tick().status, PlaybackStatus::Playing);
