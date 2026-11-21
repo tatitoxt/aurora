@@ -464,6 +464,35 @@ async fn play_queue_index(
     Ok(())
 }
 
+/// Remove a queued track; removing the selected one is rejected.
+#[tauri::command]
+fn queue_remove(app: tauri::AppHandle, state: State<AppState>, index: usize) -> Result<(), String> {
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(index)?;
+    emit_queue(&app, &state);
+    Ok(())
+}
+
+/// Reorder the queue, keeping the cursor on the same track.
+#[tauri::command]
+fn queue_move(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    from: usize,
+    to: usize,
+) -> Result<(), String> {
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .move_item(from, to)?;
+    emit_queue(&app, &state);
+    Ok(())
+}
+
 /// Toggle queue shuffle; applies to explicit Next and auto-advance.
 #[tauri::command]
 fn set_shuffle(state: State<AppState>, on: bool) -> Result<bool, String> {
@@ -1947,6 +1976,8 @@ pub fn run() {
             get_queue,
             play_queue_index,
             clear_queue,
+            queue_remove,
+            queue_move,
             set_shuffle,
             get_shuffle,
             set_repeat,
