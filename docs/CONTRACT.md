@@ -51,7 +51,8 @@ pub fn to_hex(c: Rgb) -> String // "#rrggbb"
 ### lyrics (branch `devin/core-analysis`, `src/lyrics.rs`)
 
 ```rust
-pub struct LrcLine { pub at_ms: u64, pub text: String }
+pub struct LrcLine { pub at_ms: u64, pub text: String, pub words: Option<Vec<LrcWord>> }
+// words: enhanced-LRC (A2) `<mm:ss.xx>` inline word timings, when present
 pub fn parse_lrc(input: &str) -> Vec<LrcLine>        // multiple timestamps per line supported
 pub fn active_line(lines: &[LrcLine], pos_ms: u64) -> Option<usize>
 pub struct LrclibClient { /* base_url injectable */ }

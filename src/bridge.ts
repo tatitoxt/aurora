@@ -24,6 +24,8 @@ export type Control = "play-pause" | "next" | "previous";
 export interface LrcLine {
   atMs: number;
   text: string;
+  /** Enhanced-LRC word timestamps when the source provides them. */
+  words?: { atMs: number; text: string }[] | null;
 }
 export interface EnergyUpdate {
   level: number;

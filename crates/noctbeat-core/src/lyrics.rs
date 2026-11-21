@@ -9,9 +9,20 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LrcWord {
+    pub at_ms: u64,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LrcLine {
     pub at_ms: u64,
     pub text: String,
+    /// Enhanced-LRC (A2) word timestamps, when the source provides them —
+    /// lets karaoke light words at their real times instead of an even split.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub words: Option<Vec<LrcWord>>,
 }
 
 #[derive(Debug, Error)]
@@ -64,15 +75,106 @@ pub fn parse_lrc(input: &str) -> Vec<LrcLine> {
         if stamps.is_empty() {
             continue; // metadata or malformed
         }
+        let base_ms = stamps[0];
         for ms in stamps {
+            // Word tags are written against the first occurrence; shift them
+            // so repeated lines get their own syllable times.
+            let word_offset = offset_ms + (ms as i64 - base_ms as i64);
+            let line_at = (ms as i64 + offset_ms).max(0) as u64;
+            let (text, words) = match parse_word_tags(rest.trim(), word_offset, line_at) {
+                Some((t, w)) => (t, Some(w)),
+                None => (rest.trim().to_string(), None),
+            };
             lines.push(LrcLine {
-                at_ms: (ms as i64 + offset_ms).max(0) as u64,
-                text: rest.trim().to_string(),
+                at_ms: line_at,
+                text,
+                words,
             });
         }
     }
     lines.sort_by_key(|l| l.at_ms);
     lines
+}
+
+/// Enhanced-LRC (A2) inline word tags: `<mm:ss.xx>` marks when the following
+/// word is sung. `offset_ms` applies the global offset plus any shift for
+/// repeated lines; `line_at_ms` is this occurrence's start, used to time any
+/// leading text before the first tag. Returns the plain text (tags stripped)
+/// and the timed segments; `None` when the line has no word tags.
+fn parse_word_tags(rest: &str, offset_ms: i64, line_at_ms: u64) -> Option<(String, Vec<LrcWord>)> {
+    if !rest.contains('<') {
+        return None;
+    }
+    let mut s = rest;
+    let mut plain = String::new();
+    let mut words: Vec<LrcWord> = Vec::new();
+    // Text before the first valid tag — becomes a segment timed at the line
+    // start if a real tag exists, so karaoke doesn't drop it. A '<' that is
+    // not a timestamp is literal text, not a tag.
+    let mut pre = String::new();
+    let mut seen_tag = false;
+    let mut current: Option<LrcWord> = None;
+    while let Some(lt) = s.find('<') {
+        let (head, after_lt) = s.split_at(lt);
+        plain.push_str(head);
+        if let Some(w) = current.as_mut() {
+            w.text.push_str(head);
+        } else {
+            pre.push_str(head);
+        }
+        let after = &after_lt[1..];
+        let tag = after
+            .find('>')
+            .and_then(|gt| parse_ts(&after[..gt]).map(|ms| (gt, ms)));
+        match tag {
+            Some((gt, ms)) => {
+                if let Some(w) = current.take() {
+                    words.push(w);
+                }
+                if !seen_tag && !pre.trim().is_empty() {
+                    words.push(LrcWord {
+                        at_ms: line_at_ms,
+                        text: std::mem::take(&mut pre),
+                    });
+                }
+                seen_tag = true;
+                current = Some(LrcWord {
+                    at_ms: (ms as i64 + offset_ms).max(0) as u64,
+                    text: String::new(),
+                });
+                s = &after[gt + 1..];
+            }
+            None => {
+                // Unterminated or non-timestamp '<' — literal text.
+                plain.push('<');
+                if let Some(w) = current.as_mut() {
+                    w.text.push('<');
+                } else {
+                    pre.push('<');
+                }
+                s = after;
+            }
+        }
+    }
+    plain.push_str(s);
+    if let Some(w) = current.as_mut() {
+        w.text.push_str(s);
+    }
+    if let Some(w) = current.take() {
+        words.push(w);
+    }
+    // No real timestamp tag anywhere: the '<' was literal — plain LRC.
+    if !seen_tag {
+        return None;
+    }
+    // Segment text keeps its spacing verbatim — segments can be syllables
+    // mid-word, so trimming/joining with spaces would corrupt the line.
+    words.retain(|w| !w.text.is_empty());
+    if words.is_empty() {
+        None
+    } else {
+        Some((plain.trim().to_string(), words))
+    }
 }
 
 /// Index of the line active at `pos_ms` (last line at or before position).
@@ -206,20 +308,39 @@ impl LrclibClient {
             return Ok(if lines.is_empty() { None } else { Some(lines) });
         }
         let res = self.fetch(track)?;
-        let text = res.as_ref().map(|ls| {
-            ls.iter()
-                .map(|l| {
-                    let m = l.at_ms / 60000;
-                    let s = (l.at_ms % 60000) / 1000;
-                    let cs = (l.at_ms % 1000) / 10;
-                    format!("[{m:02}:{s:02}.{cs:02}]{}", l.text)
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        });
+        let text = res.as_ref().map(|ls| write_lrc(ls));
         cache.put(&track.id, text.as_deref())?;
         Ok(res)
     }
+}
+
+fn fmt_ts(ms: u64) -> String {
+    format!(
+        "{:02}:{:02}.{:02}",
+        ms / 60000,
+        (ms % 60000) / 1000,
+        (ms % 1000) / 10
+    )
+}
+
+/// Serialize lines back to LRC for the disk cache, preserving A2 word tags
+/// (written against each line's own timestamp).
+fn write_lrc(lines: &[LrcLine]) -> String {
+    lines
+        .iter()
+        .map(|l| {
+            let mut s = format!("[{}]", fmt_ts(l.at_ms));
+            if let Some(words) = &l.words {
+                for w in words {
+                    s.push_str(&format!("<{}>{}", fmt_ts(w.at_ms), w.text));
+                }
+            } else {
+                s.push_str(&l.text);
+            }
+            s
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn urlencode(s: &str) -> String {
@@ -261,6 +382,98 @@ mod tests {
         assert_eq!(lines[3].text, "");
         assert_eq!(lines[5].at_ms, 10_000);
         assert_eq!(lines[5].text, "Repeated");
+    }
+
+    #[test]
+    fn parses_a2_word_tags() {
+        // A2 marks syllable starts: "Hel"+"lo" is one word, two segments.
+        let lines = parse_lrc("[00:01.00]<00:01.10>Hel<00:01.50>lo <00:02.00>world");
+        assert_eq!(lines.len(), 1);
+        let l = &lines[0];
+        assert_eq!(l.text, "Hello world");
+        let words = l.words.as_ref().unwrap();
+        assert_eq!(words.len(), 3);
+        assert_eq!(words[0].at_ms, 1100);
+        assert_eq!(words[0].text, "Hel");
+        assert_eq!(words[1].at_ms, 1500);
+        assert_eq!(words[1].text, "lo ");
+        assert_eq!(words[2].at_ms, 2000);
+        assert_eq!(words[2].text, "world");
+    }
+
+    #[test]
+    fn a2_respects_offset() {
+        let lines = parse_lrc("[offset:+500]\n[00:01.00]<00:01.20>hey");
+        let words = lines[0].words.as_ref().unwrap();
+        assert_eq!(words.len(), 1);
+        assert_eq!(words[0].at_ms, 1700);
+        assert_eq!(words[0].text, "hey");
+    }
+
+    #[test]
+    fn a2_leading_text_gets_line_time() {
+        let lines = parse_lrc("[00:01.00]La <00:01.50>la");
+        let words = lines[0].words.as_ref().unwrap();
+        assert_eq!(words.len(), 2);
+        assert_eq!(words[0].at_ms, 1000);
+        assert_eq!(words[0].text, "La ");
+        assert_eq!(words[1].at_ms, 1500);
+        assert_eq!(lines[0].text, "La la");
+    }
+
+    #[test]
+    fn a2_repeated_lines_shift_word_times() {
+        let lines = parse_lrc("[00:10.00][00:20.00]<00:10.50>word");
+        assert_eq!(lines.len(), 2);
+        assert_eq!(
+            lines[0].words.as_ref().unwrap()[0].at_ms,
+            10_500,
+            "first occurrence"
+        );
+        assert_eq!(
+            lines[1].words.as_ref().unwrap()[0].at_ms,
+            20_500,
+            "second occurrence shifted by line delta"
+        );
+    }
+
+    #[test]
+    fn write_lrc_preserves_word_tags() {
+        let src = "[00:01.00]<00:01.10>Hel<00:01.50>lo <00:02.00>world\n[00:05.00]plain";
+        let lines = parse_lrc(src);
+        let out = write_lrc(&lines);
+        let reparsed = parse_lrc(&out);
+        assert_eq!(reparsed, lines);
+    }
+
+    #[test]
+    fn literal_lt_is_not_a_tag() {
+        // "I <3 you" has no real tag — plain LRC, no timed segments.
+        let lines = parse_lrc("[00:01.00]I <3 you");
+        assert_eq!(lines[0].words, None);
+        assert_eq!(lines[0].text, "I <3 you");
+    }
+
+    #[test]
+    fn literal_lt_before_first_tag_keeps_leading_text() {
+        // "<3 <00:01.50>you": the "<3 " prefix is literal text timed at the
+        // line start, not a tag.
+        let lines = parse_lrc("[00:01.00]<3 <00:01.50>you");
+        let words = lines[0].words.as_ref().unwrap();
+        assert_eq!(words.len(), 2);
+        assert_eq!(words[0].at_ms, 1000);
+        assert_eq!(words[0].text, "<3 ");
+        assert_eq!(words[1].at_ms, 1500);
+        assert_eq!(words[1].text, "you");
+        // And it survives a cache write/read round-trip.
+        let reparsed = parse_lrc(&write_lrc(&lines));
+        assert_eq!(reparsed, lines);
+    }
+
+    #[test]
+    fn line_without_word_tags_has_none() {
+        let lines = parse_lrc("[00:01.00]plain line");
+        assert_eq!(lines[0].words, None);
     }
 
     #[test]
