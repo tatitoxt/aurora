@@ -976,3 +976,91 @@ body {
 /* tile/showcase corrections vs iBaila frames */
 .fs__tilebg { filter: brightness(0.92); transform: none; }
 .fs__orbititem { left: 50%; top: 44%; }
+
+/* ---------- artist page ---------- */
+.art { display: flex; flex-direction: column; }
+.art__hero {
+  position: relative; overflow: hidden;
+  padding: 10px 16px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  min-height: 150px; justify-content: flex-end;
+}
+.art__heroBg {
+  position: absolute; inset: -14%; width: 128%; height: 128%;
+  object-fit: cover; filter: blur(30px) saturate(1.15) brightness(.5);
+}
+.art__heroScrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(9,9,13,.15), rgba(9,9,13,.85));
+}
+.art__back {
+  position: relative; align-self: flex-start;
+  font-size: 10px; color: var(--dim); text-decoration: none;
+}
+.art__back:hover { color: var(--text); }
+.art__heroBody { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.art__kicker {
+  font-size: 9px; letter-spacing: .3em; text-transform: uppercase;
+  color: rgba(242,242,245,.55);
+}
+.art__name {
+  font-family: var(--serif); font-size: 27px; font-weight: 700;
+  margin: 0; line-height: 1.05; letter-spacing: .01em;
+  text-shadow: 0 2px 18px rgba(0,0,0,.5);
+}
+.art__meta { font-size: 11px; color: rgba(242,242,245,.6); }
+.art__playAll {
+  position: absolute; right: 16px; bottom: 16px;
+  border: none; border-radius: 999px;
+  padding: 7px 16px; cursor: pointer;
+  background: var(--text); color: #0a0a0d;
+  font-size: 12px; font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  transition: transform .15s ease;
+}
+.art__playAll:hover { transform: scale(1.05); }
+.art__collage {
+  position: absolute; right: 16px; top: 12px;
+  display: flex; gap: 0;
+}
+.art__collage img {
+  width: 34px; height: 34px; object-fit: cover;
+  border-radius: 6px; border: 1.5px solid rgba(12,12,16,.9);
+  margin-left: -10px; box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+.art__collage img:first-child { margin-left: 0; }
+.art__scroll { flex: 1; overflow-y: auto; padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.art__h {
+  font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dim); margin: 10px 0 2px;
+}
+.art__row { grid-template-columns: 18px 1fr auto; grid-template-rows: auto auto; }
+.art__num {
+  grid-row: 1 / span 2; grid-column: 1;
+  font-size: 11px; color: var(--dim); text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.art__row .lib__title { grid-column: 2; }
+.art__row .lib__sub { grid-column: 2; }
+.art__row .lib__dur { grid-column: 3; }
+.art__albums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.art__album {
+  display: flex; flex-direction: column; gap: 4px; align-items: stretch;
+  background: none; border: none; cursor: pointer; text-align: left;
+  font: inherit; color: var(--text); padding: 4px; border-radius: 10px;
+}
+.art__album:hover { background: rgba(255,255,255,.05); }
+.art__albumCover {
+  width: 100%; aspect-ratio: 1; object-fit: cover;
+  border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.art__albumCover--ph { background: rgba(255,255,255,.07); }
+.art__albumName {
+  font-size: 11px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.art__albumSub { font-size: 9px; color: var(--dim); }
+.lib__artist { color: inherit; text-decoration: none; }
+.lib__artist:hover { color: var(--accent); text-decoration: underline; }
+.tops__link { color: inherit; text-decoration: none; }
+.tops__link:hover { color: var(--accent); }

@@ -105,7 +105,9 @@ export default function Stats() {
                   <div className="tops__row" key={`${a.name}-${i}`}>
                     <em>{i + 1}</em>
                     <div className="tops__meta">
-                      <b>{a.name}</b>
+                      <Link to={`/artist/${encodeURIComponent(a.name)}`} className="tops__link">
+                        <b>{a.name}</b>
+                      </Link>
                     </div>
                     <span className="tops__n">
                       {a.plays}× · {fmtDur(a.ms)}

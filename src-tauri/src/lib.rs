@@ -256,6 +256,16 @@ fn get_stats(state: State<AppState>) -> Result<Stats, String> {
     Ok(h.stats(14, now_ms()))
 }
 
+/// Per-artist totals + full ranked track list (unlike stats()' top-10).
+#[tauri::command]
+fn get_artist_stats(
+    state: State<AppState>,
+    artist: String,
+) -> Result<noctbeat_core::history::ArtistStats, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    Ok(h.artist_stats(&artist))
+}
+
 /// Monthly recap (wrapped) for the calendar month containing now.
 #[tauri::command]
 fn get_wrapped(state: State<AppState>) -> Result<Wrapped, String> {
@@ -423,13 +433,9 @@ fn clear_queue(app: tauri::AppHandle, state: State<AppState>) -> Result<(), Stri
     Ok(())
 }
 
-/// Scan `dir` (or the configured music dir) and replace the play queue.
-#[tauri::command]
-fn scan_library(
-    app: tauri::AppHandle,
-    state: State<AppState>,
-    dir: Option<String>,
-) -> Result<Vec<QueueItem>, String> {
+/// Resolve the music dir: explicit `dir`, else `settings.music_dir`,
+/// expanding a leading `~`. Error strings are shown to the user.
+fn resolve_music_dir(state: &State<AppState>, dir: Option<String>) -> Result<String, String> {
     let dir = dir.or_else(|| state.settings.lock().ok().and_then(|s| s.music_dir.clone()));
     let Some(dir) = dir else {
         return Err("no music folder configured".into());
@@ -443,11 +449,21 @@ fn scan_library(
     } else {
         dir
     };
-    let dir_path = std::path::Path::new(&dir);
-    if !dir_path.is_dir() {
+    if !std::path::Path::new(&dir).is_dir() {
         return Err(format!("not a directory: {dir}"));
     }
-    let items = noctbeat_core::library::scan(dir_path);
+    Ok(dir)
+}
+
+/// Scan `dir` (or the configured music dir) and replace the play queue.
+#[tauri::command]
+fn scan_library(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    dir: Option<String>,
+) -> Result<Vec<QueueItem>, String> {
+    let items =
+        noctbeat_core::library::scan(std::path::Path::new(&resolve_music_dir(&state, dir)?));
     state
         .player
         .lock()
@@ -455,6 +471,42 @@ fn scan_library(
         .set_queue(items.clone());
     emit_queue(&app, &state);
     Ok(items)
+}
+
+/// Read-only scan: returns the library without replacing the queue
+/// (artist/album views browse without clobbering playback).
+#[tauri::command]
+fn library_tracks(state: State<AppState>, dir: Option<String>) -> Result<Vec<QueueItem>, String> {
+    Ok(noctbeat_core::library::scan(std::path::Path::new(
+        &resolve_music_dir(&state, dir)?,
+    )))
+}
+
+/// Replace the queue with `items` and start playing `index`
+/// (artist/album context play — the queue becomes that track list).
+#[tauri::command]
+async fn play_items(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    items: Vec<QueueItem>,
+    index: usize,
+) -> Result<(), String> {
+    if index >= items.len() {
+        return Err(format!("no item at index {index}"));
+    }
+    // Resolve a remote item before taking the player lock (same rule as
+    // play_queue_index).
+    if let Some(key) = items[index].path.strip_prefix("remote:").map(str::to_owned) {
+        resolve_remote(&state.remote, &state.settings, &state.stream_cache, &key)?;
+    }
+    {
+        let mut p = state.player.lock().map_err(|e| e.to_string())?;
+        p.set_queue(items);
+        p.play_index(index)?;
+    }
+    prefetch_next(&state, index);
+    emit_queue(&app, &state);
+    Ok(())
 }
 
 // ---------- remote providers (yt-dlp-backed) ----------
@@ -1816,6 +1868,8 @@ pub fn run() {
             get_repeat,
             get_volume,
             scan_library,
+            library_tracks,
+            play_items,
             provider_status,
             provider_search,
             provider_play,
@@ -1830,6 +1884,7 @@ pub fn run() {
             import_playlist,
             import_playlist_url,
             get_stats,
+            get_artist_stats,
             get_wrapped,
             clear_history,
         ])
