@@ -335,6 +335,23 @@ const mock = new MockSource();
 const listeners = new Map<string, Set<(p: unknown) => void>>();
 let settingsStore: Settings = { ...DEFAULT_SETTINGS };
 
+/** OS drag & drop of files/folders onto the window (Tauri webview
+ * event). Paths are real filesystem paths. */
+export function onFileDrop(cb: (paths: string[]) => void): () => void {
+  if (isTauri()) {
+    let off: (() => void) | undefined;
+    import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => {
+      getCurrentWebview()
+        .onDragDropEvent((e) => {
+          if (e.payload.type === "drop") cb(e.payload.paths);
+        })
+        .then((u) => (off = u));
+    });
+    return () => off?.();
+  }
+  return () => {};
+}
+
 export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
@@ -519,6 +536,10 @@ export const bridge = {
       emitMock("queue", mockQueueState());
     }
     return Promise.resolve(null);
+  },
+  enqueueFiles: (paths: string[]): Promise<number> => {
+    if (isTauri()) return invokeCmd<number>("enqueue_files", { paths });
+    return Promise.resolve(paths.length);
   },
   scanLibrary: (dir?: string) =>
     isTauri()

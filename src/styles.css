@@ -759,6 +759,13 @@ body {
 .fs__provrow { display: flex; flex-direction: column; min-width: 0; }
 .fs__provtitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__provsub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dropnote {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  color: var(--text); background: rgba(24,24,28,0.85); backdrop-filter: blur(16px);
+  border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+  animation: fs-rise 0.25s ease both; z-index: 90; pointer-events: none;
+}
 .fs__soon {
   margin-left: auto; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px;

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Player from "./pages/Player";
 import Edge from "./pages/Edge";
@@ -14,7 +14,7 @@ import Wrapped from "./pages/Wrapped";
 import Visualizer from "./pages/Visualizer";
 import Fullscreen from "./pages/Fullscreen";
 import Palette from "./Palette";
-import { bridge, subscribe, type Settings as AppSettings } from "./bridge";
+import { bridge, onFileDrop, subscribe, type Settings as AppSettings } from "./bridge";
 import { applyTheme } from "./themes";
 
 export default function App() {
@@ -40,6 +40,7 @@ export default function App() {
         <Route path="/fullscreen" element={<Fullscreen />} />
       </Routes>
       <PaletteGate />
+      <DropGate />
     </>
   );
 }
@@ -50,4 +51,28 @@ function PaletteGate() {
   const loc = useLocation();
   if (["/edge", "/hud", "/desklyrics"].includes(loc.pathname)) return null;
   return <Palette />;
+}
+
+/** Dropping audio files or a folder anywhere on a player surface
+ * enqueues them (deduped). Surfaces a short confirmation toast. */
+function DropGate() {
+  const loc = useLocation();
+  const [note, setNote] = useState("");
+  useEffect(() => {
+    if (["/edge", "/hud", "/desklyrics"].includes(loc.pathname)) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = onFileDrop((paths) => {
+      void bridge.enqueueFiles(paths).then((n) => {
+        setNote(n > 0 ? `${n} track${n === 1 ? "" : "s"} added to the queue` : "No audio files in that drop");
+        clearTimeout(timer);
+        timer = setTimeout(() => setNote(""), 2600);
+      });
+    });
+    return () => {
+      off();
+      clearTimeout(timer);
+    };
+  }, [loc.pathname]);
+  if (!note) return null;
+  return <div className="dropnote">{note}</div>;
 }

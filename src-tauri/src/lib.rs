@@ -483,6 +483,53 @@ fn queue_remove(app: tauri::AppHandle, state: State<AppState>, index: usize) -> 
     Ok(())
 }
 
+/// Append local files (from a webview drag & drop) to the queue,
+/// deduped by path. Folders are expanded one level deep — a dropped
+/// album folder should enqueue, not be skipped. Returns how many
+/// tracks were added.
+#[tauri::command]
+fn enqueue_files(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    paths: Vec<String>,
+) -> Result<u32, String> {
+    let mut files: Vec<PathBuf> = Vec::new();
+    for raw in &paths {
+        let p = PathBuf::from(raw);
+        if p.is_dir() {
+            if let Ok(rd) = std::fs::read_dir(&p) {
+                let mut dir_files: Vec<PathBuf> = rd
+                    .flatten()
+                    .map(|e| e.path())
+                    .filter(|f| f.is_file() && noctbeat_core::library::is_audio(f))
+                    .collect();
+                dir_files.sort();
+                files.extend(dir_files);
+            }
+        } else if p.is_file() && noctbeat_core::library::is_audio(&p) {
+            files.push(p);
+        }
+    }
+    let mut added = 0u32;
+    {
+        let mut player = state.player.lock().map_err(|e| e.to_string())?;
+        for path in files {
+            let name = path.to_string_lossy().into_owned();
+            if player.queue().iter().any(|i| i.path == name) {
+                continue;
+            }
+            let item = QueueItem {
+                track: noctbeat_core::library::tag_track(&path),
+                path: name,
+            };
+            player.add(item);
+            added += 1;
+        }
+    }
+    emit_queue(&app, &state);
+    Ok(added)
+}
+
 /// Reorder the queue, keeping the cursor on the same track.
 #[tauri::command]
 fn queue_move(
@@ -2151,6 +2198,7 @@ pub fn run() {
             clear_queue,
             queue_remove,
             queue_move,
+            enqueue_files,
             set_shuffle,
             get_shuffle,
             set_repeat,
