@@ -18,6 +18,7 @@ import {
   type FavEntry,
 } from "../favs";
 import { formatTime } from "../lib";
+import { PencilSimple, Trash } from "@phosphor-icons/react";
 
 const SOURCES = [
   { id: "youtube", label: "YouTube" },
@@ -43,6 +44,7 @@ export default function Library() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const refresh = () => bridge.getQueue().then(setQueue).catch(() => {});
   const refreshPlaylists = () =>
@@ -201,6 +203,26 @@ export default function Library() {
         if (res.missing > 0) parts.push(`${res.missing} files not found`);
         setImportNote(parts.join(" · "));
       })
+      .catch((e) => setError(String(e)));
+  };
+
+  const commitRename = (p: PlaylistFile, name: string) => {
+    setRenaming(null);
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === p.name) return;
+    bridge
+      .renamePlaylist(p.path, trimmed)
+      .then(refreshPlaylists)
+      .catch((e) => setError(String(e)));
+  };
+
+  const deletePlaylist = (p: PlaylistFile) => {
+    if (!window.confirm(`Delete "${p.name}"? The file is removed from your music folder.`)) {
+      return;
+    }
+    bridge
+      .deletePlaylist(p.path)
+      .then(refreshPlaylists)
       .catch((e) => setError(String(e)));
   };
 
@@ -388,15 +410,53 @@ export default function Library() {
             </div>
             <div className="lib">
               {playlists.map((p) => (
-                <button
+                <div
                   key={p.path}
                   className="lib__row"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => importPlaylistFile(p.path)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.target === e.currentTarget) {
+                      importPlaylistFile(p.path);
+                    }
+                  }}
                 >
-                  <span className="lib__title">{p.name}</span>
+                  {renaming === p.path ? (
+                    <input
+                      className="lib__rename"
+                      defaultValue={p.name}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") commitRename(p, e.currentTarget.value);
+                        if (e.key === "Escape") setRenaming(null);
+                      }}
+                      onBlur={() => setRenaming(null)}
+                    />
+                  ) : (
+                    <span className="lib__title">{p.name}</span>
+                  )}
                   <span className="lib__sub">playlist</span>
-                  <span className="lib__dur">⤓</span>
-                </button>
+                  <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="lib__act"
+                      title="Rename"
+                      onClick={() => setRenaming(p.path)}
+                    >
+                      <PencilSimple size={11} />
+                    </button>
+                    <button
+                      className="lib__act"
+                      title="Delete"
+                      onClick={() => deletePlaylist(p)}
+                    >
+                      <Trash size={11} />
+                    </button>
+                    <span aria-hidden="true">⤓</span>
+                  </span>
+                </div>
               ))}
             </div>
           </>
