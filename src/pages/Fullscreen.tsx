@@ -31,9 +31,20 @@ import {
   TextT,
   YoutubeLogo,
   SoundcloudLogo,
+  SpotifyLogo,
+  AppleLogo,
+  AmazonLogo,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import ShareCard from "../ShareCard";
+
+const PROVIDERS = [
+  { id: "youtube", label: "YouTube Music", icon: YoutubeLogo, live: true },
+  { id: "soundcloud", label: "SoundCloud", icon: SoundcloudLogo, live: true },
+  { id: "spotify", label: "Spotify", icon: SpotifyLogo, live: false },
+  { id: "apple", label: "Apple Music", icon: AppleLogo, live: false },
+  { id: "amazon", label: "Amazon Music", icon: AmazonLogo, live: false },
+] as const;
 
 function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
   const [src, setSrc] = useState("");
@@ -115,6 +126,7 @@ export default function Fullscreen() {
   const [searching, setSearching] = useState(false);
   const [queueErr, setQueueErr] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [provOpen, setProvOpen] = useState(false);
   const [qpage, setQpage] = useState(0);
   const [favs, setFavs] = useState<Set<string>>(() => {
     try {
@@ -487,21 +499,39 @@ export default function Fullscreen() {
         <div className="fs__pill">
           {streamReady && (
             <>
-              <button
-                className="fs__icon fs__icon--on"
-                aria-label={`Provider: ${searchSrc === "youtube" ? "YouTube Music" : "SoundCloud"}`}
-                title="Switch provider"
-                onClick={() => {
-                  setSearchSrc((s) => (s === "youtube" ? "soundcloud" : "youtube"));
-                  setQueueOpen(true);
-                }}
-              >
-                {searchSrc === "youtube" ? (
-                  <YoutubeLogo size={16} weight="fill" />
-                ) : (
-                  <SoundcloudLogo size={16} weight="fill" />
+              <span className="fs__vol">
+                <button
+                  className={`fs__icon ${provOpen ? "fs__icon--on" : ""}`}
+                  aria-label="Music provider"
+                  title="Music provider"
+                  onClick={() => setProvOpen((v) => !v)}
+                >
+                  {searchSrc === "youtube" ? (
+                    <YoutubeLogo size={16} weight="fill" />
+                  ) : (
+                    <SoundcloudLogo size={16} weight="fill" />
+                  )}
+                </button>
+                {provOpen && (
+                  <span className="fs__volpop fs__morepop fs__provpop">
+                    {PROVIDERS.map((p) => (
+                      <button
+                        key={p.id}
+                        className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
+                        disabled={!p.live}
+                        onClick={() => {
+                          setSearchSrc(p.id);
+                          setProvOpen(false);
+                          setQueueOpen(true);
+                        }}
+                      >
+                        <p.icon size={14} weight="fill" /> {p.label}
+                        {!p.live && <span className="fs__soon">Soon</span>}
+                      </button>
+                    ))}
+                  </span>
                 )}
-              </button>
+              </span>
               <span className="fs__srcsep" />
             </>
           )}

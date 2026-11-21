@@ -759,6 +759,14 @@ body {
   font-size: 12px; font-weight: 600; cursor: pointer; text-align: left; font-family: inherit;
 }
 .fs__morebtn:hover { background: rgba(255,255,255,0.08); }
+.fs__morebtn--on { color: var(--accent); }
+.fs__morebtn:disabled { opacity: 0.45; cursor: default; }
+.fs__morebtn:disabled:hover { background: none; }
+.fs__provpop { min-width: 168px; }
+.fs__soon {
+  margin-left: auto; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px;
+}
 /* Lyrics-off: thumbnails take the stage. */
 .fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
 .fs__covers--big .fs__cover--on { width: clamp(320px, 38vh, 560px); }
