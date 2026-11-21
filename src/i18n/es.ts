@@ -162,6 +162,18 @@ const es: Record<keyof typeof en, string> = {
   "anim.pop": "Pop",
   "anim.typewriter": "M\u00e1quina de escribir",
   "anim.pulse": "Pulso",
+  "anim.blur": "Desenfoque",
+  "anim.rise": "Ascenso",
+  "anim.drop": "Ca\u00edda",
+  "anim.flip": "Giro",
+  "anim.zoom": "Zoom",
+  "anim.bounce": "Rebote",
+  "anim.reveal": "Revelar",
+  "anim.glow": "Brillo",
+  "anim.wave": "Ola",
+  "anim.scatter": "Dispersi\u00f3n",
+  "anim.focus": "Enfoque",
+  "anim.letters": "Letras",
   "anim.none": "Ninguna",
 };
 

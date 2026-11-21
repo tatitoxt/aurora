@@ -162,6 +162,18 @@ const zh: Record<keyof typeof en, string> = {
   "anim.pop": "\u5f39\u51fa",
   "anim.typewriter": "\u6253\u5b57\u673a",
   "anim.pulse": "\u8109\u51b2",
+  "anim.blur": "\u6a21\u7cca",
+  "anim.rise": "\u5347\u8d77",
+  "anim.drop": "\u843d\u4e0b",
+  "anim.flip": "\u7ffb\u8f6c",
+  "anim.zoom": "\u7f29\u653e",
+  "anim.bounce": "\u5f39\u8df3",
+  "anim.reveal": "\u63ed\u793a",
+  "anim.glow": "\u53d1\u5149",
+  "anim.wave": "\u6ce2\u6d6a",
+  "anim.scatter": "\u6563\u5f00",
+  "anim.focus": "\u805a\u7126",
+  "anim.letters": "\u5b57\u6bcd",
   "anim.none": "\u65e0",
 };
 
