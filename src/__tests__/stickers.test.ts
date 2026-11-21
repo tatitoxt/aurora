@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { addSticker, loadStickers, moveSticker, removeSticker } from "../stickers";
+import { addSticker, loadStickers, moveSticker, removeSticker } from "../stickerStore";
 
 describe("stickers store", () => {
   beforeEach(() => localStorage.clear());

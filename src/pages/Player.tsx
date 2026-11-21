@@ -115,11 +115,26 @@ export default function Player() {
   // "local" files seek via rodio; "demo" (web preview / mock) seeks its own
   // clock. Other sources (mpris, browser bridge) may not support seeking.
   const canSeek = np?.source === "local" || np?.source === "demo";
-  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!canSeek) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const frac = (e.clientX - r.left) / r.width;
-    if (track?.durationMs) void bridge.seek(Math.floor(frac * track.durationMs));
+  const scrubTo = (el: HTMLElement, clientX: number) => {
+    if (!canSeek || !track?.durationMs) return;
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    void bridge.seek(Math.floor(frac * track.durationMs));
+  };
+  // Click AND drag to scrub, like YouTube/Apple: pointer capture keeps the
+  // scrub alive when the pointer leaves the bar mid-drag.
+  const scrubProps = {
+    role: "slider" as const,
+    "aria-label": "Seek",
+    style: { cursor: canSeek ? "pointer" : "default" },
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (!canSeek || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      scrubTo(e.currentTarget, e.clientX);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.buttons & 1) scrubTo(e.currentTarget, e.clientX);
+    },
   };
 
   const controls = (
@@ -142,13 +157,7 @@ export default function Player() {
 
   const progress = (
     <div>
-      <div
-        className="player__progress"
-        role="slider"
-        aria-label="Seek"
-        style={{ cursor: canSeek ? "pointer" : "default" }}
-        onClick={seek}
-      >
+      <div className="player__progress" {...scrubProps}>
         <div className="player__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
       </div>
       <div className="player__times">
@@ -226,18 +235,7 @@ export default function Player() {
             <span className="kbar__txt">
               <span className="kbar__title">{track?.title ?? "Nothing playing"}</span>
               <span className="kbar__sub">{track ? `${track.artist} — ${track.album}` : ""}</span>
-              <span
-                className="kbar__prog"
-                role="slider"
-                aria-label="Seek"
-                style={{ cursor: canSeek ? "pointer" : "default" }}
-                onClick={(e) => {
-                  if (!canSeek || !track?.durationMs) return;
-                  const r = e.currentTarget.getBoundingClientRect();
-                  const frac = (e.clientX - r.left) / r.width;
-                  void bridge.seek(Math.floor(frac * track.durationMs));
-                }}
-              >
+              <span className="kbar__prog" {...scrubProps}>
                 <span className="kbar__fill" style={{ transform: `scaleX(${track?.durationMs ? Math.min(1, pos / track.durationMs) : 0})` }} />
               </span>
             </span>

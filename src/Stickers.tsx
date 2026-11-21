@@ -21,7 +21,7 @@ import {
   removeSticker,
   subscribeStickers,
   type Sticker,
-} from "./stickers";
+} from "./stickerStore";
 
 const GLYPHS: Record<string, React.ReactNode> = {
   star: <Star weight="fill" />,

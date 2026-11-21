@@ -122,10 +122,22 @@ export default function Hud() {
   const playing = np?.status === "playing";
   const active = lyrics ? activeLyricIndex(lyrics, pos + lyricOffsetFor(np)) : -1;
   const canSeek = np?.source === "local" || np?.source === "demo";
-  const seekBar = (e: React.MouseEvent<HTMLDivElement>) => {
+  const scrubTo = (el: HTMLElement, clientX: number) => {
     if (!canSeek || !track?.durationMs) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    void bridge.seek(Math.floor(((e.clientX - r.left) / r.width) * track.durationMs));
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    void bridge.seek(Math.floor(frac * track.durationMs));
+  };
+  // Click AND drag to scrub; pointer capture keeps scrubbing outside the bar.
+  const seekBar = {
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!canSeek || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      scrubTo(e.currentTarget, e.clientX);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.buttons & 1) scrubTo(e.currentTarget, e.clientX);
+    },
   };
   const pinned = settings.hudAlwaysOnTop;
   const fav = favKeys(favs).has(favKeyFor(np));
@@ -165,7 +177,7 @@ export default function Hud() {
               <div
                 className="hud__progress"
                 style={{ cursor: canSeek ? "pointer" : "default" }}
-                onClick={seekBar}
+                {...seekBar}
               >
                 <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
               </div>
@@ -307,7 +319,7 @@ export default function Hud() {
           <div
             className="hud__progress"
             style={{ cursor: canSeek ? "pointer" : "default" }}
-            onClick={seekBar}
+            {...seekBar}
           >
             <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
           </div>

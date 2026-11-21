@@ -442,12 +442,13 @@ export const bridge = {
   productName: branding.productName,
 
   getNowPlaying: () => (isTauri() ? invokeCmd<NowPlaying>("get_now_playing") : Promise.resolve(mock.poll())),
-  /** Browser-extension bridge: { tabs, provider host } — null without a bridge. */
+  /** Browser-extension bridge: { tabs, provider host } — null without a bridge.
+   * The web preview simulates a connected Spotify tab so the provider picker
+   * and the live-dot state demo what the desktop app looks like bridged. */
   getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
-      : /* no bridge in the web preview — the picker shows the install hint. */
-        Promise.resolve(null),
+      : Promise.resolve({ tabs: 1, provider: "open.spotify.com" }),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);
