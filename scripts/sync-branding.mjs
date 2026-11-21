@@ -45,15 +45,19 @@ const conf = {
         resizable: true,
         minWidth: 300,
         minHeight: 480,
-        decorations: false,
+        // Normal desktop window: native close/min/zoom (traffic lights on
+        // macOS via the overlay titlebar), Dock-visible, not always-on-top.
+        decorations: true,
+        titleBarStyle: "Overlay",
+        hiddenTitle: true,
         transparent: true,
         windowEffects: {
           effects: ["sidebar", "acrylic", "blur"],
           state: "active",
           radius: 18.0,
         },
-        alwaysOnTop: true,
-        skipTaskbar: true,
+        alwaysOnTop: false,
+        skipTaskbar: false,
       },
     ],
     security: {

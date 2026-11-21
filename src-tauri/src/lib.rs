@@ -1680,7 +1680,16 @@ fn toggle_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
     let win = app.get_webview_window("player").ok_or("no player window")?;
     let on = !win.is_fullscreen().map_err(|e| e.to_string())?;
     win.set_fullscreen(on).map_err(|e| e.to_string())?;
+    let _ = app.emit("fullscreen", on);
     Ok(on)
+}
+
+/// Whether the player window is currently fullscreen — the UI keeps its
+/// route in sync with the real OS state (Esc / green button included).
+#[tauri::command]
+fn window_is_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
+    let win = app.get_webview_window("player").ok_or("no player window")?;
+    win.is_fullscreen().map_err(|e| e.to_string())
 }
 
 fn license_client<'a>(http: &'a dyn Http, state: &AppState) -> LicenseClient<'a> {
@@ -2345,7 +2354,8 @@ fn spawn_poller(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
-        let mut last_qidx: Option<usize> = None;
+        let mut last_fs = false;
+    let mut last_qidx: Option<usize> = None;
         let mut last_track_id: Option<String> = None;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
@@ -2514,6 +2524,14 @@ fn spawn_poller(app: &tauri::AppHandle) {
             // Next/Prev and natural advance move the queue cursor without a
             // queue mutation: re-emit so panels keep the highlight current.
             let qidx = state.player.lock().ok().and_then(|p| p.current_index());
+            let fs_now = app
+                .get_webview_window("player")
+                .and_then(|w| w.is_fullscreen().ok())
+                .unwrap_or(false);
+            if fs_now != last_fs {
+                last_fs = fs_now;
+                let _ = app.emit("fullscreen", fs_now);
+            }
             if qidx != last_qidx {
                 last_qidx = qidx;
                 emit_queue(&app, &state);
@@ -2665,6 +2683,7 @@ pub fn run() {
             player_start_drag,
             show_player,
             toggle_fullscreen,
+            window_is_fullscreen,
             seek,
             set_speed,
             set_volume,

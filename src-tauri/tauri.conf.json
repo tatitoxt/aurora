@@ -19,7 +19,9 @@
         "resizable": true,
         "minWidth": 300,
         "minHeight": 480,
-        "decorations": false,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "transparent": true,
         "windowEffects": {
           "effects": [
@@ -30,8 +32,8 @@
           "state": "active",
           "radius": 18
         },
-        "alwaysOnTop": true,
-        "skipTaskbar": true
+        "alwaysOnTop": false,
+        "skipTaskbar": false
       }
     ],
     "security": {

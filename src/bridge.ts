@@ -365,7 +365,7 @@ export function onFileDrop(cb: (paths: string[]) => void): () => void {
   return () => {};
 }
 
-export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen", cb: (p: T) => void): () => void {
+export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen" | "fullscreen", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -488,6 +488,10 @@ export const bridge = {
   /** Fullscreen the player window (karaoke / visualizer wallpaper mode). */
   toggleFullscreen: (): Promise<boolean> => {
     if (isTauri()) return invokeCmd<boolean>("toggle_fullscreen");
+    return Promise.resolve(false);
+  },
+  isFullscreen: (): Promise<boolean> => {
+    if (isTauri()) return invokeCmd<boolean>("window_is_fullscreen");
     return Promise.resolve(false);
   },
   getLicenseState: (): Promise<LicenseState> =>

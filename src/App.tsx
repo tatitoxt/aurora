@@ -90,6 +90,7 @@ export default function App() {
       <PaletteGate />
       <DropGate />
       <ShortcutsGate />
+      <FsSync />
       <UpdateGate />
     </>
   );
@@ -130,6 +131,24 @@ function PaletteGate() {
   const loc = useLocation();
   if (["/hud", "/desklyrics"].includes(loc.pathname)) return null;
   return <Palette />;
+}
+
+/** Keep the route glued to the real window fullscreen state: any exit
+ * (Esc, macOS green button, our own toggle) pops back to the player. */
+function FsSync() {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const locRef = useRef(loc.pathname);
+  locRef.current = loc.pathname;
+  useEffect(() => {
+    if (["/hud", "/desklyrics"].includes(loc.pathname)) return;
+    return subscribe<boolean>("fullscreen", (on) => {
+      if (on) {
+        if (locRef.current !== "/fullscreen") nav("/fullscreen");
+      } else if (locRef.current === "/fullscreen") nav("/");
+    });
+  }, [loc.pathname, nav]);
+  return null;
 }
 
 /** App-wide shortcuts on the player surfaces: Space play/pause, arrows

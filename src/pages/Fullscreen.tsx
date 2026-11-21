@@ -148,6 +148,14 @@ export default function Fullscreen() {
   const t = useT();
   const lanim = useLyricAnim();
   const nav = useNavigate();
+  const exitFs = () => {
+    // Only toggle when the window really is fullscreen — otherwise the
+    // button would ENTER fullscreen while trying to leave the view.
+    void bridge.isFullscreen().then((on) => {
+      if (on) void bridge.toggleFullscreen();
+      else nav("/");
+    });
+  };
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
@@ -281,7 +289,7 @@ export default function Fullscreen() {
         if (e.shiftKey) void bridge.mediaControl("previous");
         else void bridge.seek(Math.max(0, pos - 10_000));
       } else if (e.key === "Escape") {
-        void bridge.toggleFullscreen().then(() => nav("/"));
+        exitFs();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -418,6 +426,43 @@ export default function Fullscreen() {
         {settings.ambientBg && !videoUrl && <AmbientBg />}
       </div>
       <div className="fs__grain" aria-hidden="true" />
+
+      {/* Top control strip — always visible above the video/wall. The
+          left side stays clear for the macOS traffic lights. */}
+      <div className="fs__topbar">
+        <button
+          className="fs__icon"
+          aria-label={t("nav.library")}
+          title={t("nav.library")}
+          onClick={() => nav("/library")}
+        >
+          <Playlist size={15} />
+        </button>
+        <button
+          className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
+          aria-label="Lyrics"
+          title="Lyrics"
+          onClick={() => setLyricsOn((v) => !v)}
+        >
+          <TextT size={15} />
+        </button>
+        <button
+          className="fs__icon"
+          aria-label={t("nav.settings")}
+          title={t("nav.settings")}
+          onClick={() => nav("/settings")}
+        >
+          <GearSix size={15} />
+        </button>
+        <button
+          className="fs__icon"
+          aria-label={t("nav.fullscreen")}
+          title={t("nav.fullscreen")}
+          onClick={exitFs}
+        >
+          <CornersIn size={15} />
+        </button>
+      </div>
 
       <div className="fs__clockwrap">
         <div className="fs__date">{date}</div>
@@ -1070,9 +1115,9 @@ export default function Fullscreen() {
                 </button>
                 <button
                   className="fs__morebtn"
-                  onClick={() => void bridge.toggleFullscreen().then(() => nav("/"))}
+                  onClick={exitFs}
                 >
-                  <CornersIn size={13} /> Exit fullscreen
+                  <CornersIn size={13} /> {t("nav.fullscreen")}
                 </button>
                 <span className="fs__moresep" />
                 <span className="fs__stylehead">{t("fs.size")}</span>
