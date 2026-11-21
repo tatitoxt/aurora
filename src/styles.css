@@ -656,6 +656,9 @@ body {
 .fs__bg { position: absolute; inset: 0; }
 .fs__bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.06); filter: blur(12px) saturate(1.15) brightness(0.62); }
 /* Mosaic of queue covers, blurred into a living wall like iBaila albums. */
+.fs__qnum { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; width: 2ch; flex: none; text-align: right; }
+.fs__qdur { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; margin-left: auto; }
+.fs__qthumb { width: 30px; height: 30px; border-radius: 10px; object-fit: cover; flex: none; background: #1b1b21; }
 .fs__wall {
   position: absolute; inset: -6%;
   display: flex;
@@ -690,9 +693,9 @@ body {
 }
 .fs__clockwrap { position: relative; text-align: center; padding-top: 5vh; background: radial-gradient(52% 100% at 50% 18%, rgba(5,5,8,0.4), transparent 72%); }
 .fs__date {
-  font-size: 12.5px; color: rgba(242,242,245,0.75); letter-spacing: 0.3em;
-  text-transform: uppercase; font-weight: 500; margin-bottom: 6px;
-  text-shadow: 0 1px 12px rgba(0,0,0,0.5); font-variant-caps: all-small-caps;
+  font-size: clamp(16px, 2vh, 22px); color: rgba(242,242,245,0.9); letter-spacing: 0.32em;
+  text-transform: uppercase; font-weight: 600; margin-bottom: 8px;
+  text-shadow: 0 1px 14px rgba(0,0,0,0.7); font-variant-caps: all-small-caps;
 }
 .fs__clock {
   font-family: ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Helvetica Rounded", system-ui, sans-serif;
@@ -703,84 +706,15 @@ body {
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
 }
 .fs__colon { -webkit-text-stroke-width: 1px; }
-.fs__queue {
-  position: absolute; left: 3.5vw; top: 22vh; width: min(240px, 24vw); z-index: 5;
-  background: var(--panel); backdrop-filter: blur(48px) saturate(1.3);
-  -webkit-backdrop-filter: blur(48px) saturate(1.3);
-  border: 1px solid var(--line); border-radius: 22px; overflow: hidden;
-  box-shadow: 0 18px 50px -14px rgba(0,0,0,0.6);
-}
-.fs__qhead { font-size: 13px; font-weight: 700; }
-.fs__qsub2 { font-size: 10px; color: var(--dim); }
-.fs__qheadrow {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  background: none; border: none; font: inherit; color: var(--text);
-  padding: 10px 12px 8px; cursor: pointer; text-align: left;
-}
-.fs__qmosaic { display: grid; grid-template-columns: 1fr 1fr; width: 26px; height: 26px; border-radius: 8px; overflow: hidden; flex: none; background: #1b1b21; }
-.fs__qmosaic img { width: 100%; height: 100%; object-fit: cover; }
-.fs__qheadtxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.fs__qchev { color: var(--dim); flex: none; transition: transform .18s ease; }
-.fs__qchev--open { transform: rotate(180deg); }
-.fs__qthumb { width: 30px; height: 30px; border-radius: 10px; object-fit: cover; flex: none; background: #1b1b21; }
-.fs__qbody { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.fs__qtxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.fs__qlist { max-height: 46vh; overflow-y: auto; scrollbar-width: none; padding: 0 6px 8px; }
-.fs__qrow {
-  position: relative;
-  display: flex; flex-direction: column; gap: 1px; width: 100%;
-  background: none; border: none; border-radius: 14px; padding: 7px 10px;
-  cursor: pointer; text-align: left; font: inherit; color: var(--text);
-}
-.fs__qrow:hover { background: rgba(255,255,255,0.06); }
-.fs__qrow--on {
-  background: color-mix(in srgb, var(--accent) 24%, rgba(255,255,255,0.08));
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-/* Reorder/remove controls — revealed on row hover, overlaid so they never
-   steal text width (iBaila drawer style). */
-.fs__qctl {
-  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  display: inline-flex; align-items: center; gap: 1px; flex: none;
-  opacity: 0; transition: opacity .15s; pointer-events: none;
-  background: rgba(12,12,17,0.9); border-radius: 999px; padding: 2px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.fs__qrow:hover .fs__qctl,
-.fs__qrow:focus-within .fs__qctl { opacity: 1; pointer-events: auto; }
-.fs__qctlbtn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: none; border: none; color: var(--dim); cursor: pointer; padding: 0;
-}
-.fs__qctlbtn:hover:not(:disabled) { background: rgba(255,255,255,0.10); color: var(--text); }
-.fs__qctlbtn:disabled { opacity: 0.3; cursor: default; }
-.fs__qtitle { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fs__qsub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fs__eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; margin-top: 2px; }
-.fs__eq i { width: 3px; border-radius: 999px; background: var(--accent); animation: fs-eq 0.9s ease-in-out infinite; }
-.fs__eq i:nth-child(2) { animation-delay: 0.25s; }
-.fs__eq i:nth-child(3) { animation-delay: 0.5s; }
-@keyframes fs-eq {
-  0%, 100% { height: 3px; }
-  50% { height: 10px; }
-}
 .fs__center {
   position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 0 8vw; pointer-events: none; transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
-}
-/* Shift the stage right of the open Continue Playing panel so nothing overlaps. */
-.fs__center--panel {
-  padding-left: calc(3.5vw + min(240px, 24vw) + 32px);
-  padding-right: 4vw;
+  padding: 0 8vw; pointer-events: none;
 }
 .fs__lyric {
   font-family: var(--serif); font-style: italic; font-weight: 600;
   font-size: clamp(44px, 7.5vh, 88px);
   letter-spacing: 0; text-align: center; line-height: 1.05;
-  padding: 10px 28px; border-radius: 28px;
-  background: radial-gradient(58% 130% at 50% 55%, rgba(5,5,8,0.5), transparent 78%);
-  text-shadow: 0 2px 26px rgba(0,0,0,0.75);
+  text-shadow: 0 2px 30px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
   animation: fs-lyric-in 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 @keyframes fs-lyric-in {
@@ -792,16 +726,13 @@ body {
  * left-of-center; side covers trail to its right. The lyric floats in the
  * remaining space and may overlap the card's right edge. */
 .fs__covers {
-  display: flex; align-items: flex-end; justify-content: flex-start;
+  display: flex; align-items: flex-end; justify-content: center;
   gap: 18px; width: 100%; pointer-events: none;
-  padding-left: calc(3.5vw + min(240px, 24vw) + 3vw);
   margin-bottom: 3.5vh;
-  transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
 }
-.fs__covers--panel { padding-left: calc(3.5vw + min(240px, 24vw) + 32px); }
-.fs__cover { width: calc(clamp(70px, 8.5vh, 108px) * var(--cscale, 1)); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
+.fs__cover { width: calc(clamp(92px, 10.5vh, 140px) * var(--cscale, 1)); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 20px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
-.fs__cover--on { width: calc(clamp(240px, 26vh, 380px) * var(--cscale, 1)); opacity: 1; }
+.fs__cover--on { width: calc(clamp(280px, 30vh, 440px) * var(--cscale, 1)); opacity: 1; }
 .fs__cover--on img { border-radius: 22px; }
 /* Media fills the card, meta overlaid on a scrim. */
 .fs__coverimg { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 26px 70px -12px rgba(0,0,0,0.75); background: rgba(255,255,255,0.05); }
@@ -859,12 +790,6 @@ body {
 }
 /* Queue page dots + overflow menu + like. */
 .fs__srcsep { width: 1px; height: 16px; background: rgba(255,255,255,0.14); flex: none; }
-.fs__qdots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 8px; }
-.fs__qdot {
-  width: 5px; height: 5px; border-radius: 50%; border: none; padding: 0;
-  background: rgba(255,255,255,0.25); cursor: pointer;
-}
-.fs__qdot--on { background: #fff; }
 .fs__icon--fav { color: #f472b6 !important; }
 .fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; max-height: min(72vh, 560px); overflow-y: auto; }
 .fs__morebtn {
@@ -912,7 +837,7 @@ body {
 }
 /* Lyrics-off: thumbnails take the stage. */
 .fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
-.fs__covers--big .fs__cover--on { width: calc(clamp(320px, 38vh, 560px) * var(--cscale, 1)); }
+.fs__covers--big .fs__cover--on { width: calc(clamp(360px, 42vh, 620px) * var(--cscale, 1)); }
 .fs__covers { transition: transform .35s cubic-bezier(.2,.9,.25,1); }
 /* Film grain over the whole surface — the iBaila wall has texture, not flat blur. */
 .fs__grain {
@@ -920,10 +845,9 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 @media (prefers-reduced-motion: reduce) {
-  .fs__mesh, .fs__eq i, .fs__pill, .fs__queue, .fs__clockwrap, .fs__lyric { animation: none !important; }
+  .fs__mesh, .fs__pill, .fs__clockwrap, .fs__lyric { animation: none !important; }
 }
-.fs__pill, .fs__queue, .fs__clockwrap { animation: fs-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
-.fs__queue { animation-delay: 0.08s; }
+.fs__pill, .fs__clockwrap { animation: fs-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
 .fs__pill { animation-delay: 0.15s; }
 @keyframes fs-rise {
   from { opacity: 0; transform: translateY(16px); }
@@ -955,8 +879,6 @@ body {
 
 /* ---- Fullscreen style pack (iBaila variants) ---- */
 .fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
-.fs__qnum { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; width: 2ch; flex: none; text-align: right; }
-.fs__qdur { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; margin-left: auto; }
 .fs__lyric, .fs__timing { pointer-events: auto; }
 .fs__lyric { cursor: context-menu; }
 .fs__timing {
@@ -974,7 +896,7 @@ body {
 .fs--arc .fs__covers { perspective: 900px; justify-content: center; }
 .fs--arc .fs__cover--l { transform: rotateY(52deg) scale(0.72) translateZ(-40px); transform-origin: right center; opacity: 0.4; }
 .fs--arc .fs__cover--r { transform: rotateY(-52deg) scale(0.72) translateZ(-40px); transform-origin: left center; opacity: 0.4; }
-.fs--arc .fs__cover--on { width: calc(clamp(300px, 34vh, 480px) * var(--cscale, 1)); }
+.fs--arc .fs__cover--on { width: calc(clamp(330px, 36vh, 520px) * var(--cscale, 1)); }
 .fs--arc .fs__hairfill { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, #fff), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
 .fs--arc .fs__pill, .fs--pearl .fs__pill, .fs--studio .fs__pill, .fs--vision .fs__pill {
   background: transparent; border: none; box-shadow: none;
@@ -988,18 +910,13 @@ body {
 
 /* pearl: one cover alone, centered like a pearl — no side covers */
 .fs--pearl .fs__covers { justify-content: center; padding-left: 0; }
-.fs--pearl .fs__center--panel { padding-left: 8vw; }
 .fs--pearl .fs__cover:not(.fs__cover--on) { display: none; }
-.fs--pearl .fs__cover--on { width: calc(clamp(340px, 44vh, 620px) * var(--cscale, 1)); }
+.fs--pearl .fs__cover--on { width: calc(clamp(380px, 48vh, 680px) * var(--cscale, 1)); }
 
 /* studio: queue docked right as a numbered list, carousel stays left */
-.fs--studio .fs__queue { left: auto; right: 3.5vw; width: min(320px, 32vw); }
 .fs--studio .fs__covers { padding-left: 3.5vw; justify-content: flex-start; }
-.fs--studio .fs__center--panel { padding-left: 8vw; padding-right: calc(3.5vw + min(320px, 32vw) + 32px); }
-.fs--studio .fs__covers--panel { padding-left: 3.5vw; }
 
 /* spotlight: NOW PLAYING card left + albums row; queue docked right */
-.fs--spotlight .fs__queue { left: auto; right: 3.5vw; }
 .fs__spot {
   position: relative; flex: 1; display: flex; flex-direction: column;
   justify-content: center; gap: 3vh; padding: 0 4vw 0 calc(3.5vw + min(240px,24vw) + 3vw);
@@ -1111,7 +1028,10 @@ body {
 }
 
 /* showcase: the strip wall sits much dimmer so the clock reads cleanly */
-.fs--showcase .fs__wall { filter: blur(22px) saturate(1.05) brightness(0.35); }
+.fs--showcase .fs__qnum { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; width: 2ch; flex: none; text-align: right; }
+.fs__qdur { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; margin-left: auto; }
+.fs__qthumb { width: 30px; height: 30px; border-radius: 10px; object-fit: cover; flex: none; background: #1b1b21; }
+.fs__wall { filter: blur(22px) saturate(1.05) brightness(0.35); }
 
 /* tile: sharp current cover as the backdrop */
 .fs__tilebg {

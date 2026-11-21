@@ -28,12 +28,9 @@ import {
   type FavEntry,
 } from "../favs";
 import {
-  CaretDown,
-  CaretUp,
   CornersIn,
   Export,
   GearSix,
-  Queue,
   LockSimple,
   LockSimpleOpen,
   Moon,
@@ -52,7 +49,6 @@ import {
   TextT,
   YoutubeLogo,
   SoundcloudLogo,
-  X,
   SpotifyLogo,
   AppleLogo,
   AmazonLogo,
@@ -80,18 +76,6 @@ const FS_STYLES = [
   { id: "showcase", label: "Showcase" },
 ] as const;
 
-function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    if (track.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setSrc);
-    else setSrc("");
-  }, [track.artworkUrl]);
-  return src ? (
-    <img className="fs__qthumb" src={src} alt="" />
-  ) : (
-    <div className="fs__qthumb fs__meta-art" aria-hidden="true" />
-  );
-}
 
 /** Sharp video backdrop for the iBaila "albums" background: muted, synced to
  * the track position, faded in once it can play. */
@@ -147,7 +131,6 @@ export default function Fullscreen() {
   const [art, setArt] = useState("");
   const [now, setNow] = useState(() => new Date());
   const [shuffle, setShuffle] = useState(false);
-  const [queueOpen, setQueueOpen] = useState(true);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
@@ -175,7 +158,6 @@ export default function Fullscreen() {
   const [scaleLock, setScaleLock] = useState(
     () => localStorage.getItem("noctbeat.fslock") === "1"
   );
-  const [qpage, setQpage] = useState(0);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
   useEffect(() => subscribeFavs(() => setFavs(loadFavs())), []);
   const favSet = useMemo(() => favKeys(favs), [favs]);
@@ -203,9 +185,6 @@ export default function Fullscreen() {
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 0;
-  const panelShown = queue.items.length > 0 || streamReady;
-  const qpages = Math.ceil(queue.items.length / 8);
-  const qp = Math.min(qpage, Math.max(0, qpages - 1));
   const favKey = favKeyFor(np);
   const fav = favKey !== "" && favSet.has(favKey);
   const onToggleFav = () => {
@@ -390,120 +369,8 @@ export default function Fullscreen() {
         </div>
       </div>
 
-      {panelShown && (
-        <aside className="fs__queue">
-          <button
-            className="fs__qheadrow"
-            onClick={() => setQueueOpen((o) => !o)}
-            aria-expanded={queueOpen}
-          >
-            <span className="fs__qmosaic" aria-hidden="true">
-              {wall.slice(0, 4).map((src, i) => (
-                <img key={i} src={src} alt="" />
-              ))}
-            </span>
-            <span className="fs__qheadtxt">
-              <span className="fs__qhead">{t("fs.continuePlaying")}</span>
-              <span className="fs__qsub2">
-                Up next{{ local: " in your library", youtube: " on YouTube", soundcloud: " on SoundCloud", mpris: " on your player", demo: "" }[np?.source ?? "local"] ?? ""}
-              </span>
-            </span>
-            <CaretDown
-              size={13}
-              className={`fs__qchev ${queueOpen ? "fs__qchev--open" : ""}`}
-            />
-          </button>
-          {queueOpen && (
-          <>
-          {queue.items.length > 0 && (
-          <div className="fs__qlist">
-            {queue.items.slice(qp * 8, qp * 8 + 8).map((it, i) => {
-              const idx = qp * 8 + i;
-              const current = idx === queue.currentIndex;
-              return (
-              <div
-                key={it.path + idx}
-                className={`fs__qrow ${current ? "fs__qrow--on" : ""}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => void bridge.playQueueIndex(idx)}
-                onKeyDown={(e) => {
-                  if (
-                    e.target === e.currentTarget &&
-                    (e.key === "Enter" || e.key === " ")
-                  ) {
-                    e.preventDefault();
-                    void bridge.playQueueIndex(idx);
-                  }
-                }}
-              >
-                <div className="fs__qbody">
-                  <QueueThumb track={it.track} />
-                  <span className="fs__qtxt">
-                    <span className="fs__qtitle">{it.track.title}</span>
-                    <span className="fs__qsub">{it.track.artist}</span>
-                  </span>
-                  <span className="fs__qctl" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className="fs__qctlbtn"
-                      title={t("fs.moveUp")}
-                      disabled={idx === 0}
-                      onClick={() => void bridge.queueMove(idx, idx - 1)}
-                    >
-                      <CaretUp size={11} />
-                    </button>
-                    <button
-                      className="fs__qctlbtn"
-                      title={t("fs.moveDown")}
-                      disabled={idx === queue.items.length - 1}
-                      onClick={() => void bridge.queueMove(idx, idx + 1)}
-                    >
-                      <CaretDown size={11} />
-                    </button>
-                    <button
-                      className="fs__qctlbtn"
-                      title={current ? t("fs.playingCantRemove") : t("fs.moveDown")}
-                      disabled={current}
-                      onClick={() => void bridge.queueRemove(idx)}
-                    >
-                      <X size={11} />
-                    </button>
-                  </span>
-                  <span className="fs__qnum">{idx + 1}</span>
-                  <span className="fs__qdur">
-                    {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
-                  </span>
-                  {current && playing && (
-                    <span className="fs__eq" aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                  )}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-          )}
-          {queue.items.length > 8 && (
-            <div className="fs__qdots">
-              {Array.from({ length: Math.ceil(queue.items.length / 8) }, (_, p) => (
-                <button
-                  key={p}
-                  className={`fs__qdot ${p === qp ? "fs__qdot--on" : ""}`}
-                  aria-label={`Queue page ${p + 1}`}
-                  onClick={() => setQpage(p)}
-                />
-              ))}
-            </div>
-          )}
-          </>
-          )}
-        </aside>
-      )}
 
-      <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
+      <div className="fs__center">
         {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
           line ? (
             <div
@@ -737,7 +604,7 @@ export default function Fullscreen() {
       )}
 
       {!["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) && covers.length > 1 && (
-        <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"} ${panelShown && queueOpen ? "fs__covers--panel" : ""}`}>
+        <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}>
           {covers.map((c) =>
             c.on ? (
               /* iBaila center card: video/art inside, meta overlaid on scrim. */
@@ -972,14 +839,6 @@ export default function Fullscreen() {
             onClick={() => setLyricsOn((v) => !v)}
           >
             <TextT size={15} />
-          </button>
-          <button
-            className={`fs__icon ${queueOpen ? "fs__icon--on" : ""}`}
-            aria-label="Toggle queue panel"
-            title={t("fs.queuePanel")}
-            onClick={() => setQueueOpen((v) => !v)}
-          >
-            <Queue size={15} />
           </button>
           <span className="fs__vol">
             <button
