@@ -41,6 +41,20 @@ impl Default for ThemeSettings {
     }
 }
 
+/// A named personalization bundle: what one person saved of their look
+/// and sound so they can come back to it or share the machine.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub id: String,
+    pub name: String,
+    pub theme: ThemeSettings,
+    pub eq_preset: String,
+    pub eq_bands: Vec<f32>,
+    pub lyrics_mode: String,
+    pub video_backdrop: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -96,6 +110,13 @@ pub struct Settings {
     /// Last on-screen position of the lyrics overlay, restored on launch.
     #[serde(default)]
     pub desk_lyrics_position: Option<(i32, i32)>,
+    /// Saved personalization profiles.
+    #[serde(default)]
+    pub profiles: Vec<Profile>,
+    /// Id of the last applied profile; edits after applying don't
+    /// re-save into it (explicit save does).
+    #[serde(default)]
+    pub active_profile: Option<String>,
 }
 
 fn default_eq_preset() -> String {
@@ -136,6 +157,8 @@ impl Default for Settings {
             eq_bands: Vec::new(),
             desk_lyrics_enabled: false,
             desk_lyrics_position: None,
+            profiles: Vec::new(),
+            active_profile: None,
         }
     }
 }
@@ -161,6 +184,59 @@ impl Settings {
             s["version"] = serde_json::json!(CURRENT_VERSION);
         }
         serde_json::from_value(s).unwrap_or_default()
+    }
+
+    /// Capture the current personalization as a named profile. Same name
+    /// overwrites that profile (upsert); returns its id.
+    pub fn save_profile(&mut self, name: &str, id_seed: u64) -> String {
+        let bundle = |id: String, name: String| Profile {
+            id,
+            name,
+            theme: self.theme.clone(),
+            eq_preset: self.eq_preset.clone(),
+            eq_bands: self.eq_bands.clone(),
+            lyrics_mode: self.lyrics_mode.clone(),
+            video_backdrop: self.video_backdrop,
+        };
+        if let Some(p) = self
+            .profiles
+            .iter_mut()
+            .find(|p| p.name.eq_ignore_ascii_case(name))
+        {
+            let id = p.id.clone();
+            *p = bundle(id.clone(), name.to_string());
+            self.active_profile = Some(id.clone());
+            return id;
+        }
+        let id = format!("p{id_seed}");
+        self.profiles.push(bundle(id.clone(), name.to_string()));
+        self.active_profile = Some(id.clone());
+        id
+    }
+
+    /// Copy a profile's bundle into the live settings. Returns false for
+    /// an unknown id.
+    pub fn apply_profile(&mut self, id: &str) -> bool {
+        let Some(p) = self.profiles.iter().find(|p| p.id == id).cloned() else {
+            return false;
+        };
+        self.theme = p.theme;
+        self.eq_preset = p.eq_preset;
+        self.eq_bands = p.eq_bands;
+        self.lyrics_mode = p.lyrics_mode;
+        self.video_backdrop = p.video_backdrop;
+        self.active_profile = Some(id.to_string());
+        true
+    }
+
+    /// Remove a profile; clears `active_profile` if it pointed at it.
+    pub fn delete_profile(&mut self, id: &str) -> bool {
+        let before = self.profiles.len();
+        self.profiles.retain(|p| p.id != id);
+        if self.active_profile.as_deref() == Some(id) {
+            self.active_profile = None;
+        }
+        self.profiles.len() != before
     }
 
     /// Atomic-ish write: tmp file then rename.
@@ -239,6 +315,53 @@ mod tests {
         assert_eq!(s.edge_thickness_px, 12);
         assert!(s.battery_saver);
         assert_eq!(s.displays, vec![]);
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn profile_upsert_apply_and_delete() {
+        let mut s = Settings::default();
+        s.theme.name = "ember".into();
+        s.eq_preset = "bass".into();
+        s.eq_bands = vec![6.0, 4.0, 0.0, -2.0, -4.0];
+        let id = s.save_profile("Fausto", 42);
+        assert_eq!(id, "p42");
+        assert_eq!(s.profiles.len(), 1);
+        assert_eq!(s.active_profile.as_deref(), Some("p42"));
+
+        // Diverging doesn't touch the saved bundle.
+        s.theme.name = "glacier".into();
+        s.eq_preset = "flat".into();
+        assert_eq!(s.profiles[0].theme.name, "ember");
+
+        // Apply restores it.
+        assert!(s.apply_profile("p42"));
+        assert_eq!(s.theme.name, "ember");
+        assert_eq!(s.eq_preset, "bass");
+
+        // Upsert by name keeps the id.
+        s.theme.name = "mono".into();
+        let id2 = s.save_profile("fausto", 43);
+        assert_eq!(id2, "p42");
+        assert_eq!(s.profiles.len(), 1);
+        assert_eq!(s.profiles[0].theme.name, "mono");
+
+        assert!(s.delete_profile("p42"));
+        assert!(s.profiles.is_empty());
+        assert_eq!(s.active_profile, None);
+        assert!(!s.apply_profile("p42"));
+        assert!(!s.delete_profile("p42"));
+    }
+
+    #[test]
+    fn profiles_roundtrip() {
+        let p = tmp("profiles.json");
+        let mut s = Settings::default();
+        s.save_profile("Night", 7);
+        s.save(&p).unwrap();
+        let back = Settings::load(&p);
+        assert_eq!(back.profiles.len(), 1);
+        assert_eq!(back.profiles[0].name, "Night");
         let _ = std::fs::remove_file(&p);
     }
 
