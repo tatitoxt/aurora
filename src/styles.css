@@ -106,9 +106,8 @@ body {
 .player__progress { height: 5px; background: rgba(255,255,255,.14); border-radius: 999px; position: relative; }
 .player__progress-fill {
   position: absolute; inset: 0 auto 0 0;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background: #fff;
   border-radius: 999px;
-  box-shadow: 0 0 10px -2px var(--accent);
 }
 .player__times { display: flex; justify-content: space-between; font-size: 10.5px; color: rgba(255,255,255,.78); font-variant-numeric: tabular-nums; margin-top: 8px; }
 
@@ -415,7 +414,7 @@ body {
 .player__progress > .player__progress-fill { pointer-events: none; }
 
 /* ---------- library ---------- */
-.lib { display: flex; flex-direction: column; gap: 2px; }
+.lib { display: flex; flex-direction: column; gap: 3px; padding: 0 6px; }
 .lib__row {
   display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto;
   gap: 1px 9px; align-items: center;
@@ -455,8 +454,7 @@ body {
   padding: 2px 8px; outline: none; min-width: 0;
 }
 .lib__tracks {
-  margin: 0 2px 6px 10px; padding: 2px 0 4px 8px;
-  border-left: 1px solid var(--line);
+  margin: 0 2px 6px 12px; padding: 2px 0 4px 8px;
 }
 .lib__trow {
   display: grid; grid-template-columns: 16px 1fr auto auto;
@@ -480,8 +478,6 @@ body {
 .pagehead {
   display: flex; flex-direction: column; gap: 4px;
   padding: 16px 16px 10px;
-  border-bottom: 1px solid rgba(255,255,255,.07);
-  background: linear-gradient(180deg, rgba(255,255,255,.045), transparent);
 }
 .pagehead__top { display: flex; align-items: center; justify-content: space-between; }
 .pagehead__links { display: flex; gap: 6px; }
