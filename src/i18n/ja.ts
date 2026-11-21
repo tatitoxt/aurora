@@ -163,6 +163,8 @@ const ja: Record<keyof typeof en, string> = {
   "fs.size": "カバーサイズ",
   "fs.lockSize": "サイズをロック",
   "fs.unlockSize": "サイズのロック",
+  "fs.clockSize": "時計のサイズ",
+  "fs.lyricSize": "歌詞サイズ",
   "fs.nowPlaying": "\u518d\u751f\u4e2d",
   "fs.upNext": "次に再生",
   "fs.nothingPlaying": "\u518d\u751f\u4e2d\u306e\u66f2\u306f\u3042\u308a\u307e\u305b\u3093",

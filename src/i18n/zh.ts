@@ -163,6 +163,8 @@ const zh: Record<keyof typeof en, string> = {
   "fs.size": "\u5c01\u9762\u5927\u5c0f",
   "fs.lockSize": "\u9501\u5b9a\u5c3a\u5bf8",
   "fs.unlockSize": "\u89e3\u9501\u5c3a\u5bf8",
+  "fs.clockSize": "时钟大小",
+  "fs.lyricSize": "歌词大小",
   "fs.nowPlaying": "\u6b63\u5728\u64ad\u653e",
   "fs.upNext": "接下来播放",
   "fs.nothingPlaying": "\u6ca1\u6709\u5728\u64ad\u653e\u7684\u66f2\u76ee",

@@ -163,6 +163,8 @@ const de: Record<keyof typeof en, string> = {
   "fs.size": "Cover-Größe",
   "fs.lockSize": "Größe sperren",
   "fs.unlockSize": "Größe entsperren",
+  "fs.clockSize": "Uhrgröße",
+  "fs.lyricSize": "Lyrics-Größe",
   "fs.nowPlaying": "L\u00e4uft gerade",
   "fs.upNext": "Als Nächstes",
   "fs.nothingPlaying": "Nichts spielt",

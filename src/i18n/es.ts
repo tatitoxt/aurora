@@ -163,6 +163,8 @@ const es: Record<keyof typeof en, string> = {
   "fs.size": "Tamaño de covers",
   "fs.lockSize": "Bloquear tamaño",
   "fs.unlockSize": "Desbloquear tamaño",
+  "fs.clockSize": "Tamaño del reloj",
+  "fs.lyricSize": "Tamaño de la letra",
   "fs.nowPlaying": "Sonando ahora",
   "fs.upNext": "A continuación",
   "fs.nothingPlaying": "Nada sonando",
