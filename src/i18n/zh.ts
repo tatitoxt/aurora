@@ -170,6 +170,8 @@ const zh: Record<keyof typeof en, string> = {
   "fs.nothingPlaying": "\u6ca1\u6709\u5728\u64ad\u653e\u7684\u66f2\u76ee",
   "fs.provider": "\u97f3\u4e50\u670d\u52a1\u5546",
   "fs.extHint": "安装扩展以跟随浏览器标签页中的音乐",
+  "fs.extStep1": "1. chrome://extensions → 开启开发者模式",
+  "fs.extStep2": "2. 加载已解压的扩展程序 → 应用内的 extension/ 文件夹",
   "fs.queuePanel": "\u7ee7\u7eed\u64ad\u653e\u9762\u677f",
   "fs.lyricsToggle": "\u6b4c\u8bcd / \u7f29\u7565\u56fe",
   "fs.startMusic": "\u5f00\u59cb\u64ad\u653e\u97f3\u4e50",

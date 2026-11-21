@@ -170,6 +170,8 @@ const de: Record<keyof typeof en, string> = {
   "fs.nothingPlaying": "Nichts spielt",
   "fs.provider": "Musikanbieter",
   "fs.extHint": "Erweiterung: installieren, um Musik-Tabs zu folgen",
+  "fs.extStep1": "1. chrome://extensions → Entwicklermodus aktivieren",
+  "fs.extStep2": "2. Entpackte laden → den Ordner extension/ in der App",
   "fs.queuePanel": "Weiter-h\u00f6ren-Panel",
   "fs.lyricsToggle": "Lyrics / Thumbnails",
   "fs.startMusic": "Musik starten",

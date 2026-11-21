@@ -179,6 +179,8 @@ const en = {
   "fs.nothingPlaying": "Nothing playing",
   "fs.provider": "Music provider",
   "fs.extHint": "Browser bridge: install the extension to follow your music tabs",
+  "fs.extStep1": "1. chrome://extensions → Developer mode on",
+  "fs.extStep2": "2. Load unpacked → the extension/ folder inside the app",
   "fs.queuePanel": "Continue Playing panel",
   "fs.lyricsToggle": "Lyrics / thumbnails",
   "fs.startMusic": "Start music",

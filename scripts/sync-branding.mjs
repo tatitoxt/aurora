@@ -57,6 +57,7 @@ const conf = {
   bundle: {
     active: true,
     targets: "all",
+    resources: ["../extension"],
     icon: [
       "icons/32x32.png",
       "icons/64x64.png",

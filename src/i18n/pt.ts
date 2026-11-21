@@ -170,6 +170,8 @@ const pt: Record<keyof typeof en, string> = {
   "fs.nothingPlaying": "Nada tocando",
   "fs.provider": "Provedor de m\u00fasica",
   "fs.extHint": "Extensão: instale para seguir a música das suas abas",
+  "fs.extStep1": "1. chrome://extensions → ative o Modo desenvolvedor",
+  "fs.extStep2": "2. Carregar sem pacote → a pasta extension/ dentro do app",
   "fs.queuePanel": "Painel Continuar tocando",
   "fs.lyricsToggle": "Letras / miniaturas",
   "fs.startMusic": "Iniciar m\u00fasica",
