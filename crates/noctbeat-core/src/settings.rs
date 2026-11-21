@@ -106,6 +106,10 @@ pub struct Settings {
     /// Audio output device name (e.g. a Bluetooth speaker); None = OS default.
     #[serde(default)]
     pub audio_output: Option<String>,
+    /// Crossfade length in ms applied to the natural track advance;
+    /// 0 keeps the hard cut between tracks.
+    #[serde(default = "default_crossfade")]
+    pub crossfade_ms: u64,
     /// Name of the active EQ preset ("flat", "bass", "vocal", "treble",
     /// "custom" when the user moved a slider).
     #[serde(default = "default_eq_preset")]
@@ -143,6 +147,10 @@ fn default_eq_preset() -> String {
     "flat".into()
 }
 
+fn default_crossfade() -> u64 {
+    3_000
+}
+
 fn default_true() -> bool {
     true
 }
@@ -176,6 +184,7 @@ impl Default for Settings {
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
             audio_output: None,
+            crossfade_ms: default_crossfade(),
             eq_preset: default_eq_preset(),
             eq_bands: Vec::new(),
             desk_lyrics_enabled: false,
