@@ -88,7 +88,7 @@ export default function Player() {
   // cover art sits. Falls back to artwork on any failure.
   // Dep is track?.id, not track: the now-playing poll emits a new object
   // every ~200ms and would restart the yt-dlp resolve on every tick.
-  const wantVideo = settings.videoBackdrop;
+  const wantVideo = settings.videoBackdrop || view === "video";
   const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
