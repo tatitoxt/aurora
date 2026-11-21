@@ -135,6 +135,7 @@ const ko: Record<keyof typeof en, string> = {
   "set.sources": "현재 소스",
   "set.sourceLive": "브라우저 브릿지 · 라이브",
   "set.sourceSys": "시스템 플레이어",
+  "set.sourceHint": "브라우저 확장을 설치하면 YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon을 따라갈 수 있습니다 — README › Browser extension 참조.",
   "set.minutes90": "90\ubd84",
   "set.licensed": "\ub77c\uc774\uc13c\uc2a4 \uc801\uc6a9\ub428",
   "set.licensedTo": "\ub77c\uc774\uc13c\uc2a4 \ubcf4\uc720\uc790",

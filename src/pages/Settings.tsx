@@ -375,6 +375,9 @@ export default function Settings() {
               <>{t("set.sourceSys")}{np?.source ? ` · ${np.source}` : ""}</>
             )}
           </span>
+          {!np?.source?.includes(".") && (
+            <span className="share__note">{t("set.sourceHint")}</span>
+          )}
         </div>
 
         <div className="field">

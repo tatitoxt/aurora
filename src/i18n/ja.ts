@@ -135,6 +135,7 @@ const ja: Record<keyof typeof en, string> = {
   "set.sources": "再生ソース",
   "set.sourceLive": "ブラウザブリッジ · ライブ",
   "set.sourceSys": "システムプレーヤー",
+  "set.sourceHint": "ブラウザ拡張をインストールすると YouTube Music、Spotify、SoundCloud、Apple Music、Tidal、Amazon を追跡できます — README › Browser extension を参照。",
   "set.minutes90": "90\u5206",
   "set.licensed": "\u30e9\u30a4\u30bb\u30f3\u30b9\u6e08\u307f",
   "set.licensedTo": "\u30e9\u30a4\u30bb\u30f3\u30b9\u5951\u7d04\u8005",
