@@ -34,6 +34,8 @@ import {
   Export,
   GearSix,
   Queue,
+  LockSimple,
+  LockSimpleOpen,
   Moon,
   Pause,
   Play,
@@ -165,6 +167,13 @@ export default function Fullscreen() {
   const [provOpen, setProvOpen] = useState(false);
   const [fsStyle, setFsStyle] = useState(
     () => localStorage.getItem("noctbeat.fsstyle") ?? "albums"
+  );
+  const [coverScale, setCoverScale] = useState(() => {
+    const v = parseFloat(localStorage.getItem("noctbeat.fscss") ?? "100");
+    return Number.isFinite(v) ? Math.min(160, Math.max(60, v)) : 100;
+  });
+  const [scaleLock, setScaleLock] = useState(
+    () => localStorage.getItem("noctbeat.fslock") === "1"
   );
   const [qpage, setQpage] = useState(0);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
@@ -348,7 +357,7 @@ export default function Fullscreen() {
   });
 
   return (
-    <div className={`fs fs--${fsStyle}`}>
+    <div className={`fs fs--${fsStyle}`} style={{ "--cscale": coverScale / 100 } as CSSProperties}>
       <div className="fs__bg">
         {videoUrl ? (
           <FsVideo url={videoUrl} posMs={pos} playing={playing} />
@@ -1038,6 +1047,34 @@ export default function Fullscreen() {
                 >
                   <CornersIn size={13} /> Exit fullscreen
                 </button>
+                <span className="fs__stylehead">{t("fs.size")}</span>
+                <span className="fs__sizerow">
+                  <input
+                    type="range" min={60} max={160} step={5}
+                    className="fs__sizeslider"
+                    value={coverScale}
+                    disabled={scaleLock}
+                    aria-label={t("fs.size")}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setCoverScale(v);
+                      localStorage.setItem("noctbeat.fscss", String(v));
+                    }}
+                  />
+                  <button
+                    className={`fs__icon fs__sizelock ${scaleLock ? "fs__icon--on" : ""}`}
+                    aria-label={scaleLock ? t("fs.unlockSize") : t("fs.lockSize")}
+                    title={scaleLock ? t("fs.unlockSize") : t("fs.lockSize")}
+                    onClick={() => {
+                      setScaleLock((v) => {
+                        localStorage.setItem("noctbeat.fslock", v ? "0" : "1");
+                        return !v;
+                      });
+                    }}
+                  >
+                    {scaleLock ? <LockSimple size={13} /> : <LockSimpleOpen size={13} />}
+                  </button>
+                </span>
                 <span className="fs__stylehead">{t("fs.soundFx")}</span>
                 {([
                   ["Off", "off"],
