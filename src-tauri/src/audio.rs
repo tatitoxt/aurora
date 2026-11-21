@@ -2,6 +2,7 @@
 //! single Player; `open` replaces its contents so `get_pos` stays correct.
 
 use noctbeat_core::player::AudioOut;
+use rodio::cpal::traits::{DeviceTrait, HostTrait};
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::sync::Mutex;
@@ -19,11 +20,46 @@ pub struct RodioOut {
     fallback_pos: Mutex<Option<Duration>>,
 }
 
+fn device_name(d: &rodio::cpal::Device) -> String {
+    d.description()
+        .map(|x| x.name().to_string())
+        .unwrap_or_else(|_| "unknown".into())
+}
+
 impl RodioOut {
-    /// Try to open the default output device. Returns None when no device
+    fn open_sink(name: Option<&str>) -> Option<rodio::MixerDeviceSink> {
+        match name {
+            None => rodio::DeviceSinkBuilder::open_default_sink().ok(),
+            Some(n) => {
+                let dev = rodio::cpal::default_host()
+                    .output_devices()
+                    .ok()?
+                    .find(|d| device_name(d) == n)?;
+                rodio::DeviceSinkBuilder::from_device(dev)
+                    .and_then(|b| b.open_stream())
+                    .ok()
+            }
+        }
+    }
+
+    /// Names of the OS output devices (speakers, headphones, Bluetooth
+    /// sinks) for the settings picker.
+    pub fn list_outputs() -> Vec<String> {
+        rodio::cpal::default_host()
+            .output_devices()
+            .map(|it| it.map(|d| device_name(&d)).collect())
+            .unwrap_or_default()
+    }
+
+    /// Try to open the OS default output device. Returns None when no device
     /// exists (CI, headless) — callers fall back to NullAudio.
     pub fn open_default() -> Option<Self> {
-        let sink = rodio::DeviceSinkBuilder::open_default_sink().ok()?;
+        Self::open_named(None)
+    }
+
+    /// Open the output device named `name` (None = OS default).
+    pub fn open_named(name: Option<&str>) -> Option<Self> {
+        let sink = Self::open_sink(name)?;
         let player = rodio::Player::connect_new(sink.mixer());
         Some(Self {
             inner: Mutex::new(Some(Inner {
@@ -32,6 +68,19 @@ impl RodioOut {
             })),
             fallback_pos: Mutex::new(None),
         })
+    }
+
+    /// Re-point playback at the device `name` (None = OS default). The
+    /// previous stream is dropped, so the caller must re-open the current
+    /// track to resume it.
+    pub fn set_device(&self, name: Option<&str>) -> Result<(), String> {
+        let sink = Self::open_sink(name).ok_or("audio device unavailable")?;
+        let player = rodio::Player::connect_new(sink.mixer());
+        *self.inner.lock().map_err(|e| e.to_string())? = Some(Inner {
+            _sink: sink,
+            player,
+        });
+        Ok(())
     }
 }
 

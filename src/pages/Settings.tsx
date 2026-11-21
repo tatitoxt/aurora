@@ -12,19 +12,24 @@ import {
 export default function Settings() {
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
+  const [outputs, setOutputs] = useState<string[]>([]);
   const [license, setLicense] = useState<LicenseState>({ state: "unlicensed" });
   const [key, setKey] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    Promise.all([bridge.getSettings(), bridge.listDisplays(), bridge.getLicenseState()]).then(
-      ([st, ds, lic]) => {
-        setS(st);
-        setDisplays(ds);
-        setLicense(lic);
-        setLoaded(true);
-      },
-    );
+    Promise.all([
+      bridge.getSettings(),
+      bridge.listDisplays(),
+      bridge.getLicenseState(),
+      bridge.listOutputs(),
+    ]).then(([st, ds, lic, outs]) => {
+      setS(st);
+      setDisplays(ds);
+      setLicense(lic);
+      setOutputs(outs);
+      setLoaded(true);
+    });
   }, []);
 
   const save = (next: Settings) => {
@@ -165,6 +170,27 @@ export default function Settings() {
             />
           </div>
         </div>
+
+        {outputs.length > 0 && (
+          <div className="field">
+            <span>Audio output</span>
+            <select
+              value={s.audioOutput ?? ""}
+              onChange={(e) => {
+                const name = e.target.value || null;
+                setS({ ...s, audioOutput: name });
+                void bridge.setOutputDevice(name);
+              }}
+            >
+              <option value="">System default</option>
+              {outputs.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="field">
           <span>Music folder</span>

@@ -98,6 +98,7 @@ pub struct Settings {
     pub theme: ThemeSettings,              // preset name + accent overrides
     pub lyrics_mode: String,               // "lines" (default) | "karaoke"
     pub video_backdrop: bool,              // karaoke plays the music video, default true
+    pub audio_output: Option<String>,      // sink device name, None = OS default
 }
 impl Settings { pub fn load(path: &Path) -> Self; pub fn save(&self, path: &Path) -> io::Result<()>; }
 // load(): missing file -> defaults; older version -> migrate; corrupt -> defaults (never panic)
@@ -169,6 +170,8 @@ All via `invoke`, camelCase names:
 | `providerStatus`       | —                                      | `boolean` (yt-dlp detected)   |
 | `providerSearch`       | `{ source, query }`                    | `RemoteTrack[]`               |
 | `providerPlay`         | `{ track: RemoteTrack }`               | `QueueItem`                   |
+| `listOutputs`          | —                                      | `string[]` (sink names)       |
+| `setOutputDevice`      | `{ name: string \| null }`              | `null` (swaps sink live)      |
 
 Events emitted to frontend: `now-playing` (NowPlaying), `energy` (EnergyUpdate).
 
@@ -224,6 +227,11 @@ stream URL (`ytsearch1:` + `-g`, progressive mp4 <=480p preferred) for the
 karaoke backdrop; the player `<video>` renders it muted and blurred in sync
 with the track position, and falls back to blurred artwork when yt-dlp is
 missing or no video resolves.
+
+Audio output devices are enumerated via cpal (`list_outputs`); `set_output_device`
+swaps the rodio sink live and `LocalPlayer::reopen_current` re-opens the track
+at its position so playback resumes — useful for routing to a Bluetooth speaker
+paired in the OS. The choice persists as `settings.audio_output`.
 
 ## Non-negotiables
 
