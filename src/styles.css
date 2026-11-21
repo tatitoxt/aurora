@@ -939,6 +939,7 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 18px; align-content: center; padding: 0 10vw;
   max-width: 960px; margin: 0 auto; width: 100%;
+  min-height: 0; overflow-y: auto; scrollbar-width: none;
 }
 .fs__tileitem {
   position: relative; background: none; border: none; padding: 0; cursor: pointer;
