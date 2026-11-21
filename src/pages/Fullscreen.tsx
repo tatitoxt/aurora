@@ -431,32 +431,6 @@ export default function Fullscreen() {
       )}
 
       <div className="fs__bottom">
-        <div className="fs__prog">
-          <span className="fs__time">{formatTime(pos)}</span>
-          <div
-            className={`fs__bar ${np?.source === "local" && dur ? "" : "fs__bar--off"}`}
-            role="slider"
-            aria-label="Seek"
-            onClick={(e) => {
-              if (np?.source !== "local" || !dur) return;
-              const r = e.currentTarget.getBoundingClientRect();
-              const frac = (e.clientX - r.left) / r.width;
-              void bridge.seek(Math.floor(frac * dur));
-            }}
-          >
-            <div
-              className="fs__barfill"
-              style={{
-                transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})`,
-              }}
-            />
-            <div
-              className="fs__barknob"
-              style={{ left: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%` }}
-            />
-          </div>
-          <span className="fs__time">{formatTime(dur)}</span>
-        </div>
         <div className="fs__pill">
           {streamReady && (
             <>
@@ -563,17 +537,35 @@ export default function Fullscreen() {
           >
             {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
           </button>
-          <div className="fs__meta">
-            {art ? (
-              <img src={art} alt="" />
-            ) : (
-              <div className="fs__meta-art" />
-            )}
-            <div className="fs__meta-txt">
-              <div className="fs__mtitle">{track?.title ?? "Nothing playing"}</div>
-              <div className="fs__msub">
-                {track ? `${track.artist} · ${track.album}` : "Start music"}
+          <div className="fs__metacol">
+            <div className="fs__meta">
+              {art ? (
+                <img src={art} alt="" />
+              ) : (
+                <div className="fs__meta-art" />
+              )}
+              <div className="fs__meta-txt">
+                <div className="fs__mtitle">{track?.title ?? "Nothing playing"}</div>
+                <div className="fs__msub">
+                  {track ? `${track.artist} · ${track.album}` : "Start music"}
+                </div>
               </div>
+            </div>
+            <div
+              className={`fs__hair ${np?.source === "local" && dur ? "" : "fs__hair--off"}`}
+              role="slider"
+              aria-label="Seek"
+              onClick={(e) => {
+                if (np?.source !== "local" || !dur) return;
+                const r = e.currentTarget.getBoundingClientRect();
+                const frac = (e.clientX - r.left) / r.width;
+                void bridge.seek(Math.floor(frac * dur));
+              }}
+            >
+              <div
+                className="fs__hairfill"
+                style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
+              />
             </div>
           </div>
           <button

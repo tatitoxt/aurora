@@ -672,31 +672,17 @@ body {
 .fs__cname { font-size: 12px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__cart { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__bottom { position: relative; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }
-.fs__prog {
-  display: flex; align-items: center; gap: 12px; width: min(760px, 100%);
-  padding: 9px 16px; border-radius: 999px;
-  background: rgba(12, 12, 17, 0.55);
-  backdrop-filter: blur(28px) saturate(1.4);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+/* iBaila: the progress is a hairline inside the pill, under the track meta. */
+.fs__metacol { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fs__hair {
+  position: relative; height: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.18); cursor: pointer;
 }
-.fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
-.fs__bar { flex: 1; height: 6px; background: rgba(255,255,255,0.12); border-radius: 999px; position: relative; }
-.fs__bar--off { cursor: default; }
-.fs__barfill {
+.fs__hair--off { cursor: default; opacity: 0.5; }
+.fs__hairfill {
   position: absolute; inset: 0; width: 100%; transform-origin: left;
-  background: linear-gradient(90deg, rgba(255,255,255,0.85), #fff);
-  border-radius: 999px;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+  background: #fff; border-radius: 999px;
 }
-/* Seek knob that rides the fill edge, revealed on hover. */
-.fs__barknob {
-  position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
-  background: #fff; transform: translate(-50%, -50%) scale(0.85);
-  transition: transform .12s ease; box-shadow: 0 0 10px rgba(0,0,0,0.45);
-}
-.fs__bar:hover .fs__barknob, .fs__bar:active .fs__barknob { transform: translate(-50%, -50%) scale(1.15); }
 .fs__pill {
   display: flex; align-items: center; gap: 8px;
   background: var(--panel-strong); backdrop-filter: blur(56px) saturate(1.3);
