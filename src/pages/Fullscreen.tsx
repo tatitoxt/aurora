@@ -145,6 +145,8 @@ export default function Fullscreen() {
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 0;
+  const qpages = Math.ceil(queue.items.length / 8);
+  const qp = Math.min(qpage, Math.max(0, qpages - 1));
   const favKey = track ? `${np?.source ?? ""}:${track.id}` : "";
   const fav = favKey !== "" && favs.has(favKey);
   const toggleFav = () => {
@@ -376,11 +378,11 @@ export default function Fullscreen() {
           )}
           {queue.items.length > 0 && (
           <div className="fs__qlist">
-            {queue.items.slice(qpage * 8, qpage * 8 + 8).map((it, i) => (
+            {queue.items.slice(qp * 8, qp * 8 + 8).map((it, i) => (
               <button
-                key={it.path + (qpage * 8 + i)}
-                className={`fs__qrow ${qpage * 8 + i === queue.currentIndex ? "fs__qrow--on" : ""}`}
-                onClick={() => void bridge.playQueueIndex(qpage * 8 + i)}
+                key={it.path + (qp * 8 + i)}
+                className={`fs__qrow ${qp * 8 + i === queue.currentIndex ? "fs__qrow--on" : ""}`}
+                onClick={() => void bridge.playQueueIndex(qp * 8 + i)}
               >
                 <div className="fs__qbody">
                   <QueueThumb track={it.track} />
@@ -388,7 +390,7 @@ export default function Fullscreen() {
                     <span className="fs__qtitle">{it.track.title}</span>
                     <span className="fs__qsub">{it.track.artist}</span>
                   </span>
-                  {qpage * 8 + i === queue.currentIndex && playing && (
+                  {qp * 8 + i === queue.currentIndex && playing && (
                     <span className="fs__eq" aria-hidden="true">
                       <i />
                       <i />
@@ -405,7 +407,7 @@ export default function Fullscreen() {
               {Array.from({ length: Math.ceil(queue.items.length / 8) }, (_, p) => (
                 <button
                   key={p}
-                  className={`fs__qdot ${p === qpage ? "fs__qdot--on" : ""}`}
+                  className={`fs__qdot ${p === qp ? "fs__qdot--on" : ""}`}
                   aria-label={`Queue page ${p + 1}`}
                   onClick={() => setQpage(p)}
                 />
