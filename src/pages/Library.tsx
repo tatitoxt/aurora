@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { bridge, type NowPlaying, type QueueState, type RemoteTrack } from "../bridge";
+import {
+  bridge,
+  type NowPlaying,
+  type PlaylistFile,
+  type QueueState,
+  type RemoteTrack,
+} from "../bridge";
 import { subscribe } from "../bridge";
 import { formatTime } from "../lib";
 
@@ -23,11 +29,18 @@ export default function Library() {
   const [importNote, setImportNote] = useState("");
   const [plUrl, setPlUrl] = useState("");
   const [importingUrl, setImportingUrl] = useState(false);
+  const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const refresh = () => bridge.getQueue().then(setQueue).catch(() => {});
+  const refreshPlaylists = () =>
+    bridge.listPlaylists().then(setPlaylists).catch(() => {});
 
   useEffect(() => {
     refresh();
+    refreshPlaylists();
     void bridge.providerStatus().then(setYtReady);
     const off = subscribe<NowPlaying>("now-playing", () => refresh());
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
@@ -98,6 +111,42 @@ export default function Library() {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setImportingUrl(false));
+  };
+
+  const savePlaylist = () => {
+    setError("");
+    setImportNote("");
+    setSaving(true);
+    void bridge
+      .exportPlaylist(saveName.trim() || "playlist")
+      .then((res) => {
+        setSaveOpen(false);
+        setSaveName("");
+        const parts = [
+          `Saved ${res.exported} tracks to ${res.path.split("/").pop()}`,
+        ];
+        if (res.skippedRemote > 0)
+          parts.push(`${res.skippedRemote} online tracks skipped`);
+        setImportNote(parts.join(" · "));
+        refreshPlaylists();
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setSaving(false));
+  };
+
+  const importPlaylistFile = (path: string) => {
+    setError("");
+    setImportNote("");
+    void bridge
+      .importPlaylist(path)
+      .then((res) => {
+        refresh();
+        const parts = [`${res.imported} tracks added`];
+        if (res.remote > 0) parts.push(`${res.remote} online entries skipped`);
+        if (res.missing > 0) parts.push(`${res.missing} files not found`);
+        setImportNote(parts.join(" · "));
+      })
+      .catch((e) => setError(String(e)));
   };
 
   const playing = np?.status === "playing";
@@ -171,9 +220,29 @@ export default function Library() {
           <div className="seg">
             <button onClick={rescan}>Rescan</button>
             <button onClick={importPlaylist}>Import</button>
+            <button
+              onClick={() => setSaveOpen((v) => !v)}
+              disabled={queue.items.length === 0}
+            >
+              Save
+            </button>
             <button onClick={() => void bridge.clearQueue().then(refresh)}>Clear</button>
           </div>
         </div>
+        {saveOpen && (
+          <div className="row">
+            <input
+              type="text"
+              placeholder="Playlist name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && savePlaylist()}
+            />
+            <button onClick={savePlaylist} disabled={saving}>
+              {saving ? "…" : "Save"}
+            </button>
+          </div>
+        )}
         {ytReady && (
           <div className="row">
             <input
@@ -220,6 +289,26 @@ export default function Library() {
             );
           })}
         </div>
+        {playlists.length > 0 && (
+          <>
+            <div className="row">
+              <span>Playlists</span>
+            </div>
+            <div className="lib">
+              {playlists.map((p) => (
+                <button
+                  key={p.path}
+                  className="lib__row"
+                  onClick={() => importPlaylistFile(p.path)}
+                >
+                  <span className="lib__title">{p.name}</span>
+                  <span className="lib__sub">playlist</span>
+                  <span className="lib__dur">⤓</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

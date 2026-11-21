@@ -33,27 +33,31 @@ fn is_remote(loc: &str) -> bool {
     loc.starts_with("http://") || loc.starts_with("https://")
 }
 
+/// `uri`: true when `loc` is a URI reference (XSPF `<location>`) whose
+/// percent-encoding must be decoded even without a `file://` scheme.
 fn file_entry(
     base: &Path,
     loc: &str,
     title: Option<String>,
     artist: Option<String>,
     duration_ms: Option<u64>,
+    uri: bool,
 ) -> PlaylistEntry {
     let loc = loc.trim();
     if is_remote(loc) {
         return PlaylistEntry::Remote(loc.to_string());
     }
-    // `file://` URIs may be percent-encoded; a plain path may be relative.
+    // `file://` URIs and XSPF locations are percent-encoded; plain M3U/PLS
+    // paths are not — decoding them would rename files with literal '%'
+    // sequences (e.g. "100%fA.mp3").
     let file_uri = loc.starts_with("file://");
     let raw = loc.strip_prefix("file://").unwrap_or(loc);
-    let decoded = percent_decode(raw);
     // Windows URIs decode to `/C:/...`; the leading slash is URI syntax,
     // not part of the drive path.
-    let decoded = if file_uri {
-        strip_drive_slash(decoded)
+    let decoded = if file_uri || uri {
+        strip_drive_slash(percent_decode(raw))
     } else {
-        decoded
+        raw.to_string()
     };
     let p = PathBuf::from(&decoded);
     let path = if p.is_absolute() { p } else { base.join(p) };
@@ -63,6 +67,64 @@ fn file_entry(
         artist,
         duration_ms,
     }
+}
+
+/// One writable playlist row: absolute path + display metadata.
+pub struct M3uItem {
+    pub path: String,
+    pub title: String,
+    pub artist: String,
+    pub duration_ms: u64,
+}
+
+/// Serialize entries as extended M3U (UTF-8 — save as `.m3u8`).
+pub fn write_m3u(items: &[M3uItem]) -> String {
+    // M3U is line-based: embedded CR/LF in tags would split into bogus
+    // track rows on reimport, so collapse them to spaces.
+    let single_line = |s: &str| -> String {
+        s.split(['\r', '\n'])
+            .filter(|p| !p.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let mut out = String::from("#EXTM3U\n");
+    for it in items {
+        let path = single_line(&it.path);
+        let title = single_line(&it.title);
+        let artist = single_line(&it.artist);
+        let secs = (it.duration_ms as f64 / 1000.0).round() as i64;
+        let meta = match (artist.is_empty(), title.is_empty()) {
+            (false, false) => format!("{artist} - {title}"),
+            (true, false) => title,
+            _ => path.rsplit(['/', '\\']).next().unwrap_or(&path).to_string(),
+        };
+        out.push_str(&format!("#EXTINF:{secs},{meta}\n{path}\n"));
+    }
+    out
+}
+
+/// Playlist files directly inside `dir` (.m3u/.m3u8/.pls/.xspf),
+/// sorted by path.
+pub fn list(dir: &Path) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map(|rd| {
+            rd.flatten()
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.is_file()
+                        && matches!(
+                            p.extension()
+                                .and_then(|e| e.to_str())
+                                .map(|e| e.to_ascii_lowercase())
+                                .as_deref(),
+                            Some("m3u") | Some("m3u8") | Some("pls") | Some("xspf")
+                        )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    out.sort();
+    out
 }
 
 fn percent_decode(s: &str) -> String {
@@ -140,7 +202,7 @@ fn parse_m3u(path: &Path, content: &str) -> Vec<PlaylistEntry> {
             continue;
         }
         let (title, artist, dur) = pending.take().unwrap_or_default();
-        out.push(file_entry(base, line, title, artist, dur));
+        out.push(file_entry(base, line, title, artist, dur, false));
     }
     out
 }
@@ -182,7 +244,7 @@ fn parse_pls(path: &Path, content: &str) -> Vec<PlaylistEntry> {
                 .and_then(|(_, s)| s.trim().parse::<f64>().ok())
                 .filter(|s| *s > 0.0)
                 .map(|s| (s * 1000.0) as u64);
-            file_entry(base, &loc, title, None, duration_ms)
+            file_entry(base, &loc, title, None, duration_ms, false)
         })
         .collect()
 }
@@ -214,6 +276,7 @@ fn parse_xspf(path: &Path, content: &str) -> Vec<PlaylistEntry> {
                 text_of("title"),
                 text_of("creator"),
                 text_of("duration").and_then(|d| d.parse::<u64>().ok()),
+                true,
             )
         })
         .filter(|e| e != &PlaylistEntry::Remote(String::new()))
@@ -307,10 +370,11 @@ mod tests {
         <playlist xmlns="http://xspf.org/ns/0/"><trackList>
           <track><location>file:///music/a%20b.mp3</location><title>A B</title><creator>Me</creator><duration>60000</duration></track>
           <track><location>rel/c.mp3</location><title>C</title></track>
+          <track><location>music/a%20b.mp3</location></track>
           <track><location>https://x.test/s</location></track>
         </trackList></playlist>"#;
         let out = parse(Path::new("/x/list.xspf"), content);
-        assert_eq!(out.len(), 3);
+        assert_eq!(out.len(), 4);
         match &out[0] {
             PlaylistEntry::File {
                 path,
@@ -326,7 +390,9 @@ mod tests {
             _ => panic!("expected File"),
         }
         assert_eq!(file(&out[1]), &PathBuf::from("/x/rel/c.mp3"));
-        assert!(matches!(out[2], PlaylistEntry::Remote(_)));
+        // XSPF locations are URI references: percent-decoded even relative.
+        assert_eq!(file(&out[2]), &PathBuf::from("/x/music/a b.mp3"));
+        assert!(matches!(out[3], PlaylistEntry::Remote(_)));
     }
 
     #[test]
@@ -344,6 +410,58 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert_eq!(file(&out[0]), &PathBuf::from("/100%🎵.mp3"));
         assert_eq!(file(&out[1]), &PathBuf::from("/m/100🎵.mp3"));
+    }
+
+    #[test]
+    fn write_m3u_round_trips_through_parse() {
+        let items = vec![
+            M3uItem {
+                path: "/music/a b.mp3".into(),
+                title: "A B".into(),
+                artist: "Me".into(),
+                duration_ms: 60_000,
+            },
+            M3uItem {
+                path: "/music/c.flac".into(),
+                title: "Solo".into(),
+                artist: String::new(),
+                duration_ms: 0,
+            },
+        ];
+        let text = write_m3u(&items);
+        assert!(text.starts_with("#EXTM3U"));
+        let out = parse(Path::new("/x/list.m3u8"), &text);
+        assert_eq!(file(&out[0]), &PathBuf::from("/music/a b.mp3"));
+        match &out[0] {
+            PlaylistEntry::File {
+                title,
+                artist,
+                duration_ms,
+                ..
+            } => {
+                assert_eq!(title.as_deref(), Some("A B"));
+                assert_eq!(artist.as_deref(), Some("Me"));
+                assert_eq!(*duration_ms, Some(60_000));
+            }
+            _ => panic!("expected File"),
+        }
+        assert_eq!(file(&out[1]), &PathBuf::from("/music/c.flac"));
+    }
+
+    #[test]
+    fn write_m3u_sanitizes_line_breaks_and_keeps_plain_percent() {
+        let items = vec![M3uItem {
+            path: "/music/100%fA mix.mp3".into(),
+            title: "Line\nBreak".into(),
+            artist: "A\r\nB".into(),
+            duration_ms: 1_000,
+        }];
+        let text = write_m3u(&items);
+        // header + one EXTINF + one path — no stray rows from the newlines.
+        assert_eq!(text.lines().count(), 3);
+        let out = parse(Path::new("/x/l.m3u8"), &text);
+        assert_eq!(out.len(), 1);
+        assert_eq!(file(&out[0]), &PathBuf::from("/music/100%fA mix.mp3"));
     }
 
     #[test]
