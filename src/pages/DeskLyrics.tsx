@@ -26,7 +26,8 @@ export default function DeskLyrics() {
   }, [trackId]);
 
   const pos = np?.positionMs ?? 0;
-  const active = lyrics ? activeLyricIndex(lyrics, pos + lyricOffsetFor(np)) : -1;
+  const lyricPos = pos + lyricOffsetFor(np);
+  const active = lyrics ? activeLyricIndex(lyrics, lyricPos) : -1;
   const line = active >= 0 ? lyrics![active] : null;
   const nextLine = lyrics && active >= 0 ? (lyrics[active + 1] ?? null) : null;
 
@@ -47,7 +48,7 @@ export default function DeskLyrics() {
         <X weight="bold" size={13} />
       </button>
       {line ? (
-        <KaraokeLyric line={line} nextLine={nextLine} posMs={pos} />
+        <KaraokeLyric line={line} nextLine={nextLine} posMs={lyricPos} />
       ) : (
         <div className="dlyrics__idle">
           {np?.track ? `${np.track.artist} · ${np.track.title}` : bridge.productName}

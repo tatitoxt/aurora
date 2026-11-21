@@ -869,7 +869,12 @@ export default function Fullscreen() {
               </div>
             </div>
             {lyricsOn && (fsStyle === "tile" || fsStyle === "showcase") && line && (
-              <div className="fs__cardlyric">{line}</div>
+              <div
+                className="fs__cardlyric"
+                onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
+              >
+                {line}
+              </div>
             )}
             <div
               className={`fs__hair ${np?.source === "local" && dur ? "" : "fs__hair--off"}`}

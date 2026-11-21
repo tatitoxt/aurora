@@ -137,7 +137,8 @@ export default function Player() {
 
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 1;
-  const active = lyrics ? activeLyricIndex(lyrics, pos + lyricOffsetFor(np)) : -1;
+  const lyricPos = pos + lyricOffsetFor(np);
+  const active = lyrics ? activeLyricIndex(lyrics, lyricPos) : -1;
   const playing = np?.status === "playing";
   const karaoke = settings.lyricsMode === "karaoke";
 
@@ -238,7 +239,7 @@ export default function Player() {
               <KaraokeLyric
                 line={lyrics[active]}
                 nextLine={lyrics[active + 1] ?? null}
-                posMs={pos}
+                posMs={lyricPos}
               />
             ) : (
               <div className="karaoke__idle">{track ? track.title : bridge.productName}</div>
