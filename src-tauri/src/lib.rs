@@ -1410,7 +1410,11 @@ fn import_theme(path: String) -> Result<noctbeat_core::settings::ThemeSettings, 
         serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     let hex = |c: &Option<String>| {
         c.as_ref()
-            .map(|v| v.starts_with('#') && matches!(v.len(), 4 | 7 | 9))
+            .map(|v| {
+                v.starts_with('#')
+                    && matches!(v.len(), 4 | 7 | 9)
+                    && v[1..].chars().all(|c| c.is_ascii_hexdigit())
+            })
             .unwrap_or(true)
     };
     if !hex(&t.accent) || !hex(&t.accent2) || t.name.is_empty() || t.name.len() > 40 {
