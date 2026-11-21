@@ -49,6 +49,9 @@ struct AppState {
     remote: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>>,
     /// Streams cache dir shared by the resolver and prefetch.
     stream_cache: PathBuf,
+    /// Remote keys with a prefetch download already running, so the
+    /// per-tick poller does not stack duplicate yt-dlp workers.
+    prefetching: std::sync::Arc<Mutex<std::collections::HashSet<String>>>,
     demo: bool,
 }
 
@@ -175,11 +178,22 @@ fn prefetch_next(state: &AppState, index: usize) {
         .map(str::to_owned);
     drop(p);
     let Some(key) = key else { return };
+    let Ok(mut in_flight) = state.prefetching.lock() else {
+        return;
+    };
+    if !in_flight.insert(key.clone()) {
+        return;
+    }
+    drop(in_flight);
     let map = state.remote.clone();
     let settings = state.settings.clone();
     let cache = state.stream_cache.clone();
+    let done = state.prefetching.clone();
     std::thread::spawn(move || {
         let _ = resolve_remote(&map, &settings, &cache, &key);
+        if let Ok(mut f) = done.lock() {
+            f.remove(&key);
+        }
     });
 }
 
@@ -1105,6 +1119,7 @@ pub fn run() {
             rodio,
             remote: remote_map,
             stream_cache,
+            prefetching: std::sync::Arc::new(Mutex::new(std::collections::HashSet::new())),
             demo,
         })
         .invoke_handler(tauri::generate_handler![
