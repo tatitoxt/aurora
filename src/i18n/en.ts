@@ -164,6 +164,7 @@ const en = {
   "lib.collection": "Collection",
   "stats.recap": "Recap",
   "stats.insights": "Insights",
+  "player.stickers": "Stickers",
 } as const;
 
 export default en;

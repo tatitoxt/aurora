@@ -155,6 +155,7 @@ const zh: Record<keyof typeof en, string> = {
   "lib.collection": "\u6536\u85cf",
   "stats.recap": "\u56de\u987e",
   "stats.insights": "\u6d1e\u5bdf",
+  "player.stickers": "\u8d34\u7eb8",
 };
 
 export default zh;
