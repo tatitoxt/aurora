@@ -299,13 +299,21 @@ export default function Library() {
               </span>
               <span className="lib__sub">{t.artist}</span>
               <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
-                <button
+                <span
+                  role="button"
+                  tabIndex={0}
                   className="lib__act"
                   title="Add to queue"
                   onClick={() => enqueueRemote(t)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    enqueueRemote(t);
+                  }}
                 >
                   <Plus size={11} />
-                </button>
+                </span>
                 {t.durationMs ? formatTime(t.durationMs) : ""}
               </span>
             </button>
