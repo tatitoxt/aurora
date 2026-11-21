@@ -155,6 +155,7 @@ const pt: Record<keyof typeof en, string> = {
   "lib.collection": "Cole\u00e7\u00e3o",
   "stats.recap": "Resumo",
   "stats.insights": "An\u00e1lises",
+  "player.stickers": "Adesivos",
 };
 
 export default pt;
