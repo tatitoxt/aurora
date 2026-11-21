@@ -340,8 +340,6 @@ export default function Fullscreen() {
         )}
         <div className="fs__veil" />
       </div>
-      <div className="fs__sparks" aria-hidden="true" />
-      <div className="fs__rim" aria-hidden="true" />
       <div className="fs__grain" aria-hidden="true" />
 
       <div className="fs__clockwrap">
