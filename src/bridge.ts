@@ -593,6 +593,20 @@ export const bridge = {
           },
           path: `/demo/${track.id}.mp3`,
         }),
+  providerEnqueue: (track: RemoteTrack) =>
+    isTauri()
+      ? invokeCmd<QueueItem>("provider_enqueue", { track })
+      : Promise.resolve({
+          track: {
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            album: "",
+            artworkUrl: track.artworkUrl,
+            durationMs: track.durationMs,
+          },
+          path: `/demo/${track.id}.mp3`,
+        }),
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
       ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
