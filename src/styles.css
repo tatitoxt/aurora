@@ -88,7 +88,7 @@ body {
 }
 
 /* ---------- karaoke mode ---------- */
-.kbg { position: absolute; inset: 0; overflow: hidden; }
+.kbg { position: absolute; inset: 0; overflow: hidden; background: #0a0a10; }
 .kbg img {
   width: 100%; height: 100%; object-fit: cover; display: block;
   transform: scale(1.18);
@@ -97,8 +97,7 @@ body {
 .kbg__video {
   position: absolute; inset: 0;
   width: 100%; height: 100%; object-fit: cover;
-  transform: scale(1.18);
-  filter: blur(38px) saturate(1.5) brightness(0.75);
+  filter: saturate(1.08) brightness(0.72);
   opacity: 0;
   transition: opacity 1.2s ease;
 }
@@ -107,15 +106,12 @@ body {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(6, 6, 9, 0.5), rgba(6, 6, 9, 0.28) 40%, rgba(6, 6, 9, 0.65));
 }
-.player--karaoke { position: relative; z-index: 1; justify-content: space-between; }
-.kmeta { text-align: center; }
-.kmeta__title { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
-.kmeta__sub { font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+.player--karaoke { position: relative; z-index: 1; justify-content: flex-end; }
 .kcenter { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
 .karaoke { text-align: center; padding: 0 6px; }
 .karaoke__line {
   font-family: var(--serif);
-  font-size: 34px;
+  font-size: 44px;
   font-weight: 700;
   font-style: italic;
   line-height: 1.16;
@@ -134,6 +130,33 @@ body {
 .kword--done { color: #fff; }
 .karaoke__next { margin-top: 18px; font-size: 14px; color: rgba(242, 242, 245, 0.4); font-family: var(--serif); font-style: italic; }
 .karaoke__idle { font-family: var(--serif); font-size: 28px; font-weight: 700; font-style: italic; color: rgba(242,242,245,.85); }
+
+/* iBaila karaoke glass transport bar: controls left, meta + hairline right. */
+.kbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 18px;
+  background: rgba(12,12,17,0.58);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+}
+.kbar__art { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; flex: none; }
+.kbar__art--ph { background: rgba(255,255,255,0.08); }
+.kbar__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.kbar__title { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kbar__sub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kbar__prog { position: relative; height: 10px; margin-top: 4px; }
+.kbar__prog::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px;
+  background: rgba(255,255,255,0.16); border-radius: 1px;
+}
+.kbar__fill {
+  position: absolute; left: 0; top: 4px; height: 2px; width: 100%;
+  background: #fff; border-radius: 1px; transform-origin: left center;
+  transition: transform .25s linear;
+}
+.ctl--play-sm { width: 34px; height: 34px; }
 
 /* ---------- desktop lyrics overlay ---------- */
 .dlyrics {
@@ -181,12 +204,41 @@ body {
   .dlyrics__close { transition: none; }
 }
 
+/* Liquid-glass icon pill nav (iBaila grammar: one floating bar, icon chips). */
+.pnav {
+  display: flex; align-items: center; justify-content: center; gap: 2px;
+  align-self: center;
+  padding: 5px 8px; border-radius: 999px;
+  background: rgba(14, 14, 20, 0.55);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.pnav__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(242, 242, 245, 0.68);
+  transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.pnav__btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+.pnav__btn:active { transform: scale(0.92); }
+.pnav__sep {
+  width: 1px; height: 16px; margin: 0 6px;
+  background: rgba(255, 255, 255, 0.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pnav__btn { transition: none; }
+}
 .wordmark {
   font-size: 11px; letter-spacing: 0.02em; font-weight: 600;
   color: var(--dim); text-align: center; padding-top: 2px;
 }
-.player__nav { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 16px; row-gap: 4px; }
-.player__nav .wordmark:hover { color: var(--text); }
+.wordmark:hover { color: var(--text); }
 .palette-open {
   background: none; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
   padding: 2px 7px; cursor: pointer; font-family: inherit;
@@ -329,8 +381,9 @@ body {
   min-width: 0;
 }
 .stat-card em {
-  font-style: normal; font-size: 15px; font-weight: 600;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-style: normal; font-size: 13px; font-weight: 600; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: break-word;
 }
 .stat-card span { font-size: 10px; color: var(--dim); }
 .wrapped__hero {
@@ -446,6 +499,295 @@ body {
   }
 }
 
+/* ---------- fullscreen "albums" mode ---------- */
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("./fonts/BebasNeue.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Permanent Marker";
+  src: url("./fonts/PermanentMarker.ttf") format("truetype");
+  font-display: swap;
+}
+.fs { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; }
+.fs__bg { position: absolute; inset: 0; }
+.fs__bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.06); filter: blur(12px) saturate(1.15) brightness(0.62); }
+/* Mosaic of queue covers, blurred into a living wall like iBaila albums. */
+.fs__wall {
+  position: absolute; inset: -6%;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-auto-rows: 1fr; gap: 0;
+  transform: scale(1.05);
+  filter: blur(14px) saturate(1.1) brightness(0.55);
+}
+.fs__wall img { width: 100%; height: 100%; object-fit: cover; transform: none; filter: none; }
+/* Sharp music-video backdrop (iBaila "albums": scene plays clearly behind). */
+.fs__video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0;
+  filter: saturate(1.05) brightness(0.72);
+  transition: opacity 0.8s ease;
+}
+.fs__video--ready { opacity: 1; }
+.fs__veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,5,8,0.35), rgba(5,5,8,0.15) 40%, rgba(5,5,8,0.6)); }
+/* Rich fallback wall when the track has no artwork: a slow-drifting
+   mesh tinted by the theme accents. */
+.fs__mesh {
+  position: absolute; inset: -15%;
+  background:
+    radial-gradient(38% 32% at 22% 28%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 70%),
+    radial-gradient(34% 30% at 76% 24%, color-mix(in srgb, var(--accent-2, var(--accent)) 36%, transparent), transparent 70%),
+    radial-gradient(45% 38% at 60% 78%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%),
+    #0c0c11;
+  filter: blur(40px) saturate(1.25);
+  animation: fs-mesh-drift 26s ease-in-out infinite alternate;
+}
+@keyframes fs-mesh-drift {
+  from { transform: rotate(-4deg) scale(1.02); }
+  to { transform: rotate(4deg) scale(1.12); }
+}
+/* Twinkling sparks hugging the frame edges, like iBaila's particle rim. */
+.fs__sparks {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(1.6px 1.6px at 4% 12%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1.4px 1.4px at 9% 88%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.8px 1.8px at 16% 4%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1.3px 1.3px at 31% 96%, rgba(255,255,255,0.6), transparent 60%),
+    radial-gradient(1.7px 1.7px at 52% 3%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1.5px 1.5px at 68% 97%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.4px 1.4px at 82% 6%, rgba(255,255,255,0.75), transparent 60%),
+    radial-gradient(1.7px 1.7px at 94% 22%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 96% 78%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.3px 1.3px at 88% 94%, rgba(255,255,255,0.6), transparent 60%);
+  animation: fs-sparkle 3.2s ease-in-out infinite alternate;
+}
+@keyframes fs-sparkle {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+/* Warm amber frame hugging all four edges, like iBaila's edge light. */
+.fs__rim {
+  position: absolute; inset: 0; pointer-events: none;
+  box-shadow:
+    inset 0 0 90px -18px color-mix(in srgb, #ffb45e 62%, transparent),
+    inset 0 0 160px -60px rgba(255, 160, 80, 0.35);
+}
+.fs__clockwrap { position: relative; text-align: center; padding-top: 5vh; }
+.fs__date {
+  font-size: 12.5px; color: rgba(242,242,245,0.75); letter-spacing: 0.3em;
+  text-transform: uppercase; font-weight: 500; margin-bottom: 6px;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.5); font-variant-caps: all-small-caps;
+}
+.fs__clock {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(140px, 26vh, 280px); line-height: 0.95;
+  letter-spacing: 0.01em;
+  color: transparent; -webkit-text-stroke: 2.5px rgba(255, 223, 190, 0.85);
+  text-shadow: 0 0 40px rgba(255, 200, 150, 0.15);
+}
+.fs__colon { -webkit-text-stroke-width: 1px; }
+.fs__queue {
+  position: absolute; left: 3.5vw; top: 22vh; width: min(240px, 24vw); z-index: 5;
+  background: var(--panel); backdrop-filter: blur(48px) saturate(1.3);
+  -webkit-backdrop-filter: blur(48px) saturate(1.3);
+  border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 18px 50px -14px rgba(0,0,0,0.6);
+}
+.fs__qhead { font-size: 13px; font-weight: 700; }
+.fs__qsub2 { font-size: 10px; color: var(--dim); }
+.fs__qheadrow {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: none; font: inherit; color: var(--text);
+  padding: 10px 12px 8px; cursor: pointer; text-align: left;
+}
+.fs__qmosaic { display: grid; grid-template-columns: 1fr 1fr; width: 26px; height: 26px; border-radius: 5px; overflow: hidden; flex: none; background: #1b1b21; }
+.fs__qmosaic img { width: 100%; height: 100%; object-fit: cover; }
+.fs__qheadtxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.fs__qchev { color: var(--dim); flex: none; transition: transform .18s ease; }
+.fs__qchev--open { transform: rotate(180deg); }
+.fs__qthumb { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; flex: none; background: #1b1b21; }
+.fs__qbody { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fs__qtxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.fs__qlist { max-height: 46vh; overflow-y: auto; scrollbar-width: none; padding: 0 6px 8px; }
+.fs__qrow {
+  display: flex; flex-direction: column; gap: 1px; width: 100%;
+  background: none; border: none; border-radius: 10px; padding: 7px 10px;
+  cursor: pointer; text-align: left; font: inherit; color: var(--text);
+}
+.fs__qrow:hover { background: rgba(255,255,255,0.06); }
+.fs__qrow--on { background: rgba(255,255,255,0.10); }
+.fs__qtitle { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__qsub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; margin-top: 2px; }
+.fs__eq i { width: 2.5px; border-radius: 1px; background: var(--accent); animation: fs-eq 0.9s ease-in-out infinite; }
+.fs__eq i:nth-child(2) { animation-delay: 0.25s; }
+.fs__eq i:nth-child(3) { animation-delay: 0.5s; }
+@keyframes fs-eq {
+  0%, 100% { height: 3px; }
+  50% { height: 10px; }
+}
+.fs__center {
+  position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 0 8vw; pointer-events: none; transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
+}
+/* Shift the stage right of the open Continue Playing panel so nothing overlaps. */
+.fs__center--panel {
+  padding-left: calc(3.5vw + min(240px, 24vw) + 32px);
+  padding-right: 4vw;
+}
+.fs__lyric {
+  font-family: "Bebas Neue", var(--serif);
+  font-size: clamp(56px, 9vh, 110px); font-weight: 400;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  text-align: center; line-height: 0.95;
+  text-shadow: 0 2px 26px rgba(0,0,0,0.65);
+  animation: fs-lyric-in 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+@keyframes fs-lyric-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.fs__lyric--title { letter-spacing: 0.04em; }
+/* iBaila albums-dark: the video card anchors just right of the queue rail,
+ * left-of-center; side covers trail to its right. The lyric floats in the
+ * remaining space and may overlap the card's right edge. */
+.fs__covers {
+  display: flex; align-items: flex-end; justify-content: flex-start;
+  gap: 18px; width: 100%; pointer-events: none;
+  padding-left: calc(3.5vw + min(240px, 24vw) + 3vw);
+  margin-bottom: 3.5vh;
+  transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
+}
+.fs__covers--panel { padding-left: calc(3.5vw + min(240px, 24vw) + 32px); }
+.fs__cover { width: clamp(90px, 11vh, 140px); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
+.fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
+.fs__cover--on { width: clamp(240px, 26vh, 380px); opacity: 1; }
+.fs__cover--on img { border-radius: 16px; }
+/* iBaila center card: media fills the card, meta overlaid on a scrim. */
+.fs__coverimg { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 26px 70px -12px rgba(0,0,0,0.75); background: rgba(255,255,255,0.05); }
+.fs__coverimg img, .fs__cvid { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fs__cscrim { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(4,4,8,0.78)); }
+.fs__cvmeta { position: absolute; left: 18px; right: 18px; bottom: 14px; text-align: left; }
+.fs__cvtitle { font-size: clamp(16px, 2.2vh, 24px); font-weight: 700; letter-spacing: 0.01em; text-shadow: 0 2px 10px rgba(0,0,0,.65); }
+.fs__cvart { font-size: clamp(11px, 1.5vh, 15px); color: rgba(242,242,245,0.78); margin-top: 2px; text-shadow: 0 2px 10px rgba(0,0,0,.65); }
+.fs__cname { font-size: 12px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__cart { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__bottom { position: relative; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+/* iBaila: the progress is a hairline inside the pill, under the track meta. */
+.fs__metacol { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fs__hair {
+  position: relative; height: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.18); cursor: pointer;
+}
+.fs__hair--off { cursor: default; opacity: 0.5; }
+.fs__hairfill {
+  position: absolute; inset: 0; width: 100%; transform-origin: left;
+  background: #fff; border-radius: 999px;
+}
+.fs__pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel-strong); backdrop-filter: blur(56px) saturate(1.3);
+  -webkit-backdrop-filter: blur(56px) saturate(1.3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px;
+  box-shadow: 0 18px 50px -14px rgba(0,0,0,0.7);
+}
+.fs__icon {
+  background: none; border: none; color: var(--dim); cursor: pointer;
+  width: 32px; height: 32px; display: grid; place-items: center;
+  border-radius: 50%; font-size: 15px; transition: background .15s, color .15s;
+}
+.fs__icon:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.fs__icon--on { color: var(--accent); }
+.fs__vol { position: relative; display: inline-flex; }
+.fs__volpop {
+  position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%);
+  padding: 10px 14px; border-radius: 14px;
+  background: rgba(12, 12, 17, 0.75);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+}
+.fs__volpop input[type="range"] {
+  width: 110px; accent-color: #fff; cursor: pointer;
+}
+/* Queue page dots + overflow menu + like. */
+.fs__srcsep { width: 1px; height: 16px; background: rgba(255,255,255,0.14); flex: none; }
+.fs__qdots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 8px; }
+.fs__qdot {
+  width: 5px; height: 5px; border-radius: 50%; border: none; padding: 0;
+  background: rgba(255,255,255,0.25); cursor: pointer;
+}
+.fs__qdot--on { background: #fff; }
+.fs__icon--fav { color: #f472b6 !important; }
+.fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; }
+.fs__morebtn {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  background: none; border: none; border-radius: 9px; color: var(--text);
+  font-size: 12px; font-weight: 600; cursor: pointer; text-align: left; font-family: inherit;
+}
+.fs__morebtn:hover { background: rgba(255,255,255,0.08); }
+.fs__morebtn--on { color: var(--accent); }
+.fs__morebtn:disabled { opacity: 0.45; cursor: default; }
+.fs__morebtn:disabled:hover { background: none; }
+.fs__provpop { min-width: 200px; }
+.fs__provq {
+  margin: 4px 4px 0; background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 9px;
+  padding: 6px 10px; color: var(--text); font-size: 12px; outline: none;
+  font-family: inherit;
+}
+.fs__provq::placeholder { color: var(--dim); }
+.fs__proverr { font-size: 10.5px; color: #f1a8a8; padding: 0 10px; }
+.fs__provres {
+  display: flex; flex-direction: column; max-height: 168px;
+  overflow-y: auto; scrollbar-width: none;
+}
+.fs__provrow { display: flex; flex-direction: column; min-width: 0; }
+.fs__provtitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__provsub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__soon {
+  margin-left: auto; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px;
+}
+/* Lyrics-off: thumbnails take the stage. */
+.fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
+.fs__covers--big .fs__cover--on { width: clamp(320px, 38vh, 560px); }
+.fs__covers { transition: transform .35s cubic-bezier(.2,.9,.25,1); }
+.fs__bar:not(.fs__bar--off) { cursor: pointer; }
+.fs__barfill { transition: transform 0.25s linear; }
+.fs__barknob { transition: transform .12s ease, left .25s linear; }
+/* Film grain over the whole surface — the iBaila wall has texture, not flat blur. */
+.fs__grain {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.055; z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs__mesh, .fs__sparks, .fs__eq i, .fs__pill, .fs__queue, .fs__clockwrap, .fs__lyric { animation: none !important; }
+  .fs__barfill, .fs__barknob { transition: none !important; }
+}
+.fs__pill, .fs__queue, .fs__clockwrap { animation: fs-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+.fs__queue { animation-delay: 0.08s; }
+.fs__pill { animation-delay: 0.15s; }
+@keyframes fs-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+.fs__play {
+  width: 40px; height: 40px; border: none; border-radius: 50%;
+  background: var(--text); color: var(--bg); cursor: pointer;
+  display: grid; place-items: center; transition: transform .1s;
+}
+.fs__play:active { transform: scale(.92); }
+.fs__meta { display: flex; align-items: center; gap: 9px; margin: 0 8px; min-width: 0; max-width: 300px; }
+.fs__meta img, .fs__meta-art { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex: none; }
+.fs__meta-art { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 55%, #17171d), #17171d); }
+.fs__meta-txt { min-width: 0; }
+.fs__mtitle { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__msub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---- Visualizer ---- */
 .viz { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
 .viz__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -456,3 +798,181 @@ body {
 }
 .viz__title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .viz__artist { color: var(--dim); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Fullscreen style pack (iBaila variants) ---- */
+.fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
+.fs__qnum { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; width: 2ch; flex: none; text-align: right; }
+.fs__qdur { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; margin-left: auto; }
+.fs__stylehead {
+  display: block; padding: 8px 10px 3px; font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);
+}
+
+/* arc: 3D cover-flow + flat transport + accent hairline */
+.fs--arc .fs__covers { perspective: 900px; justify-content: center; }
+.fs--arc .fs__cover--l { transform: rotateY(38deg) scale(0.82); transform-origin: right center; }
+.fs--arc .fs__cover--r { transform: rotateY(-38deg) scale(0.82); transform-origin: left center; }
+.fs--arc .fs__hairfill { background: linear-gradient(90deg, #ffb45e, var(--accent)); box-shadow: 0 0 10px rgba(255,180,94,0.5); }
+.fs--arc .fs__pill, .fs--pearl .fs__pill, .fs--studio .fs__pill, .fs--vision .fs__pill {
+  background: transparent; border: none; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.fs--arc .fs__icon, .fs--pearl .fs__icon, .fs--studio .fs__icon, .fs--vision .fs__icon {
+  background: rgba(10,10,14,0.5); border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.fs--arc .fs__icon { border-radius: 50%; }
+
+/* pearl: centered title+artist above covers */
+.fs--pearl .fs__covers { justify-content: center; padding-left: 0; }
+.fs--pearl .fs__center--panel { padding-left: 8vw; }
+
+/* studio: queue docked right as a numbered list, carousel stays left */
+.fs--studio .fs__queue { left: auto; right: 3.5vw; width: min(320px, 32vw); }
+.fs--studio .fs__covers { padding-left: 3.5vw; justify-content: flex-start; }
+.fs--studio .fs__center--panel { padding-left: 8vw; padding-right: calc(3.5vw + min(320px, 32vw) + 32px); }
+.fs--studio .fs__covers--panel { padding-left: 3.5vw; }
+
+/* spotlight: NOW PLAYING card left + albums row; queue docked right */
+.fs--spotlight .fs__queue { left: auto; right: 3.5vw; }
+.fs__spot {
+  position: relative; flex: 1; display: flex; flex-direction: column;
+  justify-content: center; gap: 3vh; padding: 0 4vw 0 calc(3.5vw + min(240px,24vw) + 3vw);
+  pointer-events: none;
+}
+.fs__spotmain {
+  display: flex; align-items: stretch; width: min(640px, 60vw);
+  background: rgba(12,12,17,0.62); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; overflow: hidden;
+  backdrop-filter: blur(40px) saturate(1.3); -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5); pointer-events: auto;
+}
+.fs__npcard { display: flex; flex-direction: column; gap: 8px; padding: 22px; flex: 1; min-width: 0; }
+.fs__npkick { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
+.fs__nptitle { font-size: clamp(22px, 3.4vh, 34px); font-weight: 800; letter-spacing: -0.01em; line-height: 1.05; }
+.fs__npsub { font-size: 12.5px; color: var(--dim); }
+.fs__npactions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.fs__nppause {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px;
+  border: none; border-radius: 999px; background: var(--accent); color: #0c0c11;
+  font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.fs__spotart { width: min(300px, 24vw); flex: none; }
+.fs__spotart img, .fs__spotart video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fs__albums { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+.fs__alhead { font-size: 13px; font-weight: 700; }
+.fs__alrow { display: flex; gap: 14px; }
+.fs__al { width: clamp(84px, 10vh, 120px); display: flex; flex-direction: column; gap: 6px; }
+.fs__al img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; box-shadow: 0 10px 28px -8px rgba(0,0,0,0.7); }
+.fs__alname { font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* vision: artist card center + NOW PLAYING card right */
+.fs__vis {
+  position: relative; flex: 1; display: flex; align-items: center;
+  justify-content: center; gap: 4vw; padding: 0 8vw; pointer-events: none;
+}
+.fs__visartist, .fs__visnp {
+  display: flex; flex-direction: column; gap: 10px; padding: 22px;
+  background: rgba(12,12,17,0.62); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; backdrop-filter: blur(40px) saturate(1.3);
+  -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5); pointer-events: auto;
+}
+.fs__visartist { width: min(560px, 46vw); }
+.fs__visnp { width: min(280px, 24vw); }
+.fs__visart { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; }
+.fs__viscols { display: flex; gap: 24px; margin-top: 6px; }
+.fs__viscol { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fs__vrow {
+  display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+  background: none; border: none; border-radius: 9px; color: var(--text);
+  font-size: 12px; cursor: pointer; text-align: left; font-family: inherit; min-width: 0;
+}
+.fs__vrow:hover { background: rgba(255,255,255,0.07); }
+.fs__vishair { display: flex; align-items: center; gap: 8px; }
+
+/* lyric fit inside the remaining stage for wide text in these styles */
+.fs--pearl .fs__lyric, .fs--arc .fs__lyric, .fs--studio .fs__lyric {
+  font-size: clamp(36px, 7vh, 78px); max-width: 100%;
+}
+
+/* dial: spinning disc + accent progress ring, flat transport */
+.fs__dial {
+  position: relative; flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3vh; pointer-events: none;
+}
+.fs__disc { position: relative; width: min(42vh, 42vw); aspect-ratio: 1; }
+.fs__ring { position: absolute; inset: -3.5%; width: 107%; height: 107%; transform: rotate(-90deg); }
+.fs__ringbg { fill: none; stroke: rgba(255,255,255,0.14); stroke-width: 1.4; }
+.fs__ringfill {
+  fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round;
+  stroke-dasharray: 289; transition: stroke-dashoffset 0.4s linear;
+  filter: drop-shadow(0 0 6px rgba(255,180,94,0.5));
+}
+.fs__discart {
+  width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+  box-shadow: 0 30px 80px -10px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+.fs__disc--spin .fs__discart { animation: fs-spin 24s linear infinite; }
+@keyframes fs-spin { to { transform: rotate(360deg); } }
+.fs__discdot {
+  position: absolute; left: 50%; top: 50%; width: 13%; aspect-ratio: 1;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: #0c0c11; border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 0 0 6px rgba(0,0,0,0.25);
+}
+.fs__dialmeta { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.fs__dialtitle { font-size: clamp(20px, 3vh, 30px); font-weight: 800; letter-spacing: -0.01em; }
+.fs__dialsub { font-size: 12.5px; color: var(--dim); }
+.fs--dial .fs__pill, .fs--tile .fs__pill {
+  background: transparent; border: none; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.fs--dial .fs__icon, .fs--tile .fs__icon {
+  background: rgba(10,10,14,0.5); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 50%; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+
+
+/* dial: side covers orbiting the disc (right arc) */
+.fs__orbit { position: absolute; inset: 0; pointer-events: none; }
+.fs__orbititem {
+  position: absolute; left: 56%; top: 42%; width: 72px;
+  transition: transform 0.5s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+.fs__orbititem img {
+  width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.55); display: block;
+}
+
+/* tile: sharp current cover as the backdrop */
+.fs__tilebg {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  animation: fs-lyric-in 0.6s ease;
+}
+
+/* tile/showcase: the transport pill becomes the iBaila corner player card */
+.fs--tile .fs__bottom, .fs--showcase .fs__bottom {
+  position: absolute; right: 3.5vw; bottom: 3.5vh; padding: 0;
+  align-items: stretch; z-index: 6;
+}
+.fs--tile .fs__pill, .fs--showcase .fs__pill {
+  flex-wrap: wrap; justify-content: center;
+  width: min(330px, 30vw); border-radius: 20px; padding: 14px 14px 12px;
+  background: rgba(12,12,17,0.62); border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(40px) saturate(1.3); -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+.fs--tile .fs__metacol, .fs--showcase .fs__metacol {
+  order: -2; flex: 1 1 100%; max-width: 100%;
+}
+.fs--tile .fs__meta, .fs--showcase .fs__meta { max-width: 100%; }
+.fs--showcase .fs__pill { width: min(380px, 34vw); }
+.fs__cardlyric {
+  font-family: "Bebas Neue", var(--serif); font-size: 16px; letter-spacing: 0.08em;
+  text-transform: uppercase; line-height: 1; padding-top: 8px; opacity: 0.92;
+}
+
+/* tile/showcase corrections vs iBaila frames */
+.fs__tilebg { filter: brightness(0.92); transform: none; }
+.fs__orbititem { left: 50%; top: 44%; }

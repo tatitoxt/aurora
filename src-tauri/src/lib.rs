@@ -9,7 +9,7 @@ use noctbeat_core::media::{
     now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus, Track,
 };
 use noctbeat_core::palette::{extract_palette_bytes, Palette};
-use noctbeat_core::player::{LocalPlayer, QueueItem};
+use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
 use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
@@ -302,7 +302,7 @@ fn set_volume(state: State<AppState>, volume: f32) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct QueueOut {
     items: Vec<QueueItem>,
@@ -318,8 +318,26 @@ fn get_queue(state: State<AppState>) -> Result<QueueOut, String> {
     })
 }
 
+/// Push the current queue to every window after a mutation, so panels
+/// like the fullscreen "Continue Playing" list stay live.
+fn emit_queue(app: &tauri::AppHandle, state: &State<AppState>) {
+    if let Ok(p) = state.player.lock() {
+        let _ = app.emit(
+            "queue",
+            QueueOut {
+                items: p.queue().to_vec(),
+                current_index: p.current_index(),
+            },
+        );
+    }
+}
+
 #[tauri::command]
-async fn play_queue_index(state: State<'_, AppState>, index: usize) -> Result<(), String> {
+async fn play_queue_index(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    index: usize,
+) -> Result<(), String> {
     // Pre-resolve on the runtime pool: the resolver also runs under the
     // player lock (auto-advance), but a UI-initiated first play must not
     // hold it through a whole download.
@@ -342,18 +360,65 @@ async fn play_queue_index(state: State<'_, AppState>, index: usize) -> Result<()
         .map_err(|e| e.to_string())?
         .play_index(index)?;
     prefetch_next(&state, index);
+    emit_queue(&app, &state);
     Ok(())
 }
 
+/// Toggle queue shuffle; applies to explicit Next and auto-advance.
 #[tauri::command]
-fn clear_queue(state: State<AppState>) -> Result<(), String> {
+fn set_shuffle(state: State<AppState>, on: bool) -> Result<bool, String> {
+    let mut p = state.player.lock().map_err(|e| e.to_string())?;
+    p.set_shuffle(on);
+    Ok(p.shuffle())
+}
+
+#[tauri::command]
+fn get_shuffle(state: State<AppState>) -> bool {
+    state.player.lock().map(|p| p.shuffle()).unwrap_or(false)
+}
+
+/// Queue repeat: "off" | "all" | "one".
+#[tauri::command]
+fn set_repeat(state: State<AppState>, mode: String) -> Result<String, String> {
+    let m = match mode.as_str() {
+        "off" => RepeatMode::Off,
+        "all" => RepeatMode::All,
+        "one" => RepeatMode::One,
+        other => return Err(format!("unknown repeat mode {other}")),
+    };
+    let mut p = state.player.lock().map_err(|e| e.to_string())?;
+    p.set_repeat(m);
+    Ok(format!("{:?}", p.repeat()).to_lowercase())
+}
+
+#[tauri::command]
+fn get_repeat(state: State<AppState>) -> String {
+    state
+        .player
+        .lock()
+        .map(|p| format!("{:?}", p.repeat()).to_lowercase())
+        .unwrap_or_else(|_| "off".into())
+}
+
+#[tauri::command]
+fn get_volume(state: State<AppState>) -> f32 {
+    state.player.lock().map(|p| p.volume()).unwrap_or(1.0)
+}
+
+#[tauri::command]
+fn clear_queue(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
     state.player.lock().map_err(|e| e.to_string())?.clear();
+    emit_queue(&app, &state);
     Ok(())
 }
 
 /// Scan `dir` (or the configured music dir) and replace the play queue.
 #[tauri::command]
-fn scan_library(state: State<AppState>, dir: Option<String>) -> Result<Vec<QueueItem>, String> {
+fn scan_library(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    dir: Option<String>,
+) -> Result<Vec<QueueItem>, String> {
     let dir = dir.or_else(|| state.settings.lock().ok().and_then(|s| s.music_dir.clone()));
     let Some(dir) = dir else {
         return Err("no music folder configured".into());
@@ -377,6 +442,7 @@ fn scan_library(state: State<AppState>, dir: Option<String>) -> Result<Vec<Queue
         .lock()
         .map_err(|e| e.to_string())?
         .set_queue(items.clone());
+    emit_queue(&app, &state);
     Ok(items)
 }
 
@@ -443,6 +509,8 @@ async fn provider_play(
     let mut p = state.player.lock().map_err(|e| e.to_string())?;
     p.set_queue(std::slice::from_ref(&item).to_vec());
     p.play_index(0)?;
+    drop(p);
+    emit_queue(&app, &state);
     Ok(item)
 }
 
@@ -459,7 +527,11 @@ struct ImportResult {
 /// track it lists. Remote URLs are counted, not dropped silently — the UI
 /// reports them as needing provider support.
 #[tauri::command]
-fn import_playlist(state: State<AppState>, path: String) -> Result<ImportResult, String> {
+fn import_playlist(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    path: String,
+) -> Result<ImportResult, String> {
     let file = std::path::PathBuf::from(&path);
     let content = std::fs::read_to_string(&file).map_err(|e| format!("read {path}: {e}"))?;
     let entries = noctbeat_core::playlists::parse(&file, &content);
@@ -501,6 +573,8 @@ fn import_playlist(state: State<AppState>, path: String) -> Result<ImportResult,
             noctbeat_core::playlists::PlaylistEntry::Remote(_) => res.remote += 1,
         }
     }
+    drop(player);
+    emit_queue(&app, &state);
     Ok(res)
 }
 
@@ -517,6 +591,7 @@ struct PlaylistUrlResult {
 /// them — a 200-track list must not trigger 200 downloads up front.
 #[tauri::command]
 async fn import_playlist_url(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     url: String,
 ) -> Result<PlaylistUrlResult, String> {
@@ -541,6 +616,9 @@ async fn import_playlist_url(
             path: format!("remote:{key}"),
         });
     }
+    drop(map);
+    drop(player);
+    emit_queue(&app, &state);
     Ok(PlaylistUrlResult {
         title: pl.title,
         imported: pl.tracks.len() as u32,
@@ -1293,6 +1371,11 @@ pub fn run() {
             get_queue,
             play_queue_index,
             clear_queue,
+            set_shuffle,
+            get_shuffle,
+            set_repeat,
+            get_repeat,
+            get_volume,
             scan_library,
             provider_status,
             provider_search,

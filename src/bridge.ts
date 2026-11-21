@@ -231,6 +231,12 @@ const DEMO_PLAYLIST: Array<[string, string, string, number]> = [
   ["Neon Reversal", "Violet Sector", "Parallax Bloom", 214_000],
   ["Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000],
   ["Glass Tide", "Ultramar", "Field Lines", 243_000],
+  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000],
+  ["Midnight Relay", "Chromewave", "Night Grid", 201_000],
+  ["Velvet Static", "Ultramar", "Field Lines", 176_000],
+  ["Afterglow Avenue", "Neon Fields", "Daybreak", 224_000],
+  ["Low Orbit", "Lunar Plain", "Earthrise", 198_000],
+  ["Paper Satellites", "Violet Sector", "Parallax Bloom", 232_000],
 ];
 
 const DEMO_LRC: LrcLine[] = [
@@ -285,7 +291,7 @@ const mock = new MockSource();
 const listeners = new Map<string, Set<(p: unknown) => void>>();
 let settingsStore: Settings = { ...DEFAULT_SETTINGS };
 
-export function subscribe<T>(event: "now-playing" | "energy" | "settings", cb: (p: T) => void): () => void {
+export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -415,6 +421,16 @@ export const bridge = {
     mock.status = "playing";
     return Promise.resolve(null);
   },
+  setShuffle: (on: boolean): Promise<boolean> =>
+    isTauri() ? invokeCmd<boolean>("set_shuffle", { on }) : Promise.resolve(on),
+  getShuffle: (): Promise<boolean> =>
+    isTauri() ? invokeCmd<boolean>("get_shuffle") : Promise.resolve(false),
+  setRepeat: (mode: "off" | "all" | "one"): Promise<string> =>
+    isTauri() ? invokeCmd<string>("set_repeat", { mode }) : Promise.resolve(mode),
+  getRepeat: (): Promise<"off" | "all" | "one"> =>
+    isTauri() ? invokeCmd<"off" | "all" | "one">("get_repeat") : Promise.resolve("off"),
+  getVolume: (): Promise<number> =>
+    isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(1),
   clearQueue: () =>
     isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
   scanLibrary: (dir?: string) =>
@@ -572,8 +588,8 @@ export const bridge = {
       topTracks: DEMO_PLAYLIST.map(([title, artist], i) => ({
         name: title,
         sub: artist,
-        plays: 3 - i,
-        ms: 500_000 - i * 120_000,
+        plays: Math.max(0, 3 - i),
+        ms: Math.max(30_000, 500_000 - i * 120_000),
       })),
       topArtists: [
         { name: "Violet Sector", sub: "", plays: 6, ms: 1_300_000 },

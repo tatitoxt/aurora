@@ -123,7 +123,10 @@ export default function Palette() {
         id: "fullscreen",
         label: "Toggle fullscreen",
         hint: "window",
-        run: () => void bridge.toggleFullscreen(),
+        run: () =>
+          void bridge.toggleFullscreen().then((on) => {
+            nav(on ? "/fullscreen" : "/");
+          }),
       },
       {
         id: "rescan",
