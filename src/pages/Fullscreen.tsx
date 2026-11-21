@@ -12,15 +12,22 @@ import { activeLyricIndex, formatTime } from "../lib";
 import {
   CaretDown,
   CornersIn,
+  Export,
   GearSix,
+  Queue,
   Moon,
   Pause,
   Play,
+  Repeat,
+  RepeatOnce,
   Shuffle,
   SkipBack,
   SkipForward,
+  SpeakerHigh,
+  SpeakerX,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
+import ShareCard from "../ShareCard";
 
 function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
   const [src, setSrc] = useState("");
@@ -90,11 +97,17 @@ export default function Fullscreen() {
   const [queueOpen, setQueueOpen] = useState(true);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
+  const [vol, setVol] = useState(1);
+  const [volOpen, setVolOpen] = useState(false);
+  const [share, setShare] = useState(false);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
     bridge.getQueue().then(setQueue);
     bridge.getShuffle().then(setShuffle);
+    bridge.getRepeat().then(setRepeat);
+    bridge.getVolume().then(setVol);
     bridge.getSettings().then(setSettings);
     const off = subscribe<NowPlaying>("now-playing", setNp);
     const offQ = subscribe<QueueState>("queue", setQueue);
@@ -398,6 +411,17 @@ export default function Fullscreen() {
           <button className="fs__icon" aria-label="Next" onClick={() => void bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={17} />
           </button>
+          <button
+            className={`fs__icon ${repeat !== "off" ? "fs__icon--on" : ""}`}
+            aria-label={`Repeat: ${repeat}`}
+            title={`Repeat: ${repeat}`}
+            onClick={() => {
+              const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
+              void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
+            }}
+          >
+            {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
+          </button>
           <div className="fs__meta">
             {art ? (
               <img src={art} alt="" />
@@ -411,6 +435,48 @@ export default function Fullscreen() {
               </div>
             </div>
           </div>
+          <button
+            className={`fs__icon ${queueOpen ? "fs__icon--on" : ""}`}
+            aria-label="Toggle queue panel"
+            title="Continue Playing panel"
+            onClick={() => setQueueOpen((v) => !v)}
+          >
+            <Queue size={15} />
+          </button>
+          <button
+            className="fs__icon"
+            aria-label="Share now playing"
+            title="Share"
+            onClick={() => setShare(true)}
+          >
+            <Export size={14} />
+          </button>
+          <span className="fs__vol">
+            <button
+              className={`fs__icon ${vol === 0 ? "fs__icon--on" : ""}`}
+              aria-label="Volume"
+              title="Volume"
+              onClick={() => setVolOpen((v) => !v)}
+            >
+              {vol === 0 ? <SpeakerX size={15} /> : <SpeakerHigh size={15} />}
+            </button>
+            {volOpen && (
+              <span className="fs__volpop">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(vol * 100)}
+                  aria-label="Volume"
+                  onChange={(e) => {
+                    const v = Number(e.target.value) / 100;
+                    setVol(v);
+                    void bridge.setVolume(v);
+                  }}
+                />
+              </span>
+            )}
+          </span>
           <button
             className="fs__icon"
             aria-label="Sleep timer"
@@ -439,6 +505,9 @@ export default function Fullscreen() {
           </button>
         </div>
       </div>
+      {share && (
+        <ShareCard track={track} artUrl={art} posMs={pos} onClose={() => setShare(false)} />
+      )}
     </div>
   );
 }

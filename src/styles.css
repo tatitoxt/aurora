@@ -687,6 +687,19 @@ body {
 }
 .fs__icon:hover { background: rgba(255,255,255,0.08); color: var(--text); }
 .fs__icon--on { color: var(--accent); }
+.fs__vol { position: relative; display: inline-flex; }
+.fs__volpop {
+  position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%);
+  padding: 10px 14px; border-radius: 14px;
+  background: rgba(12, 12, 17, 0.75);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+}
+.fs__volpop input[type="range"] {
+  width: 110px; accent-color: #fff; cursor: pointer;
+}
 .fs__bar:not(.fs__bar--off) { cursor: pointer; }
 .fs__barfill { transition: transform 0.25s linear; }
 .fs__barknob { transition: transform .12s ease, left .25s linear; }

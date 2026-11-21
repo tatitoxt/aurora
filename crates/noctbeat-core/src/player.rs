@@ -29,6 +29,16 @@ pub trait AudioOut: Send + Sync {
     fn is_finished(&self) -> bool;
 }
 
+/// Queue repeat behaviour: `Off` stops at the end, `All` wraps to the
+/// first item, `One` replays the current item when it finishes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RepeatMode {
+    Off,
+    All,
+    One,
+}
+
 /// A silent `AudioOut` for tests and platforms without a device yet.
 pub struct NullAudio {
     position_ms: std::sync::atomic::AtomicU64,
@@ -112,6 +122,8 @@ pub struct LocalPlayer {
     status: PlaybackStatus,
     resolver: Option<PathResolver>,
     shuffle: bool,
+    repeat: RepeatMode,
+    volume: f32,
     /// xorshift64 state for shuffle picks — avoids pulling in `rand`
     /// for one call site.
     rng: u64,
@@ -126,6 +138,8 @@ impl LocalPlayer {
             status: PlaybackStatus::Stopped,
             resolver: None,
             shuffle: false,
+            repeat: RepeatMode::Off,
+            volume: 1.0,
             rng: now_ms() | 1,
         }
     }
@@ -136,6 +150,18 @@ impl LocalPlayer {
 
     pub fn shuffle(&self) -> bool {
         self.shuffle
+    }
+
+    pub fn set_repeat(&mut self, mode: RepeatMode) {
+        self.repeat = mode;
+    }
+
+    pub fn repeat(&self) -> RepeatMode {
+        self.repeat
+    }
+
+    pub fn volume(&self) -> f32 {
+        self.volume
     }
 
     /// Next queue index under shuffle: any slot except the current one.
@@ -251,8 +277,9 @@ impl LocalPlayer {
         Ok(())
     }
 
-    pub fn set_volume(&self, volume: f32) {
-        self.audio.set_volume(volume.clamp(0.0, 1.0));
+    pub fn set_volume(&mut self, volume: f32) {
+        self.volume = volume.clamp(0.0, 1.0);
+        self.audio.set_volume(self.volume);
     }
 
     fn advance(&mut self, dir: i64) -> Result<(), String> {
@@ -268,6 +295,9 @@ impl LocalPlayer {
         }
         let next = i as i64 + dir;
         if next < 0 || next as usize >= self.queue.len() {
+            if dir == 1 && self.repeat == RepeatMode::All && !self.queue.is_empty() {
+                return self.play_index(0);
+            }
             return Err("end of queue".into());
         }
         self.play_index(next as usize)
@@ -276,9 +306,17 @@ impl LocalPlayer {
     /// Poll that also advances the queue when a track finished.
     pub fn tick(&mut self) -> NowPlaying {
         if self.status == PlaybackStatus::Playing && self.audio.is_finished() {
-            let _ = self.advance(1).map_err(|_| {
-                self.status = PlaybackStatus::Stopped;
-            });
+            if self.repeat == RepeatMode::One {
+                if let Some(i) = self.index {
+                    if self.play_index(i).is_err() {
+                        self.status = PlaybackStatus::Stopped;
+                    }
+                }
+            } else {
+                let _ = self.advance(1).map_err(|_| {
+                    self.status = PlaybackStatus::Stopped;
+                });
+            }
         }
         self.snapshot()
     }
@@ -502,6 +540,44 @@ mod tests {
         p.play_index(0).unwrap();
         audio.finished.store(true, Ordering::SeqCst);
         assert_eq!(p.tick().status, PlaybackStatus::Stopped);
+    }
+
+    #[test]
+    fn repeat_one_replays_finished_track() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("a"), item("b")]);
+        p.set_repeat(RepeatMode::One);
+        p.play_index(0).unwrap();
+        audio.finished.store(true, Ordering::SeqCst);
+        let np = p.tick();
+        assert_eq!(np.track.unwrap().title, "a");
+        assert_eq!(np.status, PlaybackStatus::Playing);
+        // Re-opened from the top.
+        assert_eq!(audio.opened.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn repeat_all_wraps_next_and_finish() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("a"), item("b")]);
+        p.set_repeat(RepeatMode::All);
+        p.play_index(1).unwrap();
+        // Manual next wraps to the head.
+        p.control(Control::Next).unwrap();
+        assert_eq!(p.tick().track.unwrap().title, "a");
+        // Finishing the last track wraps too.
+        p.play_index(1).unwrap();
+        audio.finished.store(true, Ordering::SeqCst);
+        assert_eq!(p.tick().track.unwrap().title, "a");
+    }
+
+    #[test]
+    fn volume_is_tracked_and_clamped() {
+        let (mut p, _) = player();
+        p.set_volume(0.4);
+        assert_eq!(p.volume(), 0.4);
+        p.set_volume(7.0);
+        assert_eq!(p.volume(), 1.0);
     }
 
     #[test]

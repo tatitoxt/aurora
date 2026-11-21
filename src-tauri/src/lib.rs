@@ -9,7 +9,7 @@ use noctbeat_core::media::{
     now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus, Track,
 };
 use noctbeat_core::palette::{extract_palette_bytes, Palette};
-use noctbeat_core::player::{LocalPlayer, QueueItem};
+use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
 use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
@@ -375,6 +375,34 @@ fn set_shuffle(state: State<AppState>, on: bool) -> Result<bool, String> {
 #[tauri::command]
 fn get_shuffle(state: State<AppState>) -> bool {
     state.player.lock().map(|p| p.shuffle()).unwrap_or(false)
+}
+
+/// Queue repeat: "off" | "all" | "one".
+#[tauri::command]
+fn set_repeat(state: State<AppState>, mode: String) -> Result<String, String> {
+    let m = match mode.as_str() {
+        "off" => RepeatMode::Off,
+        "all" => RepeatMode::All,
+        "one" => RepeatMode::One,
+        other => return Err(format!("unknown repeat mode {other}")),
+    };
+    let mut p = state.player.lock().map_err(|e| e.to_string())?;
+    p.set_repeat(m);
+    Ok(format!("{:?}", p.repeat()).to_lowercase())
+}
+
+#[tauri::command]
+fn get_repeat(state: State<AppState>) -> String {
+    state
+        .player
+        .lock()
+        .map(|p| format!("{:?}", p.repeat()).to_lowercase())
+        .unwrap_or_else(|_| "off".into())
+}
+
+#[tauri::command]
+fn get_volume(state: State<AppState>) -> f32 {
+    state.player.lock().map(|p| p.volume()).unwrap_or(1.0)
 }
 
 #[tauri::command]
@@ -1345,6 +1373,9 @@ pub fn run() {
             clear_queue,
             set_shuffle,
             get_shuffle,
+            set_repeat,
+            get_repeat,
+            get_volume,
             scan_library,
             provider_status,
             provider_search,
