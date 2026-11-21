@@ -905,13 +905,23 @@ fn rename_playlist(
 ) -> Result<PlaylistFile, String> {
     let file = playlist_path_checked(&state, &path)?;
     let name = name.trim();
-    // `:` rejected too: on Windows `C:Name` parses as a drive-relative
-    // path, which would move the playlist out of the music folder.
-    if name.is_empty() || name.contains(['/', '\\', ':']) || name.starts_with('.') {
+    // `:` is banned on Windows only — `C:Name` parses drive-relative and
+    // `:` isn't a valid filename char there anyway — while names like
+    // "Live: 2025" are fine on Unix.
+    if name.is_empty()
+        || name.contains(['/', '\\'])
+        || name.starts_with('.')
+        || (cfg!(windows) && name.contains(':'))
+    {
         return Err("invalid playlist name".into());
     }
     let ext = file.extension().and_then(|e| e.to_str()).unwrap_or("m3u8");
     let target = file.with_file_name(format!("{name}.{ext}"));
+    // Whatever the platform read into the name, the destination must
+    // stay beside the original file.
+    if target.parent() != file.parent() {
+        return Err("invalid playlist name".into());
+    }
     // symlink_metadata sees dangling links that Path::exists misses —
     // renaming onto one would silently replace it.
     if target.symlink_metadata().is_ok() {
