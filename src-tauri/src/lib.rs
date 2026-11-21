@@ -756,17 +756,22 @@ fn get_settings(state: State<AppState>) -> Result<Settings, String> {
 #[tauri::command]
 fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let state = app.state::<AppState>();
+    // The sleep timer is owned by `set_sleep_timer`: a settings snapshot
+    // rendered before the timer was armed would otherwise resurrect or
+    // erase the live deadline on every unrelated save.
+    let mut incoming = settings;
     {
         let mut guard = state.settings.lock().map_err(|e| e.to_string())?;
-        settings
+        incoming.sleep_timer_ends_ms = guard.sleep_timer_ends_ms;
+        incoming
             .save(&state.settings_path)
             .map_err(|e| e.to_string())?;
-        *guard = settings.clone();
+        *guard = incoming.clone();
     }
-    sync_edge_windows(&app, &settings);
-    sync_hud_window(&app, &settings);
-    sync_desk_lyrics_window(&app, &settings);
-    let _ = app.emit("settings", settings);
+    sync_edge_windows(&app, &incoming);
+    sync_hud_window(&app, &incoming);
+    sync_desk_lyrics_window(&app, &incoming);
+    let _ = app.emit("settings", incoming);
     Ok(())
 }
 
@@ -1111,13 +1116,26 @@ fn spawn_poller(app: &tauri::AppHandle) {
                         }
                     } else if np.status == PlaybackStatus::Playing {
                         if let Ok(mut s) = state.source.lock() {
-                            let _ = s.control(Control::PlayPause);
+                            // np is a stale sample: re-poll so an external
+                            // pause in between isn't toggled back to playing.
+                            let still_playing = s
+                                .poll()
+                                .map(|fresh| fresh.status)
+                                .unwrap_or(PlaybackStatus::Stopped);
+                            if still_playing == PlaybackStatus::Playing {
+                                let _ = s.control(Control::PlayPause);
+                            }
                         }
                     }
                     if let Ok(mut s) = state.settings.lock() {
-                        s.sleep_timer_ends_ms = None;
-                        let _ = s.save(&state.settings_path);
-                        let _ = app.emit("settings", s.clone());
+                        // A timer re-armed between the read above and this
+                        // lock must survive: only clear a deadline that
+                        // actually fired.
+                        if s.sleep_timer_ends_ms.is_some_and(|t| now_ms() >= t) {
+                            s.sleep_timer_ends_ms = None;
+                            let _ = s.save(&state.settings_path);
+                            let _ = app.emit("settings", s.clone());
+                        }
                     }
                 }
             }
