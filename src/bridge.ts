@@ -582,8 +582,8 @@ export const bridge = {
       topTracks: DEMO_PLAYLIST.map(([title, artist], i) => ({
         name: title,
         sub: artist,
-        plays: 3 - i,
-        ms: 500_000 - i * 120_000,
+        plays: Math.max(0, 3 - i),
+        ms: Math.max(30_000, 500_000 - i * 120_000),
       })),
       topArtists: [
         { name: "Violet Sector", sub: "", plays: 6, ms: 1_300_000 },
