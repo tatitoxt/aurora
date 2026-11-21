@@ -263,11 +263,21 @@ export default function Library() {
 
   const removePlTrack = (p: PlaylistFile, index: number) => {
     setError("");
+    // Drop the row optimistically: a second removal before the refresh
+    // must index into the list after this deletion, matching the file.
+    setPlTracks((ts) => ts.filter((_, i) => i !== index));
     bridge
       .playlistRemoveTrack(p.path, index)
       .then(() => bridge.playlistTracks(p.path))
       .then(setPlTracks)
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        setError(String(e));
+        // Restore truth if the write failed.
+        bridge
+          .playlistTracks(p.path)
+          .then(setPlTracks)
+          .catch(() => {});
+      });
   };
 
   const addToPlaylist = (p: PlaylistFile, paths: string[]) => {
