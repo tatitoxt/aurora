@@ -38,6 +38,7 @@ import {
   SpeakerX,
   DotsThree,
   Heart,
+  Plus,
   TextT,
   YoutubeLogo,
   SoundcloudLogo,
@@ -756,6 +757,32 @@ export default function Fullscreen() {
                             <span className="fs__provrow">
                               <span className="fs__provtitle">{t.title}</span>
                               <span className="fs__provsub">{t.artist}</span>
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              className="fs__provadd"
+                              title="Add to queue"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSearchErr("");
+                                void bridge
+                                  .providerEnqueue(t)
+                                  .then(() => setSearchRes([]))
+                                  .catch((err) => setSearchErr(String(err)));
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key !== "Enter" && e.key !== " ") return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSearchErr("");
+                                void bridge
+                                  .providerEnqueue(t)
+                                  .then(() => setSearchRes([]))
+                                  .catch((err) => setSearchErr(String(err)));
+                              }}
+                            >
+                              <Plus size={13} />
                             </span>
                           </button>
                         ))}
