@@ -1391,6 +1391,34 @@ fn save_profile(app: tauri::AppHandle, name: String) -> Result<Profile, String> 
     Ok(p)
 }
 
+/// Write the current theme (preset + manual accents + dynamic flag) as a
+/// shareable .nbtheme JSON — the seed of the theme marketplace.
+#[tauri::command]
+fn export_theme(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let s = state.settings.lock().map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&s.theme).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())
+}
+
+/// Parse + validate a theme file. Accents must be hex colors or null; a
+/// bad file is rejected instead of silently mangling the look.
+#[tauri::command]
+fn import_theme(path: String) -> Result<noctbeat_core::settings::ThemeSettings, String> {
+    let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let t: noctbeat_core::settings::ThemeSettings =
+        serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let hex = |c: &Option<String>| {
+        c.as_ref()
+            .map(|v| v.starts_with('#') && matches!(v.len(), 4 | 7 | 9))
+            .unwrap_or(true)
+    };
+    if !hex(&t.accent) || !hex(&t.accent2) || t.name.is_empty() || t.name.len() > 40 {
+        return Err("invalid theme file".into());
+    }
+    Ok(t)
+}
+
 /// Apply a saved profile: theme, EQ, lyrics mode and video backdrop go
 /// live at once (theme via the settings event, EQ via the live chain).
 #[tauri::command]
@@ -2630,6 +2658,8 @@ pub fn run() {
             set_fx,
             save_profile,
             apply_profile,
+            export_theme,
+            import_theme,
             delete_profile,
             set_sleep_timer,
             import_playlist,
