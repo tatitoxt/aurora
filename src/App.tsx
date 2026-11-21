@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Player from "./pages/Player";
 import Edge from "./pages/Edge";
 import Settings from "./pages/Settings";
@@ -15,6 +15,7 @@ import Visualizer from "./pages/Visualizer";
 import Fullscreen from "./pages/Fullscreen";
 import Palette from "./Palette";
 import { bridge, onFileDrop, subscribe, type Settings as AppSettings } from "./bridge";
+import { favEntryFor, loadFavs, toggleFav } from "./favs";
 import { useT } from "./i18n";
 import { applyTheme } from "./themes";
 
@@ -42,6 +43,7 @@ export default function App() {
       </Routes>
       <PaletteGate />
       <DropGate />
+      <ShortcutsGate />
     </>
   );
 }
@@ -52,6 +54,66 @@ function PaletteGate() {
   const loc = useLocation();
   if (["/edge", "/hud", "/desklyrics"].includes(loc.pathname)) return null;
   return <Palette />;
+}
+
+/** App-wide shortcuts on the player surfaces: Space play/pause, arrows
+ * seek/volume (Shift+arrows skip), S shuffle, R repeat, L like, F the
+ * fullscreen view. Overlay windows and the fullscreen page keep their own
+ * handlers — this mounts nowhere near them. */
+function ShortcutsGate() {
+  const loc = useLocation();
+  const nav = useNavigate();
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  useEffect(() => {
+    if (["/edge", "/hud", "/desklyrics", "/fullscreen"].includes(loc.pathname))
+      return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t?.closest(".palette") ||
+        t?.closest("input, textarea, select, [contenteditable]")
+      )
+        return;
+      const b = bridge;
+      if (e.key === " ") {
+        if (t?.closest("button, [role='button'], a")) return;
+        e.preventDefault();
+        void b.mediaControl("play-pause");
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (e.shiftKey) void b.mediaControl("next");
+        else void b.getNowPlaying().then((np) => b.seek(np.positionMs + 10_000));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (e.shiftKey) void b.mediaControl("previous");
+        else
+          void b
+            .getNowPlaying()
+            .then((np) => b.seek(Math.max(0, np.positionMs - 10_000)));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const d = e.key === "ArrowUp" ? 0.05 : -0.05;
+        void b.getVolume().then((v) => b.setVolume(Math.min(1, Math.max(0, v + d))));
+      } else if (e.key === "s" || e.key === "S") {
+        void b.getShuffle().then((on) => b.setShuffle(!on));
+      } else if (e.key === "r" || e.key === "R") {
+        void b.getRepeat().then((m) =>
+          b.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
+        );
+      } else if (e.key === "l" || e.key === "L") {
+        void b.getNowPlaying().then((np) => {
+          const entry = favEntryFor(np);
+          if (entry) toggleFav(loadFavs(), entry);
+        });
+      } else if (e.key === "f" || e.key === "F") {
+        navRef.current("/fullscreen");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [loc.pathname]);
+  return null;
 }
 
 /** Dropping audio files or a folder anywhere on a player surface
