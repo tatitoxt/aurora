@@ -236,7 +236,17 @@ mod tests {
 
     #[test]
     fn update_produces_track() {
-        let mut s = Shared::default();
+        let mut s = Shared {
+            np: NowPlaying {
+                track: None,
+                status: PlaybackStatus::Stopped,
+                position_ms: 0,
+                source: "browser".into(),
+                updated_at_ms: 0,
+            },
+            received_at: None,
+            commands: Vec::new(),
+        };
         apply_update(
             &mut s,
             Update {
