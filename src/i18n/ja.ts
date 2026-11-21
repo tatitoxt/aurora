@@ -127,6 +127,7 @@ const ja: Record<keyof typeof en, string> = {
   "set.custom": "\u30ab\u30b9\u30bf\u30e0",
   "set.accent": "\u30a2\u30af\u30bb\u30f3\u30c8",
   "set.accent2": "\u30a2\u30af\u30bb\u30f3\u30c8 2",
+  "set.dynAccent": "アクセントをアートワークに合わせる",
   "set.saveCurrent": "\u73fe\u5728\u306e\u8a2d\u5b9a\u3092\u4fdd\u5b58",
   "set.profilesNote": "\u30c6\u30fc\u30de\u3001EQ\u3001\u6b4c\u8a5e\u30e2\u30fc\u30c9\u3092\u540d\u524d\u4ed8\u304d\u30d7\u30ed\u30d5\u30a1\u30a4\u30eb\u306b\u307e\u3068\u3081\u307e\u3059",
   "set.crossfade": "\u30af\u30ed\u30b9\u30d5\u30a7\u30fc\u30c9",

@@ -13,15 +13,47 @@ import Wrapped from "./pages/Wrapped";
 import Visualizer from "./pages/Visualizer";
 import Fullscreen from "./pages/Fullscreen";
 import Palette from "./Palette";
-import { bridge, onFileDrop, subscribe, type Settings as AppSettings } from "./bridge";
+import { bridge, onFileDrop, subscribe, type NowPlaying, type Settings as AppSettings } from "./bridge";
 import { favEntryFor, loadFavs, toggleFav } from "./favs";
 import { useT } from "./i18n";
-import { applyTheme } from "./themes";
+import { applyDynAccent, applyTheme } from "./themes";
 
 export default function App() {
   useEffect(() => {
-    void bridge.getSettings().then((s) => applyTheme(s.theme));
-    return subscribe<AppSettings>("settings", (s) => applyTheme(s.theme));
+    let theme: AppSettings["theme"] | null = null;
+    let art: string | undefined;
+    /* Dynamic accent: after every theme (re)apply, overlay the artwork
+       palette of whatever is playing. Manual accent picks win. */
+    const dyn = () => {
+      if (!theme?.dynamic || theme.accent || !art) return;
+      const url = art;
+      void bridge.getPalette(url).then((p) => {
+        if (!theme?.dynamic || theme.accent || art !== url) return;
+        const a = p.accents[0] ?? p.dominant;
+        applyDynAccent(theme, a, p.accents[1] ?? null);
+      }).catch(() => {});
+    };
+    const onTheme = (t: AppSettings["theme"]) => {
+      theme = t;
+      applyTheme(t);
+      dyn();
+    };
+    void bridge.getSettings().then((s) => onTheme(s.theme));
+    const offS = subscribe<AppSettings>("settings", (s) => onTheme(s.theme));
+    void bridge.getNowPlaying().then((np) => {
+      art = np?.track?.artworkUrl;
+      dyn();
+    });
+    const offN = subscribe<NowPlaying>("now-playing", (np) => {
+      const next = np?.track?.artworkUrl;
+      if (next === art) return;
+      art = next;
+      dyn();
+    });
+    return () => {
+      offS();
+      offN();
+    };
   }, []);
   return (
     <>

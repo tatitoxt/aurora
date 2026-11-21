@@ -115,3 +115,14 @@ export function applyTheme(theme: ThemeSettings) {
   if (theme.accent) root.style.setProperty("--accent", theme.accent);
   if (theme.accent2) root.style.setProperty("--accent2", theme.accent2);
 }
+
+/** Artwork-driven accents (iBaila-style): the two most vibrant colors from
+ * the playing track's cover, applied on top of the theme. Only runs when
+ * the dynamic pref is on and the user hasn't pinned manual accents —
+ * `applyTheme` clears these again on the next theme change. */
+export function applyDynAccent(theme: ThemeSettings, accent: string, accent2: string | null) {
+  if (!theme.dynamic || theme.accent) return;
+  const root = document.documentElement;
+  root.style.setProperty("--accent", accent);
+  if (accent2 && !theme.accent2) root.style.setProperty("--accent2", accent2);
+}

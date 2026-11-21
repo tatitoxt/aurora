@@ -58,6 +58,7 @@ const en = {
   "set.custom": "Custom",
   "set.accent": "Accent",
   "set.accent2": "Accent 2",
+  "set.dynAccent": "Accent follows artwork",
   "set.saveCurrent": "Save current",
   "set.profilesNote": "Bundles the theme, EQ and lyrics mode into a named profile",
   "set.crossfade": "Crossfade",
