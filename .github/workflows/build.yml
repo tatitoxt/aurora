@@ -49,6 +49,9 @@ jobs:
       # (latest.json + .sig files). Without the signing secret the release
       # is published unsigned and in-app auto-update stays disabled.
       - uses: tauri-apps/tauri-action@v0
+        with:
+          # On tag pushes, creates (or attaches to) the release for this tag.
+          tagName: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Non-tag builds (workflow_dispatch, PRs): keep the raw bundles as
