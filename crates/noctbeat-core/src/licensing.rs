@@ -59,6 +59,10 @@ struct StoredLicense {
     key: String,
     customer_email: Option<String>,
     last_validated_ms: u64,
+    /// Lemon Squeezy instance id minted by `licenses/activate`; needed by
+    /// `licenses/deactivate`. None for licenses stored before this field.
+    #[serde(default)]
+    instance_id: Option<String>,
 }
 
 impl<'a> LicenseClient<'a> {
@@ -88,21 +92,24 @@ impl<'a> LicenseClient<'a> {
         }
     }
 
-    /// Activate a key with the vendor. Persists success for offline grace.
+    /// Activate a key with the vendor: POST `licenses/activate` mints an
+    /// instance bound to this machine name. Persists the key, the customer
+    /// email and the instance id for offline grace and later deactivation.
     pub fn activate(&self, key: &str) -> LicenseState {
         let body = format!(
             "license_key={}&instance_name={}",
             urlencoded(key),
             urlencoded(&self.instance_name)
         );
-        let url = format!("{}/v1/licenses/validate", self.base_url);
+        let url = format!("{}/v1/licenses/activate", self.base_url);
         match self.http.post_json(&url, &body) {
-            Ok(text) => match parse_validate(&text, self.expected_product_id()) {
-                Ok(Some(customer_email)) => {
+            Ok(text) => match parse_activate(&text, self.expected_product_id()) {
+                Ok(Some((customer_email, instance_id))) => {
                     let st = StoredLicense {
                         key: key.to_string(),
                         customer_email: customer_email.clone(),
                         last_validated_ms: (self.now_ms)(),
+                        instance_id,
                     };
                     let _ = self.write(&st);
                     LicenseState::Valid {
@@ -120,15 +127,24 @@ impl<'a> LicenseClient<'a> {
     }
 
     /// Periodic re-check: refresh grace when online, keep grace when offline.
+    /// Sends the stored instance id when we have one so the vendor confirms
+    /// this activation, not just the key.
     pub fn refresh(&self) -> LicenseState {
         let Some(stored) = self.read() else {
             return LicenseState::Unlicensed;
         };
-        let body = format!(
-            "license_key={}&instance_name={}",
-            urlencoded(&stored.key),
-            urlencoded(&self.instance_name)
-        );
+        let body = match &stored.instance_id {
+            Some(id) => format!(
+                "license_key={}&instance_id={}",
+                urlencoded(&stored.key),
+                urlencoded(id)
+            ),
+            None => format!(
+                "license_key={}&instance_name={}",
+                urlencoded(&stored.key),
+                urlencoded(&self.instance_name)
+            ),
+        };
         let url = format!("{}/v1/licenses/validate", self.base_url);
         match self.http.post_json(&url, &body) {
             Ok(text) => match parse_validate(&text, self.expected_product_id()) {
@@ -155,9 +171,22 @@ impl<'a> LicenseClient<'a> {
         }
     }
 
-    /// Remove the stored key. A missing file is fine; real I/O errors are
+    /// Free the vendor-side activation and remove the stored key. The
+    /// `licenses/deactivate` call is best-effort (offline deactivation still
+    /// clears this machine); a missing file is fine; real I/O errors are
     /// returned so callers don't claim success while the key survives.
     pub fn deactivate(&self) -> std::io::Result<()> {
+        if let Some(stored) = self.read() {
+            if let Some(id) = &stored.instance_id {
+                let body = format!(
+                    "license_key={}&instance_id={}",
+                    urlencoded(&stored.key),
+                    urlencoded(id)
+                );
+                let url = format!("{}/v1/licenses/deactivate", self.base_url);
+                let _ = self.http.post_json(&url, &body);
+            }
+        }
         match std::fs::remove_file(&self.state_path) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -203,6 +232,53 @@ fn urlencoded(s: &str) -> String {
             _ => format!("%{:02X}", c as u32),
         })
         .collect()
+}
+
+/// `licenses/activate` returns `{activated: bool, license_key:{status,
+/// product_id}, instance:{id}, meta:{...}}` — success = activated &&
+/// status=="active" and, once configured, the right product.
+/// Returns Ok(Some((email, instance_id))), Ok(None) not activated,
+/// Err(reason) malformed.
+fn parse_activate(
+    text: &str,
+    expected_product_id: u64,
+) -> Result<Option<(Option<String>, Option<String>)>, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(text).map_err(|e| format!("bad response: {e}"))?;
+    let activated = v
+        .get("activated")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    if !activated {
+        return Ok(None);
+    }
+    let status = v
+        .pointer("/license_key/status")
+        .and_then(|s| s.as_str())
+        .unwrap_or("");
+    if status != "active" {
+        return Err(format!("license status is '{status}'"));
+    }
+    if expected_product_id != 0 {
+        let pid = v
+            .pointer("/license_key/product_id")
+            .or_else(|| v.pointer("/meta/product_id"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        if pid != expected_product_id {
+            return Err("key belongs to a different product".to_string());
+        }
+    }
+    let email = v
+        .get("customer_email")
+        .or_else(|| v.pointer("/meta/customer_email"))
+        .and_then(|e| e.as_str())
+        .map(|s| s.to_string());
+    let instance_id = v
+        .pointer("/instance/id")
+        .and_then(|i| i.as_str())
+        .map(|s| s.to_string());
+    Ok(Some((email, instance_id)))
 }
 
 /// Lemon Squeezy returns `{valid: bool, license_key: {status}, meta:{store_id},
@@ -255,16 +331,41 @@ mod tests {
         }
     }
 
+    /// Records every POST so tests can assert which endpoint was hit with
+    /// what body.
+    struct RecordingHttp {
+        response: Result<String, String>,
+        posts: std::cell::RefCell<Vec<(String, String)>>,
+    }
+    impl RecordingHttp {
+        fn ok(body: &str) -> Self {
+            Self {
+                response: Ok(body.to_string()),
+                posts: std::cell::RefCell::new(vec![]),
+            }
+        }
+    }
+    impl Http for RecordingHttp {
+        fn post_json(&self, url: &str, body: &str) -> Result<String, String> {
+            self.posts
+                .borrow_mut()
+                .push((url.to_string(), body.to_string()));
+            self.response.clone()
+        }
+    }
+
     fn tmp(tag: &str) -> PathBuf {
         std::env::temp_dir().join(format!("noctbeat-lic-{}-{tag}", std::process::id()))
     }
 
-    const VALID: &str =
-        r#"{"valid":true,"license_key":{"status":"active"},"customer_email":"a@b.c"}"#;
+    /// `licenses/activate` response shape; `valid:true` is harmless extra so
+    /// the same mock can answer a follow-up `licenses/validate`.
+    const ACT: &str = r#"{"activated":true,"valid":true,"license_key":{"status":"active"},
+        "instance":{"id":"inst1"},"customer_email":"a@b.c"}"#;
 
     #[test]
     fn activate_valid_persists() {
-        let http = MockHttp(Ok(VALID.into()));
+        let http = MockHttp(Ok(ACT.into()));
         let dir = tmp("a");
         let c = LicenseClient::new(&http, dir.join("license.json"));
         match c.activate("KEY") {
@@ -274,6 +375,80 @@ mod tests {
             s => panic!("expected Valid, got {s:?}"),
         }
         assert!(matches!(c.state(), LicenseState::Valid { .. }));
+        let stored: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("license.json")).unwrap())
+                .unwrap();
+        assert_eq!(stored["instance_id"].as_str(), Some("inst1"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn activate_posts_to_activate_endpoint() {
+        let http = RecordingHttp::ok(ACT);
+        let dir = tmp("ep");
+        let c = LicenseClient::new(&http, dir.join("license.json"));
+        c.activate("K E Y");
+        let posts = http.posts.borrow();
+        assert_eq!(posts.len(), 1);
+        assert!(posts[0].0.ends_with("/v1/licenses/activate"));
+        assert!(posts[0].1.contains("license_key=K%20E%20Y"));
+        assert!(posts[0].1.contains("instance_name=noctbeat-desktop"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refresh_sends_instance_id() {
+        let http = RecordingHttp::ok(ACT);
+        let dir = tmp("ri");
+        let path = dir.join("license.json");
+        let c = LicenseClient::new(&http, &path);
+        c.activate("KEY");
+        c.refresh();
+        let posts = http.posts.borrow();
+        assert_eq!(posts.len(), 2);
+        assert!(posts[1].0.ends_with("/v1/licenses/validate"));
+        assert!(posts[1].1.contains("instance_id=inst1"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn deactivate_frees_instance_and_removes_file() {
+        let http = RecordingHttp::ok(ACT);
+        let dir = tmp("dc");
+        let path = dir.join("license.json");
+        let c = LicenseClient::new(&http, &path);
+        c.activate("KEY");
+        assert!(path.exists());
+        c.deactivate().unwrap();
+        assert!(!path.exists());
+        let posts = http.posts.borrow();
+        assert_eq!(posts.len(), 2);
+        assert!(posts[1].0.ends_with("/v1/licenses/deactivate"));
+        assert!(posts[1].1.contains("instance_id=inst1"));
+        assert!(posts[1].1.contains("license_key=KEY"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn deactivate_offline_still_clears() {
+        let http = RecordingHttp {
+            response: Err("offline".into()),
+            posts: std::cell::RefCell::new(vec![]),
+        };
+        let dir = tmp("do");
+        let path = dir.join("license.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"key":"K","customer_email":null,"last_validated_ms":1,"instance_id":"i9"}"#,
+        )
+        .unwrap();
+        let c = LicenseClient::new(&http, &path);
+        c.deactivate().unwrap();
+        assert!(!path.exists());
+        let posts = http.posts.borrow();
+        assert_eq!(posts.len(), 1);
+        assert!(posts[0].0.ends_with("/v1/licenses/deactivate"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -289,7 +464,7 @@ mod tests {
     #[test]
     fn suspended_key_is_invalid() {
         let http = MockHttp(Ok(
-            r#"{"valid":true,"license_key":{"status":"disabled"}}"#.into()
+            r#"{"activated":true,"license_key":{"status":"disabled"}}"#.into(),
         ));
         let c = LicenseClient::new(&http, tmp("s").join("license.json"));
         match c.activate("K") {
@@ -300,7 +475,7 @@ mod tests {
 
     #[test]
     fn offline_within_grace() {
-        let ok = MockHttp(Ok(VALID.into()));
+        let ok = MockHttp(Ok(ACT.into()));
         let dir = tmp("g");
         let path = dir.join("license.json");
         let good = LicenseClient::new(&ok, &path);
