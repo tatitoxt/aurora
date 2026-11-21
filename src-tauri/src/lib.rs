@@ -332,6 +332,16 @@ fn seek(state: State<AppState>, position_ms: u64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_speed(state: State<AppState>, speed: f32) -> Result<(), String> {
+    state
+        .player
+        .lock()
+        .map_err(|e| e.to_string())?
+        .set_speed(speed);
+    Ok(())
+}
+
+#[tauri::command]
 fn set_volume(state: State<AppState>, volume: f32) -> Result<(), String> {
     state
         .player
@@ -2516,6 +2526,7 @@ pub fn run() {
             show_player,
             toggle_fullscreen,
             seek,
+            set_speed,
             set_volume,
             get_queue,
             play_queue_index,

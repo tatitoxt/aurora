@@ -491,6 +491,8 @@ export const bridge = {
     isTauri() ? invokeCmd<null>("seek", { positionMs }) : Promise.resolve(null),
   setVolume: (volume: number) =>
     isTauri() ? invokeCmd<null>("set_volume", { volume }) : Promise.resolve(null),
+  setSpeed: (speed: number) =>
+    isTauri() ? invokeCmd<null>("set_speed", { speed }) : Promise.resolve(null),
   getQueue: (): Promise<QueueState> =>
     isTauri()
       ? invokeCmd<QueueState>("get_queue")

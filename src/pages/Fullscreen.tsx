@@ -142,6 +142,7 @@ export default function Fullscreen() {
   const [vol, setVol] = useState(1);
   const [volOpen, setVolOpen] = useState(false);
   const [share, setShare] = useState(false);
+  const [speed, setSpeed] = useState(1.0);
   const [lyricsOn, setLyricsOn] = useState(true);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
@@ -926,6 +927,20 @@ export default function Fullscreen() {
                 <button className="fs__morebtn" onClick={() => { void bridge.setSleepTimer(30); setMoreOpen(false); }}>
                   <Moon size={13} /> Sleep 30 min
                 </button>
+                <span className="fs__stylehead">Speed</span>
+                {([
+                  ["Slowed", 0.8],
+                  ["Normal", 1.0],
+                  ["Nightcore", 1.25],
+                ] as Array<[string, number]>).map(([label, v]) => (
+                  <button
+                    key={label}
+                    className={`fs__morebtn ${speed === v ? "fs__morebtn--on" : ""}`}
+                    onClick={() => { setSpeed(v); void bridge.setSpeed(v); }}
+                  >
+                    {label} {v}×
+                  </button>
+                ))}
                 <button className="fs__morebtn" onClick={() => nav("/settings")}>
                   <GearSix size={13} /> Settings
                 </button>
