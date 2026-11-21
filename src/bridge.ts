@@ -425,6 +425,12 @@ export const bridge = {
     isTauri() ? invokeCmd<boolean>("set_shuffle", { on }) : Promise.resolve(on),
   getShuffle: (): Promise<boolean> =>
     isTauri() ? invokeCmd<boolean>("get_shuffle") : Promise.resolve(false),
+  setRepeat: (mode: "off" | "all" | "one"): Promise<string> =>
+    isTauri() ? invokeCmd<string>("set_repeat", { mode }) : Promise.resolve(mode),
+  getRepeat: (): Promise<"off" | "all" | "one"> =>
+    isTauri() ? invokeCmd<"off" | "all" | "one">("get_repeat") : Promise.resolve("off"),
+  getVolume: (): Promise<number> =>
+    isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(1),
   clearQueue: () =>
     isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
   scanLibrary: (dir?: string) =>
