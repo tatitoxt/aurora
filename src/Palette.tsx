@@ -219,6 +219,7 @@ export default function Palette() {
               onMouseEnter={() => setSel(i)}
               onFocus={() => setSel(i)}
               onClick={() => runItem(i)}
+              tabIndex={-1}
             >
               <span>{it.label}</span>
               {it.hint && <span className="palette__hint">{it.hint}</span>}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { THEMES, presetVar } from "../themes";
 import {
@@ -36,11 +36,30 @@ export default function Settings() {
   }, []);
 
   // Other surfaces (palette, tray, HUD pin) also save settings — keep the
-  // form's copy current or the next save would silently undo them.
-  useEffect(() => subscribe<Settings>("settings", setS), []);
+  // form's copy current or the next save would silently undo them. Each
+  // updateSettings echoes a `settings` event back, so echoes of our own
+  // saves are skipped: an older save's echo arriving mid-typing would
+  // revert newer characters.
+  const ownSaves = useRef<Settings[]>([]);
+  useEffect(
+    () =>
+      subscribe<Settings>("settings", (inc) => {
+        const i = ownSaves.current.findIndex(
+          (o) => JSON.stringify(o) === JSON.stringify(inc),
+        );
+        if (i >= 0) {
+          ownSaves.current.splice(i, 1);
+          return;
+        }
+        setS(inc);
+      }),
+    [],
+  );
 
   const save = (next: Settings) => {
     setS(next);
+    ownSaves.current.push(next);
+    if (ownSaves.current.length > 20) ownSaves.current.shift();
     void bridge.updateSettings(next);
   };
   const patch = (p: Partial<Settings>) => save({ ...s, ...p });
