@@ -930,6 +930,42 @@ async fn activate_license(state: State<'_, AppState>, key: String) -> Result<Lic
 }
 
 #[tauri::command]
+async fn deactivate_license(state: State<'_, AppState>) -> Result<LicenseState, String> {
+    let http = UreqHttp;
+    license_client(&http, &state)
+        .deactivate()
+        .map_err(|e| format!("could not remove stored license: {e}"))?;
+    Ok(LicenseState::Unlicensed)
+}
+
+/// Open an external https:// URL in the system browser (e.g. the checkout
+/// link). Refuses non-http schemes so the UI can't hand us `file:`/`shell:`.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("refusing non-http url".into());
+    }
+    #[cfg(target_os = "linux")]
+    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(&url).spawn();
+    #[cfg(target_os = "windows")]
+    let r = std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", &url])
+        .spawn();
+    match r {
+        Ok(mut child) => {
+            // Reap the launcher so exited helpers don't linger as zombies.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            Ok(())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
 fn get_energy(state: State<AppState>) -> Result<EnergyUpdate, String> {
     Ok(*state.last_energy.lock().map_err(|e| e.to_string())?)
 }
@@ -1747,6 +1783,8 @@ pub fn run() {
             update_settings,
             get_license_state,
             activate_license,
+            deactivate_license,
+            open_url,
             get_energy,
             on_battery,
             fullscreen_app_active,

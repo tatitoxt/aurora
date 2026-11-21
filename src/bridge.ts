@@ -397,6 +397,13 @@ export const bridge = {
     isTauri()
       ? invokeCmd<LicenseState>("activate_license", { key })
       : Promise.resolve({ state: "invalid", reason: "license validation requires the desktop app" }),
+  deactivateLicense: (): Promise<LicenseState> =>
+    isTauri()
+      ? invokeCmd<LicenseState>("deactivate_license")
+      : Promise.resolve({ state: "unlicensed" }),
+  /** Open an external https:// URL in the system browser. */
+  openUrl: (url: string): Promise<null> =>
+    isTauri() ? invokeCmd<null>("open_url", { url }) : (window.open(url, "_blank"), Promise.resolve(null)),
   getEnergy: () =>
     isTauri()
       ? invokeCmd<EnergyUpdate>("get_energy")
