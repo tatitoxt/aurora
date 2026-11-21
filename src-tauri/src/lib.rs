@@ -225,10 +225,12 @@ fn prefetch_next(state: &AppState, index: usize) {
 /// The local player claims the transport while it is playing or paused;
 /// otherwise whatever the OS reports (Spotify, browser, …) wins.
 fn local_active(state: &AppState) -> bool {
+    // A loaded-but-stopped queue still owns playback: Play should start
+    // queue[0] locally, not be routed to an external source.
     state
         .player
         .lock()
-        .map(|p| p.status() != PlaybackStatus::Stopped)
+        .map(|p| p.status() != PlaybackStatus::Stopped || !p.queue().is_empty())
         .unwrap_or(false)
 }
 
