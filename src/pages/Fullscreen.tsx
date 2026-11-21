@@ -1,3 +1,4 @@
+import { type CSSProperties } from "react";
 import { useT } from "../i18n";
 import { useLyricAnim } from "../lyricanim";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -507,11 +508,13 @@ export default function Fullscreen() {
             >
               {lineTokens!.map((s, i) =>
                 s.adlib ? (
-                  <span key={i} className="adlib">
+                  <span key={i} className="adlib fsword" style={{ "--i": i } as CSSProperties}>
                     {s.text}
                   </span>
                 ) : (
-                  s.text
+                  <span key={i} className="fsword" style={{ "--i": i } as CSSProperties}>
+                    {s.text}
+                  </span>
                 ),
               )}
             </div>

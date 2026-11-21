@@ -1323,10 +1323,16 @@ body {
   animation: lanim-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .lanim--typewriter .kword,
-.lanim--typewriter.fs__lyric .adlib,
-.lanim--typewriter.fs__lyric {
+.lanim--typewriter .fsword {
   animation: lanim-tw 0.25s ease both;
   animation-delay: calc(var(--i, 0) * 45ms);
+}
+.lanim--typewriter .lyric--active {
+  animation: lanim-tw 0.3s ease both;
+}
+.lanim--none .karaoke__line,
+.lanim--none.fs__lyric {
+  animation: none;
 }
 .lanim--pulse .karaoke__line,
 .lanim--pulse.fs__lyric,

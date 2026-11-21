@@ -12,5 +12,5 @@ export function useLyricAnim(): string {
     void bridge.getSettings().then((s) => setAnim(s.lyricAnim));
     return subscribe<Settings>("settings", (s) => setAnim(s.lyricAnim));
   }, []);
-  return anim === "none" ? "" : `lanim--${anim}`;
+  return `lanim--${anim}`;
 }
