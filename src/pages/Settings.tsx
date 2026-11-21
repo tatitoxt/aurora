@@ -369,6 +369,8 @@ export default function Settings() {
               <>
                 <span className="srcdot" /> {t("set.sourceLive")} · {np.source}
               </>
+            ) : np?.source === "local" || np?.source === "demo" ? (
+              <>{branding.productName} · {np.source}</>
             ) : (
               <>{t("set.sourceSys")}{np?.source ? ` · ${np.source}` : ""}</>
             )}
