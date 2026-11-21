@@ -34,7 +34,11 @@ impl MprisSource {
             .map_err(|e| MediaError::Source(e.to_string()))?;
         let mut players: Vec<String> = names
             .into_iter()
-            .filter(|n| n.starts_with("org.mpris.MediaPlayer2."))
+            .filter(|n| {
+                n.starts_with("org.mpris.MediaPlayer2.")
+                    // Never watch our own published player interface.
+                    && n != "org.mpris.MediaPlayer2.noctbeat"
+            })
             .collect();
         players.sort();
         players

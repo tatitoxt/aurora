@@ -246,6 +246,11 @@ impl LocalPlayer {
         self.audio.seek(position_ms)
     }
 
+    /// Current playback position without ticking side effects.
+    pub fn position_ms(&self) -> u64 {
+        self.audio.position_ms()
+    }
+
     /// Snapshot `(position_ms, was_playing)` of the current track. Must be
     /// taken before the audio stream is swapped — after `set_device` the new
     /// stream reports position 0.

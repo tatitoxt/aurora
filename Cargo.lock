@@ -2530,6 +2530,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "ureq",
+ "zbus",
 ]
 
 [[package]]
