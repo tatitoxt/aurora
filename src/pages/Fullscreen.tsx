@@ -664,7 +664,24 @@ export default function Fullscreen() {
       )}
 
       {!["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) && covers.length > 1 && (
-        <div ref={coversRef} className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}>
+        <div
+          ref={coversRef}
+          className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}
+          onWheel={(e) => {
+            // horizontal scroll on any wheel axis; pure browsing — no track change
+            const el = coversRef.current;
+            if (el) el.scrollLeft += Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+          }}
+          onPointerDown={(e) => {
+            const el = coversRef.current;
+            if (!el) return;
+            const sx = e.clientX, sl = el.scrollLeft;
+            const move = (ev: PointerEvent) => { el.scrollLeft = sl - (ev.clientX - sx); };
+            const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+            window.addEventListener("pointermove", move);
+            window.addEventListener("pointerup", up);
+          }}
+        >
           {covers.map((c) =>
             c.on ? (
               /* iBaila center card: video/art inside, meta overlaid on scrim. */

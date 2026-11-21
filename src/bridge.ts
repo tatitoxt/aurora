@@ -624,7 +624,11 @@ export const bridge = {
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
       ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
-      : Promise.resolve(null),
+      : /* demo preview only: public sample stream so the videoclip backdrop is
+         * testable outside Tauri; the real app resolves via yt-dlp. */
+        Promise.resolve(
+          "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+        ),
   listOutputs: (): Promise<string[]> =>
     isTauri() ? invokeCmd<string[]>("list_outputs") : Promise.resolve([]),
   setOutputDevice: (name: string | null) => {
