@@ -45,6 +45,11 @@ const conf = {
         resizable: false,
         decorations: false,
         transparent: true,
+        windowEffects: {
+          effects: ["sidebar", "acrylic", "blur"],
+          state: "active",
+          radius: 18.0,
+        },
         alwaysOnTop: true,
         skipTaskbar: true,
       },
