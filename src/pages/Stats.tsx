@@ -34,9 +34,15 @@ export default function Stats() {
       <div className="settings">
         <div className="row">
           <h1>Listening stats</h1>
-          <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
-            Back
-          </Link>
+          <span>
+            <Link to="/wrapped" className="wordmark" style={{ textDecoration: "none" }}>
+              Recap
+            </Link>
+            {" · "}
+            <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
+              Back
+            </Link>
+          </span>
         </div>
 
         {stats.plays === 0 ? (

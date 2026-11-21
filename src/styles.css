@@ -312,6 +312,21 @@ body {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .stat-card span { font-size: 10px; color: var(--dim); }
+.wrapped__hero {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 18px 10px; margin-bottom: 14px;
+  border: 1px solid var(--line); border-radius: 16px;
+  background:
+    radial-gradient(120% 160% at 20% 0%, color-mix(in srgb, var(--accent2) 22%, transparent), transparent 60%),
+    radial-gradient(140% 160% at 85% 100%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 55%),
+    rgba(255, 255, 255, 0.04);
+}
+.wrapped__hero em {
+  font-style: normal; font-size: 34px; font-weight: 700;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.wrapped__hero span { font-size: 12px; color: var(--dim); }
 .days { display: flex; align-items: flex-end; gap: 4px; height: 56px; }
 .days__bar {
   flex: 1; min-height: 6%;

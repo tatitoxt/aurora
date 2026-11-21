@@ -107,6 +107,7 @@ export default function Palette() {
         : []),
       { id: "library", label: "Open library", hint: "nav", run: () => nav("/library") },
       { id: "stats", label: "Open listening stats", hint: "nav", run: () => nav("/stats") },
+      { id: "wrapped", label: "Open monthly recap", hint: "nav", run: () => nav("/wrapped") },
       { id: "settings", label: "Open settings", hint: "nav", run: () => nav("/settings") },
       {
         id: "rescan",
