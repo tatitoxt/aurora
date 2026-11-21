@@ -10,16 +10,17 @@ import {
 } from "../bridge";
 import {
   ArrowsOut,
-  ChartBar,
   Command,
   Export,
   GearSix,
+  Image,
+  FilmStrip,
+  MicrophoneStage,
   Pause,
   Play,
+  Queue,
   SkipBack,
   SkipForward,
-  Waveform,
-  VinylRecord,
 } from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
@@ -27,8 +28,7 @@ import ShareCard, { SHARE_EVENT } from "../ShareCard";
 import { activeLyricIndex, formatTime } from "../lib";
 import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import { useT } from "../i18n";
-import { StickerLayer, StickerPicker } from "../Stickers";
-import { Sticker as StickerIcon } from "@phosphor-icons/react";
+import { StickerLayer } from "../Stickers";
 import AmbientBg from "../AmbientBg";
 import { VideoBackdrop } from "../VideoBackdrop";
 
@@ -50,7 +50,7 @@ export default function Player() {
   const [art, setArt] = useState<string>("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [share, setShare] = useState(false);
-  const [stickOpen, setStickOpen] = useState(false);
+  const [view, setView] = useState<"art" | "video" | "lyrics">("art");
   const trackId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -156,13 +156,7 @@ export default function Player() {
   const nav = (
     <div className="pnav">
       <Link to="/library" className="pnav__btn" aria-label={t("nav.library")} title={t("nav.library")}>
-        <VinylRecord size={15} />
-      </Link>
-      <Link to="/visualizer" className="pnav__btn" aria-label={t("nav.visualizer")} title={t("nav.visualizer")}>
-        <Waveform size={15} />
-      </Link>
-      <Link to="/stats" className="pnav__btn" aria-label={t("nav.stats")} title={t("nav.stats")}>
-        <ChartBar size={15} />
+        <Queue size={15} />
       </Link>
       <Link to="/settings" className="pnav__btn" aria-label={t("nav.settings")} title={t("nav.settings")}>
         <GearSix size={15} />
@@ -171,12 +165,6 @@ export default function Player() {
       <button className="pnav__btn" aria-label={t("nav.share")} title={t("nav.share")} onClick={() => setShare(true)}>
         <Export size={14} />
       </button>
-      <span style={{ position: "relative" }}>
-        <button className="pnav__btn" aria-label={t("player.stickers")} title={t("player.stickers")} onPointerDown={(e) => e.stopPropagation()} onClick={() => setStickOpen((v) => !v)}>
-          <StickerIcon size={14} />
-        </button>
-        {stickOpen && <StickerPicker onDone={() => setStickOpen(false)} />}
-      </span>
       <button className="pnav__btn" aria-label={t("nav.commands")} title={t("nav.commands")} onClick={openPalette}>
         <Command size={14} />
       </button>
@@ -256,14 +244,51 @@ export default function Player() {
     );
   }
 
+  const showVideo = view === "video" && videoUrl;
+  const showBigLyrics = view === "lyrics";
   return (
     <div className="glass">
       <div className="player">
-        <div className="player__art">
-          {art ? <img src={art} alt={track?.album ?? ""} /> : null}
-          {videoUrl ? (
-            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-          ) : null}
+        <div className="player__modes">
+          <button
+            className={view === "art" ? "on" : ""}
+            aria-label="Cover art"
+            onClick={() => setView("art")}
+          >
+            <Image size={13} />
+          </button>
+          <button
+            className={view === "video" ? "on" : ""}
+            aria-label="Music video"
+            onClick={() => setView("video")}
+          >
+            <FilmStrip size={13} />
+          </button>
+          <button
+            className={view === "lyrics" ? "on" : ""}
+            aria-label="Lyrics"
+            onClick={() => setView("lyrics")}
+          >
+            <MicrophoneStage size={13} />
+          </button>
+        </div>
+        <div className={`player__art ${showBigLyrics ? "player__art--lyrics" : ""}`}>
+          {showBigLyrics ? (
+            <div className="player__lyrfill">
+              {lyrics && lyrics.length > 0 ? (
+                <LineLyrics lines={lyrics} active={active} />
+              ) : (
+                <span className="karaoke__idle">{track?.title ?? "—"}</span>
+              )}
+            </div>
+          ) : (
+            <>
+              {art ? <img src={art} alt={track?.album ?? ""} /> : null}
+              {showVideo ? (
+                <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+              ) : null}
+            </>
+          )}
         </div>
         <div className="player__meta">
           <div className="player__title">{track?.title ?? "Nothing playing"}</div>
@@ -273,17 +298,6 @@ export default function Player() {
         </div>
         {progress}
         {controls}
-        {lyrics &&
-          lyrics.length > 0 &&
-          (karaoke ? (
-            <KaraokeLyric
-              line={active >= 0 ? lyrics[active] : null}
-              nextLine={active >= 0 ? (lyrics[active + 1] ?? null) : null}
-              posMs={lyricPos}
-            />
-          ) : (
-            <LineLyrics lines={lyrics} active={active} />
-          ))}
         {nav}
       </div>
       {shareCard}
