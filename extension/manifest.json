@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Noctbeat Bridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reports what is playing in your music tabs to the Noctbeat app (YouTube Music, Spotify, SoundCloud, Apple Music, Tidal).",
   "permissions": [],
   "host_permissions": ["http://127.0.0.1:17893/*"],
