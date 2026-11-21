@@ -45,8 +45,16 @@ fn file_entry(
         return PlaylistEntry::Remote(loc.to_string());
     }
     // `file://` URIs may be percent-encoded; a plain path may be relative.
+    let file_uri = loc.starts_with("file://");
     let raw = loc.strip_prefix("file://").unwrap_or(loc);
     let decoded = percent_decode(raw);
+    // Windows URIs decode to `/C:/...`; the leading slash is URI syntax,
+    // not part of the drive path.
+    let decoded = if file_uri {
+        strip_drive_slash(decoded)
+    } else {
+        decoded
+    };
     let p = PathBuf::from(&decoded);
     let path = if p.is_absolute() { p } else { base.join(p) };
     PlaylistEntry::File {
@@ -63,8 +71,10 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(hex) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                out.push(hex);
+            // Compare on bytes, not str slices: `s[i+1..i+3]` can cut a
+            // multi-byte UTF-8 char (e.g. `100%🎵.mp3`) and panic.
+            if let (Some(h), Some(l)) = (hex_val(bytes[i + 1]), hex_val(bytes[i + 2])) {
+                out.push(h * 16 + l);
                 i += 3;
                 continue;
             }
@@ -73,6 +83,24 @@ fn percent_decode(s: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn strip_drive_slash(s: String) -> String {
+    let b = s.as_bytes();
+    if b.len() >= 3 && b[0] == b'/' && b[1].is_ascii_alphabetic() && b[2] == b':' {
+        s[1..].to_string()
+    } else {
+        s
+    }
 }
 
 /// M3U / M3U8: `#EXTINF:seconds,artist - title` precedes each path line;
@@ -304,5 +332,31 @@ mod tests {
     #[test]
     fn xspf_malformed_is_empty_not_panic() {
         assert!(parse(Path::new("/x.xspf"), "<playlist><track><oops").is_empty());
+    }
+
+    #[test]
+    fn m3u_unicode_percent_decoding() {
+        // Literal '%' followed by a multi-byte char must not panic or eat it.
+        let out = parse(
+            Path::new("/m.xspf"),
+            "100%🎵.mp3\nfile:///m/100%F0%9F%8E%B5.mp3\n",
+        );
+        assert_eq!(out.len(), 2);
+        assert_eq!(file(&out[0]), &PathBuf::from("/100%🎵.mp3"));
+        assert_eq!(file(&out[1]), &PathBuf::from("/m/100🎵.mp3"));
+    }
+
+    #[test]
+    fn windows_drive_uri_strips_slash() {
+        // `file:///C:/...` decodes to `/C:/...`; the leading slash is URI
+        // syntax. (On Windows the stripped path is absolute and kept.)
+        assert_eq!(
+            strip_drive_slash("/C:/Music/a.mp3".to_string()),
+            "C:/Music/a.mp3"
+        );
+        assert_eq!(
+            strip_drive_slash("/unix/path.mp3".to_string()),
+            "/unix/path.mp3"
+        );
     }
 }

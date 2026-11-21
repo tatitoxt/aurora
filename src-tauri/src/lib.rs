@@ -285,21 +285,20 @@ fn import_playlist(state: State<AppState>, path: String) -> Result<ImportResult,
                     continue;
                 }
                 let name = path.to_string_lossy().into_owned();
-                player.add(noctbeat_core::player::QueueItem {
-                    track: noctbeat_core::media::Track {
-                        id: name.clone(),
-                        title: title.unwrap_or_else(|| {
-                            path.file_stem()
-                                .map(|s| s.to_string_lossy().into_owned())
-                                .unwrap_or_else(|| name.clone())
-                        }),
-                        artist: artist.unwrap_or_else(|| "Unknown".into()),
-                        album: String::new(),
-                        artwork_url: String::new(),
-                        duration_ms: duration_ms.unwrap_or(0),
-                    },
-                    path: name,
-                });
+                // Tag probing fills duration/artist/album the playlist lacks,
+                // so imported tracks stay seekable.
+                let mut track = noctbeat_core::library::tag_track(&path);
+                track.id = name.clone();
+                if let Some(t) = title {
+                    track.title = t;
+                }
+                if let Some(a) = artist {
+                    track.artist = a;
+                }
+                if let Some(d) = duration_ms {
+                    track.duration_ms = d;
+                }
+                player.add(noctbeat_core::player::QueueItem { track, path: name });
                 res.imported += 1;
             }
             noctbeat_core::playlists::PlaylistEntry::Remote(_) => res.remote += 1,
