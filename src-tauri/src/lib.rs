@@ -4,6 +4,7 @@
 use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
 use noctbeat_core::history::{play_threshold_ms, History, PlayRecord, Stats, Wrapped};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
+use noctbeat_core::listen::{self, SyncAction};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
 use noctbeat_core::media::{
     now_ms, Control, DemoSource, NowPlaying, NowPlayingSource, PlaybackStatus, Track,
@@ -62,6 +63,15 @@ struct AppState {
     prefetching: std::sync::Arc<Mutex<std::collections::HashSet<String>>>,
     /// Discord Rich Presence client (idle unless a client id is configured).
     discord: Mutex<discord::DiscordRpc>,
+    /// Listen Along host (None unless the user started a session).
+    listen_host: Mutex<Option<listen::Host>>,
+    /// Listen Along follower (None unless joined to a host's session).
+    listen_follower: Mutex<Option<listen::Follower>>,
+    /// Host track we already reported as unmatchable — avoids rescanning
+    /// the library every sync tick.
+    listen_missing: Mutex<Option<String>>,
+    /// Last listen status emitted; the event only fires on change.
+    listen_emitted: Mutex<String>,
     /// Tray icon handle for the live cover + beat ring (iBaila-style).
     tray: Mutex<Option<tauri::tray::TrayIcon>>,
     /// Bundled icon restored when the live icon is disabled.
@@ -2036,6 +2046,196 @@ fn synthetic_energy(np: &NowPlaying, prev: &EnergyUpdate) -> EnergyUpdate {
     }
 }
 
+// ---- Listen Along --------------------------------------------------------
+
+fn listen_status_of(state: &AppState) -> listen::ListenStatus {
+    let mut st = listen::ListenStatus::default();
+    if let Ok(h) = state.listen_host.lock() {
+        if let Some(h) = h.as_ref() {
+            st.hosting = true;
+            st.host_addr = Some(format!("http://{}", h.addr));
+            st.host_name = Some(h.name());
+            st.peers = h.peers();
+        }
+    }
+    if let Ok(f) = state.listen_follower.lock() {
+        if let Some(f) = f.as_ref() {
+            st.following = Some(format!("http://{}", f.addr));
+            st.host_name = f.host_name().or(st.host_name);
+            st.last_error = f.last_error();
+        }
+    }
+    if let Ok(m) = state.listen_missing.lock() {
+        st.missing_track = m.clone().map(|k| k.replace('|', " — "));
+    }
+    st
+}
+
+#[tauri::command]
+fn listen_status(state: State<AppState>) -> listen::ListenStatus {
+    listen_status_of(&state)
+}
+
+/// Start hosting: friends on the same network join the share address.
+/// Hosting and following are mutually exclusive — a host plays, it doesn't
+/// mirror someone else's.
+#[tauri::command]
+fn listen_host_start(state: State<AppState>, name: Option<String>) -> Result<listen::ListenStatus, String> {
+    let name = name
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty())
+        .or_else(|| std::env::var("USER").ok())
+        .unwrap_or_else(|| "Noctbeat".into());
+    let host = listen::Host::start(name, listen::LISTEN_PORT)
+        .ok_or_else(|| "could not start the session (port busy?)".to_string())?;
+    *state.listen_host.lock().map_err(|e| e.to_string())? = Some(host);
+    *state.listen_follower.lock().map_err(|e| e.to_string())? = None;
+    *state.listen_missing.lock().map_err(|e| e.to_string())? = None;
+    Ok(listen_status_of(&state))
+}
+
+#[tauri::command]
+fn listen_host_stop(state: State<AppState>) -> listen::ListenStatus {
+    if let Ok(mut h) = state.listen_host.lock() {
+        *h = None;
+    }
+    listen_status_of(&state)
+}
+
+/// Join a host session by address (`ip`, `ip:port` or `http://…`). Fails
+/// fast when the host is unreachable.
+#[tauri::command]
+fn listen_join(state: State<AppState>, addr: String) -> Result<listen::ListenStatus, String> {
+    let f = listen::Follower::join(&addr)?;
+    *state.listen_follower.lock().map_err(|e| e.to_string())? = Some(f);
+    *state.listen_host.lock().map_err(|e| e.to_string())? = None;
+    *state.listen_missing.lock().map_err(|e| e.to_string())? = None;
+    Ok(listen_status_of(&state))
+}
+
+#[tauri::command]
+fn listen_leave(state: State<AppState>) -> listen::ListenStatus {
+    if let Ok(mut f) = state.listen_follower.lock() {
+        *f = None;
+    }
+    if let Ok(mut m) = state.listen_missing.lock() {
+        *m = None;
+    }
+    listen_status_of(&state)
+}
+
+/// Follower convergence, run at ~1Hz from the poller: locate the host's
+/// track in the local queue (then the library), seek on drift, mirror
+/// play/pause.
+fn apply_listen_sync(app: &tauri::AppHandle, state: &State<AppState>, local: &NowPlaying) {
+    let Some(bcast) = state
+        .listen_follower
+        .lock()
+        .ok()
+        .and_then(|f| f.as_ref().and_then(|f| f.latest()))
+    else {
+        return;
+    };
+    match listen::sync_decision(&bcast, Some(local), listen::DRIFT_MS) {
+        SyncAction::Nothing => {}
+        SyncAction::Seek(pos) => {
+            if let Ok(mut p) = state.player.lock() {
+                let _ = p.seek(pos);
+            }
+        }
+        SyncAction::Pause => {
+            if let Ok(mut p) = state.player.lock() {
+                if p.status() == PlaybackStatus::Playing {
+                    let _ = p.control(Control::PlayPause);
+                }
+            }
+        }
+        SyncAction::Resume => {
+            if let Ok(mut p) = state.player.lock() {
+                if p.status() == PlaybackStatus::Paused {
+                    let _ = p.control(Control::PlayPause);
+                }
+            }
+        }
+        SyncAction::FindTrack {
+            title,
+            artist,
+            position_ms,
+            playing,
+        } => {
+            let key = format!("{}|{}", title, artist);
+            // The queue is cheap; a full library scan only runs once per
+            // unmatched track (listens_missing caches the failure).
+            let mut player = match state.player.lock() {
+                Ok(p) => p,
+                Err(_) => return,
+            };
+            let want = (listen::norm(&title), listen::norm(&artist));
+            let idx = player.queue().iter().position(|it| {
+                listen::norm(&it.track.title) == want.0
+                    && listen::norm(&it.track.artist) == want.1
+            });
+            let idx = match idx {
+                Some(i) => Some(i),
+                None => {
+                    let already = state
+                        .listen_missing
+                        .lock()
+                        .map(|m| m.as_deref() == Some(key.as_str()))
+                        .unwrap_or(false);
+                    if already {
+                        None
+                    } else {
+                        // One scan per unmatched track: the match is then
+                        // enqueued so the follower's queue stays intact.
+                        let item = resolve_music_dir(state, None)
+                            .ok()
+                            .map(|d| noctbeat_core::library::scan(std::path::Path::new(&d)))
+                            .unwrap_or_default()
+                            .into_iter()
+                            .find(|it| {
+                                listen::norm(&it.track.title) == want.0
+                                    && listen::norm(&it.track.artist) == want.1
+                            });
+                        match item {
+                            Some(it) => {
+                                player.add(it);
+                                Some(player.queue().len() - 1)
+                            }
+                            None => {
+                                if let Ok(mut m) = state.listen_missing.lock() {
+                                    *m = Some(key.clone());
+                                }
+                                let _ = app.emit("listen", &listen_status_of(state));
+                                None
+                            }
+                        }
+                    }
+                }
+            };
+            if let Some(i) = idx {
+                if player
+                    .queue()
+                    .get(i)
+                    .map(|it| it.track.id != local.track.as_ref().map(|t| t.id.clone()).unwrap_or_default())
+                    .unwrap_or(false)
+                {
+                    let _ = player.play_index(i);
+                }
+                let _ = player.seek(position_ms);
+                if !playing && player.status() == PlaybackStatus::Playing {
+                    let _ = player.control(Control::PlayPause);
+                }
+                if let Ok(mut m) = state.listen_missing.lock() {
+                    if m.as_deref() == Some(key.as_str()) {
+                        *m = None;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn spawn_poller(app: &tauri::AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
@@ -2147,6 +2347,27 @@ fn spawn_poller(app: &tauri::AppHandle) {
                             let _ = s.save(&state.settings_path);
                             let _ = app.emit("settings", s.clone());
                         }
+                    }
+                }
+            }
+            // Listen Along: hosts publish the snapshot; followers converge
+            // on the host's track/position ~once a second.
+            {
+                if let Ok(h) = state.listen_host.lock() {
+                    if let Some(h) = h.as_ref() {
+                        h.publish(&np);
+                    }
+                }
+                if ticks.is_multiple_of(5) {
+                    apply_listen_sync(&app, &state, &np);
+                }
+                if ticks.is_multiple_of(10) {
+                    let st = listen_status_of(&state);
+                    let fp = serde_json::to_string(&st).unwrap_or_default();
+                    let mut e = state.listen_emitted.lock().unwrap();
+                    if *e != fp {
+                        *e = fp;
+                        let _ = app.emit("listen", &st);
                     }
                 }
             }
@@ -2301,6 +2522,10 @@ pub fn run() {
             history_path: dir.join("history.json"),
             session_path: dir.join("session.json"),
             listen: Mutex::new(ListenTracker::default()),
+            listen_host: Mutex::new(None),
+            listen_follower: Mutex::new(None),
+            listen_missing: Mutex::new(None),
+            listen_emitted: Mutex::new(String::new()),
             hud_pos_pending: Mutex::new(None),
             desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
@@ -2377,6 +2602,11 @@ pub fn run() {
             get_artist_stats,
             get_wrapped,
             clear_history,
+            listen_status,
+            listen_host_start,
+            listen_host_stop,
+            listen_join,
+            listen_leave,
         ])
         .setup(move |app| {
             #[cfg(target_os = "linux")]

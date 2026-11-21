@@ -189,6 +189,16 @@ export interface Wrapped {
   topTracks: TopEntry[];
   topArtists: TopEntry[];
 }
+export interface ListenStatus {
+  hosting: boolean;
+  hostAddr: string | null;
+  hostName: string | null;
+  peers: number;
+  following: string | null;
+  missingTrack: string | null;
+  lastError: string | null;
+}
+
 export type LicenseState =
   | { state: "unlicensed" }
   | { state: "valid"; customer_email: string | null; last_validated_ms: number }
@@ -341,7 +351,7 @@ export function onFileDrop(cb: (paths: string[]) => void): () => void {
   return () => {};
 }
 
-export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue", cb: (p: T) => void): () => void {
+export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -359,6 +369,16 @@ export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "que
 function emitMock(event: string, payload: unknown) {
   listeners.get(event)?.forEach((cb) => cb(payload));
 }
+
+let mockListen: ListenStatus = {
+  hosting: false,
+  hostAddr: null,
+  hostName: null,
+  peers: 0,
+  following: null,
+  missingTrack: null,
+  lastError: null,
+};
 
 let mockTimer: ReturnType<typeof setInterval> | null = null;
 function ensureMockLoop() {
@@ -774,6 +794,50 @@ export const bridge = {
   },
   clearHistory: () =>
     isTauri() ? invokeCmd<null>("clear_history") : Promise.resolve(null),
+  listenStatus: (): Promise<ListenStatus> =>
+    isTauri()
+      ? invokeCmd<ListenStatus>("listen_status")
+      : Promise.resolve(mockListen),
+  /** Host a LAN session; `name` defaults to the OS user on the backend. */
+  listenHostStart: (name?: string): Promise<ListenStatus> => {
+    if (isTauri()) return invokeCmd<ListenStatus>("listen_host_start", { name: name ?? null });
+    mockListen = {
+      ...mockListen,
+      hosting: true,
+      hostAddr: "http://192.168.1.42:17894",
+      hostName: name || "Fausto",
+      following: null,
+    };
+    emitMock("listen", mockListen);
+    return Promise.resolve(mockListen);
+  },
+  listenHostStop: (): Promise<ListenStatus> => {
+    if (isTauri()) return invokeCmd<ListenStatus>("listen_host_stop");
+    mockListen = { ...mockListen, hosting: false, hostAddr: null, peers: 0 };
+    emitMock("listen", mockListen);
+    return Promise.resolve(mockListen);
+  },
+  /** Join a friend's session by address (`ip`, `ip:port` or `http://…`). */
+  listenJoin: (addr: string): Promise<ListenStatus> => {
+    if (isTauri()) return invokeCmd<ListenStatus>("listen_join", { addr });
+    if (!addr.trim()) return Promise.reject(new Error("empty address"));
+    mockListen = {
+      ...mockListen,
+      following: addr.startsWith("http") ? addr : `http://${addr}`,
+      hosting: false,
+      hostAddr: null,
+      hostName: "Friend's session",
+      lastError: null,
+    };
+    emitMock("listen", mockListen);
+    return Promise.resolve(mockListen);
+  },
+  listenLeave: (): Promise<ListenStatus> => {
+    if (isTauri()) return invokeCmd<ListenStatus>("listen_leave");
+    mockListen = { ...mockListen, following: null, hostName: null, missingTrack: null };
+    emitMock("listen", mockListen);
+    return Promise.resolve(mockListen);
+  },
   getWrapped: (): Promise<Wrapped> => {
     if (isTauri()) return invokeCmd<Wrapped>("get_wrapped");
     const month = new Date().toISOString().slice(0, 7);

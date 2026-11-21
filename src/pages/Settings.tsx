@@ -11,6 +11,7 @@ import {
   EQ_FREQS,
   EQ_PRESETS,
   type LicenseState,
+  type ListenStatus,
   type NowPlaying,
   type Settings,
 } from "../bridge";
@@ -32,11 +33,26 @@ export default function Settings() {
   const [profileName, setProfileName] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [np, setNp] = useState<NowPlaying | null>(null);
+  const [lst, setLst] = useState<ListenStatus | null>(null);
+  const [joinAddr, setJoinAddr] = useState("");
+  const [joinErr, setJoinErr] = useState("");
 
   useEffect(() => {
     void bridge.getNowPlaying().then(setNp).catch(() => {});
     return subscribe<NowPlaying>("now-playing", setNp);
   }, []);
+
+  useEffect(() => {
+    void bridge.listenStatus().then(setLst).catch(() => {});
+    return subscribe<ListenStatus>("listen", setLst);
+  }, []);
+
+  const joinSession = () => {
+    const addr = joinAddr.trim();
+    if (!addr) return;
+    setJoinErr("");
+    bridge.listenJoin(addr).then(setLst).catch((e) => setJoinErr(String(e?.message ?? e)));
+  };
 
   useEffect(() => {
     Promise.all([
@@ -377,6 +393,67 @@ export default function Settings() {
           </span>
           {!np?.source?.includes(".") && (
             <span className="share__note">{t("set.sourceHint")}</span>
+          )}
+        </div>
+
+        <div className="field">
+          <span>{t("set.listen")}</span>
+          {lst?.hosting ? (
+            <>
+              <span className="share__note">
+                <span className="srcdot" /> {t("set.listenHosting")}
+                {lst.hostAddr ? ` · ${lst.hostAddr}` : ""}
+                {lst.peers > 0 ? ` · ${lst.peers} ${t("set.listenPeers")}` : ""}
+              </span>
+              <div className="seg">
+                <button onClick={() => bridge.listenHostStop().then(setLst)}>
+                  {t("set.listenStop")}
+                </button>
+              </div>
+            </>
+          ) : lst?.following ? (
+            <>
+              <span className="share__note">
+                <span className="srcdot" /> {t("set.listenFollowing")}
+                {lst.hostName ? ` ${lst.hostName}` : ""} · {lst.following}
+              </span>
+              {lst.missingTrack && (
+                <span className="share__note">
+                  {t("set.listenMissing")}: {lst.missingTrack}
+                </span>
+              )}
+              {lst.lastError && <span className="share__note">{lst.lastError}</span>}
+              <div className="seg">
+                <button onClick={() => bridge.listenLeave().then(setLst)}>
+                  {t("set.listenLeave")}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="listen__row">
+                <input
+                  type="text"
+                  placeholder={t("set.listenAddrPh")}
+                  value={joinAddr}
+                  onChange={(e) => setJoinAddr(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && joinSession()}
+                />
+                <div className="seg">
+                  <button disabled={!joinAddr.trim()} onClick={joinSession}>
+                    {t("set.listenJoin")}
+                  </button>
+                  <button onClick={() => bridge.listenHostStart().then(setLst).catch((e) => setJoinErr(String(e?.message ?? e)))}>
+                    {t("set.listenHost")}
+                  </button>
+                </div>
+              </div>
+              {joinErr && (
+                <span className="share__note">
+                  {t("set.listenErr")} — {joinErr}
+                </span>
+              )}
+            </>
           )}
         </div>
 
