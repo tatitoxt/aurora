@@ -268,16 +268,16 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 
 // ---- Browser mock (mirrors crates/noctbeat-core/src/media/demo.rs) ---------
 
-const DEMO_PLAYLIST: Array<[string, string, string, number]> = [
-  ["Aurora Reversal", "Violet Sector", "Parallax Bloom", 214_000],
-  ["Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000],
-  ["Glass Tide", "Ultramar", "Field Lines", 243_000],
-  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000],
-  ["Midnight Relay", "Chromewave", "Night Grid", 201_000],
-  ["Velvet Static", "Ultramar", "Field Lines", 176_000],
-  ["Afterglow Avenue", "Velvet Fields", "Daybreak", 224_000],
-  ["Low Orbit", "Lunar Plain", "Earthrise", 198_000],
-  ["Paper Satellites", "Violet Sector", "Parallax Bloom", 232_000],
+const DEMO_PLAYLIST: Array<[string, string, string, number, string]> = [
+  ["Aurora Reversal", "Violet Sector", "Parallax Bloom", 214_000, "/art/aurora.jpg"],
+  ["Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000, "/art/aurora.jpg"],
+  ["Glass Tide", "Ultramar", "Field Lines", 243_000, "/art/glasstide.jpg"],
+  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "/art/lucid.jpg"],
+  ["Midnight Relay", "Chromewave", "Night Grid", 201_000, "/art/nightgrid.jpg"],
+  ["Velvet Static", "Ultramar", "Field Lines", 176_000, "/art/glasstide.jpg"],
+  ["Afterglow Avenue", "Velvet Fields", "Daybreak", 224_000, "/art/moon.jpg"],
+  ["Low Orbit", "Lunar Plain", "Earthrise", 198_000, "/art/orbit.jpg"],
+  ["Paper Satellites", "Violet Sector", "Parallax Bloom", 232_000, "/art/aurora.jpg"],
 ];
 
 const DEMO_LRC: LrcLine[] = [
@@ -305,8 +305,8 @@ class MockSource {
   private track(): Track | null {
     const entry = this.playlist[this.index % this.playlist.length];
     if (!entry) return null;
-    const [title, artist, album, durationMs] = entry;
-    return { id: `${artist} — ${title}`, title, artist, album, artworkUrl: "", durationMs };
+    const [title, artist, album, durationMs, artworkUrl] = entry;
+    return { id: `${artist} — ${title}`, title, artist, album, artworkUrl, durationMs };
   }
 
   poll(): NowPlaying {
@@ -408,13 +408,13 @@ ensureMockLoop();
 
 function mockQueueState(): QueueState {
   return {
-    items: mock.playlist.map(([title, artist, album, durationMs], i) => ({
+    items: mock.playlist.map(([title, artist, album, durationMs, artworkUrl], i) => ({
       track: {
         id: `${artist} — ${title}`,
         title,
         artist,
         album,
-        artworkUrl: "",
+        artworkUrl,
         durationMs,
       },
       path: `/demo/${i}.mp3`,
@@ -564,7 +564,7 @@ export const bridge = {
   playItems: (items: QueueItem[], index: number): Promise<null> => {
     if (isTauri()) return invokeCmd<null>("play_items", { items, index });
     mock.playlist = items.map(
-      (i) => [i.track.title, i.track.artist, i.track.album, i.track.durationMs] as [string, string, string, number],
+      (i) => [i.track.title, i.track.artist, i.track.album, i.track.durationMs, i.track.artworkUrl] as [string, string, string, number, string],
     );
     mock.index = index;
     mock.positionMs = 0;
@@ -579,14 +579,14 @@ export const bridge = {
     isTauri()
       ? invokeCmd<RemoteTrack[]>("provider_search", { source, query })
       : Promise.resolve(
-          DEMO_PLAYLIST.slice(0, 3).map(([title, artist, , durationMs], i) => ({
+          DEMO_PLAYLIST.slice(0, 3).map(([title, artist, , durationMs, artworkUrl], i) => ({
             id: `demo-${i}`,
             source,
             title,
             artist,
             durationMs,
             url: "",
-            artworkUrl: "",
+            artworkUrl,
           })),
         ),
   providerPlay: (track: RemoteTrack) =>

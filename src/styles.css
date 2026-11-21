@@ -331,17 +331,23 @@ body {
 /* ---------- library ---------- */
 .lib { display: flex; flex-direction: column; gap: 2px; }
 .lib__row {
-  display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto;
+  display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto;
   gap: 1px 8px; align-items: center;
   background: none; border: none; border-radius: 12px;
   padding: 6px 8px; cursor: pointer; text-align: left;
   font: inherit; color: var(--text);
 }
+.lib__thumb {
+  grid-column: 1; grid-row: 1 / span 2;
+  width: 30px; height: 30px; border-radius: 10px; object-fit: cover;
+  background: rgba(255,255,255,.07); flex: none;
+}
+.lib__thumb--ph { display: grid; place-items: center; color: var(--dim); }
 .lib__row:hover { background: rgba(255,255,255,.06); }
 .lib__row--current { background: rgba(255, 255, 255, 0.09); }
-.lib__title { grid-column: 1; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lib__sub { grid-column: 1; font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lib__dur { grid-column: 2; grid-row: 1 / span 2; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.lib__title { grid-column: 2; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib__sub { grid-column: 2; font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib__dur { grid-column: 3; grid-row: 1 / span 2; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .lib__act {
   display: inline-flex; align-items: center; opacity: 0;
   background: none; border: none; color: var(--dim);
@@ -621,16 +627,24 @@ body {
 .fs__qtxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .fs__qlist { max-height: 46vh; overflow-y: auto; scrollbar-width: none; padding: 0 6px 8px; }
 .fs__qrow {
+  position: relative;
   display: flex; flex-direction: column; gap: 1px; width: 100%;
   background: none; border: none; border-radius: 14px; padding: 7px 10px;
   cursor: pointer; text-align: left; font: inherit; color: var(--text);
 }
 .fs__qrow:hover { background: rgba(255,255,255,0.06); }
 .fs__qrow--on { background: rgba(255,255,255,0.10); }
-/* Reorder/remove controls — revealed on row hover, iBaila drawer style. */
-.fs__qctl { display: inline-flex; align-items: center; gap: 1px; flex: none; opacity: 0; transition: opacity .15s; }
+/* Reorder/remove controls — revealed on row hover, overlaid so they never
+   steal text width (iBaila drawer style). */
+.fs__qctl {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 1px; flex: none;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+  background: rgba(12,12,17,0.9); border-radius: 999px; padding: 2px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
 .fs__qrow:hover .fs__qctl,
-.fs__qrow:focus-within .fs__qctl { opacity: 1; }
+.fs__qrow:focus-within .fs__qctl { opacity: 1; pointer-events: auto; }
 .fs__qctlbtn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 50%;
