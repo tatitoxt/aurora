@@ -171,6 +171,18 @@ const en = {
   "anim.pop": "Pop",
   "anim.typewriter": "Typewriter",
   "anim.pulse": "Pulse",
+  "anim.blur": "Blur",
+  "anim.rise": "Rise",
+  "anim.drop": "Drop",
+  "anim.flip": "Flip",
+  "anim.zoom": "Zoom",
+  "anim.bounce": "Bounce",
+  "anim.reveal": "Reveal",
+  "anim.glow": "Glow",
+  "anim.wave": "Wave",
+  "anim.scatter": "Scatter",
+  "anim.focus": "Focus",
+  "anim.letters": "Letters",
   "anim.none": "None",
 } as const;
 

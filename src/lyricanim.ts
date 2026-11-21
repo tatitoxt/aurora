@@ -1,7 +1,26 @@
 import { useEffect, useState } from "react";
 import { bridge, subscribe, type Settings } from "./bridge";
 
-export const LYRIC_ANIMS = ["fade", "slide", "pop", "typewriter", "pulse", "none"] as const;
+export const LYRIC_ANIMS = [
+  "fade",
+  "slide",
+  "pop",
+  "blur",
+  "rise",
+  "drop",
+  "flip",
+  "zoom",
+  "bounce",
+  "reveal",
+  "glow",
+  "pulse",
+  "typewriter",
+  "wave",
+  "scatter",
+  "focus",
+  "letters",
+  "none",
+] as const;
 export type LyricAnim = (typeof LYRIC_ANIMS)[number];
 
 /** Reactive lyric-animation class: `lanim--<preset>` for the karaoke

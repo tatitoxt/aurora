@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { branding } from "../branding";
 import { LANG_NAMES, useT, type MsgKey } from "../i18n";
+import { LYRIC_ANIMS } from "../lyricanim";
 import { THEMES, presetVar } from "../themes";
 import {
   bridge,
@@ -157,7 +158,7 @@ export default function Settings() {
               value={s.lyricAnim}
               onChange={(e) => patch({ lyricAnim: e.target.value })}
             >
-              {["fade", "slide", "pop", "typewriter", "pulse", "none"].map((a) => (
+              {LYRIC_ANIMS.map((a) => (
                 <option key={a} value={a}>
                   {t(`anim.${a}` as MsgKey)}
                 </option>

@@ -162,6 +162,18 @@ const ko: Record<keyof typeof en, string> = {
   "anim.pop": "\ud31d",
   "anim.typewriter": "\ud0c0\uc790\uae30",
   "anim.pulse": "\ud384\uc2a4",
+  "anim.blur": "\ube14\ub7ec",
+  "anim.rise": "\ub77c\uc774\uc988",
+  "anim.drop": "\ub4dc\ub86d",
+  "anim.flip": "\ud50c\ub9bd",
+  "anim.zoom": "\uc90c",
+  "anim.bounce": "\ubc14\uc6b4\uc2a4",
+  "anim.reveal": "\ub9ac\ube4c",
+  "anim.glow": "\uae00\ub85c\uc6b0",
+  "anim.wave": "\uc6e8\uc774\ube0c",
+  "anim.scatter": "\uc2a4\uce90\ud130",
+  "anim.focus": "\ud3ec\ucee4\uc2a4",
+  "anim.letters": "\uae00\uc790",
   "anim.none": "\uc5c6\uc74c",
 };
 

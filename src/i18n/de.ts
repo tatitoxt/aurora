@@ -162,6 +162,18 @@ const de: Record<keyof typeof en, string> = {
   "anim.pop": "Pop",
   "anim.typewriter": "Schreibmaschine",
   "anim.pulse": "Puls",
+  "anim.blur": "Unsch\u00e4rfe",
+  "anim.rise": "Aufstieg",
+  "anim.drop": "Fall",
+  "anim.flip": "Flip",
+  "anim.zoom": "Zoom",
+  "anim.bounce": "H\u00fcpfen",
+  "anim.reveal": "Enth\u00fcllen",
+  "anim.glow": "Glanz",
+  "anim.wave": "Welle",
+  "anim.scatter": "Streuung",
+  "anim.focus": "Fokus",
+  "anim.letters": "Buchstaben",
   "anim.none": "Keine",
 };
 

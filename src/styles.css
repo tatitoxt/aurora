@@ -1307,6 +1307,59 @@ body {
   50% { transform: scale(1.06); }
   100% { transform: scale(1); }
 }
+@keyframes lanim-blur {
+  from { opacity: 0; filter: blur(10px); }
+  to { opacity: 1; filter: blur(0); }
+}
+@keyframes lanim-rise {
+  from { opacity: 0; transform: translateY(1em) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes lanim-drop {
+  0% { opacity: 0; transform: translateY(-0.9em); }
+  70% { opacity: 1; transform: translateY(0.06em); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes lanim-flip {
+  from { opacity: 0; transform: perspective(600px) rotateX(-70deg); }
+  to { opacity: 1; transform: perspective(600px) rotateX(0); }
+}
+@keyframes lanim-zoom {
+  from { opacity: 0; transform: scale(1.25); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes lanim-bounce {
+  0% { opacity: 0; transform: translateY(-1em); }
+  55% { opacity: 1; transform: translateY(0.12em); }
+  75% { transform: translateY(-0.05em); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes lanim-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes lanim-glow {
+  0% { opacity: 0; text-shadow: 0 0 24px var(--accent, #fff), 0 0 48px var(--accent, #fff); }
+  60% { opacity: 1; text-shadow: 0 0 18px var(--accent, #fff); }
+  100% { opacity: 1; text-shadow: 0 0 0 transparent; }
+}
+@keyframes lanim-wave {
+  0% { opacity: 0; transform: translateY(0.5em); }
+  60% { opacity: 1; transform: translateY(-0.12em); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes lanim-scatter {
+  from { opacity: 0; transform: translateX(var(--sx, 0.6em)) rotate(var(--sr, 6deg)) scale(0.9); }
+  to { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
+}
+@keyframes lanim-focus {
+  from { opacity: 0; filter: blur(6px); }
+  to { opacity: 1; filter: blur(0); }
+}
+@keyframes lanim-letters {
+  from { opacity: 0; transform: translateY(0.2em); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .lanim--fade .karaoke__line,
 .lanim--fade.fs__lyric,
 .lanim--fade .lyric--active {
@@ -1322,6 +1375,51 @@ body {
 .lanim--pop .lyric--active {
   animation: lanim-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+.lanim--blur .karaoke__line,
+.lanim--blur.fs__lyric,
+.lanim--blur .lyric--active {
+  animation: lanim-blur 0.55s ease both;
+}
+.lanim--rise .karaoke__line,
+.lanim--rise.fs__lyric,
+.lanim--rise .lyric--active {
+  animation: lanim-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--drop .karaoke__line,
+.lanim--drop.fs__lyric,
+.lanim--drop .lyric--active {
+  animation: lanim-drop 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+.lanim--flip .karaoke__line,
+.lanim--flip.fs__lyric,
+.lanim--flip .lyric--active {
+  animation: lanim-flip 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--zoom .karaoke__line,
+.lanim--zoom.fs__lyric,
+.lanim--zoom .lyric--active {
+  animation: lanim-zoom 0.45s ease both;
+}
+.lanim--bounce .karaoke__line,
+.lanim--bounce.fs__lyric,
+.lanim--bounce .lyric--active {
+  animation: lanim-bounce 0.6s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+.lanim--reveal .karaoke__line,
+.lanim--reveal.fs__lyric,
+.lanim--reveal .lyric--active {
+  animation: lanim-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--glow .karaoke__line,
+.lanim--glow.fs__lyric,
+.lanim--glow .lyric--active {
+  animation: lanim-glow 0.7s ease both;
+}
+.lanim--pulse .karaoke__line,
+.lanim--pulse.fs__lyric,
+.lanim--pulse .lyric--active {
+  animation: lanim-pulse 0.55s ease both;
+}
 .lanim--typewriter .kword,
 .lanim--typewriter .fsword {
   animation: lanim-tw 0.25s ease both;
@@ -1330,21 +1428,65 @@ body {
 .lanim--typewriter .lyric--active {
   animation: lanim-tw 0.3s ease both;
 }
+.lanim--wave .kword,
+.lanim--wave .fsword {
+  animation: lanim-wave 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+.lanim--wave .lyric--active {
+  animation: lanim-wave 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+.lanim--scatter .kword,
+.lanim--scatter .fsword {
+  animation: lanim-scatter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.lanim--scatter .kword:nth-child(odd),
+.lanim--scatter .fsword:nth-child(odd) {
+  --sx: -0.6em;
+  --sr: -6deg;
+}
+.lanim--scatter .lyric--active {
+  animation: lanim-scatter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--focus .kword,
+.lanim--focus .fsword {
+  animation: lanim-focus 0.4s ease both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.lanim--focus .lyric--active {
+  animation: lanim-focus 0.4s ease both;
+}
+.lanim--letters .kword,
+.lanim--letters .fsword {
+  animation: lanim-letters 0.2s ease both;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+.lanim--letters .lyric--active {
+  animation: lanim-letters 0.25s ease both;
+}
 .lanim--none .karaoke__line,
 .lanim--none.fs__lyric {
   animation: none;
-}
-.lanim--pulse .karaoke__line,
-.lanim--pulse.fs__lyric,
-.lanim--pulse .lyric--active {
-  animation: lanim-pulse 0.55s ease both;
 }
 @media (prefers-reduced-motion: reduce) {
   .lanim--fade .karaoke__line, .lanim--fade.fs__lyric, .lanim--fade .lyric--active,
   .lanim--slide .karaoke__line, .lanim--slide.fs__lyric, .lanim--slide .lyric--active,
   .lanim--pop .karaoke__line, .lanim--pop.fs__lyric, .lanim--pop .lyric--active,
+  .lanim--blur .karaoke__line, .lanim--blur.fs__lyric, .lanim--blur .lyric--active,
+  .lanim--rise .karaoke__line, .lanim--rise.fs__lyric, .lanim--rise .lyric--active,
+  .lanim--drop .karaoke__line, .lanim--drop.fs__lyric, .lanim--drop .lyric--active,
+  .lanim--flip .karaoke__line, .lanim--flip.fs__lyric, .lanim--flip .lyric--active,
+  .lanim--zoom .karaoke__line, .lanim--zoom.fs__lyric, .lanim--zoom .lyric--active,
+  .lanim--bounce .karaoke__line, .lanim--bounce.fs__lyric, .lanim--bounce .lyric--active,
+  .lanim--reveal .karaoke__line, .lanim--reveal.fs__lyric, .lanim--reveal .lyric--active,
+  .lanim--glow .karaoke__line, .lanim--glow.fs__lyric, .lanim--glow .lyric--active,
+  .lanim--pulse .karaoke__line, .lanim--pulse.fs__lyric, .lanim--pulse .lyric--active,
   .lanim--typewriter .kword, .lanim--typewriter .fsword, .lanim--typewriter .lyric--active, .lanim--typewriter.fs__lyric,
-  .lanim--pulse .karaoke__line, .lanim--pulse.fs__lyric, .lanim--pulse .lyric--active {
+  .lanim--wave .kword, .lanim--wave .fsword, .lanim--wave .lyric--active, .lanim--wave.fs__lyric,
+  .lanim--scatter .kword, .lanim--scatter .fsword, .lanim--scatter .lyric--active, .lanim--scatter.fs__lyric,
+  .lanim--focus .kword, .lanim--focus .fsword, .lanim--focus .lyric--active, .lanim--focus.fs__lyric,
+  .lanim--letters .kword, .lanim--letters .fsword, .lanim--letters .lyric--active, .lanim--letters.fs__lyric {
     animation: none;
   }
 }
