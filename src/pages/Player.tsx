@@ -8,9 +8,10 @@ import {
   type LrcLine,
   type Settings,
 } from "../bridge";
-import { Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Export, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
+import ShareCard, { SHARE_EVENT } from "../ShareCard";
 import { activeLyricIndex, formatTime } from "../lib";
 
 const PREV = <SkipBack weight="fill" size={18} />;
@@ -64,6 +65,7 @@ export default function Player() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [art, setArt] = useState<string>("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [share, setShare] = useState(false);
   const trackId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -71,9 +73,12 @@ export default function Player() {
     bridge.getSettings().then(setSettings);
     const off = subscribe<NowPlaying>("now-playing", setNp);
     const offS = subscribe<Settings>("settings", setSettings);
+    const onShare = () => setShare(true);
+    window.addEventListener(SHARE_EVENT, onShare);
     return () => {
       off();
       offS();
+      window.removeEventListener(SHARE_EVENT, onShare);
     };
   }, []);
 
@@ -167,10 +172,22 @@ export default function Player() {
       <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
         {bridge.productName}
       </Link>
+      <button
+        className="wordmark palette-open"
+        aria-label="Share now playing"
+        title="Share now playing"
+        onClick={() => setShare(true)}
+      >
+        <Export size={13} />
+      </button>
       <button className="wordmark palette-open" onClick={openPalette}>
         Ctrl K
       </button>
     </div>
+  );
+
+  const shareCard = share && (
+    <ShareCard track={track} artUrl={art} posMs={pos} onClose={() => setShare(false)} />
   );
 
   if (karaoke) {
@@ -203,6 +220,7 @@ export default function Player() {
           {controls}
           {nav}
         </div>
+        {shareCard}
       </div>
     );
   }
@@ -222,6 +240,7 @@ export default function Player() {
         {lyrics && lyrics.length > 0 && <LineLyrics lines={lyrics} active={active} />}
         {nav}
       </div>
+      {shareCard}
     </div>
   );
 }
