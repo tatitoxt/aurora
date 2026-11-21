@@ -260,20 +260,23 @@ fn list_outputs() -> Vec<String> {
 #[tauri::command]
 fn set_output_device(app: tauri::AppHandle, name: Option<String>) -> Result<(), String> {
     let state = app.state::<AppState>();
-    if let Some(rodio) = &state.rodio {
-        rodio.set_device(name.as_deref())?;
-    }
     {
-        let mut s = state.settings.lock().map_err(|e| e.to_string())?;
-        s.audio_output = name;
-        s.save(&state.settings_path).map_err(|e| e.to_string())?;
-        let _ = app.emit("settings", s.clone());
+        // Hold the player lock across the whole swap: the poller can never
+        // observe the empty stream and mistake it for a finished track.
+        let mut player = state.player.lock().map_err(|e| e.to_string())?;
+        if let Some(rodio) = &state.rodio {
+            // Read the position from the old stream before it is dropped.
+            let (pos, playing) = player.reopen_snapshot();
+            rodio.set_device(name.as_deref())?;
+            player.reopen_current(pos, playing)?;
+        }
     }
-    state
-        .player
-        .lock()
-        .map_err(|e| e.to_string())?
-        .reopen_current()?;
+    // Persist after playback is already safe — a save failure must not
+    // strand the track on the new sink.
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    s.audio_output = name;
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
     Ok(())
 }
 
