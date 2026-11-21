@@ -459,6 +459,20 @@ export const bridge = {
     isTauri()
       ? invokeCmd<QueueItem[]>("scan_library", { dir: dir ?? null })
       : bridge.getQueue().then((q) => q.items),
+  /** Read-only library scan — does not replace the playing queue. */
+  libraryTracks: (dir?: string): Promise<QueueItem[]> =>
+    isTauri()
+      ? invokeCmd<QueueItem[]>("library_tracks", { dir: dir ?? null })
+      : bridge.getQueue().then((q) => q.items),
+  /** Replace the queue with `items` and play `index` (context play). */
+  playItems: (items: QueueItem[], index: number): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("play_items", { items, index });
+    mock.index = 0;
+    mock.positionMs = 0;
+    mock.anchor = Date.now();
+    mock.status = "playing";
+    return Promise.resolve(null);
+  },
   providerStatus: () =>
     isTauri() ? invokeCmd<boolean>("provider_status") : Promise.resolve(false),
   providerSearch: (source: string, query: string): Promise<RemoteTrack[]> =>
