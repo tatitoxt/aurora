@@ -10,6 +10,7 @@ import {
 } from "../bridge";
 import { Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
+import { openPalette } from "../Palette";
 import { activeLyricIndex, formatTime } from "../lib";
 
 const PREV = <SkipBack weight="fill" size={18} />;
@@ -163,6 +164,9 @@ export default function Player() {
       <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
         {bridge.productName}
       </Link>
+      <button className="wordmark palette-open" onClick={openPalette}>
+        Ctrl K
+      </button>
     </div>
   );
 
