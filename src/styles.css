@@ -660,19 +660,31 @@ body {
 .fs__cname { font-size: 12px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__cart { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__bottom { position: relative; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }
-.fs__prog { display: flex; align-items: center; gap: 12px; width: min(760px, 100%); }
+.fs__prog {
+  display: flex; align-items: center; gap: 12px; width: min(760px, 100%);
+  padding: 9px 16px; border-radius: 999px;
+  background: rgba(12, 12, 17, 0.55);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+}
 .fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
-.fs__bar { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; position: relative; transition: height .15s ease; }
-.fs__bar:hover { height: 5px; }
+.fs__bar { flex: 1; height: 6px; background: rgba(255,255,255,0.12); border-radius: 999px; position: relative; }
 .fs__bar--off { cursor: default; }
-.fs__barfill { position: absolute; inset: 0; width: 100%; transform-origin: left; background: var(--text); border-radius: 2px; }
+.fs__barfill {
+  position: absolute; inset: 0; width: 100%; transform-origin: left;
+  background: linear-gradient(90deg, rgba(255,255,255,0.85), #fff);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+}
 /* Seek knob that rides the fill edge, revealed on hover. */
 .fs__barknob {
-  position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
-  background: var(--text); transform: translate(-50%, -50%) scale(0);
-  transition: transform .12s ease; box-shadow: 0 0 8px rgba(0,0,0,0.4);
+  position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; transform: translate(-50%, -50%) scale(0.85);
+  transition: transform .12s ease; box-shadow: 0 0 10px rgba(0,0,0,0.45);
 }
-.fs__bar:hover .fs__barknob { transform: translate(-50%, -50%) scale(1); }
+.fs__bar:hover .fs__barknob, .fs__bar:active .fs__barknob { transform: translate(-50%, -50%) scale(1.15); }
 .fs__pill {
   display: flex; align-items: center; gap: 8px;
   background: var(--panel-strong); backdrop-filter: blur(56px) saturate(1.3);
@@ -720,6 +732,7 @@ body {
 .fs__qerr { font-size: 10.5px; color: #f1a8a8; }
 .fs__qresults { max-height: 150px; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; }
 /* Queue page dots + overflow menu + like. */
+.fs__srcsep { width: 1px; height: 16px; background: rgba(255,255,255,0.14); flex: none; }
 .fs__qdots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 8px; }
 .fs__qdot {
   width: 5px; height: 5px; border-radius: 50%; border: none; padding: 0;

@@ -29,6 +29,8 @@ import {
   DotsThree,
   Heart,
   TextT,
+  YoutubeLogo,
+  SoundcloudLogo,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import ShareCard from "../ShareCard";
@@ -493,6 +495,27 @@ export default function Fullscreen() {
           <span className="fs__time">{formatTime(dur)}</span>
         </div>
         <div className="fs__pill">
+          {streamReady && (
+            <>
+              <button
+                className={`fs__icon ${searchSrc === "youtube" ? "fs__icon--on" : ""}`}
+                aria-label="YouTube Music"
+                title="Search YouTube Music"
+                onClick={() => { setSearchSrc("youtube"); setQueueOpen(true); }}
+              >
+                <YoutubeLogo size={16} weight={searchSrc === "youtube" ? "fill" : "regular"} />
+              </button>
+              <button
+                className={`fs__icon ${searchSrc === "soundcloud" ? "fs__icon--on" : ""}`}
+                aria-label="SoundCloud"
+                title="Search SoundCloud"
+                onClick={() => { setSearchSrc("soundcloud"); setQueueOpen(true); }}
+              >
+                <SoundcloudLogo size={16} weight={searchSrc === "soundcloud" ? "fill" : "regular"} />
+              </button>
+              <span className="fs__srcsep" />
+            </>
+          )}
           <button
             className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
             aria-label="Shuffle"
