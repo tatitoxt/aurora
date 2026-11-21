@@ -4,7 +4,7 @@ import type { Track } from "../bridge";
 
 const track: Track = {
   id: "t1",
-  title: "Neon Skyline",
+  title: "Aurora Skyline",
   artist: "Orkelya",
   album: "Night Shift",
   durationMs: 200_000,
@@ -25,7 +25,7 @@ describe("ellipsize", () => {
 describe("cardModel", () => {
   it("maps a track and position into card fields", () => {
     const m = cardModel(track, 100_000);
-    expect(m.title).toBe("Neon Skyline");
+    expect(m.title).toBe("Aurora Skyline");
     expect(m.subtitle).toBe("Orkelya · Night Shift");
     expect(m.progress).toBeCloseTo(0.5);
     expect(m.elapsed).toBe("1:40");

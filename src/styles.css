@@ -64,7 +64,7 @@ body {
   background: var(--text);
   border-radius: 999px;
 }
-.player__times { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.player__times { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; margin-top: 8px; }
 
 .player__controls { display: flex; align-items: center; justify-content: center; gap: 18px; }
 .ctl {
@@ -439,6 +439,7 @@ body {
 .inrow button:disabled { opacity: .4; cursor: default; }
 
 .note {
+  display: block; margin: 6px 0;
   font-size: 11px; color: var(--dim); line-height: 1.45;
   padding: 8px 12px; border-radius: 14px;
   background: rgba(255,255,255,.045); border: 1px solid var(--line);
@@ -506,15 +507,20 @@ body {
 }
 .wrapped__hero span { font-size: 12px; color: var(--dim); }
 .days {
-  display: flex; align-items: flex-end; gap: 4px; height: 60px;
-  padding: 8px 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,.09);
+  display: flex; align-items: flex-end; justify-content: space-evenly;
+  gap: 6px; height: 64px;
+  padding-bottom: 8px; margin-top: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 .days__bar {
-  flex: 1; min-height: 6%;
+  flex: 0 1 30px; width: 100%; min-height: max(4px, 6%);
   border-radius: 999px 999px 0 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.45));
-  box-shadow: 0 0 10px rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.28));
+  box-shadow: 0 0 10px rgba(255,255,255,.08);
+}
+.days__bar--max {
+  background: linear-gradient(180deg, var(--accent), var(--accent));
+  box-shadow: 0 0 12px var(--accent);
 }
 .tops { display: flex; flex-direction: column; gap: 1px; }
 .tops__row {
@@ -584,8 +590,8 @@ body {
 }
 .hud__beat.on { opacity: .35; }
 .hud__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hud__title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hud__sub { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud__title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--serif); font-style: italic; letter-spacing: 0.01em; }
+.hud__sub { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--serif); letter-spacing: 0.02em; }
 .hud__progress { height: 3px; margin-top: 4px; background: rgba(255,255,255,.12); border-radius: 999px; position: relative; }
 .hud__progress-fill {
   position: absolute; inset: 0 auto 0 0;
@@ -671,10 +677,11 @@ body {
   text-shadow: 0 1px 12px rgba(0,0,0,0.5); font-variant-caps: all-small-caps;
 }
 .fs__clock {
-  font-family: "Bebas Neue", sans-serif;
+  font-family: ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Helvetica Rounded", system-ui, sans-serif;
+  font-weight: 800;
   font-size: clamp(140px, 26vh, 280px); line-height: 0.95;
   letter-spacing: 0.01em;
-  color: transparent; -webkit-text-stroke: 2.5px rgba(242, 242, 245, 0.85);
+  color: transparent; -webkit-text-stroke: 2px rgba(242, 242, 245, 0.85);
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
 }
 .fs__colon { -webkit-text-stroke-width: 1px; }
@@ -702,16 +709,24 @@ body {
 .fs__qtxt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .fs__qlist { max-height: 46vh; overflow-y: auto; scrollbar-width: none; padding: 0 6px 8px; }
 .fs__qrow {
+  position: relative;
   display: flex; flex-direction: column; gap: 1px; width: 100%;
   background: none; border: none; border-radius: 14px; padding: 7px 10px;
   cursor: pointer; text-align: left; font: inherit; color: var(--text);
 }
 .fs__qrow:hover { background: rgba(255,255,255,0.06); }
 .fs__qrow--on { background: rgba(255,255,255,0.10); }
-/* Reorder/remove controls — revealed on row hover, iBaila drawer style. */
-.fs__qctl { display: inline-flex; align-items: center; gap: 1px; flex: none; opacity: 0; transition: opacity .15s; }
+/* Reorder/remove controls — revealed on row hover, overlaid so they never
+   steal text width (iBaila drawer style). */
+.fs__qctl {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 1px; flex: none;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+  background: rgba(12,12,17,0.9); border-radius: 999px; padding: 2px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
 .fs__qrow:hover .fs__qctl,
-.fs__qrow:focus-within .fs__qctl { opacity: 1; }
+.fs__qrow:focus-within .fs__qctl { opacity: 1; pointer-events: auto; }
 .fs__qctlbtn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 50%;
@@ -832,7 +847,7 @@ body {
 .fs__morebtn--on { color: var(--accent); }
 .fs__morebtn:disabled { opacity: 0.45; cursor: default; }
 .fs__morebtn:disabled:hover { background: none; }
-.fs__provpop { min-width: 200px; }
+.fs__provpop { min-width: 210px; left: -6px; transform: none; }
 .fs__provq {
   margin: 4px 4px 0; background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1); border-radius: 999px;

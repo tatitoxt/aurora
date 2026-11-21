@@ -1,0 +1,16 @@
+<!doctype html><html><head><style>
+html,body{margin:0;height:100%;background:#0c0c10}
+#stage{position:absolute;top:0;width:340px;height:560px;transform-origin:0 0}
+iframe{width:340px;height:560px;border:0;display:block;background:transparent}
+</style></head><body>
+<div id="stage"><iframe id="app" src="/#/library"></iframe></div>
+<script>
+// Center + scale the real 340x560 shipping layout to fill the preview window.
+function fit(){
+  var s = Math.min(innerWidth/340, innerHeight/560);
+  document.getElementById('stage').style.transform = 'scale(' + s + ')';
+  document.getElementById('stage').style.left = Math.max(0,(innerWidth - 340*s)/2) + 'px';
+}
+addEventListener('resize', fit); fit();
+</script>
+</body></html>

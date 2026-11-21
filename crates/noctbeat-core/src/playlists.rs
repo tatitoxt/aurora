@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn m3u_extended_metadata_and_relative_paths() {
         let content = "#EXTM3U\n\
-            #EXTINF:214,Violet Sector - Neon Reversal\nmusic/neon.mp3\n\
+            #EXTINF:214,Violet Sector - Aurora Reversal\nmusic/aurora.mp3\n\
             #EXTINF:187,Slow Meridian\nsub/dir/../slow.flac\n\
             https://example.com/stream\n";
         let out = parse(Path::new("/lists/mix.m3u"), content);
@@ -309,8 +309,8 @@ mod tests {
                 artist,
                 duration_ms,
             } => {
-                assert_eq!(path, &PathBuf::from("/lists/music/neon.mp3"));
-                assert_eq!(title.as_deref(), Some("Neon Reversal"));
+                assert_eq!(path, &PathBuf::from("/lists/music/aurora.mp3"));
+                assert_eq!(title.as_deref(), Some("Aurora Reversal"));
                 assert_eq!(artist.as_deref(), Some("Violet Sector"));
                 assert_eq!(*duration_ms, Some(214_000));
             }

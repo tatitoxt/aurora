@@ -689,8 +689,6 @@ export default function Fullscreen() {
 
       <div className="fs__bottom">
         <div className="fs__pill">
-          {streamReady && (
-            <>
               <span className="fs__vol">
                 <button
                   className={`fs__icon ${provOpen ? "fs__icon--on" : ""}`}
@@ -733,6 +731,11 @@ export default function Fullscreen() {
                           .finally(() => setSearching(false));
                       }}
                     />
+                    {!streamReady && (
+                      <span className="fs__proverr">
+                        Streaming needs yt-dlp — install it to search providers.
+                      </span>
+                    )}
                     {searchErr && <span className="fs__proverr">{searchErr}</span>}
                     {searchRes.length > 0 && (
                       <span className="fs__provres">
@@ -790,8 +793,6 @@ export default function Fullscreen() {
                 )}
               </span>
               <span className="fs__srcsep" />
-            </>
-          )}
           <button
             className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
             aria-label="Shuffle"

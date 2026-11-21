@@ -4,7 +4,12 @@
 use super::{Control, MediaError, NowPlaying, NowPlayingSource, PlaybackStatus, Track};
 
 const PLAYLIST: &[(&str, &str, &str, u64)] = &[
-    ("Neon Reversal", "Violet Sector", "Parallax Bloom", 214_000),
+    (
+        "Aurora Reversal",
+        "Violet Sector",
+        "Parallax Bloom",
+        214_000,
+    ),
     ("Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000),
     ("Glass Tide", "Ultramar", "Field Lines", 243_000),
     (
@@ -15,7 +20,7 @@ const PLAYLIST: &[(&str, &str, &str, u64)] = &[
     ),
     ("Midnight Relay", "Chromewave", "Night Grid", 201_000),
     ("Velvet Static", "Ultramar", "Field Lines", 176_000),
-    ("Afterglow Avenue", "Neon Fields", "Daybreak", 224_000),
+    ("Afterglow Avenue", "Velvet Fields", "Daybreak", 224_000),
     ("Low Orbit", "Lunar Plain", "Earthrise", 198_000),
     (
         "Paper Satellites",
@@ -131,7 +136,7 @@ mod tests {
     fn plays_first_track() {
         let mut s = DemoSource::new();
         let np = s.poll().unwrap();
-        assert_eq!(np.track.unwrap().title, "Neon Reversal");
+        assert_eq!(np.track.unwrap().title, "Aurora Reversal");
         assert_eq!(np.status, PlaybackStatus::Playing);
     }
 
@@ -149,6 +154,6 @@ mod tests {
         s.control(Control::Next).unwrap();
         assert_eq!(s.poll().unwrap().track.unwrap().title, "Slow Meridian");
         s.control(Control::Previous).unwrap();
-        assert_eq!(s.poll().unwrap().track.unwrap().title, "Neon Reversal");
+        assert_eq!(s.poll().unwrap().track.unwrap().title, "Aurora Reversal");
     }
 }
