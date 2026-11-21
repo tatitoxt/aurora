@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import Player from "./pages/Player";
+import Stage from "./pages/Stage";
 import Settings from "./pages/Settings";
 import Hud from "./pages/Hud";
 import DeskLyrics from "./pages/DeskLyrics";
@@ -11,7 +11,6 @@ import Album from "./pages/Album";
 import Stats from "./pages/Stats";
 import Wrapped from "./pages/Wrapped";
 import Visualizer from "./pages/Visualizer";
-import Fullscreen from "./pages/Fullscreen";
 import Palette from "./Palette";
 import { bridge, onFileDrop, subscribe, type NowPlaying, type Settings as AppSettings } from "./bridge";
 import { favEntryFor, loadFavs, toggleFav } from "./favs";
@@ -74,7 +73,7 @@ export default function App() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Player />} />
+        <Route path="/" element={<Stage />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/hud" element={<Hud />} />
         <Route path="/desklyrics" element={<DeskLyrics />} />
@@ -85,7 +84,7 @@ export default function App() {
         <Route path="/stats" element={<Stats />} />
         <Route path="/wrapped" element={<Wrapped />} />
         <Route path="/visualizer" element={<Visualizer />} />
-        <Route path="/fullscreen" element={<Fullscreen />} />
+        <Route path="/fullscreen" element={<Stage />} />
       </Routes>
       <PaletteGate />
       <DropGate />
@@ -134,7 +133,9 @@ function PaletteGate() {
 }
 
 /** Keep the route glued to the real window fullscreen state: any exit
- * (Esc, macOS green button, our own toggle) pops back to the player. */
+ * (Esc, macOS green button, our own toggle) pops back to the player.
+ * Only the player home is swapped — a page like Library open in another
+ * route is left alone so fullscreen never hijacks navigation. */
 function FsSync() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -144,7 +145,7 @@ function FsSync() {
     if (["/hud", "/desklyrics"].includes(loc.pathname)) return;
     return subscribe<boolean>("fullscreen", (on) => {
       if (on) {
-        if (locRef.current !== "/fullscreen") nav("/fullscreen");
+        if (locRef.current === "/") nav("/fullscreen");
       } else if (locRef.current === "/fullscreen") nav("/");
     });
   }, [loc.pathname, nav]);
@@ -161,7 +162,8 @@ function ShortcutsGate() {
   const navRef = useRef(nav);
   navRef.current = nav;
   useEffect(() => {
-    if (["/hud", "/desklyrics", "/fullscreen"].includes(loc.pathname))
+    // The stage ("/" and "/fullscreen") owns its own key handler.
+    if (["/", "/hud", "/desklyrics", "/fullscreen"].includes(loc.pathname))
       return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;

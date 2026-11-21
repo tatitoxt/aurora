@@ -12,7 +12,7 @@ import {
   type RemoteTrack,
   type Settings,
 } from "../bridge";
-import { activeLyricIndex, adlibSegments, formatTime } from "../lib";
+import { activeLyricIndex, adlibSegments } from "../lib";
 import {
   lyricOffsetFor,
   setLyricOffset,
@@ -28,6 +28,8 @@ import {
   type FavEntry,
 } from "../favs";
 import {
+  ArrowsOut,
+  Command,
   CornersIn,
   Export,
   GearSix,
@@ -36,6 +38,7 @@ import {
   Moon,
   Pause,
   Play,
+  PictureInPicture,
   Repeat,
   RepeatOnce,
   Shuffle,
@@ -55,9 +58,11 @@ import {
   AmazonLogo,
   TidalLogo,
 } from "@phosphor-icons/react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ShareCard from "../ShareCard";
 import AmbientBg from "../AmbientBg";
+import { openPalette } from "../Palette";
+import { StickerLayer } from "../Stickers";
 
 const PROVIDERS = [
   { id: "youtube", label: "YouTube Music", icon: YoutubeLogo, live: true },
@@ -79,25 +84,11 @@ const EXT_HOSTS: [RegExp, string, string][] = [
 ];
 const extLabel = (host: string) =>
   EXT_HOSTS.find(([re]) => re.test(host))?.[1] ?? host;
-/** provider id of the currently live extension tab, if it maps to a picker row */
 const extProviderId = (host: string | null | undefined) =>
   (host && EXT_HOSTS.find(([re]) => re.test(host))?.[2]) ?? null;
 
-const FS_STYLES = [
-  { id: "albums", label: "Albums" },
-  { id: "arc", label: "Arc" },
-  { id: "pearl", label: "Pearl" },
-  { id: "studio", label: "Studio" },
-  { id: "spotlight", label: "Spotlight" },
-  { id: "vision", label: "Vision" },
-  { id: "dial", label: "Dial" },
-  { id: "tile", label: "Tile" },
-  { id: "showcase", label: "Showcase" },
-] as const;
-
-
-/** Sharp video backdrop for the iBaila "albums" background: muted, synced to
- * the track position, faded in once it can play. */
+/** Sharp video backdrop: muted, synced to the track position, faded in
+ * once it can play. */
 function FsVideo({
   url,
   posMs,
@@ -142,18 +133,25 @@ function FsVideo({
   );
 }
 
-/** iBaila "Albums"-style fullscreen: blurred art wall, giant outlined clock,
- * Continue Playing panel left, lyric center, transport pill bottom. */
-export default function Fullscreen() {
+/** The single player surface: the same composition at every window size
+ * and in fullscreen — videoclip behind, lyric center, covers strip and the
+ * transport pill. No view modes. */
+export default function Stage() {
   const t = useT();
   const lanim = useLyricAnim();
   const nav = useNavigate();
+  const loc = useLocation();
+  const [nativeFs, setNativeFs] = useState(false);
+  useEffect(() => {
+    void bridge.isFullscreen().then(setNativeFs).catch(() => {});
+    return subscribe<boolean>("fullscreen", setNativeFs);
+  }, []);
   const exitFs = () => {
     // Only toggle when the window really is fullscreen — otherwise the
     // button would ENTER fullscreen while trying to leave the view.
     void bridge.isFullscreen().then((on) => {
       if (on) void bridge.toggleFullscreen();
-      else nav("/");
+      else if (loc.pathname === "/fullscreen") nav("/");
     });
   };
   const [np, setNp] = useState<NowPlaying | null>(null);
@@ -180,9 +178,6 @@ export default function Fullscreen() {
   const [searchErr, setSearchErr] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
-  const [fsStyle, setFsStyle] = useState(
-    () => localStorage.getItem("noctbeat.fsstyle") ?? "albums"
-  );
   const [coverScale, setCoverScale] = useState(() => {
     const v = parseFloat(localStorage.getItem("noctbeat.fscss") ?? "100");
     return Number.isFinite(v) ? Math.min(160, Math.max(60, v)) : 100;
@@ -223,7 +218,7 @@ export default function Fullscreen() {
   }, []);
 
   /* Refresh the bridge state each time the picker opens — tabs can
-     connect or go quiet while fullscreen stays mounted. */
+     connect or go quiet while the stage stays mounted. */
   useEffect(() => {
     if (!provOpen) return;
     bridge
@@ -267,7 +262,7 @@ export default function Fullscreen() {
   }, [queue.items]);
   const wall = Object.values(artMap);
 
-  // Keyboard: space toggles play, arrows seek/skip, Esc exits.
+  // Keyboard: space toggles play, arrows seek/volume, S/R/L/F, Esc exits fs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Palette overlay or any editable owns the keys.
@@ -277,6 +272,7 @@ export default function Fullscreen() {
         t?.closest("input, textarea, [contenteditable]")
       )
         return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === " ") {
         // Buttons (incl. role=button lyrics) own Space themselves.
         if (t?.closest("button, [role='button']")) return;
@@ -288,13 +284,29 @@ export default function Fullscreen() {
       } else if (e.key === "ArrowLeft") {
         if (e.shiftKey) void bridge.mediaControl("previous");
         else void bridge.seek(Math.max(0, pos - 10_000));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const d = e.key === "ArrowUp" ? 0.05 : -0.05;
+        void bridge.getVolume().then((v) => bridge.setVolume(Math.min(1, Math.max(0, v + d))));
+      } else if (e.key === "s" || e.key === "S") {
+        void bridge.getShuffle().then((on) => bridge.setShuffle(!on));
+      } else if (e.key === "r" || e.key === "R") {
+        void bridge.getRepeat().then((m) =>
+          bridge.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
+        );
+      } else if (e.key === "l" || e.key === "L") {
+        const entry = favEntryFor(np);
+        if (entry) setFavs((prev) => toggleFav(prev, entry));
+      } else if (e.key === "f" || e.key === "F") {
+        void bridge.toggleFullscreen();
       } else if (e.key === "Escape") {
         exitFs();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nav, pos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nav, pos, loc.pathname]);
 
   useEffect(() => {
     if (!track) {
@@ -308,14 +320,13 @@ export default function Fullscreen() {
     else setArt("");
   }, [track?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // iBaila "albums" backdrop: the music video plays sharp behind everything.
-  // Resolved once per track (track?.id dep — np object changes every tick),
-  // only when the video-backdrop setting is on. Falls back to the art wall.
-  const wantVideo = settings.videoBackdrop;
+  // The videoclip is ALWAYS the backdrop: resolved once per track
+  // (track?.id dep — np object changes every tick). Falls back to the
+  // blurred art wall when no clip resolves.
   const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
-    if (!wantVideo || !trackKey || !track) return;
+    if (!trackKey || !track) return;
     let stale = false;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (!stale && u) setVideoUrl(u);
@@ -324,7 +335,7 @@ export default function Fullscreen() {
       stale = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantVideo, trackKey]);
+  }, [trackKey]);
 
   const [lyroffTick, setLyroffTick] = useState(0);
   useEffect(() => subscribeLyroff(() => setLyroffTick((t) => t + 1)), []);
@@ -345,6 +356,30 @@ export default function Fullscreen() {
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
   const lineTokens = line ? adlibSegments(line) : null;
+
+  // "local" files seek via rodio; "demo" (web preview / mock) seeks its own
+  // clock. Other sources may not support seeking.
+  const canSeek = np?.source === "local" || np?.source === "demo";
+  const scrubTo = (el: HTMLElement, clientX: number) => {
+    if (!canSeek || !dur) return;
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    void bridge.seek(Math.floor(frac * dur));
+  };
+  // Click AND drag to scrub, like YouTube/Apple.
+  const scrubProps = {
+    role: "slider" as const,
+    "aria-label": "Seek",
+    style: { cursor: canSeek ? "pointer" : "default" },
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (!canSeek || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      scrubTo(e.currentTarget, e.clientX);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.buttons & 1) scrubTo(e.currentTarget, e.clientX);
+    },
+  };
 
   // Cover carousel: a window of queue items centered on the current one.
   const ci = queue.currentIndex ?? 0;
@@ -369,23 +404,6 @@ export default function Fullscreen() {
       ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }, [ci, queue.items.length]);
 
-  const pickStyle = (s: string) => {
-    setFsStyle(s);
-    localStorage.setItem("noctbeat.fsstyle", s);
-    setMoreOpen(false);
-  };
-  // Deduped albums for the spotlight/vision album rows.
-  const albums: { album: string; artist: string; artworkUrl: string }[] = [];
-  for (const it of queue.items) {
-    if (!albums.some((a) => a.album === it.track.album)) {
-      albums.push({
-        album: it.track.album,
-        artist: it.track.artist,
-        artworkUrl: it.track.artworkUrl,
-      });
-    }
-  }
-
   const hh = String(now.getHours() % 12 || 12);
   const mm = String(now.getMinutes()).padStart(2, "0");
   const date = now.toLocaleDateString(undefined, {
@@ -394,20 +412,33 @@ export default function Fullscreen() {
     day: "numeric",
   });
 
+  // Drag the (decorated but titlebar-less) window from empty surfaces.
+  const onGlassMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if (
+      (e.target as HTMLElement).closest(
+        "button, input, a, select, [role='slider'], [role='button'], .fs__covers, .stkr"
+      )
+    )
+      return;
+    void bridge.playerStartDrag();
+  };
+
   return (
     <div
-      className={`fs fs--${fsStyle}`}
-      style={{
-        "--cscale": coverScale / 100,
-        "--clksc": clockScale / 100,
-        "--lyrsc": lyricScale / 100,
-      } as CSSProperties}
+      className={`fs fs--albums ${nativeFs ? "" : "fs--win"}`}
+      style={
+        {
+          "--cscale": coverScale / 100,
+          "--clksc": clockScale / 100,
+          "--lyrsc": lyricScale / 100,
+        } as CSSProperties
+      }
+      onMouseDown={onGlassMouseDown}
     >
       <div className="fs__bg">
         {videoUrl ? (
           <FsVideo url={videoUrl} posMs={pos} playing={playing} />
-        ) : fsStyle === "tile" && art ? (
-          <img className="fs__tilebg" src={art} alt="" />
         ) : wall.length > 1 ? (
           <div className="fs__wall">
             {(wall.length < 24
@@ -456,11 +487,21 @@ export default function Fullscreen() {
         </button>
         <button
           className="fs__icon"
+          aria-label={t("nav.hud")}
+          title={t("nav.hud")}
+          onClick={() =>
+            void bridge.updateSettings({ ...settings, hudEnabled: true })
+          }
+        >
+          <PictureInPicture size={15} />
+        </button>
+        <button
+          className="fs__icon"
           aria-label={t("nav.fullscreen")}
           title={t("nav.fullscreen")}
-          onClick={exitFs}
+          onClick={() => void bridge.toggleFullscreen()}
         >
-          <CornersIn size={15} />
+          {nativeFs ? <CornersIn size={15} /> : <ArrowsOut size={15} />}
         </button>
       </div>
 
@@ -473,9 +514,8 @@ export default function Fullscreen() {
         </div>
       </div>
 
-
       <div className="fs__center">
-        {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
+        {lyricsOn ? (
           line ? (
             <div className="fs__lyrics">
               {active > 0 && (
@@ -537,187 +577,7 @@ export default function Fullscreen() {
         )}
       </div>
 
-      {fsStyle === "spotlight" && (
-        <div className="fs__spot">
-          <div className="fs__spotmain">
-            <div className="fs__npcard">
-              <span className="fs__npkick">{t("fs.nowPlaying")}</span>
-              <span className="fs__nptitle">{track?.title ?? t("fs.nothingPlaying")}</span>
-              <span className="fs__npsub">
-                {track ? `${track.artist} · ${track.album}` : ""}
-              </span>
-              <span className="fs__npactions">
-                <button
-                  className="fs__nppause"
-                  onClick={() => void bridge.mediaControl("play-pause")}
-                >
-                  {playing ? <Pause size={13} weight="fill" /> : <Play size={13} weight="fill" />}
-                  {playing ? "Pause" : "Play"}
-                </button>
-                <button
-                  className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
-                  aria-label={fav ? "Unlike" : "Like"}
-                  onClick={onToggleFav}
-                >
-                  <Heart size={14} weight={fav ? "fill" : "regular"} />
-                </button>
-              </span>
-            </div>
-            <div className="fs__spotart">
-              {videoUrl ? (
-                <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__cvid" />
-              ) : art ? (
-                <img src={art} alt="" />
-              ) : null}
-            </div>
-          </div>
-          {albums.length > 0 && (
-            <div className="fs__albums">
-              <span className="fs__alhead">Albums</span>
-              <span className="fs__alrow">
-                {albums.slice(0, 5).map((a) => (
-                  <span key={a.album} className="fs__al">
-                    {artMap[a.artworkUrl] ? (
-                      <img src={artMap[a.artworkUrl]} alt="" />
-                    ) : (
-                      <span className="fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, display: "block" }} />
-                    )}
-                    <span className="fs__alname">{a.album}</span>
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {fsStyle === "dial" && (
-        <div className="fs__dial">
-          <div className="fs__halo">
-            <svg className="fs__hring" viewBox="0 0 100 100" aria-hidden="true">
-              <rect className="fs__hringbg" x="4" y="4" width="92" height="92" rx="26" pathLength="100" />
-              <rect
-                className="fs__hringfill"
-                x="4" y="4" width="92" height="92" rx="26" pathLength="100"
-                style={{ strokeDashoffset: 100 - 100 * (dur ? Math.min(1, pos / dur) : 0) }}
-              />
-            </svg>
-            {videoUrl ? (
-              <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__haloart" />
-            ) : art ? (
-              <img className="fs__haloart" src={art} alt="" />
-            ) : (
-              <div className="fs__haloart fs__meta-art" />
-            )}
-          </div>
-          <div className="fs__dialmeta">
-            <span className="fs__dialtitle">{track?.title ?? t("fs.nothingPlaying")}</span>
-            <span className="fs__dialsub">{track ? `${track.artist} · ${track.album}` : ""}</span>
-          </div>
-          <div className="fs__dialstrip">
-            {covers
-              .filter((c) => !c.on)
-              .map((c, idx) => (
-                <button
-                  key={c.key}
-                  className="fs__striptumb"
-                  style={{ "--i": idx } as CSSProperties}
-                  onClick={() => void bridge.playQueueIndex(c.i)}
-                  title={c.title}
-                >
-                  {c.src ? (
-                    <img src={c.src} alt="" />
-                  ) : (
-                    <span className="fs__meta-art" style={{ display: "block", width: "100%", aspectRatio: "1", borderRadius: 10 }} />
-                  )}
-                </button>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {fsStyle === "vision" && (
-        <div className="fs__vis">
-          <div className="fs__visartist">
-            <span className="fs__npkick">Artist</span>
-            <span className="fs__nptitle">{track?.artist ?? "—"}</span>
-            <span className="fs__npsub">
-              {track ? `Playing “${track.title}”` : ""}
-            </span>
-            <span className="fs__npactions">
-              <button
-                className="fs__nppause"
-                onClick={() => void bridge.mediaControl("play-pause")}
-              >
-                {playing ? <Pause size={13} weight="fill" /> : <Play size={13} weight="fill" />}
-                {playing ? "Pause" : "Play"}
-              </button>
-              <button
-                className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
-                aria-label={fav ? "Unlike" : "Like"}
-                onClick={onToggleFav}
-              >
-                <Heart size={14} weight={fav ? "fill" : "regular"} />
-              </button>
-            </span>
-            <span className="fs__viscols">
-              <span className="fs__viscol">
-                <span className="fs__alhead">Popular</span>
-                {queue.items.slice(0, 4).map((it, i) => (
-                  <button
-                    key={it.path + i}
-                    className="fs__vrow"
-                    onClick={() => void bridge.playQueueIndex(i)}
-                  >
-                    <span className="fs__qnum">{i + 1}</span>
-                    <span className="fs__provrow">
-                      <span className="fs__provtitle">{it.track.title}</span>
-                      <span className="fs__provsub">{it.track.artist}</span>
-                    </span>
-                    <span className="fs__qdur">
-                      {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
-                    </span>
-                  </button>
-                ))}
-              </span>
-              <span className="fs__viscol">
-                <span className="fs__alhead">Albums</span>
-                {albums.slice(0, 4).map((a) => (
-                  <span key={a.album} className="fs__vrow">
-                    {artMap[a.artworkUrl] ? (
-                      <img className="fs__qthumb" src={artMap[a.artworkUrl]} alt="" />
-                    ) : (
-                      <span className="fs__qthumb fs__meta-art" />
-                    )}
-                    <span className="fs__provrow">
-                      <span className="fs__provtitle">{a.album}</span>
-                      <span className="fs__provsub">{a.artist}</span>
-                    </span>
-                  </span>
-                ))}
-              </span>
-            </span>
-          </div>
-          <div className="fs__visnp">
-            <span className="fs__npkick">{t("fs.nowPlaying")}</span>
-            {art ? <img className="fs__visart" src={art} alt="" /> : null}
-            <span className="fs__nptitle">{track?.title ?? ""}</span>
-            <span className="fs__npsub">{track?.artist ?? ""}</span>
-            <span className="fs__vishair">
-              <span className="fs__time">{formatTime(pos)}</span>
-              <span className="fs__hair" style={{ flex: 1 }}>
-                <span
-                  className="fs__hairfill"
-                  style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})`, display: "block", position: "absolute", inset: 0, transformOrigin: "left" }}
-                />
-              </span>
-              <span className="fs__time">{formatTime(dur)}</span>
-            </span>
-          </div>
-        </div>
-      )}
-
-      {!["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) && covers.length > 1 && (
+      {covers.length > 1 && (
         <div
           ref={coversRef}
           className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}
@@ -755,7 +615,7 @@ export default function Fullscreen() {
         >
           {covers.map((c) =>
             c.on ? (
-              /* iBaila center card: video/art inside, meta overlaid on scrim. */
+              /* Center card: video/art inside, meta overlaid on scrim. */
               <div key={c.key} className="fs__cover fs__cover--on">
                 <div className="fs__coverimg">
                   {videoUrl ? (
@@ -786,33 +646,6 @@ export default function Fullscreen() {
               </button>
             )
           )}
-        </div>
-      )}
-
-      {fsStyle === "studio" && queue.items.length > 0 && (
-        <div className="fs__studioq">
-          <span className="fs__alhead">{t("fs.upNext")}</span>
-          {queue.items.map((it, i) => (
-            <button
-              key={it.path + i}
-              className={`fs__vrow ${i === queue.currentIndex ? "fs__vrow--on" : ""}`}
-              onClick={() => void bridge.playQueueIndex(i)}
-            >
-              <span className="fs__qnum">{i + 1}</span>
-              {artMap[it.track.artworkUrl] ? (
-                <img className="fs__qthumb" src={artMap[it.track.artworkUrl]} alt="" />
-              ) : (
-                <span className="fs__qthumb fs__meta-art" />
-              )}
-              <span className="fs__provrow">
-                <span className="fs__provtitle">{it.track.title}</span>
-                <span className="fs__provsub">{it.track.artist}</span>
-              </span>
-              <span className="fs__qdur">
-                {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
-              </span>
-            </button>
-          ))}
         </div>
       )}
 
@@ -950,7 +783,7 @@ export default function Fullscreen() {
               </span>
               <span className="fs__srcsep" />
           <button
-            className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
+            className={`fs__icon fs__pillopt ${shuffle ? "fs__icon--on" : ""}`}
             aria-label="Shuffle"
             title={t("fs.shuffle")}
             onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
@@ -971,7 +804,7 @@ export default function Fullscreen() {
             <SkipForward weight="fill" size={17} />
           </button>
           <button
-            className={`fs__icon ${repeat !== "off" ? "fs__icon--on" : ""}`}
+            className={`fs__icon fs__pillopt ${repeat !== "off" ? "fs__icon--on" : ""}`}
             aria-label={`Repeat: ${repeat}`}
             title={t("fs.repeat", { mode: repeat })}
             onClick={() => {
@@ -995,36 +828,9 @@ export default function Fullscreen() {
                 </div>
               </div>
             </div>
-            {lyricsOn && (fsStyle === "tile" || fsStyle === "showcase") && line && (
-              <div
-                className="fs__cardlyric"
-                role="button"
-                tabIndex={0}
-                onClick={() => setTimingOpen((v) => !v)}
-                onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
-              >
-                {lineTokens!.map((s, i) =>
-                  s.adlib ? (
-                    <span key={i} className="adlib">
-                      {s.text}
-                    </span>
-                  ) : (
-                    s.text
-                  ),
-                )}
-              </div>
-            )}
             <div
-              className={`fs__hair ${np?.source === "local" && dur ? "" : "fs__hair--off"}`}
-              role="slider"
-              aria-label="Seek"
-              onClick={(e) => {
-                if (np?.source !== "local" || !dur) return;
-                const r = e.currentTarget.getBoundingClientRect();
-                const frac = (e.clientX - r.left) / r.width;
-                void bridge.seek(Math.floor(frac * dur));
-              }}
+              className={`fs__hair ${canSeek && dur ? "" : "fs__hair--off"}`}
+              {...scrubProps}
             >
               <div
                 className="fs__hairfill"
@@ -1033,7 +839,7 @@ export default function Fullscreen() {
             </div>
           </div>
           <button
-            className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+            className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
             aria-label={fav ? "Unlike" : "Like"}
             title={fav ? t("fs.unlike") : t("fs.like")}
             onClick={onToggleFav}
@@ -1041,16 +847,16 @@ export default function Fullscreen() {
             <Heart size={15} weight={fav ? "fill" : "regular"} />
           </button>
           <button
-            className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
+            className={`fs__icon fs__pillopt ${lyricsOn ? "fs__icon--on" : ""}`}
             aria-label={t("fs.lyricsToggle")}
             title={t("fs.lyricsToggle")}
             onClick={() => setLyricsOn((v) => !v)}
           >
             <TextT size={15} />
           </button>
-          <span className="fs__vol">
+          <span className="fs__vol fs__volvol">
             <button
-              className={`fs__icon ${vol === 0 ? "fs__icon--on" : ""}`}
+              className={`fs__icon fs__pillopt ${vol === 0 ? "fs__icon--on" : ""}`}
               aria-label="Volume"
               title={t("fs.volume")}
               onClick={() => setVolOpen((v) => !v)}
@@ -1086,13 +892,16 @@ export default function Fullscreen() {
             {moreOpen && (
               <span className="fs__volpop fs__morepop">
                 <button className="fs__morebtn" onClick={() => { setShare(true); setMoreOpen(false); }}>
-                  <Export size={13} /> Share
+                  <Export size={13} /> {t("fs.share")}
+                </button>
+                <button className="fs__morebtn" onClick={() => { openPalette(); setMoreOpen(false); }}>
+                  <Command size={13} /> {t("nav.commands")}
                 </button>
                 <button className="fs__morebtn" onClick={() => { void bridge.setSleepTimer(30); setMoreOpen(false); }}>
-                  <Moon size={13} /> Sleep 30 min
+                  <Moon size={13} /> {t("fs.sleep30")}
                 </button>
                 <span className="fs__moresep" />
-                <span className="fs__stylehead">Speed</span>
+                <span className="fs__stylehead">{t("fs.speed")}</span>
                 {([
                   ["Slowed", 0.8],
                   ["Normal", 1.0],
@@ -1111,13 +920,13 @@ export default function Fullscreen() {
                   <Playlist size={13} /> {t("nav.library")}
                 </button>
                 <button className="fs__morebtn" onClick={() => nav("/settings")}>
-                  <GearSix size={13} /> Settings
+                  <GearSix size={13} /> {t("fs.settings")}
                 </button>
                 <button
                   className="fs__morebtn"
-                  onClick={exitFs}
+                  onClick={() => void bridge.toggleFullscreen()}
                 >
-                  <CornersIn size={13} /> {t("nav.fullscreen")}
+                  {nativeFs ? <CornersIn size={13} /> : <ArrowsOut size={13} />} {t("nav.fullscreen")}
                 </button>
                 <span className="fs__moresep" />
                 <span className="fs__stylehead">{t("fs.size")}</span>
@@ -1192,22 +1001,12 @@ export default function Fullscreen() {
                     {label}
                   </button>
                 ))}
-                <span className="fs__moresep" />
-                <span className="fs__stylehead">Style</span>
-                {FS_STYLES.map((s) => (
-                  <button
-                    key={s.id}
-                    className={`fs__morebtn ${fsStyle === s.id ? "fs__morebtn--on" : ""}`}
-                    onClick={() => pickStyle(s.id)}
-                  >
-                    {s.label}
-                  </button>
-                ))}
               </span>
             )}
           </span>
         </div>
       </div>
+      <StickerLayer />
       {share && (
         <ShareCard track={track} artUrl={art} posMs={pos} onClose={() => setShare(false)} />
       )}

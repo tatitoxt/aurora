@@ -5,56 +5,65 @@ import { expect, test } from "@playwright/test";
 // the interactions users hit in the real window.
 const APP = "http://localhost:4812";
 
-test.describe("Noctbeat player", () => {
-  test("minimal nav: library, settings, share, commands, fullscreen only", async ({ page }) => {
+test.describe("Noctbeat stage", () => {
+  test("one layout: topbar, lyric center, covers strip, transport pill", async ({ page }) => {
     await page.goto(`${APP}/#/`);
-    const nav = page.locator(".pnav");
-    await expect(nav).toBeVisible();
-    await expect(nav.locator("a,button")).toHaveCount(6);
-    await expect(nav.locator('a[href="#/library"]')).toBeVisible();
-    await expect(nav.locator('a[href="#/settings"]')).toBeVisible();
-    await expect(nav.locator('button[aria-label*="HUD"]')).toBeVisible();
+    const topbar = page.locator(".fs__topbar");
+    await expect(topbar).toBeVisible();
+    await expect(topbar.locator('button[aria-label="Library"]')).toBeVisible();
+    await expect(topbar.locator('button[aria-label="Settings"]')).toBeVisible();
+    await expect(topbar.locator('button[aria-label="Open HUD"]')).toBeVisible();
+    await expect(topbar.locator('button[aria-label="Lyrics"]')).toBeVisible();
+    await expect(topbar.locator('button[aria-label="Fullscreen"]')).toBeVisible();
+    await expect(page.locator(".fs__center")).toBeVisible();
+    await expect(page.locator(".fs__covers")).toBeVisible();
+    await expect(page.locator(".fs__pill")).toBeVisible();
+    // videoclip backdrop is always resolved — no view-mode switcher anywhere
+    await expect(page.locator(".player__modes")).toHaveCount(0);
+    await expect(page.locator(".fs__styles")).toHaveCount(0);
   });
 
-  test("view modes switch art / lyrics", async ({ page }) => {
+  test("lyrics toggle hides and restores the center lyric", async ({ page }) => {
     await page.goto(`${APP}/#/`);
-    await expect(page.locator(".player__modes")).toBeVisible();
-    await page.getByLabel("Lyrics").click();
-    await expect(page.locator(".player__lyrfill")).toBeVisible();
-    await page.getByLabel("Cover art").click();
-    await expect(page.locator(".player__lyrfill")).toHaveCount(0);
+    await expect(page.locator(".fs__lyrics")).toBeVisible();
+    await page.locator(".fs__topbar").getByLabel("Lyrics").click();
+    await expect(page.locator(".fs__lyrics")).toHaveCount(0);
+    await page.locator(".fs__topbar").getByLabel("Lyrics").click();
+    await expect(page.locator(".fs__lyrics")).toBeVisible();
   });
 
-  test("videoclip mode: lyrics overlay + toggle", async ({ page }) => {
+  test("seek hairline scrubs the track", async ({ page }) => {
     await page.goto(`${APP}/#/`);
-    await page.getByLabel("Music video").click();
-    const overlay = page.locator(".player__lyrover");
-    await expect(overlay).toBeVisible();
-    const toggle = page.locator(".player__lyrtoggle");
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    await expect(overlay).toHaveCount(0);
-    await toggle.click();
-    await expect(overlay).toBeVisible();
-  });
-
-  test("progress bar seeks the track", async ({ page }) => {
-    await page.goto(`${APP}/#/`);
-    const time = page.locator(".player__times span").first();
-    await expect(time).toBeVisible();
-    const before = await time.textContent();
-    const bar = page.locator(".player__progress");
+    // wait for the first now-playing event so a seekable track is loaded
+    await page.waitForSelector(".fs__hair:not(.fs__hair--off)");
+    const fill = page.locator(".fs__hairfill");
+    const bar = page.locator(".fs__hair");
     const box = await bar.boundingBox();
-    await bar.click({ position: { x: box!.width * 0.8, y: box!.height / 2 } });
-    await expect.poll(async () => (await time.textContent()) ?? "").not.toBe(before ?? "");
-    const [m, s] = ((await time.textContent()) ?? "0:00").split(":").map(Number);
-    expect(m * 60 + s).toBeGreaterThan(120);
+    await page.mouse.click(box!.x + box!.width * 0.8, box!.y + box!.height / 2);
+    // the fill moves on now-playing events; seek lands near the clicked fraction
+    await expect
+      .poll(
+        async () => {
+          const style = (await fill.getAttribute("style")) ?? "";
+          const m = style.match(/scaleX\((\d*\.?\d+)\)/);
+          return m ? parseFloat(m[1]) : -1;
+        },
+        { timeout: 5000 }
+      )
+      .toBeGreaterThan(0.7);
+  });
+
+  test("library/settings routes keep their chrome", async ({ page }) => {
+    await page.goto(`${APP}/#/library`);
+    await expect(page.locator(".glass")).toBeVisible();
+    await page.goto(`${APP}/#/settings`);
+    await expect(page.locator(".glass")).toBeVisible();
   });
 });
 
-test.describe("Fullscreen carousel", () => {
+test.describe("Covers carousel", () => {
   test("scrolling browses without changing the track", async ({ page }) => {
-    await page.goto(`${APP}/#/fullscreen`);
+    await page.goto(`${APP}/#/`);
     const covers = page.locator(".fs__covers");
     await expect(covers).toBeVisible();
     const before = await page.locator(".fs__cvtitle").textContent();
@@ -75,7 +84,7 @@ test.describe("Fullscreen carousel", () => {
   });
 
   test("clicking a side cover changes the track", async ({ page }) => {
-    await page.goto(`${APP}/#/fullscreen`);
+    await page.goto(`${APP}/#/`);
     await expect(page.locator(".fs__covers")).toBeVisible();
     const before = await page.locator(".fs__cvtitle").textContent();
     await page.locator(".fs__cover--r").first().click();

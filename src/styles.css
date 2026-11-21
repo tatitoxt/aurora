@@ -42,12 +42,14 @@ body {
     var(--panel);
   backdrop-filter: blur(var(--gblur, 80px)) saturate(1.8);
   -webkit-backdrop-filter: blur(var(--gblur, 80px)) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 26px;
+  /* No border/drop-shadow of its own: the decorated window frame already
+     supplies the rounded edge — drawing a second one produced the
+     double-corner artifact. */
+  border: none;
+  border-radius: 18px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 24px 60px -20px rgba(0, 0, 0, 0.7);
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -852,8 +854,8 @@ body {
 .hud__lyrover .player__lyrics { min-height: 0; }
 .hud__lyrover .lyric { font-size: 11.5px; padding: 3px 6px; text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
 .hud__lyridle { align-self: center; font-family: var(--serif); font-style: italic; font-size: 15px; color: rgba(242,242,245,0.85); text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
-.hud__artswap {
-  position: absolute; right: 8px; bottom: 8px;
+.hud__artswap, .hud__lyrswap {
+  position: absolute; bottom: 8px;
   width: 26px; height: 26px; border-radius: 50%;
   background: rgba(12,14,20,0.55); border: 1px solid rgba(255,255,255,0.16);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -861,8 +863,19 @@ body {
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .2s;
 }
-.hud__focusart:hover .hud__artswap { opacity: 1; }
-.hud__artswap:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+.hud__artswap { right: 8px; }
+.hud__lyrswap { left: 8px; }
+.hud__lyrswap.on { color: var(--accent); opacity: 1; }
+.hud__focusart:hover .hud__artswap, .hud__focusart:hover .hud__lyrswap { opacity: 1; }
+.hud__artswap:hover, .hud__lyrswap:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+/* Queue browsed as a scrim inside the square — one HUD layout, no modes. */
+.hud__list--overlay {
+  position: absolute; inset: 0; margin: 0; padding: 8px;
+  border-radius: inherit; border: none;
+  background: rgba(8,8,12,0.72);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  overflow-y: auto; z-index: 3;
+}
 .hud__focustitle { font-size: 17px; font-weight: 700; text-align: center; font-family: var(--serif); font-style: italic; margin-top: 2px; }
 .hud__focussub { font-size: 12px; color: var(--dim); text-align: center; }
 .hud__focus .hud__progress { width: min(100%, 300px); margin-top: 4px; }
@@ -927,6 +940,9 @@ body {
   font-display: swap;
 }
 .fs { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; background: #050508; }
+/* Windowed (not native fullscreen): clip to the same rounded corner the
+   macOS frame cuts, or the opaque stage shows a square corner artifact. */
+.fs--win { border-radius: 14px; }
 /* Liquid ambient wash: artwork-tinted gradient blobs drifting slowly.
    Opacity stays low so glass and text keep their contrast over it. */
 .amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
@@ -1977,4 +1993,21 @@ body {
 .themechip__sw {
   width: 100%; height: 34px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.14); display: block;
+}
+
+/* Compact stage for the small player window: same layout, tighter pill —
+   optional controls fold into the "…" menu, meta keeps only the hairline. */
+@media (max-width: 560px) {
+  .fs__pill { gap: 4px; padding: 5px 8px; }
+  .fs__pillopt, .fs__srcsep { display: none; }
+  .fs__meta { display: none; }
+  .fs__metacol { flex: 1; min-width: 0; }
+  .fs__clockwrap { padding-top: 3vh; }
+  .fs__topbar { padding: 10px 12px; }
+  .fs__covers { margin-bottom: 2vh; gap: 10px; }
+  .fs__cover--on { width: calc(clamp(180px, 40vh, 320px) * var(--cscale, 1)); }
+}
+@media (max-height: 620px) {
+  .fs__clockwrap { padding-top: 1.5vh; }
+  .fs__center { padding: 0 6vw; }
 }

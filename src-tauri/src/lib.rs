@@ -1662,9 +1662,21 @@ fn player_start_drag(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Bring the full player window forward (HUD expand button).
+/// Bring the full player window forward (HUD expand button / tray Open).
+/// The player and the HUD never coexist: showing the player turns the
+/// HUD off (the settings flag is updated so nothing resurrects it).
 #[tauri::command]
 fn show_player(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+        if s.hud_enabled {
+            s.hud_enabled = false;
+            s.save(&state.settings_path).map_err(|e| e.to_string())?;
+            let _ = app.emit("settings", s.clone());
+        }
+        sync_hud_window(&app, &s);
+    }
     if let Some(win) = app.get_webview_window("player") {
         let _ = win.show();
         let _ = win.unminimize();
@@ -1747,11 +1759,21 @@ fn open_url(url: String) -> Result<(), String> {
 /// Floating HUD pill: borderless, transparent, draggable anywhere, optionally
 /// pinned above other windows. Position persists via the Moved event.
 fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
+    // HUD and player are exclusive surfaces: while the HUD lives, the
+    // player window stays hidden (its transport keeps working — this is
+    // the same playback, just a smaller remote for it).
     if let Some(win) = app.get_webview_window("hud") {
         if settings.hud_enabled {
             let _ = win.set_always_on_top(settings.hud_always_on_top);
+            let _ = win.show();
+            if let Some(player) = app.get_webview_window("player") {
+                let _ = player.hide();
+            }
         } else {
             let _ = win.close();
+            if let Some(player) = app.get_webview_window("player") {
+                let _ = player.show();
+            }
         }
         return;
     }
@@ -1795,6 +1817,10 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
                 };
             }
         });
+        // The HUD owns the screen now — tuck the player window away.
+        if let Some(player) = app.get_webview_window("player") {
+            let _ = player.hide();
+        }
     }
 }
 
