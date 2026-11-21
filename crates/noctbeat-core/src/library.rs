@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 // feature set) can actually play: flac, mp3, mp4/aac, vorbis, wav.
 const AUDIO_EXTS: &[&str] = &["mp3", "flac", "ogg", "m4a", "aac", "wav"];
 
-fn is_audio(path: &Path) -> bool {
+/// Whether `path` has an extension the decoder can play.
+pub fn is_audio(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
         .map(|e| AUDIO_EXTS.contains(&e.to_lowercase().as_str()))
