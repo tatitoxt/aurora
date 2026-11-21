@@ -9,7 +9,7 @@ import {
   type RemoteTrack,
   type Settings,
 } from "../bridge";
-import { activeLyricIndex, formatTime } from "../lib";
+import { activeLyricIndex, adlibSegments, formatTime } from "../lib";
 import {
   lyricOffsetFor,
   setLyricOffset,
@@ -301,6 +301,7 @@ export default function Fullscreen() {
   }, [timingKey]);
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
+  const lineTokens = line ? adlibSegments(line) : null;
 
   // Cover carousel: a window of queue items centered on the current one.
   const ci = queue.currentIndex ?? 0;
@@ -500,7 +501,15 @@ export default function Fullscreen() {
               onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
             >
-              {line}
+              {lineTokens!.map((s, i) =>
+                s.adlib ? (
+                  <span key={i} className="adlib">
+                    {s.text}
+                  </span>
+                ) : (
+                  s.text
+                ),
+              )}
             </div>
           ) : track ? (
             <div className="fs__lyric fs__lyric--title">{track.title}</div>
@@ -904,7 +913,15 @@ export default function Fullscreen() {
                 onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
               >
-                {line}
+                {lineTokens!.map((s, i) =>
+                  s.adlib ? (
+                    <span key={i} className="adlib">
+                      {s.text}
+                    </span>
+                  ) : (
+                    s.text
+                  ),
+                )}
               </div>
             )}
             <div
