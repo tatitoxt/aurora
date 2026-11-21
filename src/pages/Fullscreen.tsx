@@ -285,6 +285,17 @@ export default function Fullscreen() {
   void lyroffTick;
   const lyroff = lyricOffsetFor(np);
   const active = lyrics ? activeLyricIndex(lyrics, pos + lyroff) : -1;
+
+  // Close the timing editor when the playing track changes — its nudges
+  // would otherwise save to the new track instead of the edited one.
+  const timingKey = np?.track ? `${np.source}:${np.track.id}` : "";
+  const prevTimingKey = useRef(timingKey);
+  useEffect(() => {
+    if (prevTimingKey.current !== timingKey) {
+      prevTimingKey.current = timingKey;
+      setTimingOpen(false);
+    }
+  }, [timingKey]);
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
 
@@ -472,7 +483,14 @@ export default function Fullscreen() {
       <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
         {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
           line ? (
-            <div className="fs__lyric" key={active} onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}>
+            <div
+              className="fs__lyric"
+              key={active}
+              role="button"
+              tabIndex={0}
+              onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
+            >
               {line}
             </div>
           ) : track ? (
@@ -871,7 +889,10 @@ export default function Fullscreen() {
             {lyricsOn && (fsStyle === "tile" || fsStyle === "showcase") && line && (
               <div
                 className="fs__cardlyric"
+                role="button"
+                tabIndex={0}
                 onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
               >
                 {line}
               </div>
