@@ -366,6 +366,11 @@ export const bridge = {
     window.location.hash = "#/";
     return Promise.resolve(null);
   },
+  /** Fullscreen the player window (karaoke / visualizer wallpaper mode). */
+  toggleFullscreen: (): Promise<boolean> => {
+    if (isTauri()) return invokeCmd<boolean>("toggle_fullscreen");
+    return Promise.resolve(false);
+  },
   getLicenseState: (): Promise<LicenseState> =>
     isTauri()
       ? invokeCmd<LicenseState>("get_license_state")

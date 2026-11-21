@@ -111,6 +111,12 @@ export default function Palette() {
       { id: "viz", label: "Open visualizer", hint: "nav", run: () => nav("/visualizer") },
       { id: "settings", label: "Open settings", hint: "nav", run: () => nav("/settings") },
       {
+        id: "fullscreen",
+        label: "Toggle fullscreen",
+        hint: "window",
+        run: () => void bridge.toggleFullscreen(),
+      },
+      {
         id: "rescan",
         label: "Rescan music folder",
         hint: "library",

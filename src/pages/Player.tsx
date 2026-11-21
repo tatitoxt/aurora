@@ -8,7 +8,7 @@ import {
   type LrcLine,
   type Settings,
 } from "../bridge";
-import { Export, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { ArrowsOut, Export, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
@@ -191,6 +191,14 @@ export default function Player() {
       </button>
       <button className="wordmark palette-open" onClick={openPalette}>
         Ctrl K
+      </button>
+      <button
+        className="wordmark palette-open"
+        aria-label="Toggle fullscreen"
+        title="Fullscreen"
+        onClick={() => void bridge.toggleFullscreen()}
+      >
+        <ArrowsOut size={13} />
       </button>
     </div>
   );
