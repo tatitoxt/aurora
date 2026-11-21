@@ -19,6 +19,14 @@ export default function Settings() {
   const [outputs, setOutputs] = useState<string[]>([]);
   const [license, setLicense] = useState<LicenseState>({ state: "unlicensed" });
   const [key, setKey] = useState("");
+  const [activating, setActivating] = useState(false);
+  const activate = () => {
+    if (activating || !key.trim()) return;
+    setActivating(true);
+    bridge.activateLicense(key.trim())
+      .then(setLicense)
+      .finally(() => setActivating(false));
+  };
   const [profileName, setProfileName] = useState("");
   const [loaded, setLoaded] = useState(false);
 
@@ -458,14 +466,11 @@ export default function Settings() {
               <input
                 type="text" placeholder="License key" value={key}
                 onChange={(e) => setKey(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && key.trim() && bridge.activateLicense(key.trim()).then(setLicense)}
+                onKeyDown={(e) => e.key === "Enter" && activate()}
               />
               <div className="seg">
-                <button
-                  disabled={!key.trim()}
-                  onClick={() => bridge.activateLicense(key.trim()).then(setLicense)}
-                >
-                  Activate
+                <button disabled={!key.trim() || activating} onClick={activate}>
+                  {activating ? "Activating…" : "Activate"}
                 </button>
                 <button onClick={() => bridge.openUrl(branding.checkoutUrl)}>
                   Buy a license
