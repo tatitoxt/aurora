@@ -9,7 +9,7 @@ import {
   type RemoteTrack,
   type Settings,
 } from "../bridge";
-import { activeLyricIndex } from "../lib";
+import { activeLyricIndex, formatTime } from "../lib";
 import {
   CaretDown,
   CornersIn,
@@ -44,6 +44,15 @@ const PROVIDERS = [
   { id: "spotify", label: "Spotify", icon: SpotifyLogo, live: false },
   { id: "apple", label: "Apple Music", icon: AppleLogo, live: false },
   { id: "amazon", label: "Amazon Music", icon: AmazonLogo, live: false },
+] as const;
+
+const FS_STYLES = [
+  { id: "albums", label: "Albums" },
+  { id: "arc", label: "Arc" },
+  { id: "pearl", label: "Pearl" },
+  { id: "studio", label: "Studio" },
+  { id: "spotlight", label: "Spotlight" },
+  { id: "vision", label: "Vision" },
 ] as const;
 
 function QueueThumb({ track }: { track: { artworkUrl: string; title: string } }) {
@@ -127,6 +136,9 @@ export default function Fullscreen() {
   const [searchErr, setSearchErr] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
+  const [fsStyle, setFsStyle] = useState(
+    () => localStorage.getItem("noctbeat.fsstyle") ?? "albums"
+  );
   const [qpage, setQpage] = useState(0);
   const [favs, setFavs] = useState<Set<string>>(() => {
     try {
@@ -272,7 +284,25 @@ export default function Fullscreen() {
       title: it.track.title,
       artist: it.track.artist,
       on: i === ci,
+      side: i < ci ? "l" : i > ci ? "r" : "",
     }));
+
+  const pickStyle = (s: string) => {
+    setFsStyle(s);
+    localStorage.setItem("noctbeat.fsstyle", s);
+    setMoreOpen(false);
+  };
+  // Deduped albums for the spotlight/vision album rows.
+  const albums: { album: string; artist: string; artworkUrl: string }[] = [];
+  for (const it of queue.items) {
+    if (!albums.some((a) => a.album === it.track.album)) {
+      albums.push({
+        album: it.track.album,
+        artist: it.track.artist,
+        artworkUrl: it.track.artworkUrl,
+      });
+    }
+  }
 
   const hh = String(now.getHours() % 12 || 12);
   const mm = String(now.getMinutes()).padStart(2, "0");
@@ -283,7 +313,7 @@ export default function Fullscreen() {
   });
 
   return (
-    <div className="fs">
+    <div className={`fs fs--${fsStyle}`}>
       <div className="fs__bg">
         {videoUrl ? (
           <FsVideo url={videoUrl} posMs={pos} playing={playing} />
@@ -355,6 +385,10 @@ export default function Fullscreen() {
                     <span className="fs__qtitle">{it.track.title}</span>
                     <span className="fs__qsub">{it.track.artist}</span>
                   </span>
+                  <span className="fs__qnum">{qp * 8 + i + 1}</span>
+                  <span className="fs__qdur">
+                    {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
+                  </span>
                   {qp * 8 + i === queue.currentIndex && playing && (
                     <span className="fs__eq" aria-hidden="true">
                       <i />
@@ -385,7 +419,7 @@ export default function Fullscreen() {
       )}
 
       <div className={`fs__center ${panelShown && queueOpen ? "fs__center--panel" : ""}`}>
-        {lyricsOn ? (
+        {lyricsOn && fsStyle !== "spotlight" && fsStyle !== "vision" ? (
           line ? (
             <div className="fs__lyric" key={active}>
               {line}
@@ -398,7 +432,142 @@ export default function Fullscreen() {
         ) : null}
       </div>
 
-      {covers.length > 1 && (
+      {fsStyle === "spotlight" && (
+        <div className="fs__spot">
+          <div className="fs__spotmain">
+            <div className="fs__npcard">
+              <span className="fs__npkick">Now Playing</span>
+              <span className="fs__nptitle">{track?.title ?? "Nothing playing"}</span>
+              <span className="fs__npsub">
+                {track ? `${track.artist} · ${track.album}` : ""}
+              </span>
+              <span className="fs__npactions">
+                <button
+                  className="fs__nppause"
+                  onClick={() => void bridge.mediaControl("play-pause")}
+                >
+                  {playing ? <Pause size={13} weight="fill" /> : <Play size={13} weight="fill" />}
+                  {playing ? "Pause" : "Play"}
+                </button>
+                <button
+                  className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+                  aria-label={fav ? "Unlike" : "Like"}
+                  onClick={toggleFav}
+                >
+                  <Heart size={14} weight={fav ? "fill" : "regular"} />
+                </button>
+              </span>
+            </div>
+            <div className="fs__spotart">
+              {videoUrl ? (
+                <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__cvid" />
+              ) : art ? (
+                <img src={art} alt="" />
+              ) : null}
+            </div>
+          </div>
+          {albums.length > 0 && (
+            <div className="fs__albums">
+              <span className="fs__alhead">Albums</span>
+              <span className="fs__alrow">
+                {albums.slice(0, 5).map((a) => (
+                  <span key={a.album} className="fs__al">
+                    {artMap[a.artworkUrl] ? (
+                      <img src={artMap[a.artworkUrl]} alt="" />
+                    ) : (
+                      <span className="fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, display: "block" }} />
+                    )}
+                    <span className="fs__alname">{a.album}</span>
+                  </span>
+                ))}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {fsStyle === "vision" && (
+        <div className="fs__vis">
+          <div className="fs__visartist">
+            <span className="fs__npkick">Artist</span>
+            <span className="fs__nptitle">{track?.artist ?? "—"}</span>
+            <span className="fs__npsub">
+              {track ? `Playing “${track.title}”` : ""}
+            </span>
+            <span className="fs__npactions">
+              <button
+                className="fs__nppause"
+                onClick={() => void bridge.mediaControl("play-pause")}
+              >
+                {playing ? <Pause size={13} weight="fill" /> : <Play size={13} weight="fill" />}
+                {playing ? "Pause" : "Play"}
+              </button>
+              <button
+                className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+                aria-label={fav ? "Unlike" : "Like"}
+                onClick={toggleFav}
+              >
+                <Heart size={14} weight={fav ? "fill" : "regular"} />
+              </button>
+            </span>
+            <span className="fs__viscols">
+              <span className="fs__viscol">
+                <span className="fs__alhead">Popular</span>
+                {queue.items.slice(0, 4).map((it, i) => (
+                  <button
+                    key={it.path + i}
+                    className="fs__vrow"
+                    onClick={() => void bridge.playQueueIndex(i)}
+                  >
+                    <span className="fs__qnum">{i + 1}</span>
+                    <span className="fs__provrow">
+                      <span className="fs__provtitle">{it.track.title}</span>
+                      <span className="fs__provsub">{it.track.artist}</span>
+                    </span>
+                    <span className="fs__qdur">
+                      {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
+                    </span>
+                  </button>
+                ))}
+              </span>
+              <span className="fs__viscol">
+                <span className="fs__alhead">Albums</span>
+                {albums.slice(0, 4).map((a) => (
+                  <span key={a.album} className="fs__vrow">
+                    {artMap[a.artworkUrl] ? (
+                      <img className="fs__qthumb" src={artMap[a.artworkUrl]} alt="" />
+                    ) : (
+                      <span className="fs__qthumb fs__meta-art" />
+                    )}
+                    <span className="fs__provrow">
+                      <span className="fs__provtitle">{a.album}</span>
+                      <span className="fs__provsub">{a.artist}</span>
+                    </span>
+                  </span>
+                ))}
+              </span>
+            </span>
+          </div>
+          <div className="fs__visnp">
+            <span className="fs__npkick">Now Playing</span>
+            {art ? <img className="fs__visart" src={art} alt="" /> : null}
+            <span className="fs__nptitle">{track?.title ?? ""}</span>
+            <span className="fs__npsub">{track?.artist ?? ""}</span>
+            <span className="fs__vishair">
+              <span className="fs__time">{formatTime(pos)}</span>
+              <span className="fs__hair" style={{ flex: 1 }}>
+                <span
+                  className="fs__hairfill"
+                  style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})`, display: "block", position: "absolute", inset: 0, transformOrigin: "left" }}
+                />
+              </span>
+              <span className="fs__time">{formatTime(dur)}</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {fsStyle !== "spotlight" && fsStyle !== "vision" && covers.length > 1 && (
         <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"} ${panelShown && queueOpen ? "fs__covers--panel" : ""}`}>
           {covers.map((c) =>
             c.on ? (
@@ -420,7 +589,7 @@ export default function Fullscreen() {
                 </div>
               </div>
             ) : (
-              <div key={c.key} className="fs__cover">
+              <div key={c.key} className={`fs__cover fs__cover--${c.side}`}>
                 {c.src ? <img src={c.src} alt="" /> : <div className="fs__cover-img fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 12 }} />}
                 <div className="fs__cname">{c.title}</div>
                 <div className="fs__cart">{c.artist}</div>
@@ -648,6 +817,16 @@ export default function Fullscreen() {
                 >
                   <CornersIn size={13} /> Exit fullscreen
                 </button>
+                <span className="fs__stylehead">Style</span>
+                {FS_STYLES.map((s) => (
+                  <button
+                    key={s.id}
+                    className={`fs__morebtn ${fsStyle === s.id ? "fs__morebtn--on" : ""}`}
+                    onClick={() => pickStyle(s.id)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </span>
             )}
           </span>

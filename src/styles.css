@@ -798,3 +798,95 @@ body {
 }
 .viz__title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .viz__artist { color: var(--dim); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Fullscreen style pack (iBaila variants) ---- */
+.fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
+.fs__qnum { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; width: 2ch; flex: none; text-align: right; }
+.fs__qdur { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; margin-left: auto; }
+.fs__stylehead {
+  display: block; padding: 8px 10px 3px; font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);
+}
+
+/* arc: 3D cover-flow + flat transport + accent hairline */
+.fs--arc .fs__covers { perspective: 900px; justify-content: center; }
+.fs--arc .fs__cover--l { transform: rotateY(38deg) scale(0.82); transform-origin: right center; }
+.fs--arc .fs__cover--r { transform: rotateY(-38deg) scale(0.82); transform-origin: left center; }
+.fs--arc .fs__hairfill { background: linear-gradient(90deg, #ffb45e, var(--accent)); box-shadow: 0 0 10px rgba(255,180,94,0.5); }
+.fs--arc .fs__pill, .fs--pearl .fs__pill, .fs--studio .fs__pill, .fs--vision .fs__pill {
+  background: transparent; border: none; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.fs--arc .fs__icon, .fs--pearl .fs__icon, .fs--studio .fs__icon, .fs--vision .fs__icon {
+  background: rgba(10,10,14,0.5); border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.fs--arc .fs__icon { border-radius: 50%; }
+
+/* pearl: centered title+artist above covers */
+.fs--pearl .fs__covers { justify-content: center; padding-left: 0; }
+.fs--pearl .fs__center--panel { padding-left: 8vw; }
+
+/* studio: queue docked right as a numbered list, carousel stays left */
+.fs--studio .fs__queue { left: auto; right: 3.5vw; width: min(320px, 32vw); }
+.fs--studio .fs__covers { padding-left: 3.5vw; justify-content: flex-start; }
+.fs--studio .fs__center--panel { padding-left: 8vw; padding-right: calc(3.5vw + min(320px, 32vw) + 32px); }
+.fs--studio .fs__covers--panel { padding-left: 3.5vw; }
+
+/* spotlight: NOW PLAYING card left + albums row; queue docked right */
+.fs--spotlight .fs__queue { left: auto; right: 3.5vw; }
+.fs__spot {
+  position: relative; flex: 1; display: flex; flex-direction: column;
+  justify-content: center; gap: 3vh; padding: 0 4vw 0 calc(3.5vw + min(240px,24vw) + 3vw);
+  pointer-events: none;
+}
+.fs__spotmain {
+  display: flex; align-items: stretch; width: min(640px, 60vw);
+  background: rgba(12,12,17,0.62); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; overflow: hidden;
+  backdrop-filter: blur(40px) saturate(1.3); -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5); pointer-events: auto;
+}
+.fs__npcard { display: flex; flex-direction: column; gap: 8px; padding: 22px; flex: 1; min-width: 0; }
+.fs__npkick { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
+.fs__nptitle { font-size: clamp(22px, 3.4vh, 34px); font-weight: 800; letter-spacing: -0.01em; line-height: 1.05; }
+.fs__npsub { font-size: 12.5px; color: var(--dim); }
+.fs__npactions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.fs__nppause {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px;
+  border: none; border-radius: 999px; background: var(--accent); color: #0c0c11;
+  font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.fs__spotart { width: min(300px, 24vw); flex: none; }
+.fs__spotart img, .fs__spotart video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fs__albums { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+.fs__alhead { font-size: 13px; font-weight: 700; }
+.fs__alrow { display: flex; gap: 14px; }
+.fs__al { width: clamp(84px, 10vh, 120px); display: flex; flex-direction: column; gap: 6px; }
+.fs__al img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; box-shadow: 0 10px 28px -8px rgba(0,0,0,0.7); }
+.fs__alname { font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* vision: artist card center + NOW PLAYING card right */
+.fs__vis {
+  position: relative; flex: 1; display: flex; align-items: center;
+  justify-content: center; gap: 4vw; padding: 0 8vw; pointer-events: none;
+}
+.fs__visartist, .fs__visnp {
+  display: flex; flex-direction: column; gap: 10px; padding: 22px;
+  background: rgba(12,12,17,0.62); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; backdrop-filter: blur(40px) saturate(1.3);
+  -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5); pointer-events: auto;
+}
+.fs__visartist { width: min(560px, 46vw); }
+.fs__visnp { width: min(280px, 24vw); }
+.fs__visart { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; }
+.fs__viscols { display: flex; gap: 24px; margin-top: 6px; }
+.fs__viscol { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fs__vrow {
+  display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+  background: none; border: none; border-radius: 9px; color: var(--text);
+  font-size: 12px; cursor: pointer; text-align: left; font-family: inherit; min-width: 0;
+}
+.fs__vrow:hover { background: rgba(255,255,255,0.07); }
+.fs__vishair { display: flex; align-items: center; gap: 8px; }
