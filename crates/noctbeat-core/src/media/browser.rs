@@ -288,7 +288,7 @@ mod tests {
             .unwrap(),
         );
         assert!(s.np.track.is_some());
-        let cmds: Vec<Control> = s.commands.drain(..).collect();
+        let cmds: Vec<Control> = std::mem::take(&mut s.commands);
         assert_eq!(cmds, vec![Control::Next]);
     }
 }
