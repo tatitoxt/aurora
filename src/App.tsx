@@ -6,6 +6,7 @@ import Settings from "./pages/Settings";
 import Hud from "./pages/Hud";
 import DeskLyrics from "./pages/DeskLyrics";
 import Library from "./pages/Library";
+import Artist from "./pages/Artist";
 import Stats from "./pages/Stats";
 import Wrapped from "./pages/Wrapped";
 import Visualizer from "./pages/Visualizer";
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/hud" element={<Hud />} />
         <Route path="/desklyrics" element={<DeskLyrics />} />
         <Route path="/library" element={<Library />} />
+        <Route path="/artist/:name" element={<Artist />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/wrapped" element={<Wrapped />} />
         <Route path="/visualizer" element={<Visualizer />} />

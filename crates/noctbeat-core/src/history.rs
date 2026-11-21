@@ -75,6 +75,16 @@ pub struct Wrapped {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ArtistStats {
+    pub artist: String,
+    pub plays: u64,
+    pub total_ms: u64,
+    /// The artist's tracks ranked by plays (untruncated).
+    pub tracks: Vec<TopEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Stats {
     pub total_ms: u64,
     pub plays: u64,
@@ -187,6 +197,44 @@ impl History {
             top_tracks,
             top_artists,
             days,
+        }
+    }
+
+    /// Per-artist totals plus that artist's tracks ranked by plays —
+    /// untruncated, unlike `stats`' global top-10 lists.
+    pub fn artist_stats(&self, artist: &str) -> ArtistStats {
+        // Same normalization the artist page applies to library tracks:
+        // trimmed, Unicode-aware lowercase (eq_ignore_ascii_case would miss
+        // whitespace-padded or non-ASCII tags the page groups together).
+        let key = artist.trim().to_lowercase();
+        let mut plays = 0u64;
+        let mut total_ms = 0u64;
+        let mut tracks: BTreeMap<String, (u64, u64)> = BTreeMap::new();
+        for r in &self.records {
+            if r.artist.trim().to_lowercase() != key {
+                continue;
+            }
+            plays += 1;
+            total_ms += r.ms_listened;
+            let e = tracks.entry(r.title.clone()).or_default();
+            e.0 += 1;
+            e.1 += r.ms_listened;
+        }
+        let mut top: Vec<TopEntry> = tracks
+            .into_iter()
+            .map(|(name, (plays, ms))| TopEntry {
+                name,
+                sub: artist.to_string(),
+                plays,
+                ms,
+            })
+            .collect();
+        top.sort_by(|a, b| b.plays.cmp(&a.plays).then(b.ms.cmp(&a.ms)));
+        ArtistStats {
+            artist: artist.to_string(),
+            plays,
+            total_ms,
+            tracks: top,
         }
     }
 
@@ -378,6 +426,40 @@ mod tests {
         assert_eq!(w.top_tracks[0].plays, 3);
         assert_eq!(w.top_artists[0].name, "Artist X");
         assert!(w.top_tracks.iter().all(|t| t.name != "Song D"));
+    }
+
+    #[test]
+    fn artist_stats_is_per_artist_and_untruncated() {
+        let day = 20_470 * 86_400_000;
+        let mut h = History::default();
+        // 15 tracks by Artist X — past stats()' top-10 truncation.
+        for i in 0..15 {
+            h.record(rec(
+                &format!("x{i}"),
+                &format!("Song {i:02}"),
+                "Artist X",
+                100_000 + i as u64,
+                day,
+            ));
+        }
+        h.record(rec("y", "Other", "Artist Y", 500_000, day));
+        // Case-insensitive match.
+        h.record(rec("z", "Case", "artist x", 60_000, day));
+        // Whitespace-padded and non-ASCII tags match too.
+        h.record(rec("w", "Spaced", "  Artist X ", 40_000, day));
+        h.record(rec(
+            "v",
+            "Accented",
+            "Artist X".to_uppercase().as_str(),
+            30_000,
+            day,
+        ));
+        let s = h.artist_stats("Artist X");
+        assert_eq!(s.plays, 18);
+        assert_eq!(s.tracks.len(), 18);
+        assert_eq!(s.tracks[0].plays, 1);
+        assert!(s.tracks.iter().all(|t| t.sub == "Artist X"));
+        assert!(h.artist_stats("Nobody").tracks.is_empty());
     }
 
     #[test]

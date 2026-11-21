@@ -198,7 +198,15 @@ export default function Library() {
                 onClick={() => void bridge.playQueueIndex(i).then(refresh)}
               >
                 <span className="lib__title">{item.track.title}</span>
-                <span className="lib__sub">{item.track.artist}</span>
+                <span className="lib__sub">
+                  <Link
+                    to={`/artist/${encodeURIComponent(item.track.artist)}`}
+                    className="lib__artist"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {item.track.artist}
+                  </Link>
+                </span>
                 <span className="lib__dur">
                   {current && playing ? "▸ " : ""}
                   {item.track.durationMs ? formatTime(item.track.durationMs) : ""}

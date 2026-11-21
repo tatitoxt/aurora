@@ -163,6 +163,13 @@ export interface Stats {
   /** Daily activity, oldest first. */
   days: DayStat[];
 }
+export interface ArtistStats {
+  artist: string;
+  plays: number;
+  totalMs: number;
+  tracks: TopEntry[];
+}
+
 export interface Wrapped {
   /** Calendar month, "YYYY-MM". */
   month: string;
@@ -259,6 +266,7 @@ const DEMO_LRC: LrcLine[] = [
 
 class MockSource {
   index = 0;
+  playlist: typeof DEMO_PLAYLIST = DEMO_PLAYLIST;
   status: PlaybackStatus = "playing";
   positionMs = 0;
   anchor = Date.now();
@@ -270,7 +278,7 @@ class MockSource {
   }
 
   private track(): Track {
-    const [title, artist, album, durationMs] = DEMO_PLAYLIST[this.index];
+    const [title, artist, album, durationMs] = this.playlist[this.index % this.playlist.length];
     return { id: `${artist} — ${title}`, title, artist, album, artworkUrl: "", durationMs };
   }
 
@@ -290,7 +298,7 @@ class MockSource {
   }
 
   private skip(dir: number) {
-    this.index = (this.index + dir + DEMO_PLAYLIST.length) % DEMO_PLAYLIST.length;
+    this.index = (this.index + dir + this.playlist.length) % this.playlist.length;
     this.positionMs = 0;
     this.anchor = Date.now();
   }
@@ -416,7 +424,7 @@ export const bridge = {
     isTauri()
       ? invokeCmd<QueueState>("get_queue")
       : Promise.resolve({
-          items: DEMO_PLAYLIST.map(([title, artist, album, durationMs], i) => ({
+          items: mock.playlist.map(([title, artist, album, durationMs], i) => ({
             track: {
               id: `${artist} — ${title}`,
               title,
@@ -459,6 +467,23 @@ export const bridge = {
     isTauri()
       ? invokeCmd<QueueItem[]>("scan_library", { dir: dir ?? null })
       : bridge.getQueue().then((q) => q.items),
+  /** Read-only library scan — does not replace the playing queue. */
+  libraryTracks: (dir?: string): Promise<QueueItem[]> =>
+    isTauri()
+      ? invokeCmd<QueueItem[]>("library_tracks", { dir: dir ?? null })
+      : bridge.getQueue().then((q) => q.items),
+  /** Replace the queue with `items` and play `index` (context play). */
+  playItems: (items: QueueItem[], index: number): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("play_items", { items, index });
+    mock.playlist = items.map(
+      (i) => [i.track.title, i.track.artist, i.track.album, i.track.durationMs] as [string, string, string, number],
+    );
+    mock.index = index;
+    mock.positionMs = 0;
+    mock.anchor = Date.now();
+    mock.status = "playing";
+    return Promise.resolve(null);
+  },
   providerStatus: () =>
     isTauri() ? invokeCmd<boolean>("provider_status") : Promise.resolve(false),
   providerSearch: (source: string, query: string): Promise<RemoteTrack[]> =>
@@ -594,6 +619,17 @@ export const bridge = {
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
       : Promise.resolve([{ id: "display-0", name: "Display 1", primary: true }]),
+  getArtistStats: (artist: string): Promise<ArtistStats> =>
+    isTauri()
+      ? invokeCmd<ArtistStats>("get_artist_stats", { artist })
+      : Promise.resolve({
+          artist,
+          plays: 3,
+          totalMs: 700_000,
+          tracks: mock.playlist
+            .filter(([, a]) => a.toLowerCase() === artist.toLowerCase())
+            .map(([title, a]) => ({ name: title, sub: a, plays: 3, ms: 700_000 })),
+        }),
   getStats: (): Promise<Stats> => {
     if (isTauri()) return invokeCmd<Stats>("get_stats");
     // Deterministic sample so the page renders in browser dev.
