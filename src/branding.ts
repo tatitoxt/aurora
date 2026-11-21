@@ -14,5 +14,6 @@ export const branding = {
   "checkoutUrl": "https://noctbeat.lemonsqueezy.com/checkout/buy/REPLACE_WITH_PRODUCT_ID",
   "licenseVendor": "lemonsqueezy",
   "licenseProductId": 0,
-  "copyright": "Copyright (c) 2026 Fausto Pastura"
+  "copyright": "Copyright (c) 2026 Fausto Pastura",
+  "discordClientId": ""
 } as const;

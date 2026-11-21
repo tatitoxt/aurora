@@ -13,6 +13,7 @@ use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
 use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
+mod discord;
 #[cfg(target_os = "linux")]
 mod mpris;
 use noctbeat_core::settings::{Profile, Settings};
@@ -59,6 +60,8 @@ struct AppState {
     /// Remote keys with a prefetch download already running, so the
     /// per-tick poller does not stack duplicate yt-dlp workers.
     prefetching: std::sync::Arc<Mutex<std::collections::HashSet<String>>>,
+    /// Discord Rich Presence client (idle unless a client id is configured).
+    discord: Mutex<discord::DiscordRpc>,
     /// Tray icon handle for the live cover + beat ring (iBaila-style).
     tray: Mutex<Option<tauri::tray::TrayIcon>>,
     /// Bundled icon restored when the live icon is disabled.
@@ -2378,6 +2381,18 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 }
                 poll_np(&state)
             };
+            // Discord Rich Presence mirrors the same snapshot (no-op unless
+            // a client id is configured and the toggle is on).
+            {
+                let rpc_on = state
+                    .settings
+                    .lock()
+                    .map(|s| s.discord_rpc)
+                    .unwrap_or(false);
+                if let Ok(mut rpc) = state.discord.lock() {
+                    rpc.update(&np, rpc_on);
+                }
+            }
             // Now Playing notification on track change while playing.
             {
                 let cur_id = np.track.as_ref().map(|t| t.id.clone());
@@ -2595,6 +2610,9 @@ pub fn run() {
             remote: remote_map,
             stream_cache,
             prefetching: std::sync::Arc::new(Mutex::new(std::collections::HashSet::new())),
+            discord: Mutex::new(discord::DiscordRpc::new(
+                &noctbeat_core::branding::branding().discord_client_id,
+            )),
             tray: Mutex::new(None),
             tray_default: Mutex::new(None),
             tray_dyn: std::sync::Arc::new(Mutex::new(TrayDyn::default())),

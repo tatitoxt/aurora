@@ -35,6 +35,7 @@ const pt: Record<keyof typeof en, string> = {
   "set.musicFolder": "Pasta de música",
   "set.chooseFolder": "Escolher pasta",
   "set.resumeOnLaunch": "Retomar ao abrir",
+  "set.discordRpc": "Discord Rich Presence",
   "set.notifyTrack": "Avisar quando a faixa muda",
   "set.batterySaver": "Economia de bateria",
   "set.dimOnBattery": "Diminuir na bateria",

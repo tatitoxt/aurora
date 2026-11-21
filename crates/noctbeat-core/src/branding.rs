@@ -23,6 +23,11 @@ pub struct Branding {
     pub license_vendor: String,
     #[serde(default)]
     pub license_product_id: u64,
+    /// Discord application id for Rich Presence. Empty disables the
+    /// feature (no client to register against); the Settings toggle only
+    /// appears once a real id is configured.
+    #[serde(default)]
+    pub discord_client_id: String,
     pub copyright: String,
 }
 
