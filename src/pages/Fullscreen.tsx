@@ -1,4 +1,5 @@
 import { useT } from "../i18n";
+import { useLyricAnim } from "../lyricanim";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   bridge,
@@ -135,6 +136,7 @@ function FsVideo({
  * Continue Playing panel left, lyric center, transport pill bottom. */
 export default function Fullscreen() {
   const t = useT();
+  const lanim = useLyricAnim();
   const nav = useNavigate();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
@@ -495,7 +497,7 @@ export default function Fullscreen() {
         {lyricsOn && !["spotlight", "vision", "dial", "tile", "showcase"].includes(fsStyle) ? (
           line ? (
             <div
-              className="fs__lyric"
+              className={`fs__lyric ${lanim}`}
               key={active}
               role="button"
               tabIndex={0}

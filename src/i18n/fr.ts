@@ -156,6 +156,13 @@ const fr: Record<keyof typeof en, string> = {
   "stats.recap": "R\u00e9cap",
   "stats.insights": "Aper\u00e7us",
   "player.stickers": "Stickers",
+  "set.lyricAnim": "Animation des paroles",
+  "anim.fade": "Fondu",
+  "anim.slide": "Glisser",
+  "anim.pop": "Pop",
+  "anim.typewriter": "Machine \u00e0 \u00e9crire",
+  "anim.pulse": "Pulsation",
+  "anim.none": "Aucune",
 };
 
 export default fr;

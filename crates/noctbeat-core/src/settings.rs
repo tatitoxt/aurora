@@ -124,6 +124,10 @@ pub struct Settings {
     /// UI language: "en" | "es" | "pt" | "fr" | "de" | "it" | "ja" | "zh" | "ko".
     #[serde(default = "default_language")]
     pub language: String,
+    /// Karaoke lyric animation: "fade" (default), "slide", "pop",
+    /// "typewriter", "pulse", "none".
+    #[serde(default = "default_lyric_anim")]
+    pub lyric_anim: String,
     /// Floating always-on-top desktop lyrics overlay.
     #[serde(default)]
     pub desk_lyrics_enabled: bool,
@@ -156,6 +160,10 @@ fn default_sound_fx() -> String {
 
 fn default_language() -> String {
     "en".into()
+}
+
+fn default_lyric_anim() -> String {
+    "fade".into()
 }
 fn default_eq_preset() -> String {
     "flat".into()
@@ -203,6 +211,7 @@ impl Default for Settings {
             eq_bands: Vec::new(),
             sound_fx: default_sound_fx(),
             language: default_language(),
+            lyric_anim: default_lyric_anim(),
             desk_lyrics_enabled: false,
             desk_lyrics_position: None,
             profiles: Vec::new(),

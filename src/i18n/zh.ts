@@ -156,6 +156,13 @@ const zh: Record<keyof typeof en, string> = {
   "stats.recap": "\u56de\u987e",
   "stats.insights": "\u6d1e\u5bdf",
   "player.stickers": "\u8d34\u7eb8",
+  "set.lyricAnim": "\u6b4c\u8bcd\u52a8\u753b",
+  "anim.fade": "\u6de1\u5165",
+  "anim.slide": "\u6ed1\u52a8",
+  "anim.pop": "\u5f39\u51fa",
+  "anim.typewriter": "\u6253\u5b57\u673a",
+  "anim.pulse": "\u8109\u51b2",
+  "anim.none": "\u65e0",
 };
 
 export default zh;

@@ -1,17 +1,19 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { LrcLine } from "./bridge";
 import { adlibMask, adlibSegments } from "./lib";
+import { useLyricAnim } from "./lyricanim";
 
 /** Spotify-style scrolling list: active line centered, neighbors dim. */
 export function LineLyrics({ lines, active }: { lines: LrcLine[]; active: number }) {
   const box = useRef<HTMLDivElement>(null);
+  const lanim = useLyricAnim();
   useEffect(() => {
     box.current
       ?.querySelector(".lyric--active")
       ?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [active]);
   return (
-    <div className="player__lyrics" ref={box}>
+    <div className={`player__lyrics ${lanim}`} ref={box}>
       {lines.map((l, i) => (
         <div key={l.atMs} className={`lyric ${i === active ? "lyric--active" : ""}`}>
           {adlibSegments(l.text).map((s, j) =>
@@ -42,6 +44,7 @@ export function KaraokeLyric({
   nextLine: LrcLine | null;
   posMs: number;
 }) {
+  const lanim = useLyricAnim();
   if (!line) return null;
   const timed = line.words && line.words.length > 0;
   // A2 segments are syllables with verbatim spacing; the even split needs
@@ -65,7 +68,7 @@ export function KaraokeLyric({
   const adlibs = adlibMask(segments);
 
   return (
-    <div className="karaoke">
+    <div className={`karaoke ${lanim}`}>
       <div className="karaoke__line" key={line.atMs}>
         {segments.map((w, i) => {
           const cls = [
@@ -76,7 +79,7 @@ export function KaraokeLyric({
             .filter(Boolean)
             .join(" ");
           return (
-            <span key={i} className={cls}>
+            <span key={i} className={cls} style={{ "--i": i } as CSSProperties}>
               {w}
             </span>
           );
