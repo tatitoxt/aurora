@@ -162,6 +162,18 @@ const ja: Record<keyof typeof en, string> = {
   "anim.pop": "\u30dd\u30c3\u30d7",
   "anim.typewriter": "\u30bf\u30a4\u30d7\u30e9\u30a4\u30bf\u30fc",
   "anim.pulse": "\u30d1\u30eb\u30b9",
+  "anim.blur": "\u30d6\u30e9\u30fc",
+  "anim.rise": "\u30e9\u30a4\u30ba",
+  "anim.drop": "\u30c9\u30ed\u30c3\u30d7",
+  "anim.flip": "\u30d5\u30ea\u30c3\u30d7",
+  "anim.zoom": "\u30ba\u30fc\u30e0",
+  "anim.bounce": "\u30d0\u30a6\u30f3\u30b9",
+  "anim.reveal": "\u30ea\u30d3\u30fc\u30eb",
+  "anim.glow": "\u30b0\u30ed\u30fc",
+  "anim.wave": "\u30a6\u30a7\u30fc\u30d6",
+  "anim.scatter": "\u30b9\u30ad\u30e3\u30c3\u30bf\u30fc",
+  "anim.focus": "\u30d5\u30a9\u30fc\u30ab\u30b9",
+  "anim.letters": "\u30ec\u30bf\u30fc",
   "anim.none": "\u306a\u3057",
 };
 
