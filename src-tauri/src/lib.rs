@@ -13,7 +13,7 @@ use noctbeat_core::player::{LocalPlayer, QueueItem};
 use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
-use noctbeat_core::settings::Settings;
+use noctbeat_core::settings::{Profile, Settings};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -557,6 +557,56 @@ fn set_eq(app: tauri::AppHandle, preset: String, bands: Vec<f32>) -> Result<(), 
     let mut s = state.settings.lock().map_err(|e| e.to_string())?;
     s.eq_preset = preset;
     s.eq_bands = bands;
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
+    Ok(())
+}
+
+/// Capture the current look+sound as a named profile (same name upserts).
+#[tauri::command]
+fn save_profile(app: tauri::AppHandle, name: String) -> Result<Profile, String> {
+    let state = app.state::<AppState>();
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("name required".into());
+    }
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    let id = s.save_profile(name, now_ms());
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let p = s
+        .profiles
+        .iter()
+        .find(|p| p.id == id)
+        .cloned()
+        .ok_or("profile vanished")?;
+    let _ = app.emit("settings", s.clone());
+    Ok(p)
+}
+
+/// Apply a saved profile: theme, EQ, lyrics mode and video backdrop go
+/// live at once (theme via the settings event, EQ via the live chain).
+#[tauri::command]
+fn apply_profile(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    if !s.apply_profile(&id) {
+        return Err("unknown profile".into());
+    }
+    if let Some(rodio) = &state.rodio {
+        rodio.eq().set(&s.eq_bands);
+    }
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_profile(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    if !s.delete_profile(&id) {
+        return Err("unknown profile".into());
+    }
     s.save(&state.settings_path).map_err(|e| e.to_string())?;
     let _ = app.emit("settings", s.clone());
     Ok(())
@@ -1158,6 +1208,9 @@ pub fn run() {
             list_outputs,
             set_output_device,
             set_eq,
+            save_profile,
+            apply_profile,
+            delete_profile,
             import_playlist,
             import_playlist_url,
             get_stats,

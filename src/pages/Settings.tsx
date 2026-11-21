@@ -18,6 +18,7 @@ export default function Settings() {
   const [outputs, setOutputs] = useState<string[]>([]);
   const [license, setLicense] = useState<LicenseState>({ state: "unlicensed" });
   const [key, setKey] = useState("");
+  const [profileName, setProfileName] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -73,6 +74,13 @@ export default function Settings() {
   };
   const displayEnabled = (id: string) =>
     s.displays.find((r) => r.displayId === id)?.enabled ?? true;
+
+  const saveAsProfile = () => {
+    const name = profileName.trim();
+    if (!name) return;
+    setProfileName("");
+    void bridge.saveProfile(name);
+  };
 
   if (!loaded) return <div className="glass" />;
 
@@ -237,6 +245,52 @@ export default function Settings() {
               </label>
             ))}
           </div>
+        </div>
+
+        <div className="field">
+          <span>Profiles</span>
+          {s.profiles.length > 0 && (
+            <div className="profiles">
+              {s.profiles.map((p) => (
+                <div
+                  key={p.id}
+                  className={`profile ${s.activeProfile === p.id ? "on" : ""}`}
+                >
+                  <button
+                    className="profile__name"
+                    title={`${p.theme.name} · ${p.eqPreset}`}
+                    onClick={() => void bridge.applyProfile(p.id)}
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    className="profile__del"
+                    aria-label={`Delete profile ${p.name}`}
+                    onClick={() => void bridge.deleteProfile(p.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="profile__save">
+            <input
+              type="text"
+              placeholder="Profile name"
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveAsProfile()}
+            />
+            <button disabled={!profileName.trim()} onClick={saveAsProfile}>
+              Save current
+            </button>
+          </div>
+          {s.profiles.length === 0 && (
+            <span className="share__note">
+              Bundles the theme, EQ and lyrics mode into a named profile
+            </span>
+          )}
         </div>
 
         {outputs.length > 0 && (
