@@ -212,6 +212,13 @@ const ja: Record<keyof typeof en, string> = {
   "anim.ink": "\u30a4\u30f3\u30af",
   "anim.shimmer": "\u30b7\u30de\u30fc",
   "anim.none": "\u306a\u3057",
+  "set.grp.lyrics": "歌詞とビジュアル",
+  "set.grp.look": "外観",
+  "set.grp.sound": "サウンド",
+  "set.grp.play": "再生",
+  "set.grp.sources": "ソース",
+  "set.grp.windows": "ウィンドウ",
+  "set.grp.license": "ライセンス",
 };
 
 export default ja;

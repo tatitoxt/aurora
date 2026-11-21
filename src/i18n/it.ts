@@ -212,6 +212,13 @@ const it: Record<keyof typeof en, string> = {
   "anim.ink": "Inchiostro",
   "anim.shimmer": "Luccichio",
   "anim.none": "Nessuna",
+  "set.grp.lyrics": "Testi e grafica",
+  "set.grp.look": "Aspetto",
+  "set.grp.sound": "Suono",
+  "set.grp.play": "Riproduzione",
+  "set.grp.sources": "Sorgenti",
+  "set.grp.windows": "Finestre",
+  "set.grp.license": "Licenza",
 };
 
 export default it;

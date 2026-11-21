@@ -221,6 +221,13 @@ const en = {
   "anim.ink": "Ink",
   "anim.shimmer": "Shimmer",
   "anim.none": "None",
+  "set.grp.lyrics": "Lyrics & visuals",
+  "set.grp.look": "Look",
+  "set.grp.sound": "Sound",
+  "set.grp.play": "Playback",
+  "set.grp.sources": "Sources",
+  "set.grp.windows": "Windows",
+  "set.grp.license": "License",
 } as const;
 
 export default en;
