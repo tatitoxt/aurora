@@ -165,7 +165,7 @@ export default function Artist() {
           </>
         )}
 
-        {albums.length > 1 && (
+        {albums.length > 0 && (
           <>
             <h2 className="art__h">Albums</h2>
             <div className="art__albums">
