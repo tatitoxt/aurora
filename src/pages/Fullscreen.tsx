@@ -6,6 +6,7 @@ import {
   type NowPlaying,
   type LrcLine,
   type QueueState,
+  type RemoteTrack,
   type Settings,
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
@@ -25,6 +26,7 @@ import {
   SkipForward,
   SpeakerHigh,
   SpeakerX,
+  TextT,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import ShareCard from "../ShareCard";
@@ -101,6 +103,13 @@ export default function Fullscreen() {
   const [vol, setVol] = useState(1);
   const [volOpen, setVolOpen] = useState(false);
   const [share, setShare] = useState(false);
+  const [lyricsOn, setLyricsOn] = useState(true);
+  const [streamReady, setStreamReady] = useState(false);
+  const [searchSrc, setSearchSrc] = useState("youtube");
+  const [searchQ, setSearchQ] = useState("");
+  const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [queueErr, setQueueErr] = useState("");
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -109,6 +118,7 @@ export default function Fullscreen() {
     bridge.getRepeat().then(setRepeat);
     bridge.getVolume().then(setVol);
     bridge.getSettings().then(setSettings);
+    bridge.providerStatus().then(setStreamReady);
     const off = subscribe<NowPlaying>("now-playing", setNp);
     const offQ = subscribe<QueueState>("queue", setQueue);
     const offS = subscribe<Settings>("settings", setSettings);
@@ -290,6 +300,55 @@ export default function Fullscreen() {
             />
           </button>
           {queueOpen && (
+          <>
+          {streamReady && (
+            <div className="fs__qsearch">
+              <div className="fs__qseg">
+                {(["youtube", "soundcloud"] as const).map((s) => (
+                  <button
+                    key={s}
+                    className={searchSrc === s ? "on" : ""}
+                    onClick={() => setSearchSrc(s)}
+                  >
+                    {s === "youtube" ? "YouTube" : "SoundCloud"}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={searchQ}
+                placeholder="Search tracks…"
+                onChange={(e) => setSearchQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || !searchQ.trim() || searching) return;
+                  setSearching(true);
+                  setQueueErr("");
+                  void bridge
+                    .providerSearch(searchSrc, searchQ.trim())
+                    .then(setSearchRes)
+                    .catch((err) => setQueueErr(String(err)))
+                    .finally(() => setSearching(false));
+                }}
+              />
+              {queueErr && <span className="fs__qerr">{queueErr}</span>}
+              {searchRes.map((t) => (
+                <button
+                  key={`${t.source}:${t.id}`}
+                  className="fs__qrow"
+                  onClick={() => {
+                    setQueueErr("");
+                    void bridge.providerPlay(t).catch((e) => setQueueErr(String(e)));
+                  }}
+                >
+                  <div className="fs__qbody">
+                    <span className="fs__qtxt">
+                      <span className="fs__qtitle">{t.title}</span>
+                      <span className="fs__qsub">{t.artist}</span>
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="fs__qlist">
             {queue.items.slice(0, 12).map((it, i) => (
               <button
@@ -314,24 +373,27 @@ export default function Fullscreen() {
               </button>
             ))}
           </div>
+          </>
           )}
         </aside>
       )}
 
       <div className="fs__center">
-        {line ? (
-          <div className="fs__lyric" key={active}>
-            {line}
-          </div>
-        ) : track ? (
-          <div className="fs__lyric fs__lyric--title">{track.title}</div>
-        ) : (
-          <div className="fs__lyric fs__lyric--title">{bridge.productName}</div>
-        )}
+        {lyricsOn ? (
+          line ? (
+            <div className="fs__lyric" key={active}>
+              {line}
+            </div>
+          ) : track ? (
+            <div className="fs__lyric fs__lyric--title">{track.title}</div>
+          ) : (
+            <div className="fs__lyric fs__lyric--title">{bridge.productName}</div>
+          )
+        ) : null}
       </div>
 
       {covers.length > 1 && (
-        <div className="fs__covers">
+        <div className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}>
           {covers.map((c) =>
             c.on ? (
               /* iBaila center card: video/art inside, meta overlaid on scrim. */
@@ -435,6 +497,14 @@ export default function Fullscreen() {
               </div>
             </div>
           </div>
+          <button
+            className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
+            aria-label="Toggle lyrics"
+            title="Lyrics / thumbnails"
+            onClick={() => setLyricsOn((v) => !v)}
+          >
+            <TextT size={15} />
+          </button>
           <button
             className={`fs__icon ${queueOpen ? "fs__icon--on" : ""}`}
             aria-label="Toggle queue panel"
