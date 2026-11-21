@@ -8,6 +8,8 @@ const DEFAULTS: Settings = DEFAULT_SETTINGS;
 export default function Edge() {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [palette, setPalette] = useState<{ dominant: string; accents: string[] } | null>(null);
+  const [npStatus, setNpStatus] = useState<NowPlaying["status"]>("stopped");
+  const [onBattery, setOnBattery] = useState(false);
   const [pulse, setPulse] = useState(0);
   const lastBeat = useRef(0);
   const lastArtwork = useRef("");
@@ -18,6 +20,7 @@ export default function Edge() {
   useEffect(() => {
     bridge.getSettings().then(setSettings);
     const offNp = subscribe<NowPlaying>("now-playing", (np) => {
+      setNpStatus(np.status);
       const art = np.track?.artworkUrl ?? "";
       const retryOk = Date.now() - lastPaletteFail.current > 30_000;
       if (art && retryOk && art !== lastArtwork.current) {
@@ -42,8 +45,36 @@ export default function Edge() {
     };
   }, []);
 
+  // Battery status: dim the glow while discharging (auto-dim setting).
   useEffect(() => {
-    if (settings.batterySaver) return;
+    let bat: { charging: boolean; onchargingchange: unknown; onlevelchange: unknown } | null = null;
+    const upd = () => bat && setOnBattery(!bat.charging);
+    interface BatteryLike {
+      charging: boolean;
+      onchargingchange: unknown;
+      onlevelchange: unknown;
+    }
+    const nav = navigator as Navigator & { getBattery?: () => Promise<BatteryLike> };
+    nav.getBattery?.()
+      .then((b) => {
+        bat = b;
+        upd();
+        b.onchargingchange = upd;
+        b.onlevelchange = upd;
+      })
+      .catch(() => {});
+    return () => {
+      if (bat) {
+        bat.onchargingchange = null;
+        bat.onlevelchange = null;
+      }
+    };
+  }, []);
+
+  const silent = settings.lightsOffOnSilence && npStatus !== "playing";
+
+  useEffect(() => {
+    if (settings.batterySaver || silent) return;
     const loop = () => {
       setPulse(beatPulse(lastBeat.current, Date.now()));
       force((n) => n + 1);
@@ -51,7 +82,7 @@ export default function Edge() {
     };
     raf.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf.current);
-  }, [settings.batterySaver]);
+  }, [settings.batterySaver, silent]);
 
   const useArtwork = settings.colorMode.mode === "artwork";
   // Before artwork extraction lands (or with no artwork), the glow follows
@@ -63,19 +94,21 @@ export default function Edge() {
     ? (palette?.accents[0] ?? palette?.dominant ?? themeC2)
     : settings.customColor;
   const t = settings.edgeThicknessPx;
-  const opacity = Math.min(1, settings.brightness * (0.55 + pulse * 0.45));
+  const dim = settings.batterySaver || (onBattery && settings.autoDimOnBattery) ? 0.55 : 1;
+  const base = settings.brightness * dim;
+  const opacity = silent ? 0 : Math.min(1, base * (0.55 + pulse * 0.45));
 
   const style = {
     "--t": `${t}px`,
     "--c1": c1,
     "--c2": c2,
-    "--o": settings.batterySaver ? settings.brightness * 0.6 : opacity,
+    "--o": settings.batterySaver && !silent ? base : opacity,
   } as React.CSSProperties;
 
   return (
     <div className="edge" data-testid="edge" style={style}>
       <div className="edge__glow" />
-      <div className={`edge__pulse ${pulse > 0.3 ? "on" : ""}`} style={{ "--t": `${t}px`, "--c2": c2 } as React.CSSProperties} />
+      <div className={`edge__pulse ${pulse > 0.3 && !silent ? "on" : ""}`} style={{ "--t": `${t}px`, "--c2": c2 } as React.CSSProperties} />
     </div>
   );
 }

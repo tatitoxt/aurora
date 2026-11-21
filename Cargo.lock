@@ -2510,6 +2510,7 @@ dependencies = [
 name = "noctbeat"
 version = "0.1.0"
 dependencies = [
+ "image",
  "noctbeat-core",
  "rodio",
  "serde",
