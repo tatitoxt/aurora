@@ -204,12 +204,41 @@ body {
   .dlyrics__close { transition: none; }
 }
 
+/* Liquid-glass icon pill nav (iBaila grammar: one floating bar, icon chips). */
+.pnav {
+  display: flex; align-items: center; justify-content: center; gap: 2px;
+  align-self: center;
+  padding: 5px 8px; border-radius: 999px;
+  background: rgba(14, 14, 20, 0.55);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.pnav__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(242, 242, 245, 0.68);
+  transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.pnav__btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+.pnav__btn:active { transform: scale(0.92); }
+.pnav__sep {
+  width: 1px; height: 16px; margin: 0 6px;
+  background: rgba(255, 255, 255, 0.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pnav__btn { transition: none; }
+}
 .wordmark {
   font-size: 11px; letter-spacing: 0.02em; font-weight: 600;
   color: var(--dim); text-align: center; padding-top: 2px;
 }
-.player__nav { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 16px; row-gap: 4px; }
-.player__nav .wordmark:hover { color: var(--text); }
+.wordmark:hover { color: var(--text); }
 .palette-open {
   background: none; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
   padding: 2px 7px; cursor: pointer; font-family: inherit;

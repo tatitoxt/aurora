@@ -8,7 +8,19 @@ import {
   type LrcLine,
   type Settings,
 } from "../bridge";
-import { ArrowsOut, Export, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
+import {
+  ArrowsOut,
+  ChartBar,
+  Command,
+  Export,
+  GearSix,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Waveform,
+  VinylRecord,
+} from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
@@ -169,32 +181,28 @@ export default function Player() {
   );
 
   const nav = (
-    <div className="player__nav">
-      <Link to="/library" className="wordmark" style={{ textDecoration: "none" }}>
-        Library
+    <div className="pnav">
+      <Link to="/library" className="pnav__btn" aria-label="Library" title="Library">
+        <VinylRecord size={15} />
       </Link>
-      <Link to="/visualizer" className="wordmark" style={{ textDecoration: "none" }}>
-        Visualizer
+      <Link to="/visualizer" className="pnav__btn" aria-label="Visualizer" title="Visualizer">
+        <Waveform size={15} />
       </Link>
-      <Link to="/stats" className="wordmark" style={{ textDecoration: "none" }}>
-        Stats
+      <Link to="/stats" className="pnav__btn" aria-label="Stats" title="Stats">
+        <ChartBar size={15} />
       </Link>
-      <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
-        {bridge.productName}
+      <Link to="/settings" className="pnav__btn" aria-label="Settings" title="Settings">
+        <GearSix size={15} />
       </Link>
-      <button
-        className="wordmark palette-open"
-        aria-label="Share now playing"
-        title="Share now playing"
-        onClick={() => setShare(true)}
-      >
-        <Export size={13} />
+      <span className="pnav__sep" />
+      <button className="pnav__btn" aria-label="Share now playing" title="Share now playing" onClick={() => setShare(true)}>
+        <Export size={14} />
       </button>
-      <button className="wordmark palette-open" onClick={openPalette}>
-        Ctrl K
+      <button className="pnav__btn" aria-label="Command palette" title="Commands (Ctrl K)" onClick={openPalette}>
+        <Command size={14} />
       </button>
       <button
-        className="wordmark palette-open"
+        className="pnav__btn"
         aria-label="Toggle fullscreen"
         title="Fullscreen"
         onClick={() =>
@@ -203,7 +211,7 @@ export default function Player() {
           })
         }
       >
-        <ArrowsOut size={13} />
+        <ArrowsOut size={14} />
       </button>
     </div>
   );
