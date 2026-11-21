@@ -121,8 +121,10 @@ export function applyTheme(theme: ThemeSettings) {
  * the dynamic pref is on and the user hasn't pinned manual accents —
  * `applyTheme` clears these again on the next theme change. */
 export function applyDynAccent(theme: ThemeSettings, accent: string, accent2: string | null) {
-  if (!theme.dynamic || theme.accent) return;
+  if (!theme.dynamic) return;
   const root = document.documentElement;
-  root.style.setProperty("--accent", accent);
+  /* Each manual pick freezes only its own color — pinning --accent must
+     not stop the artwork from still driving --accent2. */
+  if (!theme.accent) root.style.setProperty("--accent", accent);
   if (accent2 && !theme.accent2) root.style.setProperty("--accent2", accent2);
 }

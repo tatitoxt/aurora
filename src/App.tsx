@@ -22,16 +22,25 @@ export default function App() {
   useEffect(() => {
     let theme: AppSettings["theme"] | null = null;
     let art: string | undefined;
+    let pal: { a: string; b: string | null } | null = null;
     /* Dynamic accent: after every theme (re)apply, overlay the artwork
-       palette of whatever is playing. Manual accent picks win. */
+       palette of whatever is playing. The palette is cached per artwork —
+       a settings event (e.g. an EQ slider) must not re-download the art. */
     const dyn = () => {
-      if (!theme?.dynamic || theme.accent || !art) return;
+      if (!theme?.dynamic || !art || (theme.accent && theme.accent2)) return;
+      if (pal) {
+        applyDynAccent(theme, pal.a, pal.b);
+        return;
+      }
       const url = art;
-      void bridge.getPalette(url).then((p) => {
-        if (!theme?.dynamic || theme.accent || art !== url) return;
-        const a = p.accents[0] ?? p.dominant;
-        applyDynAccent(theme, a, p.accents[1] ?? null);
-      }).catch(() => {});
+      void bridge
+        .getPalette(url)
+        .then((p) => {
+          if (art !== url) return;
+          pal = { a: p.accents[0] ?? p.dominant, b: p.accents[1] ?? null };
+          if (theme?.dynamic) applyDynAccent(theme, pal.a, pal.b);
+        })
+        .catch(() => {});
     };
     const onTheme = (t: AppSettings["theme"]) => {
       theme = t;
@@ -45,9 +54,10 @@ export default function App() {
       dyn();
     });
     const offN = subscribe<NowPlaying>("now-playing", (np) => {
-      const next = np?.track?.artworkUrl;
+      const next = np?.track?.artworkUrl ?? undefined;
       if (next === art) return;
       art = next;
+      pal = null;
       dyn();
     });
     return () => {
