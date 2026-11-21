@@ -32,6 +32,8 @@ struct AppState {
     /// Latest HUD position reported by the Moved event, debounced before
     /// persisting so a drag does not write settings on every pixel.
     hud_pos_pending: Mutex<Option<((i32, i32), std::time::Instant)>>,
+    /// Same debounce for the desktop-lyrics overlay window.
+    desk_lyrics_pos_pending: Mutex<Option<((i32, i32), std::time::Instant)>>,
     /// Concrete audio output, kept beside the trait object so the output
     /// device can be swapped live.
     rodio: Option<std::sync::Arc<audio::RodioOut>>,
@@ -463,6 +465,7 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     }
     sync_edge_windows(&app, &settings);
     sync_hud_window(&app, &settings);
+    sync_desk_lyrics_window(&app, &settings);
     let _ = app.emit("settings", settings);
     Ok(())
 }
@@ -478,6 +481,15 @@ fn set_hud_pinned(app: tauri::AppHandle, pinned: bool) -> Result<(), String> {
     }
     if let Some(win) = app.get_webview_window("hud") {
         win.set_always_on_top(pinned).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Begin an OS-native drag of the lyrics overlay (called on mousedown).
+#[tauri::command]
+fn desk_lyrics_start_drag(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("desklyrics") {
+        win.start_dragging().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -633,32 +645,97 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     }
 }
 
-/// Called from the poller: persist a HUD position once the drag settles,
-/// and emit `settings` so windows holding a copy never save a stale one.
-fn flush_hud_position(app: &tauri::AppHandle) {
+/// Floating desktop-lyrics overlay: same window recipe as the HUD —
+/// borderless, transparent, draggable, pinned on top — showing the karaoke
+/// line instead of transport controls.
+fn sync_desk_lyrics_window(app: &tauri::AppHandle, settings: &Settings) {
+    if let Some(win) = app.get_webview_window("desklyrics") {
+        if !settings.desk_lyrics_enabled {
+            let _ = win.close();
+        }
+        return;
+    }
+    if !settings.desk_lyrics_enabled {
+        return;
+    }
+    let builder = tauri::WebviewWindowBuilder::new(
+        app,
+        "desklyrics",
+        tauri::WebviewUrl::App("index.html#/desklyrics".into()),
+    )
+    .transparent(true)
+    .decorations(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .resizable(false)
+    .inner_size(720.0, 170.0);
+    if let Ok(win) = builder.build() {
+        if let Some((x, y)) = settings.desk_lyrics_position {
+            let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+        }
+        let app2 = app.clone();
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Moved(pos) = event {
+                let state = app2.state::<AppState>();
+                if let Ok(mut pending) = state.desk_lyrics_pos_pending.lock() {
+                    *pending = Some(((pos.x, pos.y), std::time::Instant::now()));
+                };
+            }
+        });
+    }
+}
+
+/// Persist a floating window's resting position once it stops moving for
+/// 300ms — dragging must not write settings on every pixel.
+fn flush_position(
+    app: &tauri::AppHandle,
+    pending: &Mutex<Option<((i32, i32), std::time::Instant)>>,
+    read: impl Fn(&Settings) -> Option<(i32, i32)>,
+    write: impl Fn(&mut Settings, (i32, i32)),
+) {
     let state = app.state::<AppState>();
     let pos = {
-        let Ok(pending) = state.hud_pos_pending.lock() else {
+        let Ok(p) = pending.lock() else {
             return;
         };
-        match *pending {
+        match *p {
             Some((pos, at)) if at.elapsed() > std::time::Duration::from_millis(300) => pos,
             _ => return,
         }
     };
-    if let Ok(mut pending) = state.hud_pos_pending.lock() {
-        *pending = None;
+    if let Ok(mut p) = pending.lock() {
+        *p = None;
     }
     let Ok(mut s) = state.settings.lock() else {
         return;
     };
-    if s.hud_position == Some(pos) {
+    if read(&s) == Some(pos) {
         return;
     }
-    s.hud_position = Some(pos);
+    write(&mut s, pos);
     if s.save(&state.settings_path).is_ok() {
         let _ = app.emit("settings", s.clone());
     }
+}
+
+fn flush_hud_position(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    flush_position(
+        app,
+        &state.hud_pos_pending,
+        |s| s.hud_position,
+        |s, p| s.hud_position = Some(p),
+    );
+}
+
+fn flush_desk_lyrics_position(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    flush_position(
+        app,
+        &state.desk_lyrics_pos_pending,
+        |s| s.desk_lyrics_position,
+        |s, p| s.desk_lyrics_position = Some(p),
+    );
 }
 
 /// Synthetic energy for demo/fallback: tempo-synced pulses while playing.
@@ -732,6 +809,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
             flush_hud_position(&app);
+            flush_desk_lyrics_position(&app);
         }
     });
 }
@@ -777,6 +855,7 @@ pub fn run() {
             ),
             license_path: dir.join("license.json"),
             hud_pos_pending: Mutex::new(None),
+            desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
             demo,
         })
@@ -794,6 +873,7 @@ pub fn run() {
             list_displays,
             set_hud_pinned,
             hud_start_drag,
+            desk_lyrics_start_drag,
             show_player,
             seek,
             set_volume,
@@ -821,6 +901,7 @@ pub fn run() {
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_edge_windows(app.handle(), &s);
             sync_hud_window(app.handle(), &s);
+            sync_desk_lyrics_window(app.handle(), &s);
             build_tray(app.handle())?;
             Ok(())
         })
@@ -834,8 +915,9 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let hud = MenuItem::with_id(app, "hud", "Floating HUD", true, None::<&str>)?;
+    let dlyrics = MenuItem::with_id(app, "dlyrics", "Desktop lyrics", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &settings, &hud, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &settings, &hud, &dlyrics, &quit])?;
     let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
         tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).expect("icon")
     });
@@ -862,6 +944,16 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     let s = s.clone();
                     let _ = s.save(&state.settings_path);
                     sync_hud_window(app, &s);
+                    let _ = app.emit("settings", s);
+                };
+            }
+            "dlyrics" => {
+                let state = app.state::<AppState>();
+                if let Ok(mut s) = state.settings.lock() {
+                    s.desk_lyrics_enabled = !s.desk_lyrics_enabled;
+                    let s = s.clone();
+                    let _ = s.save(&state.settings_path);
+                    sync_desk_lyrics_window(app, &s);
                     let _ = app.emit("settings", s);
                 };
             }

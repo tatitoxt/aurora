@@ -98,6 +98,8 @@ pub struct Settings {
     pub theme: ThemeSettings,              // preset name + accent overrides
     pub lyrics_mode: String,               // "lines" (default) | "karaoke"
     pub video_backdrop: bool,              // karaoke plays the music video, default true
+    pub desk_lyrics_enabled: bool,         // floating lyrics overlay, default false
+    pub desk_lyrics_position: Option<(i32, i32)>,  // persisted drag position
     pub audio_output: Option<String>,      // sink device name, None = OS default
     pub eq_preset: String,                 // "flat"|"bass"|"vocal"|"treble"|"custom"
     pub eq_bands: Vec<f32>,                // dB per band (60/250/1k/4k/12k), empty = flat
@@ -162,6 +164,7 @@ All via `invoke`, camelCase names:
 | `listDisplays`         | —                                      | `{ id, name, primary }[]`     |
 | `setHudPinned`         | `{ pinned: boolean }`                  | `null`                        |
 | `hudStartDrag`         | —                                      | `null`                        |
+| `deskLyricsStartDrag`  | —                                      | `null`                        |
 | `showPlayer`           | —                                      | `null`                        |
 | `seek`                 | `{ positionMs: number }`               | `null` (local only)           |
 | `setVolume`            | `{ volume: number }`                   | `null`                        |
@@ -184,7 +187,11 @@ decorations off, sized to the monitor; the frontend route `/edge` renders the
 glow; `/` is the mini player. The `hud` window is a 460x76 borderless
 transparent pill serving `/hud`; it is dragged via `hudStartDrag`, pinned via
 `setHudPinned`, and its position is persisted on the OS Moved event. Toggling
-`hudEnabled` in settings opens/closes it (tray: "Floating HUD").
+`hudEnabled` in settings opens/closes it (tray: "Floating HUD"). The
+`desklyrics` window is a 720x170 borderless transparent overlay serving
+`/desklyrics` — the karaoke line always on top — dragged via
+`deskLyricsStartDrag` with its position persisted the same way; toggled by
+`deskLyricsEnabled` (tray: "Desktop lyrics").
 
 ## Frontend (branch `devin/frontend`, everything under `src/`)
 
@@ -192,7 +199,7 @@ transparent pill serving `/hud`; it is dragged via `hudStartDrag`, pinned via
   otherwise a browser mock identical to `DemoSource` (same playlist/titles)
   so `pnpm dev` works with no Rust.
 - Routes: `/` mini player, `/edge` glow overlay, `/settings` panel,
-  `/hud` floating pill, `/library` local queue.
+  `/hud` floating pill, `/desklyrics` karaoke overlay, `/library` local queue.
 - Design: dark, frosted glass (backdrop-filter), thin wordmark, no emoji.
 - Tests: Vitest + Testing Library; test the mock bridge and pure helpers.
 - `src/branding.ts` is generated — import from it, never hard-code the name.

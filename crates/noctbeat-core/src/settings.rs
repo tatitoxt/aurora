@@ -90,6 +90,12 @@ pub struct Settings {
     /// Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat.
     #[serde(default)]
     pub eq_bands: Vec<f32>,
+    /// Floating always-on-top desktop lyrics overlay.
+    #[serde(default)]
+    pub desk_lyrics_enabled: bool,
+    /// Last on-screen position of the lyrics overlay, restored on launch.
+    #[serde(default)]
+    pub desk_lyrics_position: Option<(i32, i32)>,
 }
 
 fn default_eq_preset() -> String {
@@ -128,6 +134,8 @@ impl Default for Settings {
             audio_output: None,
             eq_preset: default_eq_preset(),
             eq_bands: Vec::new(),
+            desk_lyrics_enabled: false,
+            desk_lyrics_position: None,
         }
     }
 }
