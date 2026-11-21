@@ -77,15 +77,20 @@ export default function Settings() {
   };
   const patch = (p: Partial<Settings>) => save({ ...s, ...p });
 
-  const toggleDisplay = (id: string) => {
+  const toggleDisplay = (d: DisplayInfo) => {
     const rules = [...s.displays];
-    const i = rules.findIndex((r) => r.displayId === id);
-    if (i >= 0) rules[i] = { ...rules[i], enabled: !rules[i].enabled };
-    else rules.push({ displayId: id, enabled: false });
+    // Prefer the stable-id rule (what displayEnabled shows); only then a
+    // pre-upgrade positional `display-N` rule, which we migrate forward.
+    let i = rules.findIndex((r) => r.displayId === d.id);
+    if (i < 0) i = rules.findIndex((r) => r.displayId === d.legacyId);
+    if (i >= 0)
+      rules[i] = { displayId: d.id, enabled: !rules[i].enabled };
+    else rules.push({ displayId: d.id, enabled: false });
     patch({ displays: rules });
   };
-  const displayEnabled = (id: string) =>
-    s.displays.find((r) => r.displayId === id)?.enabled ?? true;
+  const displayEnabled = (d: DisplayInfo) =>
+    (s.displays.find((r) => r.displayId === d.id) ??
+      s.displays.find((r) => r.displayId === d.legacyId))?.enabled ?? true;
 
   const saveAsProfile = () => {
     const name = profileName.trim();
@@ -505,9 +510,9 @@ export default function Settings() {
                   {d.primary ? " (primary)" : ""}
                 </span>
                 <button
-                  className={`toggle ${displayEnabled(d.id) ? "on" : ""}`}
+                  className={`toggle ${displayEnabled(d) ? "on" : ""}`}
                   aria-label={`${t("set.toggleDisplay")} ${d.name}`}
-                  onClick={() => toggleDisplay(d.id)}
+                  onClick={() => toggleDisplay(d)}
                 />
               </div>
             ))}
