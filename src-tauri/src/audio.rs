@@ -55,6 +55,10 @@ where
         self.channel = (self.channel + 1) % (self.inner.channels().get() as usize).max(1);
         Some(self.bank.process(ch, x))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 impl<I> Source for EqSource<I>
@@ -72,6 +76,18 @@ where
     }
     fn total_duration(&self) -> Option<Duration> {
         self.inner.total_duration()
+    }
+    fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
+        let r = self.inner.try_seek(pos);
+        if r.is_ok() {
+            // Drop filter memory so the seek doesn't click with stale state.
+            self.bank = EqBank::new(
+                self.inner.channels().get() as usize,
+                self.inner.sample_rate().get() as f32,
+            );
+            self.channel = 0;
+        }
+        r
     }
 }
 

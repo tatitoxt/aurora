@@ -68,7 +68,12 @@ pub struct Biquad {
 
 impl Biquad {
     /// RBJ peaking EQ: `gain_db` boost/cut around `f0` Hz at sample rate `fs`.
+    /// Falls back to a pass-through filter when `f0` reaches the Nyquist
+    /// edge, where the coefficients would go unstable on low-rate tracks.
     pub fn peaking(f0: f32, fs: f32, gain_db: f32, q: f32) -> Self {
+        if f0 * 2.0 >= fs * 0.9 || !f0.is_finite() || !fs.is_finite() || fs <= 0.0 {
+            return Self::identity();
+        }
         let a = 10f32.powf(gain_db / 40.0);
         let w0 = 2.0 * PI * f0 / fs;
         let alpha = w0.sin() / (2.0 * q);
@@ -80,6 +85,19 @@ impl Biquad {
             b2: (1.0 - alpha * a) / a0,
             a1: (-2.0 * cos_w0) / a0,
             a2: (1.0 - alpha / a) / a0,
+            z1: 0.0,
+            z2: 0.0,
+        }
+    }
+
+    /// Pass-through filter: output == input, no state.
+    pub fn identity() -> Self {
+        Self {
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a1: 0.0,
+            a2: 0.0,
             z1: 0.0,
             z2: 0.0,
         }
@@ -115,11 +133,15 @@ impl EqBank {
 
     /// Rebuild coefficients when the shared state changed.
     pub fn sync(&mut self, state: &EqState) {
-        if state.generation() == self.generation {
+        // Read the generation first and record THAT value: if `set` lands
+        // between here and `bands()`, the next sync still sees a generation
+        // bump and rebuilds — gains can never be silently stale.
+        let gen = state.generation();
+        if gen == self.generation {
             return;
         }
         self.gains = state.bands();
-        self.generation = state.generation();
+        self.generation = gen;
         for ch in &mut self.filters {
             *ch = (0..EQ_BANDS)
                 .map(|b| Biquad::peaking(EQ_FREQS[b], self.fs, self.gains[b], Q))
@@ -202,6 +224,20 @@ mod tests {
         assert_eq!(b[1], 18.0);
         assert_eq!(b[2], -18.0);
         assert_eq!(b[4], 0.0); // missing -> flat
+    }
+
+    #[test]
+    fn band_above_nyquist_is_identity() {
+        // A 12 kHz band on a 22.05 kHz stream would build unstable
+        // coefficients; it must pass audio through instead of blowing up.
+        let fs = 22_050.0;
+        let mut b = Biquad::peaking(12_000.0, fs, 12.0, Q);
+        let input = sine(2_000.0, fs, 2048);
+        let out: Vec<f32> = input.iter().map(|&x| b.process(x)).collect();
+        for (i, o) in input.iter().zip(&out) {
+            assert!((i - o).abs() < 1e-6, "expected pass-through");
+            assert!(o.is_finite());
+        }
     }
 
     #[test]
