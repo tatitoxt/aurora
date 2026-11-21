@@ -120,6 +120,12 @@ export default function Palette() {
         run: () => void bridge.setSleepTimer(null),
       },
       {
+        id: "fullscreen",
+        label: "Toggle fullscreen",
+        hint: "window",
+        run: () => void bridge.toggleFullscreen(),
+      },
+      {
         id: "rescan",
         label: "Rescan music folder",
         hint: "library",
