@@ -4,7 +4,7 @@ test.describe("Noctbeat landing", () => {
   test("renders hero, features and buy link", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("h1")).toContainText("screen breathes");
-    await expect(page.locator(".card")).toHaveCount(4);
+    await expect(page.locator(".card")).toHaveCount(8);
     await expect(page.locator("#buy-link")).toHaveAttribute("href", /lemonsqueezy|noctbeat/);
     await expect(page.locator("nav")).toContainText("Noctbeat");
   });
