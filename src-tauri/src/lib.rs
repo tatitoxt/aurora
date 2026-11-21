@@ -1840,29 +1840,25 @@ struct DisplayInfo {
 /// Stable ids for the current monitor set: the OS name (output connector /
 /// EDID) survives re-enumeration when a sibling is unplugged, where an index
 /// would shift and apply one display's rules to another. Same-model monitors
-/// get a `-N` suffix so each still owns its rules.
+/// get a `-<x>x<y>` position suffix so each still owns its rules and the id
+/// survives a sibling unplugging.
 fn display_ids(monitors: &[tauri::Monitor]) -> Vec<String> {
-    let mut totals: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut totals: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for m in monitors {
         if let Some(name) = m.name() {
             *totals.entry(name.clone()).or_insert(0) += 1;
         }
     }
-    let mut seen: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
     monitors
         .iter()
         .enumerate()
         .map(|(i, m)| {
-            let base = m
-                .name()
-                .cloned()
-                .unwrap_or_else(|| format!("display-{i}"));
+            let base = m.name().cloned().unwrap_or_else(|| format!("display-{i}"));
             if totals.get(&base).copied().unwrap_or(0) > 1 {
-                let n = seen.entry(base.clone()).or_insert(0);
-                *n += 1;
-                format!("{base}-{n}")
+                // Same-model duplicates: anchor on the physical position so
+                // unplugging a sibling keeps this monitor's id (and rules).
+                let pos = m.position();
+                format!("{base}-{}x{}", pos.x, pos.y)
             } else {
                 base
             }

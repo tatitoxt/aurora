@@ -79,10 +79,10 @@ export default function Settings() {
 
   const toggleDisplay = (d: DisplayInfo) => {
     const rules = [...s.displays];
-    // Pre-upgrade rules carry the positional `display-N` id; migrate them.
-    const i = rules.findIndex(
-      (r) => r.displayId === d.id || r.displayId === d.legacyId,
-    );
+    // Prefer the stable-id rule (what displayEnabled shows); only then a
+    // pre-upgrade positional `display-N` rule, which we migrate forward.
+    let i = rules.findIndex((r) => r.displayId === d.id);
+    if (i < 0) i = rules.findIndex((r) => r.displayId === d.legacyId);
     if (i >= 0)
       rules[i] = { displayId: d.id, enabled: !rules[i].enabled };
     else rules.push({ displayId: d.id, enabled: false });
