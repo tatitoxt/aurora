@@ -280,15 +280,21 @@ class MockSource {
       : this.positionMs;
   }
 
-  private track(): Track {
-    const [title, artist, album, durationMs] = this.playlist[this.index % this.playlist.length];
+  private track(): Track | null {
+    const entry = this.playlist[this.index % this.playlist.length];
+    if (!entry) return null;
+    const [title, artist, album, durationMs] = entry;
     return { id: `${artist} — ${title}`, title, artist, album, artworkUrl: "", durationMs };
   }
 
   poll(): NowPlaying {
+    if (this.playlist.length === 0) {
+      this.status = "stopped";
+      return { track: null, status: "stopped", positionMs: 0, source: "demo", updatedAtMs: Date.now() };
+    }
     let p = this.pos();
     const t = this.track();
-    if (p >= t.durationMs) this.skip(1), (p = this.pos());
+    if (t && p >= t.durationMs) this.skip(1), (p = this.pos());
     return { track: this.track(), status: this.status, positionMs: p, source: "demo", updatedAtMs: Date.now() };
   }
 
@@ -301,6 +307,12 @@ class MockSource {
   }
 
   private skip(dir: number) {
+    if (this.playlist.length === 0) {
+      this.index = 0;
+      this.status = "stopped";
+      this.positionMs = 0;
+      return;
+    }
     this.index = (this.index + dir + this.playlist.length) % this.playlist.length;
     this.positionMs = 0;
     this.anchor = Date.now();
@@ -354,6 +366,23 @@ function ensureMockLoop() {
   }, 200);
 }
 ensureMockLoop();
+
+function mockQueueState(): QueueState {
+  return {
+    items: mock.playlist.map(([title, artist, album, durationMs], i) => ({
+      track: {
+        id: `${artist} — ${title}`,
+        title,
+        artist,
+        album,
+        artworkUrl: "",
+        durationMs,
+      },
+      path: `/demo/${i}.mp3`,
+    })),
+    currentIndex: mock.index,
+  };
+}
 
 export const bridge = {
   artSrc,
@@ -426,26 +455,14 @@ export const bridge = {
   getQueue: (): Promise<QueueState> =>
     isTauri()
       ? invokeCmd<QueueState>("get_queue")
-      : Promise.resolve({
-          items: mock.playlist.map(([title, artist, album, durationMs], i) => ({
-            track: {
-              id: `${artist} — ${title}`,
-              title,
-              artist,
-              album,
-              artworkUrl: "",
-              durationMs,
-            },
-            path: `/demo/${i}.mp3`,
-          })),
-          currentIndex: mock.index,
-        }),
+      : Promise.resolve(mockQueueState()),
   playQueueIndex: (index: number) => {
     if (isTauri()) return invokeCmd<null>("play_queue_index", { index });
     mock.index = index;
     mock.positionMs = 0;
     mock.anchor = Date.now();
     mock.status = "playing";
+    emitMock("queue", mockQueueState());
     return Promise.resolve(null);
   },
   setShuffle: (on: boolean): Promise<boolean> =>
@@ -464,8 +481,33 @@ export const bridge = {
   /** True while another app owns a fullscreen window (edge auto-hide). */
   getFullscreenAppActive: (): Promise<boolean> =>
     isTauri() ? invokeCmd<boolean>("fullscreen_app_active") : Promise.resolve(false),
-  clearQueue: () =>
-    isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
+  clearQueue: () => {
+    if (isTauri()) return invokeCmd<null>("clear_queue");
+    mock.playlist = [];
+    emitMock("queue", mockQueueState());
+    return Promise.resolve(null);
+  },
+  queueRemove: (index: number): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("queue_remove", { index });
+    if (index !== mock.index) {
+      mock.playlist.splice(index, 1);
+      if (index < mock.index) mock.index -= 1;
+      emitMock("queue", mockQueueState());
+    }
+    return Promise.resolve(null);
+  },
+  queueMove: (from: number, to: number): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("queue_move", { from, to });
+    const [item] = mock.playlist.splice(from, 1);
+    if (item) {
+      mock.playlist.splice(to, 0, item);
+      if (mock.index === from) mock.index = to;
+      else if (from < to && mock.index > from && mock.index <= to) mock.index -= 1;
+      else if (to < from && mock.index >= to && mock.index < from) mock.index += 1;
+      emitMock("queue", mockQueueState());
+    }
+    return Promise.resolve(null);
+  },
   scanLibrary: (dir?: string) =>
     isTauri()
       ? invokeCmd<QueueItem[]>("scan_library", { dir: dir ?? null })
@@ -485,6 +527,7 @@ export const bridge = {
     mock.positionMs = 0;
     mock.anchor = Date.now();
     mock.status = "playing";
+    emitMock("queue", mockQueueState());
     return Promise.resolve(null);
   },
   providerStatus: () =>
