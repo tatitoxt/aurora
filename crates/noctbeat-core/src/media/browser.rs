@@ -139,6 +139,7 @@ fn tab_key(u: &Update) -> String {
 }
 
 fn apply_update(s: &mut Shared, u: Update) {
+    let key = tab_key(&u);
     let provider = u.provider.clone().unwrap_or_else(|| "browser".into());
     let title = u.title.clone().unwrap_or_default();
     let artist = u.artist.clone().unwrap_or_default();
@@ -166,7 +167,6 @@ fn apply_update(s: &mut Shared, u: Update) {
         source: provider,
         updated_at_ms: now_ms(),
     };
-    let key = tab_key(&u);
     s.tabs.insert(
         key,
         TabState {
