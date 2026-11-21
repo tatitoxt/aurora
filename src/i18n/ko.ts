@@ -155,6 +155,7 @@ const ko: Record<keyof typeof en, string> = {
   "lib.collection": "\uceec\ub809\uc158",
   "stats.recap": "\ub9ac\ucea1",
   "stats.insights": "\uc778\uc0ac\uc774\ud2b8",
+  "player.stickers": "\uc2a4\ud2f0\ucee4",
 };
 
 export default ko;

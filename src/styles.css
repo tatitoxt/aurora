@@ -22,6 +22,7 @@ body {
 }
 
 .glass {
+  position: relative;
   height: 100%;
   background: var(--panel);
   backdrop-filter: blur(72px) saturate(1.4);
@@ -1214,3 +1215,71 @@ body {
 .lib__artist:hover { color: var(--accent); text-decoration: underline; }
 .tops__link { color: inherit; text-decoration: none; }
 .tops__link:hover { color: var(--accent); }
+
+/* stickers */
+.stickers {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  overflow: hidden;
+}
+.sticker {
+  position: absolute;
+  pointer-events: auto;
+  display: inline-flex;
+  font-size: 22px;
+  color: var(--acc);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: color 0.15s ease;
+}
+.sticker:hover {
+  color: #fff;
+}
+.sticker:active {
+  cursor: grabbing;
+}
+.sticker svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+.stickpick {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: -8px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(5, 30px);
+  gap: 4px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(18, 18, 24, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.stickpick__btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 16px;
+  cursor: pointer;
+}
+.stickpick__btn svg {
+  width: 1em;
+  height: 1em;
+}
+.stickpick__btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}

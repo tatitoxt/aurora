@@ -27,6 +27,8 @@ import ShareCard, { SHARE_EVENT } from "../ShareCard";
 import { activeLyricIndex, formatTime } from "../lib";
 import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import { useT } from "../i18n";
+import { StickerLayer, StickerPicker } from "../Stickers";
+import { Sticker as StickerIcon } from "@phosphor-icons/react";
 
 const PREV = <SkipBack weight="fill" size={18} />;
 const NEXT = <SkipForward weight="fill" size={18} />;
@@ -85,6 +87,7 @@ export default function Player() {
   const [art, setArt] = useState<string>("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [share, setShare] = useState(false);
+  const [stickOpen, setStickOpen] = useState(false);
   const trackId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -205,6 +208,12 @@ export default function Player() {
       <button className="pnav__btn" aria-label={t("nav.share")} title={t("nav.share")} onClick={() => setShare(true)}>
         <Export size={14} />
       </button>
+      <span style={{ position: "relative" }}>
+        <button className="pnav__btn" aria-label={t("player.stickers")} title={t("player.stickers")} onPointerDown={(e) => e.stopPropagation()} onClick={() => setStickOpen((v) => !v)}>
+          <StickerIcon size={14} />
+        </button>
+        {stickOpen && <StickerPicker onDone={() => setStickOpen(false)} />}
+      </span>
       <button className="pnav__btn" aria-label={t("nav.commands")} title={t("nav.commands")} onClick={openPalette}>
         <Command size={14} />
       </button>
@@ -230,6 +239,7 @@ export default function Player() {
   if (karaoke) {
     return (
       <div className="glass glass--bare">
+        <StickerLayer />
         <div className="kbg">
           {art ? <img src={art} alt="" /> : null}
           {videoUrl ? <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} /> : null}
@@ -298,6 +308,7 @@ export default function Player() {
         {nav}
       </div>
       {shareCard}
+      <StickerLayer />
     </div>
   );
 }

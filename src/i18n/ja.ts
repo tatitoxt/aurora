@@ -155,6 +155,7 @@ const ja: Record<keyof typeof en, string> = {
   "lib.collection": "\u30b3\u30ec\u30af\u30b7\u30e7\u30f3",
   "stats.recap": "\u30ea\u30ad\u30e3\u30c3\u30d7",
   "stats.insights": "\u30a4\u30f3\u30b5\u30a4\u30c8",
+  "player.stickers": "\u30b9\u30c6\u30c3\u30ab\u30fc",
 };
 
 export default ja;
