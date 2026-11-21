@@ -1194,7 +1194,7 @@ body {
 
 /* lyric fit inside the remaining stage for wide text in these styles */
 .fs--pearl .fs__lyric, .fs--arc .fs__lyric, .fs--studio .fs__lyric {
-  font-size: clamp(36px, 7vh, 78px); max-width: 100%;
+  font-size: calc(clamp(36px, 7vh, 78px) * var(--lyrsc, 1)); max-width: 100%;
 }
 /* studio: keep the lyric out from under the right-docked queue */
 .fs--studio .fs__lyric {
