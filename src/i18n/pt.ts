@@ -158,6 +158,7 @@ const pt: Record<keyof typeof en, string> = {
   "fs.lockSize": "Bloquear tamanho",
   "fs.unlockSize": "Desbloquear tamanho",
   "fs.nowPlaying": "Tocando agora",
+  "fs.upNext": "A seguir",
   "fs.nothingPlaying": "Nada tocando",
   "fs.provider": "Provedor de m\u00fasica",
   "fs.queuePanel": "Painel Continuar tocando",

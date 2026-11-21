@@ -167,6 +167,7 @@ const en = {
   "fs.lockSize": "Lock size",
   "fs.unlockSize": "Unlock size",
   "fs.nowPlaying": "Now Playing",
+  "fs.upNext": "Up next",
   "fs.nothingPlaying": "Nothing playing",
   "fs.provider": "Music provider",
   "fs.queuePanel": "Continue Playing panel",

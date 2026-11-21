@@ -158,6 +158,7 @@ const it: Record<keyof typeof en, string> = {
   "fs.lockSize": "Blocca dimensione",
   "fs.unlockSize": "Sblocca dimensione",
   "fs.nowPlaying": "In riproduzione",
+  "fs.upNext": "A seguire",
   "fs.nothingPlaying": "Niente in riproduzione",
   "fs.provider": "Provider musicale",
   "fs.queuePanel": "Pannello Continua a riprodurre",

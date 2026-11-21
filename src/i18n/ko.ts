@@ -158,6 +158,7 @@ const ko: Record<keyof typeof en, string> = {
   "fs.lockSize": "크기 잠금",
   "fs.unlockSize": "크기 잠금 해제",
   "fs.nowPlaying": "\uc7ac\uc0dd \uc911",
+  "fs.upNext": "다음 재생",
   "fs.nothingPlaying": "\uc7ac\uc0dd \uc911\uc778 \uace1\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
   "fs.provider": "\uc74c\uc545 \uc81c\uacf5\uc790",
   "fs.queuePanel": "\uc774\uc5b4\uc11c \uc7ac\uc0dd \ud328\ub110",
