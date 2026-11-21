@@ -2067,8 +2067,8 @@ pub fn run() {
                     use tauri_plugin_global_shortcut::Code;
                     let cmd = match shortcut.key {
                         Code::MediaPlayPause => Control::PlayPause,
-                        Code::MediaTrackNext => Control::Next,
-                        Code::MediaTrackPrevious => Control::Previous,
+                        Code::MediaTrackNext | Code::MediaFastForward => Control::Next,
+                        Code::MediaTrackPrevious | Code::MediaRewind => Control::Previous,
                         _ => return,
                     };
                     // The hotkey thread must not block on a remote
@@ -2076,7 +2076,14 @@ pub fn run() {
                     let app = app.clone();
                     std::thread::spawn(move || {
                         let state = app.state::<AppState>();
-                        let _ = media_control_inner(&state, cmd);
+                        // While another app owns playback (Spotify, a
+                        // browser) the OS already routes the media key
+                        // to its session — forwarding it again through
+                        // the source would toggle it twice, cancelling
+                        // out. Hotkeys only drive our own player.
+                        if local_active(&state) {
+                            let _ = media_control_inner(&state, cmd);
+                        }
                     });
                 })
                 .build(),
@@ -2229,14 +2236,34 @@ fn tray_media_control(app: &tauri::AppHandle, cmd: Control) {
 #[cfg(not(target_os = "linux"))]
 fn register_media_hotkeys(app: &tauri::AppHandle) {
     use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut};
+    let mut registered = 0usize;
     for code in [
         Code::MediaPlayPause,
         Code::MediaTrackNext,
         Code::MediaTrackPrevious,
+        // Some keyboards emit Fast/Rewind for track skips instead of
+        // Next/Previous — bind both so those keys work too.
+        Code::MediaFastForward,
+        Code::MediaRewind,
     ] {
         // Another app may already hold a key (Spotify, a browser):
         // skip that binding instead of failing startup.
-        let _ = app.global_shortcut().register(Shortcut::new(None, code));
+        if app
+            .global_shortcut()
+            .register(Shortcut::new(None, code))
+            .is_ok()
+        {
+            registered += 1;
+        }
+    }
+    // On macOS every registration fails without Accessibility access —
+    // say so once instead of leaving dead shortcuts unexplained.
+    #[cfg(target_os = "macos")]
+    if registered == 0 {
+        eprintln!(
+            "media keys unavailable: grant Noctbeat Accessibility access in \
+             System Settings → Privacy & Security → Accessibility"
+        );
     }
 }
 
