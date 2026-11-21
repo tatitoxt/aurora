@@ -269,13 +269,13 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 // ---- Browser mock (mirrors crates/noctbeat-core/src/media/demo.rs) ---------
 
 const DEMO_PLAYLIST: Array<[string, string, string, number]> = [
-  ["Neon Reversal", "Violet Sector", "Parallax Bloom", 214_000],
+  ["Aurora Reversal", "Violet Sector", "Parallax Bloom", 214_000],
   ["Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000],
   ["Glass Tide", "Ultramar", "Field Lines", 243_000],
   ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000],
   ["Midnight Relay", "Chromewave", "Night Grid", 201_000],
   ["Velvet Static", "Ultramar", "Field Lines", 176_000],
-  ["Afterglow Avenue", "Neon Fields", "Daybreak", 224_000],
+  ["Afterglow Avenue", "Velvet Fields", "Daybreak", 224_000],
   ["Low Orbit", "Lunar Plain", "Earthrise", 198_000],
   ["Paper Satellites", "Violet Sector", "Parallax Bloom", 232_000],
 ];
@@ -286,7 +286,7 @@ const DEMO_LRC: LrcLine[] = [
   [8_000, "Every edge begins to glow"],
   [12_000, "Colors only night can know"],
   [16_000, "Hold the beat, don't let it die"],
-  [20_000, "We glow like neon in the sky"],
+  [20_000, "We glow like embers in the sky"],
 ].map(([atMs, text]) => ({ atMs: atMs as number, text: text as string }));
 
 class MockSource {
@@ -437,7 +437,7 @@ export const bridge = {
   getPalette: (artworkUrl: string) =>
     isTauri()
       ? invokeCmd<{ dominant: string; accents: string[] }>("get_palette", { artworkUrl })
-      : Promise.resolve({ dominant: "#8b5cf6", accents: ["#22d3ee", "#f472b6", "#facc15"] }),
+      : Promise.resolve({ dominant: "#8b5cf6", accents: ["#7dd3fc", "#fda4af", "#fcd34d"] }),
   getLyrics: () =>
     isTauri() ? invokeCmd<LrcLine[] | null>("get_lyrics") : Promise.resolve<LrcLine[] | null>(DEMO_LRC),
   getSettings: () =>
@@ -821,7 +821,7 @@ export const bridge = {
       topArtists: [
         { name: "Violet Sector", sub: "", plays: 9, ms: 2_100_000 },
         { name: "Ultramar", sub: "", plays: 6, ms: 1_400_000 },
-        { name: "Neon Fields", sub: "", plays: 5, ms: 900_000 },
+        { name: "Velvet Fields", sub: "", plays: 5, ms: 900_000 },
       ],
     });
   },
