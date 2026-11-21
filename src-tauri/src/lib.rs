@@ -720,6 +720,99 @@ fn import_playlist(
     Ok(res)
 }
 
+/// Outcome of `export_playlist`: where the .m3u8 landed, how many local
+/// tracks were written and how many remote items were skipped.
+#[derive(serde::Serialize)]
+struct ExportResult {
+    path: String,
+    exported: u32,
+    skipped_remote: u32,
+}
+
+/// Save the current queue as an extended M3U (`<music dir>/<name>.m3u8`).
+/// `name` is reduced to a safe file stem; an existing file gets `-2`,
+/// `-3`, … appended. Remote (not-yet-downloaded) items can't round-trip
+/// through a local playlist and are skipped.
+#[tauri::command]
+fn export_playlist(state: State<AppState>, name: String) -> Result<ExportResult, String> {
+    let dir = resolve_music_dir(&state, None)?;
+    let stem = std::path::Path::new(name.trim())
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("playlist");
+    let stem: String = stem
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || " _-()".contains(c) {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let stem = if stem.is_empty() {
+        "playlist"
+    } else {
+        stem.as_str()
+    };
+    let dir_path = std::path::Path::new(&dir);
+    let mut file = dir_path.join(format!("{stem}.m3u8"));
+    let mut n = 2u32;
+    while file.exists() {
+        file = dir_path.join(format!("{stem}-{n}.m3u8"));
+        n += 1;
+    }
+    let player = state.player.lock().map_err(|e| e.to_string())?;
+    let mut items = Vec::new();
+    let mut skipped = 0u32;
+    for it in player.queue() {
+        if it.path.starts_with("remote:") {
+            skipped += 1;
+            continue;
+        }
+        items.push(noctbeat_core::playlists::M3uItem {
+            path: it.path.clone(),
+            title: it.track.title.clone(),
+            artist: it.track.artist.clone(),
+            duration_ms: it.track.duration_ms,
+        });
+    }
+    if items.is_empty() {
+        return Err("nothing to export — the queue has no local tracks".into());
+    }
+    let exported = items.len() as u32;
+    std::fs::write(&file, noctbeat_core::playlists::write_m3u(&items))
+        .map_err(|e| format!("write {}: {e}", file.display()))?;
+    Ok(ExportResult {
+        path: file.to_string_lossy().into_owned(),
+        exported,
+        skipped_remote: skipped,
+    })
+}
+
+/// One playlist file discovered in the music folder.
+#[derive(serde::Serialize)]
+struct PlaylistFile {
+    name: String,
+    path: String,
+}
+
+/// Playlist files sitting at the top level of the configured music dir.
+#[tauri::command]
+fn list_playlists(state: State<AppState>) -> Result<Vec<PlaylistFile>, String> {
+    let dir = resolve_music_dir(&state, None)?;
+    Ok(noctbeat_core::playlists::list(std::path::Path::new(&dir))
+        .into_iter()
+        .map(|p| PlaylistFile {
+            name: p
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| p.to_string_lossy().into_owned()),
+            path: p.to_string_lossy().into_owned(),
+        })
+        .collect())
+}
+
 /// Outcome of `import_playlist_url`: the playlist's own title and how
 /// many tracks were queued for lazy download.
 #[derive(serde::Serialize)]
@@ -1968,6 +2061,8 @@ pub fn run() {
             set_sleep_timer,
             import_playlist,
             import_playlist_url,
+            export_playlist,
+            list_playlists,
             get_stats,
             get_artist_stats,
             get_wrapped,

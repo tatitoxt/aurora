@@ -65,6 +65,58 @@ fn file_entry(
     }
 }
 
+/// One writable playlist row: absolute path + display metadata.
+pub struct M3uItem {
+    pub path: String,
+    pub title: String,
+    pub artist: String,
+    pub duration_ms: u64,
+}
+
+/// Serialize entries as extended M3U (UTF-8 — save as `.m3u8`).
+pub fn write_m3u(items: &[M3uItem]) -> String {
+    let mut out = String::from("#EXTM3U\n");
+    for it in items {
+        let secs = (it.duration_ms as f64 / 1000.0).round() as i64;
+        let meta = match (it.artist.is_empty(), it.title.is_empty()) {
+            (false, false) => format!("{} - {}", it.artist, it.title),
+            (true, false) => it.title.clone(),
+            _ => it
+                .path
+                .rsplit(['/', '\\'])
+                .next()
+                .unwrap_or(&it.path)
+                .to_string(),
+        };
+        out.push_str(&format!("#EXTINF:{secs},{meta}\n{}\n", it.path));
+    }
+    out
+}
+
+/// Playlist files directly inside `dir` (.m3u/.m3u8/.pls/.xspf),
+/// sorted by path.
+pub fn list(dir: &Path) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map(|rd| {
+            rd.flatten()
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.is_file()
+                        && matches!(
+                            p.extension()
+                                .and_then(|e| e.to_str())
+                                .map(|e| e.to_ascii_lowercase())
+                                .as_deref(),
+                            Some("m3u") | Some("m3u8") | Some("pls") | Some("xspf")
+                        )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    out.sort();
+    out
+}
+
 fn percent_decode(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
@@ -344,6 +396,42 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert_eq!(file(&out[0]), &PathBuf::from("/100%🎵.mp3"));
         assert_eq!(file(&out[1]), &PathBuf::from("/m/100🎵.mp3"));
+    }
+
+    #[test]
+    fn write_m3u_round_trips_through_parse() {
+        let items = vec![
+            M3uItem {
+                path: "/music/a b.mp3".into(),
+                title: "A B".into(),
+                artist: "Me".into(),
+                duration_ms: 60_000,
+            },
+            M3uItem {
+                path: "/music/c.flac".into(),
+                title: "Solo".into(),
+                artist: String::new(),
+                duration_ms: 0,
+            },
+        ];
+        let text = write_m3u(&items);
+        assert!(text.starts_with("#EXTM3U"));
+        let out = parse(Path::new("/x/list.m3u8"), &text);
+        assert_eq!(file(&out[0]), &PathBuf::from("/music/a b.mp3"));
+        match &out[0] {
+            PlaylistEntry::File {
+                title,
+                artist,
+                duration_ms,
+                ..
+            } => {
+                assert_eq!(title.as_deref(), Some("A B"));
+                assert_eq!(artist.as_deref(), Some("Me"));
+                assert_eq!(*duration_ms, Some(60_000));
+            }
+            _ => panic!("expected File"),
+        }
+        assert_eq!(file(&out[1]), &PathBuf::from("/music/c.flac"));
     }
 
     #[test]
