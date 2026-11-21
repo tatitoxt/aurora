@@ -130,7 +130,7 @@ body {
   from { opacity: 0; transform: translateY(14px) scale(.97); }
   to { opacity: 1; transform: none; }
 }
-.kword { color: rgba(242, 242, 245, 0.3); margin-right: .28em; transition: color .25s, text-shadow .25s; display: inline-block; unicode-bidi: embed; }
+.kword { color: rgba(242, 242, 245, 0.36); margin-right: .28em; transition: color .25s, text-shadow .25s; display: inline-block; unicode-bidi: embed; }
 .kword--now {
   color: #fff;
   text-shadow: 0 0 26px rgba(255, 255, 255, 0.55);
@@ -154,7 +154,7 @@ body {
   font-style: italic;
   font-size: 0.82em;
 }
-.karaoke__next { margin-top: 18px; font-size: 14px; color: rgba(242, 242, 245, 0.4); font-family: var(--serif); font-style: italic; }
+.karaoke__next { margin-top: 18px; font-size: 14px; color: rgba(242, 242, 245, 0.55); font-family: var(--serif); font-style: italic; }
 .karaoke__idle { font-family: var(--serif); font-size: 28px; font-weight: 700; font-style: italic; color: rgba(242,242,245,.85); }
 
 /* iBaila karaoke glass transport bar: controls left, meta + hairline right. */
@@ -193,7 +193,9 @@ body {
   justify-content: center;
   padding: 14px 30px;
   box-sizing: border-box;
-  background: color-mix(in srgb, var(--bg) 34%, transparent);
+  /* Dark glass, same tint as the rest of the app: white karaoke words must
+     stay legible over a light wallpaper too. */
+  background: var(--panel);
   backdrop-filter: blur(26px) saturate(1.5);
   -webkit-backdrop-filter: blur(26px) saturate(1.5);
   border-radius: 22px;
