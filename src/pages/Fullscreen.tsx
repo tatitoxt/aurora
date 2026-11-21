@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   bridge,
   subscribe,
@@ -10,6 +10,15 @@ import {
   type Settings,
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
+import {
+  favEntryFor,
+  favKeyFor,
+  favKeys,
+  loadFavs,
+  subscribeFavs,
+  toggleFav,
+  type FavEntry,
+} from "../favs";
 import {
   CaretDown,
   CaretUp,
@@ -145,13 +154,9 @@ export default function Fullscreen() {
     () => localStorage.getItem("noctbeat.fsstyle") ?? "albums"
   );
   const [qpage, setQpage] = useState(0);
-  const [favs, setFavs] = useState<Set<string>>(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem("noctbeat.favs") ?? "[]"));
-    } catch {
-      return new Set();
-    }
-  });
+  const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
+  useEffect(() => subscribeFavs(() => setFavs(loadFavs())), []);
+  const favSet = useMemo(() => favKeys(favs), [favs]);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -179,17 +184,11 @@ export default function Fullscreen() {
   const panelShown = queue.items.length > 0 || streamReady;
   const qpages = Math.ceil(queue.items.length / 8);
   const qp = Math.min(qpage, Math.max(0, qpages - 1));
-  const favKey = track ? `${np?.source ?? ""}:${track.id}` : "";
-  const fav = favKey !== "" && favs.has(favKey);
-  const toggleFav = () => {
-    if (!favKey) return;
-    setFavs((prev) => {
-      const next = new Set(prev);
-      if (next.has(favKey)) next.delete(favKey);
-      else next.add(favKey);
-      localStorage.setItem("noctbeat.favs", JSON.stringify([...next]));
-      return next;
-    });
+  const favKey = favKeyFor(np);
+  const fav = favKey !== "" && favSet.has(favKey);
+  const onToggleFav = () => {
+    const entry = favEntryFor(np);
+    if (entry) setFavs((prev) => toggleFav(prev, entry));
   };
 
   // Resolved artwork URLs for the mosaic wall and the cover carousel.
@@ -495,7 +494,7 @@ export default function Fullscreen() {
                 <button
                   className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
                   aria-label={fav ? "Unlike" : "Like"}
-                  onClick={toggleFav}
+                  onClick={onToggleFav}
                 >
                   <Heart size={14} weight={fav ? "fill" : "regular"} />
                 </button>
@@ -595,7 +594,7 @@ export default function Fullscreen() {
               <button
                 className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
                 aria-label={fav ? "Unlike" : "Like"}
-                onClick={toggleFav}
+                onClick={onToggleFav}
               >
                 <Heart size={14} weight={fav ? "fill" : "regular"} />
               </button>
@@ -838,7 +837,7 @@ export default function Fullscreen() {
             className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
             aria-label={fav ? "Unlike" : "Like"}
             title={fav ? "Unlike" : "Like"}
-            onClick={toggleFav}
+            onClick={onToggleFav}
           >
             <Heart size={15} weight={fav ? "fill" : "regular"} />
           </button>
