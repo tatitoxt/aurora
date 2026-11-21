@@ -167,6 +167,36 @@ impl LocalPlayer {
         self.audio.seek(position_ms)
     }
 
+    /// Snapshot `(position_ms, was_playing)` of the current track. Must be
+    /// taken before the audio stream is swapped — after `set_device` the new
+    /// stream reports position 0.
+    pub fn reopen_snapshot(&self) -> (u64, bool) {
+        (
+            self.audio.position_ms(),
+            self.status == PlaybackStatus::Playing,
+        )
+    }
+
+    /// Re-open the current track at `position_ms` after the output device
+    /// was swapped. Resumes playback only when `playing` is true. Callers
+    /// hold the player lock across the swap so the poller never observes
+    /// the empty stream.
+    pub fn reopen_current(&mut self, position_ms: u64, playing: bool) -> Result<(), String> {
+        let Some(i) = self.index else { return Ok(()) };
+        let Some(item) = self.queue.get(i).cloned() else {
+            return Ok(());
+        };
+        if item.path.is_empty() {
+            return Ok(());
+        }
+        self.audio.open(&item.path)?;
+        self.audio.seek(position_ms)?;
+        if playing {
+            self.audio.play();
+        }
+        Ok(())
+    }
+
     pub fn set_volume(&self, volume: f32) {
         self.audio.set_volume(volume.clamp(0.0, 1.0));
     }
@@ -408,5 +438,42 @@ mod tests {
         p.clear();
         assert!(p.queue().is_empty());
         assert_eq!(p.tick().status, PlaybackStatus::Stopped);
+    }
+
+    #[test]
+    fn reopen_current_resumes_at_position() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("a"), item("b")]);
+        p.play_index(1).unwrap();
+        audio.pos.store(12_000, Ordering::SeqCst);
+        let (pos, playing) = p.reopen_snapshot();
+        p.reopen_current(pos, playing).unwrap();
+        assert_eq!(audio.opened.lock().unwrap().last().unwrap(), "/music/b.mp3");
+        assert_eq!(audio.position_ms(), 12_000);
+        assert!(audio.playing.load(Ordering::SeqCst));
+        assert_eq!(p.tick().status, PlaybackStatus::Playing);
+    }
+
+    #[test]
+    fn reopen_current_stays_paused() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("a")]);
+        p.play_index(0).unwrap();
+        audio.pos.store(5_000, Ordering::SeqCst);
+        p.control(Control::PlayPause).unwrap();
+        let (pos, playing) = p.reopen_snapshot();
+        p.reopen_current(pos, playing).unwrap();
+        assert!(!audio.playing.load(Ordering::SeqCst));
+        assert_eq!(audio.position_ms(), 5_000);
+        assert_eq!(p.tick().status, PlaybackStatus::Paused);
+    }
+
+    #[test]
+    fn reopen_current_noop_when_stopped() {
+        let (mut p, audio) = player();
+        p.set_queue(vec![item("a")]);
+        let (pos, playing) = p.reopen_snapshot();
+        p.reopen_current(pos, playing).unwrap();
+        assert!(audio.opened.lock().unwrap().is_empty());
     }
 }

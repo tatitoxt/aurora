@@ -63,6 +63,8 @@ export interface Settings {
   lyricsMode: string;
   /** Karaoke backdrop plays the music video (yt-dlp) instead of blurred art. */
   videoBackdrop: boolean;
+  /** Audio output device name; null = OS default. */
+  audioOutput: string | null;
 }
 
 export interface ThemeSettings {
@@ -114,6 +116,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: { name: "noct", accent: null, accent2: null },
   lyricsMode: "lines",
   videoBackdrop: true,
+  audioOutput: null,
 };
 
 const isTauri = () =>
@@ -352,6 +355,14 @@ export const bridge = {
     isTauri()
       ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
       : Promise.resolve(null),
+  listOutputs: (): Promise<string[]> =>
+    isTauri() ? invokeCmd<string[]>("list_outputs") : Promise.resolve([]),
+  setOutputDevice: (name: string | null) => {
+    if (isTauri()) return invokeCmd<null>("set_output_device", { name });
+    settingsStore = { ...settingsStore, audioOutput: name };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(null);
+  },
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")

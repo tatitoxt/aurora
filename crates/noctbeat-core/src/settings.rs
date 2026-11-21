@@ -80,6 +80,9 @@ pub struct Settings {
     /// (resolved via yt-dlp); false keeps the blurred artwork backdrop.
     #[serde(default = "default_true")]
     pub video_backdrop: bool,
+    /// Audio output device name (e.g. a Bluetooth speaker); None = OS default.
+    #[serde(default)]
+    pub audio_output: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -111,6 +114,7 @@ impl Default for Settings {
             theme: ThemeSettings::default(),
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
+            audio_output: None,
         }
     }
 }
