@@ -650,10 +650,13 @@ body {
   to { opacity: 1; transform: none; }
 }
 .fs__lyric--title { letter-spacing: 0.04em; }
-/* Cover carousel row above the transport pill (iBaila albums). */
+/* iBaila albums-dark: the video card anchors just right of the queue rail,
+ * left-of-center; side covers trail to its right. The lyric floats in the
+ * remaining space and may overlap the card's right edge. */
 .fs__covers {
-  display: flex; align-items: flex-end; justify-content: center;
+  display: flex; align-items: flex-end; justify-content: flex-start;
   gap: 18px; width: 100%; pointer-events: none;
+  padding-left: calc(3.5vw + min(240px, 24vw) + 3vw);
   margin-bottom: 3.5vh;
   transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
 }
