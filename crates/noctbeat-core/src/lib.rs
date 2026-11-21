@@ -10,6 +10,7 @@ pub mod fx;
 pub mod history;
 pub mod library;
 pub mod licensing;
+pub mod listen;
 pub mod lyrics;
 pub mod media;
 pub mod palette;
