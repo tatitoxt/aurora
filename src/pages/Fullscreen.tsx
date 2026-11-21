@@ -331,17 +331,6 @@ export default function Fullscreen() {
           <>
           {streamReady && (
             <div className="fs__qsearch">
-              <div className="fs__qseg">
-                {(["youtube", "soundcloud"] as const).map((s) => (
-                  <button
-                    key={s}
-                    className={searchSrc === s ? "on" : ""}
-                    onClick={() => setSearchSrc(s)}
-                  >
-                    {s === "youtube" ? "YouTube" : "SoundCloud"}
-                  </button>
-                ))}
-              </div>
               <input
                 value={searchQ}
                 placeholder="Search tracks…"
@@ -499,20 +488,19 @@ export default function Fullscreen() {
           {streamReady && (
             <>
               <button
-                className={`fs__icon ${searchSrc === "youtube" ? "fs__icon--on" : ""}`}
-                aria-label="YouTube Music"
-                title="Search YouTube Music"
-                onClick={() => { setSearchSrc("youtube"); setQueueOpen(true); }}
+                className="fs__icon fs__icon--on"
+                aria-label={`Provider: ${searchSrc === "youtube" ? "YouTube Music" : "SoundCloud"}`}
+                title="Switch provider"
+                onClick={() => {
+                  setSearchSrc((s) => (s === "youtube" ? "soundcloud" : "youtube"));
+                  setQueueOpen(true);
+                }}
               >
-                <YoutubeLogo size={16} weight={searchSrc === "youtube" ? "fill" : "regular"} />
-              </button>
-              <button
-                className={`fs__icon ${searchSrc === "soundcloud" ? "fs__icon--on" : ""}`}
-                aria-label="SoundCloud"
-                title="Search SoundCloud"
-                onClick={() => { setSearchSrc("soundcloud"); setQueueOpen(true); }}
-              >
-                <SoundcloudLogo size={16} weight={searchSrc === "soundcloud" ? "fill" : "regular"} />
+                {searchSrc === "youtube" ? (
+                  <YoutubeLogo size={16} weight="fill" />
+                ) : (
+                  <SoundcloudLogo size={16} weight="fill" />
+                )}
               </button>
               <span className="fs__srcsep" />
             </>
