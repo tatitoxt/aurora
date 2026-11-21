@@ -61,6 +61,25 @@ export default function Fullscreen() {
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 0;
 
+  // Blurred mosaic of queue artwork, like iBaila's albums wall.
+  const [wall, setWall] = useState<string[]>([]);
+  useEffect(() => {
+    const urls = [
+      ...new Set(
+        queue.items.map((it) => it.track.artworkUrl).filter(Boolean) as string[]
+      ),
+    ].slice(0, 24);
+    let dead = false;
+    void Promise.all(urls.map((u) => bridge.artSrc(u).catch(() => ""))).then(
+      (srcs) => {
+        if (!dead) setWall(srcs.filter(Boolean));
+      }
+    );
+    return () => {
+      dead = true;
+    };
+  }, [queue.items]);
+
   // Keyboard: space toggles play, arrows seek/skip, Esc exits.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -115,7 +134,20 @@ export default function Fullscreen() {
   return (
     <div className="fs">
       <div className="fs__bg">
-        {art ? <img src={art} alt="" /> : <div className="fs__mesh" />}
+        {wall.length > 1 ? (
+          <div className="fs__wall">
+            {(wall.length < 12
+              ? Array.from({ length: Math.ceil(12 / wall.length) }, () => wall).flat()
+              : wall
+            ).map((src, i) => (
+              <img key={i} src={src} alt="" />
+            ))}
+          </div>
+        ) : art ? (
+          <img src={art} alt="" />
+        ) : (
+          <div className="fs__mesh" />
+        )}
         <div className="fs__veil" />
       </div>
       <div className="fs__sparks" aria-hidden="true" />
@@ -189,7 +221,7 @@ export default function Fullscreen() {
           >
             <div
               className="fs__barfill"
-              style={{ width: `${Math.min(100, (pos / Math.max(dur, 1)) * 100)}%` }}
+              style={{ width: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%` }}
             />
           </div>
           <span className="fs__time">{formatTime(dur)}</span>

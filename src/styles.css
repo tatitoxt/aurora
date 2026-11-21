@@ -460,6 +460,15 @@ body {
 .fs { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; }
 .fs__bg { position: absolute; inset: 0; }
 .fs__bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.15); filter: blur(50px) saturate(1.3) brightness(0.55); }
+/* Mosaic of queue covers, blurred into a living wall like iBaila albums. */
+.fs__wall {
+  position: absolute; inset: -6%;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-auto-rows: 1fr; gap: 0;
+  transform: scale(1.1);
+  filter: blur(55px) saturate(1.25) brightness(0.5);
+}
+.fs__wall img { width: 100%; height: 100%; object-fit: cover; transform: none; filter: none; }
 .fs__veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,5,8,0.35), rgba(5,5,8,0.15) 40%, rgba(5,5,8,0.6)); }
 /* Rich fallback wall when the track has no artwork: a slow-drifting
    mesh tinted by the theme accents. */
@@ -507,7 +516,7 @@ body {
     inset -70px 0 110px -90px rgba(255,255,255,0.10);
 }
 .fs__clockwrap { position: relative; text-align: center; padding-top: 5vh; }
-.fs__date { font-size: 14px; color: var(--dim); letter-spacing: 0.02em; }
+.fs__date { font-size: 13px; color: var(--dim); letter-spacing: 0.22em; text-transform: uppercase; font-weight: 600; }
 .fs__clock {
   font-family: "Bebas Neue", sans-serif;
   font-size: clamp(140px, 26vh, 280px); line-height: 0.95;
