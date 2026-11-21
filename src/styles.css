@@ -574,8 +574,17 @@ body {
 .fs__bottom { position: relative; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .fs__prog { display: flex; align-items: center; gap: 12px; width: min(760px, 100%); }
 .fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
-.fs__bar { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; position: relative; }
-.fs__barfill { position: absolute; inset: 0 auto 0 0; background: var(--text); border-radius: 2px; }
+.fs__bar { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; position: relative; transition: height .15s ease; }
+.fs__bar:hover { height: 5px; }
+.fs__bar--off { cursor: default; }
+.fs__barfill { position: absolute; inset: 0; width: 100%; transform-origin: left; background: var(--text); border-radius: 2px; }
+/* Seek knob that rides the fill edge, revealed on hover. */
+.fs__barknob {
+  position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--text); transform: translate(-50%, -50%) scale(0);
+  transition: transform .12s ease; box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+.fs__bar:hover .fs__barknob { transform: translate(-50%, -50%) scale(1); }
 .fs__pill {
   display: flex; align-items: center; gap: 8px;
   background: var(--panel-strong); backdrop-filter: blur(56px) saturate(1.3);
@@ -590,8 +599,18 @@ body {
 }
 .fs__icon:hover { background: rgba(255,255,255,0.08); color: var(--text); }
 .fs__icon--on { color: var(--accent); }
-.fs__bar { cursor: pointer; }
-.fs__barfill { transition: width 0.3s linear; }
+.fs__bar:not(.fs__bar--off) { cursor: pointer; }
+.fs__barfill { transition: transform 0.25s linear; }
+.fs__barknob { transition: transform .12s ease, left .25s linear; }
+/* Film grain over the whole surface — the iBaila wall has texture, not flat blur. */
+.fs__grain {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.055; z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs__mesh, .fs__sparks, .fs__eq i, .fs__pill, .fs__queue, .fs__clockwrap, .fs__lyric { animation: none !important; }
+  .fs__barfill, .fs__barknob { transition: none !important; }
+}
 .fs__pill, .fs__queue, .fs__clockwrap { animation: fs-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
 .fs__queue { animation-delay: 0.08s; }
 .fs__pill { animation-delay: 0.15s; }

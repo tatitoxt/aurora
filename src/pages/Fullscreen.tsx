@@ -152,6 +152,7 @@ export default function Fullscreen() {
       </div>
       <div className="fs__sparks" aria-hidden="true" />
       <div className="fs__rim" aria-hidden="true" />
+      <div className="fs__grain" aria-hidden="true" />
 
       <div className="fs__clockwrap">
         <div className="fs__date">{date}</div>
@@ -211,7 +212,7 @@ export default function Fullscreen() {
         <div className="fs__prog">
           <span className="fs__time">{formatTime(pos)}</span>
           <div
-            className="fs__bar"
+            className={`fs__bar ${np?.source === "local" && dur ? "" : "fs__bar--off"}`}
             role="slider"
             aria-label="Seek"
             onClick={(e) => {
@@ -223,7 +224,13 @@ export default function Fullscreen() {
           >
             <div
               className="fs__barfill"
-              style={{ width: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%` }}
+              style={{
+                transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})`,
+              }}
+            />
+            <div
+              className="fs__barknob"
+              style={{ left: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%` }}
             />
           </div>
           <span className="fs__time">{formatTime(dur)}</span>
