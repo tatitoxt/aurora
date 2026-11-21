@@ -1,10 +1,13 @@
 :root {
   --bg: #0b0b0e;
-  --panel: rgba(22, 24, 34, 0.34);
-  --panel-strong: rgba(20, 22, 30, 0.5);
+  /* Dark-glass tints: alpha high enough that text stays legible over a
+     light wallpaper too — the wallpaper's hue still bleeds through the
+     blur, but the surface never washes out to dirty grey. */
+  --panel: rgba(14, 16, 24, 0.68);
+  --panel-strong: rgba(12, 14, 20, 0.76);
   --line: rgba(255, 255, 255, 0.16);
   --text: #f4f5fa;
-  --dim: #b2b7c8;
+  --dim: #c6cbdb;
   --accent: #8b5cf6;
   --accent2: #22d3ee;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -40,7 +43,7 @@ body {
   overflow: hidden;
 }
 .glass--bare {
-  background: rgba(8, 8, 11, 0.35);
+  background: var(--panel);
   position: relative;
 }
 
@@ -590,7 +593,7 @@ body {
   padding: 8px 10px;
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.02) 42%),
-    rgba(24, 26, 38, 0.36);
+    var(--panel);
   backdrop-filter: blur(90px) saturate(1.9);
   -webkit-backdrop-filter: blur(90px) saturate(1.9);
   border: 1px solid rgba(255, 255, 255, 0.2);
