@@ -1,3 +1,4 @@
+import { useT } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Copy, DownloadSimple, X } from "@phosphor-icons/react";
 import { cardModel } from "./share";
@@ -157,6 +158,7 @@ export default function ShareCard({
   posMs: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const [note, setNote] = useState("");
@@ -191,9 +193,9 @@ export default function ShareCard({
         return b;
       });
       await navigator.clipboard.write([new ClipboardItem({ "image/png": pending })]);
-      setNote("Copied");
+      setNote(t("share.copied"));
     } catch {
-      setNote("Copy unavailable — use download");
+      setNote(t("share.copyUnavailable"));
     }
   };
 
@@ -211,7 +213,7 @@ export default function ShareCard({
     <div className="palette-backdrop" onMouseDown={onClose}>
       <div className="share" onMouseDown={(e) => e.stopPropagation()}>
         <div className="share__head">
-          <span>Share</span>
+          <span>{t("share.title")}</span>
           <button className="ctl" aria-label="Close" onClick={onClose}>
             <X size={14} />
           </button>

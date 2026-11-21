@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { branding } from "../branding";
+import { LANG_NAMES, useT } from "../i18n";
 import { THEMES, presetVar } from "../themes";
 import {
   bridge,
@@ -14,6 +15,7 @@ import {
 } from "../bridge";
 
 export default function Settings() {
+  const t = useT();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [outputs, setOutputs] = useState<string[]>([]);
@@ -101,29 +103,29 @@ export default function Settings() {
             <span className="art__kicker">Control</span>
             <span className="pagehead__links">
               <Link to="/" className="pagehead__link">
-                Back
+                {t("nav.back")}
               </Link>
             </span>
           </div>
-          <h1 className="pagehead__name">Settings</h1>
+          <h1 className="pagehead__name">{t("set.title")}</h1>
         </div>
 
         <div className="field">
-          <span>Edge thickness · {s.edgeThicknessPx}px</span>
+          <span>{t("set.edgeThickness")} · {s.edgeThicknessPx}px</span>
           <input
             type="range" min={8} max={64} value={s.edgeThicknessPx}
             onChange={(e) => patch({ edgeThicknessPx: +e.target.value })}
           />
         </div>
         <div className="field">
-          <span>Glow · {Math.round(s.glowStrength * 100)}%</span>
+          <span>{t("set.glow")} · {Math.round(s.glowStrength * 100)}%</span>
           <input
             type="range" min={0} max={100} value={s.glowStrength * 100}
             onChange={(e) => patch({ glowStrength: +e.target.value / 100 })}
           />
         </div>
         <div className="field">
-          <span>Brightness · {Math.round(s.brightness * 100)}%</span>
+          <span>{t("set.brightness")} · {Math.round(s.brightness * 100)}%</span>
           <input
             type="range" min={0} max={100} value={s.brightness * 100}
             onChange={(e) => patch({ brightness: +e.target.value / 100 })}
@@ -131,26 +133,26 @@ export default function Settings() {
         </div>
 
         <div className="row">
-          <span>Lyrics</span>
+          <span>{t("set.lyrics")}</span>
           <div className="seg">
             <button
               className={s.lyricsMode === "lines" ? "on" : ""}
               onClick={() => patch({ lyricsMode: "lines" })}
             >
-              Lines
+              {t("set.lines")}
             </button>
             <button
               className={s.lyricsMode === "karaoke" ? "on" : ""}
               onClick={() => patch({ lyricsMode: "karaoke" })}
             >
-              Karaoke
+              {t("set.karaoke")}
             </button>
           </div>
         </div>
 
         {s.lyricsMode === "karaoke" && (
           <div className="row">
-            <span>Music video backdrop</span>
+            <span>{t("set.videoBackdrop")}</span>
             <button
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
               aria-label="Music video backdrop"
@@ -160,25 +162,25 @@ export default function Settings() {
         )}
 
         <div className="row">
-          <span>Colors</span>
+          <span>{t("set.colors")}</span>
           <div className="seg">
             <button
               className={s.colorMode.mode === "artwork" ? "on" : ""}
               onClick={() => patch({ colorMode: { mode: "artwork" } })}
             >
-              Artwork
+              {t("set.artwork")}
             </button>
             <button
               className={s.colorMode.mode === "custom" ? "on" : ""}
               onClick={() => patch({ colorMode: { mode: "custom" } })}
             >
-              Custom
+              {t("set.custom")}
             </button>
           </div>
         </div>
         {s.colorMode.mode === "custom" && (
           <div className="field">
-            <span>Custom color</span>
+            <span>{t("set.customColor")}</span>
             <input
               type="color" value={s.customColor}
               onChange={(e) => patch({ customColor: e.target.value })}
@@ -187,7 +189,7 @@ export default function Settings() {
         )}
 
         <div className="field">
-          <span>Theme</span>
+          <span>{t("set.theme")}</span>
           <div className="seg">
             {THEMES.map((th) => (
               <button
@@ -202,7 +204,7 @@ export default function Settings() {
         </div>
         <div className="row">
           <div className="field">
-            <span>Accent</span>
+            <span>{t("set.accent")}</span>
             <input
               type="color"
               value={s.theme.accent ?? presetVar(s.theme.name, "--accent")}
@@ -210,7 +212,7 @@ export default function Settings() {
             />
           </div>
           <div className="field">
-            <span>Accent 2</span>
+            <span>{t("set.accent2")}</span>
             <input
               type="color"
               value={s.theme.accent2 ?? presetVar(s.theme.name, "--accent2")}
@@ -220,7 +222,7 @@ export default function Settings() {
         </div>
 
         <div className="field">
-          <span>Equalizer</span>
+          <span>{t("set.eq")}</span>
           <div className="seg">
             {[...Object.keys(EQ_PRESETS), "custom"].map((p) => (
               <button
@@ -262,7 +264,7 @@ export default function Settings() {
         </div>
 
         <div className="field">
-          <span>Profiles</span>
+          <span>{t("set.profiles")}</span>
           {s.profiles.length > 0 && (
             <div className="profiles">
               {s.profiles.map((p) => (
@@ -279,7 +281,7 @@ export default function Settings() {
                   </button>
                   <button
                     className="profile__del"
-                    aria-label={`Delete profile ${p.name}`}
+                    aria-label={`${t("set.deleteProfile")} ${p.name}`}
                     onClick={() => void bridge.deleteProfile(p.id)}
                   >
                     ×
@@ -291,25 +293,25 @@ export default function Settings() {
           <div className="profile__save">
             <input
               type="text"
-              placeholder="Profile name"
+              placeholder={t("set.profileName")}
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveAsProfile()}
             />
             <button disabled={!profileName.trim()} onClick={saveAsProfile}>
-              Save current
+              {t("set.saveCurrent")}
             </button>
           </div>
           {s.profiles.length === 0 && (
             <span className="share__note">
-              Bundles the theme, EQ and lyrics mode into a named profile
+              {t("set.profilesNote")}
             </span>
           )}
         </div>
 
         {outputs.length > 0 && (
           <div className="field">
-            <span>Audio output</span>
+            <span>{t("set.audioOutput")}</span>
             <select
               value={s.audioOutput ?? ""}
               onChange={(e) => {
@@ -318,7 +320,7 @@ export default function Settings() {
                 void bridge.setOutputDevice(name);
               }}
             >
-              <option value="">System default</option>
+              <option value="">{t("set.systemDefault")}</option>
               {outputs.map((o) => (
                 <option key={o} value={o}>
                   {o}
@@ -330,7 +332,7 @@ export default function Settings() {
 
         <div className="field">
           <span>
-            Crossfade · {s.crossfadeMs > 0 ? `${(s.crossfadeMs / 1000).toFixed(1)}s` : "off"}
+            Crossfade · {s.crossfadeMs > 0 ? `${(s.crossfadeMs / 1000).toFixed(1)}s` : t("set.off")}
           </span>
           <input
             type="range" min={0} max={12000} step={500} value={s.crossfadeMs}
@@ -339,7 +341,7 @@ export default function Settings() {
         </div>
 
         <div className="field">
-          <span>Sleep timer</span>
+          <span>{t("set.sleepTimer")}</span>
           <select
             value={s.sleepTimerEndsMs === null ? "" : "armed"}
             onChange={(e) => {
@@ -348,22 +350,22 @@ export default function Settings() {
               void bridge.setSleepTimer(v === "" ? null : Number(v));
             }}
           >
-            <option value="">Off</option>
-            {s.sleepTimerEndsMs !== null && <option value="armed">Armed</option>}
-            <option value="15">15 min</option>
-            <option value="30">30 min</option>
-            <option value="45">45 min</option>
-            <option value="60">60 min</option>
-            <option value="90">90 min</option>
+            <option value="">{t("set.off")}</option>
+            {s.sleepTimerEndsMs !== null && <option value="armed">{t("set.armed")}</option>}
+            <option value="15">{t("set.minutes15")}</option>
+            <option value="30">{t("set.minutes30")}</option>
+            <option value="45">{t("set.minutes45")}</option>
+            <option value="60">{t("set.minutes60")}</option>
+            <option value="90">{t("set.minutes90")}</option>
           </select>
           {s.sleepTimerEndsMs !== null && (
             <span className="share__note">
-              Pauses playback at {new Date(s.sleepTimerEndsMs).toLocaleTimeString()}
+              {t("set.pausesAt")} {new Date(s.sleepTimerEndsMs).toLocaleTimeString()}
             </span>
           )}
         </div>
         <div className="row">
-          <span>Resume playback on launch</span>
+          <span>{t("set.resumeOnLaunch")}</span>
           <button
             className={`toggle ${s.resumeOnLaunch ? "on" : ""}`}
             aria-label="Resume playback on launch"
@@ -371,7 +373,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Notify when the track changes</span>
+          <span>{t("set.notifyTrack")}</span>
           <button
             className={`toggle ${s.notifyTrackChange ? "on" : ""}`}
             aria-label="Notify when the track changes"
@@ -380,7 +382,7 @@ export default function Settings() {
         </div>
 
         <div className="field">
-          <span>Music folder</span>
+          <span>{t("set.musicFolder")}</span>
           <input
             type="text"
             placeholder="~/Music"
@@ -390,7 +392,7 @@ export default function Settings() {
         </div>
 
         <div className="field">
-          <span>yt-dlp path (streaming)</span>
+          <span>{t("set.ytdlpPath")}</span>
           <input
             type="text"
             placeholder="/usr/local/bin/yt-dlp"
@@ -400,7 +402,7 @@ export default function Settings() {
         </div>
 
         <div className="row">
-          <span>Battery saver (static glow)</span>
+          <span>{t("set.batterySaver")}</span>
           <button
             className={`toggle ${s.batterySaver ? "on" : ""}`}
             aria-label="Battery saver"
@@ -408,7 +410,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Dim on battery</span>
+          <span>{t("set.dimOnBattery")}</span>
           <button
             className={`toggle ${s.autoDimOnBattery ? "on" : ""}`}
             aria-label="Dim on battery"
@@ -416,7 +418,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Lights off when music stops</span>
+          <span>{t("set.lightsOff")}</span>
           <button
             className={`toggle ${s.lightsOffOnSilence ? "on" : ""}`}
             aria-label="Lights off when music stops"
@@ -424,7 +426,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Live tray icon</span>
+          <span>{t("set.liveTrayIcon")}</span>
           <button
             className={`toggle ${s.trayLiveIcon ? "on" : ""}`}
             aria-label="Live tray icon"
@@ -432,7 +434,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Floating HUD</span>
+          <span>{t("set.floatingHud")}</span>
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
             aria-label="Floating HUD"
@@ -440,7 +442,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Keep HUD on top</span>
+          <span>{t("set.hudOnTop")}</span>
           <button
             className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
             aria-label="Keep HUD on top"
@@ -448,7 +450,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Desktop lyrics overlay</span>
+          <span>{t("set.desktopLyrics")}</span>
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
             aria-label="Desktop lyrics overlay"
@@ -456,7 +458,7 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>Hide while fullscreen</span>
+          <span>{t("set.hideFullscreen")}</span>
           <button
             className={`toggle ${s.hideInFullscreen ? "on" : ""}`}
             aria-label="Hide in fullscreen"
@@ -464,9 +466,21 @@ export default function Settings() {
           />
         </div>
 
+        <div className="row">
+          <span>{t("set.language")}</span>
+          <select
+            value={s.language}
+            onChange={(e) => patch({ language: e.target.value })}
+          >
+            {(Object.keys(LANG_NAMES) as Array<keyof typeof LANG_NAMES>).map((l) => (
+              <option key={l} value={l}>{LANG_NAMES[l]}</option>
+            ))}
+          </select>
+        </div>
+
         {displays.length > 0 && (
           <div className="field">
-            <span>Displays</span>
+            <span>{t("set.displays")}</span>
             {displays.map((d) => (
               <div className="row" key={d.id}>
                 <span>
@@ -475,7 +489,7 @@ export default function Settings() {
                 </span>
                 <button
                   className={`toggle ${displayEnabled(d.id) ? "on" : ""}`}
-                  aria-label={`Toggle ${d.name}`}
+                  aria-label={`${t("set.toggleDisplay")} ${d.name}`}
                   onClick={() => toggleDisplay(d.id)}
                 />
               </div>
@@ -484,27 +498,27 @@ export default function Settings() {
         )}
 
         <div className="field">
-          <span>License</span>
+          <span>{t("set.license")}</span>
           {license.state === "valid" && (
             <span className="license-ok">
-              Licensed{license.customer_email ? ` to ${license.customer_email}` : ""}
+              {t("set.licensed")}{license.customer_email ? ` ${license.customer_email}` : ""}
             </span>
           )}
-          {license.state === "offline" && <span className="license-ok">Licensed (offline grace)</span>}
+          {license.state === "offline" && <span className="license-ok">{t("set.licensedOffline")}</span>}
           {license.state === "invalid" && <span className="license-bad">{license.reason}</span>}
           {license.state !== "valid" && license.state !== "offline" && (
             <>
               <input
-                type="text" placeholder="License key" value={key}
+                type="text" placeholder={t("set.licenseKey")} value={key}
                 onChange={(e) => setKey(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && activate()}
               />
               <div className="seg">
                 <button disabled={!key.trim() || activating} onClick={activate}>
-                  {activating ? "Activating…" : "Activate"}
+                  {activating ? t("set.activating") : t("set.activate")}
                 </button>
                 <button onClick={() => bridge.openUrl(branding.checkoutUrl)}>
-                  Buy a license
+                  {t("set.buyLicense")}
                 </button>
               </div>
             </>
@@ -512,7 +526,7 @@ export default function Settings() {
           {(license.state === "valid" || license.state === "offline") && (
             <div className="seg">
               <button onClick={() => bridge.deactivateLicense().then(setLicense)}>
-                Deactivate
+                {t("set.deactivate")}
               </button>
             </div>
           )}

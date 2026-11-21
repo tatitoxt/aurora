@@ -15,6 +15,7 @@ import Visualizer from "./pages/Visualizer";
 import Fullscreen from "./pages/Fullscreen";
 import Palette from "./Palette";
 import { bridge, onFileDrop, subscribe, type Settings as AppSettings } from "./bridge";
+import { useT } from "./i18n";
 import { applyTheme } from "./themes";
 
 export default function App() {
@@ -56,6 +57,7 @@ function PaletteGate() {
 /** Dropping audio files or a folder anywhere on a player surface
  * enqueues them (deduped). Surfaces a short confirmation toast. */
 function DropGate() {
+  const t = useT();
   const loc = useLocation();
   const [note, setNote] = useState("");
   useEffect(() => {
@@ -63,7 +65,7 @@ function DropGate() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const off = onFileDrop((paths) => {
       void bridge.enqueueFiles(paths).then((n) => {
-        setNote(n > 0 ? `${n} track${n === 1 ? "" : "s"} added to the queue` : "No audio files in that drop");
+        setNote(n > 0 ? t(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n }) : t("app.noAudioDrop"));
         clearTimeout(timer);
         timer = setTimeout(() => setNote(""), 2600);
       });

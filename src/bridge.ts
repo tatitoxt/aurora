@@ -78,6 +78,8 @@ export interface Settings {
   eqBands: number[];
   /** Master sound effect: "off" | "reverb" | "8d" | "echo". */
   soundFx: string;
+  /** UI language code: en, es, pt, fr, de, it, ja, zh, ko. */
+  language: string;
   /** Crossfade length in ms between tracks; 0 = hard cut. */
   crossfadeMs: number;
   /** Floating karaoke overlay window on the desktop. */
@@ -238,6 +240,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eqPreset: "flat",
   eqBands: [],
   soundFx: "off",
+  language: "en",
   crossfadeMs: 3000,
   deskLyricsEnabled: false,
   deskLyricsPosition: null,

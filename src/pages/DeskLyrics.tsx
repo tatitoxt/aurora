@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { useEffect, useState } from "react";
 import { bridge, subscribe, type LrcLine, type NowPlaying } from "../bridge";
 import { KaraokeLyric } from "../Lyrics";
@@ -8,6 +9,7 @@ import { X } from "@phosphor-icons/react";
 /** Floating desktop lyrics overlay: the karaoke line on a small glass chip,
  * always on top, draggable anywhere like the HUD. */
 export default function DeskLyrics() {
+  const t = useT();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
   const [tick, setTick] = useState(0);
@@ -51,7 +53,7 @@ export default function DeskLyrics() {
         <KaraokeLyric line={line} nextLine={nextLine} posMs={lyricPos} />
       ) : (
         <div className="dlyrics__idle">
-          {np?.track ? `${np.track.artist} · ${np.track.title}` : bridge.productName}
+          {np?.track ? `${np.track.artist} · ${np.track.title}` : t("desk.waiting")}
         </div>
       )}
     </div>
