@@ -443,6 +443,9 @@ export const bridge = {
   /** True while the system battery is discharging (edge auto-dim). */
   getOnBattery: (): Promise<boolean> =>
     isTauri() ? invokeCmd<boolean>("on_battery") : Promise.resolve(false),
+  /** True while another app owns a fullscreen window (edge auto-hide). */
+  getFullscreenAppActive: (): Promise<boolean> =>
+    isTauri() ? invokeCmd<boolean>("fullscreen_app_active") : Promise.resolve(false),
   clearQueue: () =>
     isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
   scanLibrary: (dir?: string) =>
