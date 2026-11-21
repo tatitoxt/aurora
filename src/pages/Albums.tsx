@@ -26,7 +26,9 @@ export default function Albums() {
         for (const i of all) {
           const artist = i.track.artist || "Unknown Artist";
           const name = i.track.album || "Singles";
-          const key = `${artist} ${name}`;
+          // Same normalization the detail page uses, so grid cards and
+          // /album/:artist/:name always agree on which tracks belong.
+          const key = `${artist.trim().toLowerCase()} ${name.trim().toLowerCase()}`;
           const g =
             by.get(key) ??
             by
@@ -85,7 +87,7 @@ export default function Albums() {
         <div className="art__albums">
           {groups.map((g) => (
             <Link
-              key={`${g.artist}${g.name}`}
+              key={`${g.artist} ${g.name}`}
               to={`/album/${encodeURIComponent(g.artist)}/${encodeURIComponent(g.name)}`}
               className="art__album"
             >
