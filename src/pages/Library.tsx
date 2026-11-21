@@ -21,6 +21,8 @@ export default function Library() {
   const [searching, setSearching] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [importNote, setImportNote] = useState("");
+  const [plUrl, setPlUrl] = useState("");
+  const [importingUrl, setImportingUrl] = useState(false);
 
   const refresh = () => bridge.getQueue().then(setQueue).catch(() => {});
 
@@ -79,6 +81,23 @@ export default function Library() {
         setImportNote(parts.join(" · "));
       })
       .catch((e) => setError(String(e)));
+  };
+
+  const importUrl = () => {
+    const url = plUrl.trim();
+    if (!url) return;
+    setError("");
+    setImportNote("");
+    setImportingUrl(true);
+    void bridge
+      .importPlaylistUrl(url)
+      .then((res) => {
+        setPlUrl("");
+        setImportNote(`"${res.title}" · ${res.imported} tracks queued`);
+        refresh();
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setImportingUrl(false));
   };
 
   const playing = np?.status === "playing";
@@ -150,6 +169,20 @@ export default function Library() {
             <button onClick={() => void bridge.clearQueue().then(refresh)}>Clear</button>
           </div>
         </div>
+        {ytReady && (
+          <div className="row">
+            <input
+              type="text"
+              placeholder="Playlist URL (YouTube, SoundCloud…)"
+              value={plUrl}
+              onChange={(e) => setPlUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && importUrl()}
+            />
+            <button onClick={importUrl} disabled={importingUrl || !plUrl.trim()}>
+              {importingUrl ? "…" : "Add"}
+            </button>
+          </div>
+        )}
         {importNote && <span className="field">{importNote}</span>}
         {error && <span className="license-bad">{error}</span>}
         {queue.items.length === 0 && !error && (
