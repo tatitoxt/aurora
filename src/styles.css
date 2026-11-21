@@ -896,10 +896,11 @@ body {
  * left-of-center; side covers trail to its right. The lyric floats in the
  * remaining space and may overlap the card's right edge. */
 .fs__covers {
-  display: flex; align-items: flex-end; justify-content: safe center;
+  display: flex; align-items: flex-end;
   gap: 18px; width: 100%; pointer-events: auto;
-  margin-bottom: 3.5vh; padding: 0 6vw;
+  margin-bottom: 3.5vh; padding: 0 calc(50% - 160px);
   overflow-x: auto; scrollbar-width: none;
+  scroll-snap-type: x proximity;
 }
 .fs__covers::-webkit-scrollbar { display: none; }
 .fs__cover {
@@ -910,15 +911,16 @@ body {
   animation: fs-cover-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35) backwards;
   animation-delay: calc(var(--i, 0) * 55ms);
 }
-/* Diagonal fan: only the centered cover pops out; left covers tilt back to
- * the right, right covers tilt back to the left. */
-.fs__covers { perspective: 1100px; }
-.fs__cover--l { transform: rotateY(38deg) scale(0.82); transform-origin: right center; opacity: 0.5; }
-.fs__cover--r { transform: rotateY(-38deg) scale(0.82); transform-origin: left center; opacity: 0.5; }
+/* Diagonal fan: only the centered cover pops out. Left covers lean with
+ * their left edge toward the viewer (rotateY positive sinks the right edge);
+ * right covers mirror it. Subtle — the art must stay readable. */
+.fs__covers { perspective: 1400px; }
+.fs__cover--l { transform: rotateY(18deg) scale(0.9); transform-origin: right center; opacity: 0.55; }
+.fs__cover--r { transform: rotateY(-18deg) scale(0.9); transform-origin: left center; opacity: 0.55; }
 .fs__cover:not(.fs__cover--on):hover { opacity: 0.85; transform: rotateY(0) translateY(-6px); }
 @keyframes fs-cover-pop {
-  from { opacity: 0; transform: translateY(18px) scale(0.86); }
-  to { opacity: 0.55; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 0.55; }
 }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 20px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
 .fs__cover--on { width: calc(clamp(280px, 30vh, 440px) * var(--cscale, 1)); opacity: 1; }

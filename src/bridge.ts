@@ -50,6 +50,8 @@ export interface Settings {
   videoBackdrop: boolean;
   /** Animated "liquid" gradient blobs behind player surfaces. */
   ambientBg: boolean;
+  /** Glass panel opacity 0-100: lower shows more of the desktop through. */
+  glassOpacity: number;
   /** Audio output device name; null = OS default. */
   audioOutput: string | null;
   /** Active EQ preset name; "custom" after a slider moves. */
@@ -222,6 +224,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lyricsMode: "lines",
   videoBackdrop: true,
   ambientBg: true,
+  glassOpacity: 68,
   audioOutput: null,
   eqPreset: "flat",
   eqBands: [],

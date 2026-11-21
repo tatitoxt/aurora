@@ -200,3 +200,19 @@ export function applyDynAccent(theme: ThemeSettings, accent: string, accent2: st
   if (!theme.accent) root.style.setProperty("--accent", accent);
   if (accent2 && !theme.accent2) root.style.setProperty("--accent2", accent2);
 }
+
+/** Glass transparency: rescales the alpha channel of every rgba() panel var
+ * to `opacity`%. Applied after applyTheme / theme changes. */
+export function applyGlassOpacity(opacity: number) {
+  const root = document.documentElement;
+  const scale = Math.min(100, Math.max(15, opacity)) / 68; // 68 = baked default
+  for (const name of ["--panel", "--panel-strong"]) {
+    const raw =
+      root.style.getPropertyValue(name).trim() ||
+      getComputedStyle(root).getPropertyValue(name).trim();
+    const m = raw.match(/rgba\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/);
+    if (!m) continue;
+    const a = Math.min(0.95, Math.max(0.05, parseFloat(m[4]) * scale));
+    root.style.setProperty(name, `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${a.toFixed(2)})`);
+  }
+}

@@ -18,6 +18,7 @@ const en = {
   "set.karaoke": "Karaoke",
   "set.videoBackdrop": "Music video backdrop",
   "set.ambientBg": "Ambient liquid background",
+  "set.glassOpacity": "Glass opacity",
   "set.theme": "Theme",
   "set.customColor": "Custom color",
   "set.eq": "Equalizer",

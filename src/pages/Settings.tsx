@@ -177,6 +177,19 @@ export default function Settings() {
           />
         </div>
 
+        <div className="field">
+          <span>{t("set.glassOpacity")}</span>
+          <input
+            type="range"
+            min={15}
+            max={100}
+            step={1}
+            value={s.glassOpacity}
+            aria-label={t("set.glassOpacity")}
+            onChange={(e) => patch({ glassOpacity: Number(e.target.value) })}
+          />
+        </div>
+
         </div>
 
         <div className="setgroup">
