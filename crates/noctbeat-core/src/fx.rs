@@ -163,10 +163,15 @@ impl FxBank {
                 if ch == 0 {
                     self.pan_phase = (self.pan_phase + PAN_HZ / self.rate.max(1) as f32) % 1.0;
                 }
+                // Mono can't pan — applying only the left gain would
+                // periodically fade the track to silence.
+                if self.channels == 1 {
+                    return x;
+                }
                 let theta = self.pan_phase * 2.0 * PI;
                 let pan = (theta.sin() + 1.0) * 0.5; // 0 = left, 1 = right
                 let angle = pan * PI / 2.0;
-                let gain = if ch % 2 == 0 {
+                let gain = if ch.is_multiple_of(2) {
                     angle.cos()
                 } else {
                     angle.sin()
@@ -279,5 +284,18 @@ mod tests {
             (early_ratio - late_ratio).abs() > 0.05,
             "no panning: early {early_ratio} late {late_ratio}"
         );
+    }
+
+    #[test]
+    fn eight_d_mono_is_transparent() {
+        let s = FxState::new();
+        s.set("8d");
+        let mut b = FxBank::new(1, 48_000, s.mode());
+        // A mono track must never fade out: output always equals input.
+        for i in 0..20_000 {
+            let x = 0.3 + (i as f32 * 0.001).sin();
+            let y = b.process(0, x, &s);
+            assert_eq!(x, y, "mono 8D faded at sample {i}");
+        }
     }
 }
