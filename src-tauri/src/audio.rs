@@ -383,9 +383,8 @@ impl AudioOut for RodioOut {
             if let Some(i) = g.as_ref() {
                 // rodio reports elapsed play time (speed-adjusted): multiply
                 // back to the source position the UI/lyrics expect.
-                return (i.player.get_pos().as_secs_f64()
-                    * i.player.speed() as f64
-                    * 1000.0) as u64;
+                return (i.player.get_pos().as_secs_f64() * i.player.speed() as f64 * 1000.0)
+                    as u64;
             }
         }
         0
