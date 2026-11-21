@@ -60,8 +60,8 @@ body {
 /* ---------- mini player ---------- */
 .player { padding: 14px 16px 12px; gap: 12px; display: flex; flex-direction: column; height: 100%; }
 .player__art {
-  flex: none;
-  height: 180px;
+  flex: 1 1 auto;
+  min-height: 170px;
   border-radius: 18px;
   background: #17171d;
   box-shadow:
@@ -71,6 +71,34 @@ body {
   overflow: hidden;
 }
 .player__art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.player__art--lyrics { background: rgba(10, 10, 14, 0.35); }
+.player__lyrfill {
+  position: absolute; inset: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 14px 10px;
+}
+.player__lyrfill .player__lyrics { min-height: 0; }
+.player__lyrfill .lyric { font-size: 15px; padding: 6px 10px; }
+.player__lyrfill .karaoke__idle { align-self: center; }
+
+/* view-mode segmented switch (art / video / lyrics), floats over the card */
+.player__modes {
+  position: absolute; right: 14px; top: 14px; z-index: 5;
+  display: flex; gap: 2px; padding: 4px; border-radius: 999px;
+  background: rgba(12, 12, 18, 0.55);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.player__modes button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 999px; border: none;
+  background: none; color: rgba(242, 242, 245, 0.6); cursor: pointer;
+  transition: background .2s, color .2s;
+}
+.player__modes button:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.player__modes button.on { color: #fff; background: rgba(255, 255, 255, 0.18); }
+.player { position: relative; }
 .player__meta { min-width: 0; }
 .player__title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .player__sub { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
