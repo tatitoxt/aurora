@@ -947,9 +947,15 @@ fn system_on_battery() -> bool {
         return false;
     };
     rd.flatten().any(|e| {
-        std::fs::read_to_string(e.path().join("type"))
-            .map(|t| t.trim() == "Battery")
-            .unwrap_or(false)
+        // Only the system battery dims: peripheral entries (hidpp_*, scope
+        // "Device") also report type "Battery" and discharging status.
+        let system = std::fs::read_to_string(e.path().join("scope"))
+            .map(|s| s.trim() == "System")
+            .unwrap_or_else(|_| e.file_name().to_string_lossy().starts_with("BAT"));
+        system
+            && std::fs::read_to_string(e.path().join("type"))
+                .map(|t| t.trim() == "Battery")
+                .unwrap_or(false)
             && std::fs::read_to_string(e.path().join("status"))
                 .map(|s| s.trim() == "Discharging")
                 .unwrap_or(false)
