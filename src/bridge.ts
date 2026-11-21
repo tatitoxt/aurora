@@ -78,6 +78,8 @@ export interface Settings {
   profiles: Profile[];
   /** Id of the last applied profile. */
   activeProfile: string | null;
+  /** Epoch ms when the sleep timer fires; null = off. */
+  sleepTimerEndsMs: number | null;
 }
 
 /** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
@@ -197,6 +199,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eqBands: [],
   deskLyricsEnabled: false,
   deskLyricsPosition: null,
+  sleepTimerEndsMs: null,
   profiles: [],
   activeProfile: null,
 };
@@ -485,6 +488,16 @@ export const bridge = {
     };
     emitMock("settings", settingsStore);
     return Promise.resolve(p);
+  },
+  /** Arm (minutes) or clear (null) the sleep timer. */
+  setSleepTimer: (minutes: number | null): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("set_sleep_timer", { minutes });
+    settingsStore = {
+      ...settingsStore,
+      sleepTimerEndsMs: minutes === null ? null : Date.now() + minutes * 60_000,
+    };
+    listeners.get("settings")?.forEach((l) => l(settingsStore));
+    return Promise.resolve(null);
   },
   applyProfile: (id: string): Promise<null> => {
     if (isTauri()) return invokeCmd<null>("apply_profile", { id });
