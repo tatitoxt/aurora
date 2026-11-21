@@ -73,6 +73,10 @@ export interface Settings {
   deskLyricsEnabled: boolean;
   /** Restored overlay position, physical px. */
   deskLyricsPosition: [number, number] | null;
+  /** Saved personalization profiles. */
+  profiles: Profile[];
+  /** Id of the last applied profile. */
+  activeProfile: string | null;
 }
 
 /** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
@@ -89,6 +93,16 @@ export interface ThemeSettings {
   name: string;
   accent: string | null;
   accent2: string | null;
+}
+/** A saved personalization bundle (theme + EQ + lyrics prefs). */
+export interface Profile {
+  id: string;
+  name: string;
+  theme: ThemeSettings;
+  eqPreset: string;
+  eqBands: number[];
+  lyricsMode: string;
+  videoBackdrop: boolean;
 }
 export interface RemoteTrack {
   id: string;
@@ -182,6 +196,8 @@ export const DEFAULT_SETTINGS: Settings = {
   eqBands: [],
   deskLyricsEnabled: false,
   deskLyricsPosition: null,
+  profiles: [],
+  activeProfile: null,
 };
 
 const isTauri = () =>
@@ -433,6 +449,59 @@ export const bridge = {
   setEq: (preset: string, bands: number[]) => {
     if (isTauri()) return invokeCmd<null>("set_eq", { preset, bands });
     settingsStore = { ...settingsStore, eqPreset: preset, eqBands: bands };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(null);
+  },
+  saveProfile: (name: string): Promise<Profile> => {
+    if (isTauri()) return invokeCmd<Profile>("save_profile", { name });
+    const s = settingsStore;
+    const existing = s.profiles.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase(),
+    );
+    const p: Profile = {
+      id: existing?.id ?? `p${Date.now()}`,
+      name,
+      theme: s.theme,
+      eqPreset: s.eqPreset,
+      eqBands: s.eqBands,
+      lyricsMode: s.lyricsMode,
+      videoBackdrop: s.videoBackdrop,
+    };
+    settingsStore = {
+      ...s,
+      profiles: existing
+        ? s.profiles.map((q) => (q.id === p.id ? p : q))
+        : [...s.profiles, p],
+      activeProfile: p.id,
+    };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(p);
+  },
+  applyProfile: (id: string): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("apply_profile", { id });
+    const p = settingsStore.profiles.find((q) => q.id === id);
+    if (p) {
+      settingsStore = {
+        ...settingsStore,
+        theme: p.theme,
+        eqPreset: p.eqPreset,
+        eqBands: p.eqBands,
+        lyricsMode: p.lyricsMode,
+        videoBackdrop: p.videoBackdrop,
+        activeProfile: id,
+      };
+      emitMock("settings", settingsStore);
+    }
+    return Promise.resolve(null);
+  },
+  deleteProfile: (id: string): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("delete_profile", { id });
+    settingsStore = {
+      ...settingsStore,
+      profiles: settingsStore.profiles.filter((q) => q.id !== id),
+      activeProfile:
+        settingsStore.activeProfile === id ? null : settingsStore.activeProfile,
+    };
     emitMock("settings", settingsStore);
     return Promise.resolve(null);
   },
