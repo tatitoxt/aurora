@@ -53,6 +53,7 @@ import {
   SpotifyLogo,
   AppleLogo,
   AmazonLogo,
+  TidalLogo,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import ShareCard from "../ShareCard";
@@ -63,20 +64,24 @@ const PROVIDERS = [
   { id: "soundcloud", label: "SoundCloud", icon: SoundcloudLogo, live: true },
   { id: "spotify", label: "Spotify", icon: SpotifyLogo, live: false },
   { id: "apple", label: "Apple Music", icon: AppleLogo, live: false },
+  { id: "tidal", label: "Tidal", icon: TidalLogo, live: false },
   { id: "amazon", label: "Amazon Music", icon: AmazonLogo, live: false },
 ] as const;
 
-/** Provider host reported by the browser extension → friendly label. */
-const EXT_HOSTS: [RegExp, string][] = [
-  [/(music|www)\.youtube\.com/, "YouTube Music"],
-  [/open\.spotify\.com/, "Spotify"],
-  [/soundcloud\.com/, "SoundCloud"],
-  [/music\.apple\.com/, "Apple Music"],
-  [/listen\.tidal\.com/, "Tidal"],
-  [/music\.amazon\./, "Amazon Music"],
+/** Provider host reported by the browser extension → friendly label + picker id. */
+const EXT_HOSTS: [RegExp, string, string][] = [
+  [/(music|www)\.youtube\.com/, "YouTube Music", "youtube"],
+  [/open\.spotify\.com/, "Spotify", "spotify"],
+  [/soundcloud\.com/, "SoundCloud", "soundcloud"],
+  [/music\.apple\.com/, "Apple Music", "apple"],
+  [/listen\.tidal\.com/, "Tidal", "tidal"],
+  [/music\.amazon\./, "Amazon Music", "amazon"],
 ];
 const extLabel = (host: string) =>
   EXT_HOSTS.find(([re]) => re.test(host))?.[1] ?? host;
+/** provider id of the currently live extension tab, if it maps to a picker row */
+const extProviderId = (host: string | null | undefined) =>
+  (host && EXT_HOSTS.find(([re]) => re.test(host))?.[2]) ?? null;
 
 const FS_STYLES = [
   { id: "albums", label: "Albums" },
@@ -776,17 +781,24 @@ export default function Fullscreen() {
                         {t("fs.extStep2")}
                       </span>
                     )}
-                    {PROVIDERS.map((p) => (
-                      <button
-                        key={p.id}
-                        className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
-                        disabled={!p.live}
-                        onClick={() => setSearchSrc(p.id)}
-                      >
-                        <p.icon size={14} weight="fill" /> {p.label}
-                        {!p.live && <span className="fs__soon">Soon</span>}
-                      </button>
-                    ))}
+                    {PROVIDERS.map((p) => {
+                      const viaExt = !p.live && p.id === extProviderId(ext?.provider);
+                      return (
+                        <button
+                          key={p.id}
+                          className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
+                          disabled={!p.live}
+                          onClick={() => setSearchSrc(p.id)}
+                        >
+                          <p.icon size={14} weight="fill" /> {p.label}
+                          {viaExt ? (
+                            <span className="fs__soon fs__soon--live">●</span>
+                          ) : (
+                            !p.live && <span className="fs__soon">Soon</span>
+                          )}
+                        </button>
+                      );
+                    })}
                     <input
                       className="fs__provq"
                       value={searchQ}
