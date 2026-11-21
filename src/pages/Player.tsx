@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   bridge,
   subscribe,
@@ -8,7 +8,19 @@ import {
   type LrcLine,
   type Settings,
 } from "../bridge";
-import { ArrowsOut, Export, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
+import {
+  ArrowsOut,
+  ChartBar,
+  Command,
+  Export,
+  GearSix,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Waveform,
+  VinylRecord,
+} from "@phosphor-icons/react";
 import { KaraokeLyric, LineLyrics } from "../Lyrics";
 import { openPalette } from "../Palette";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
@@ -60,6 +72,7 @@ function VideoBackdrop({
 }
 
 export default function Player() {
+  const go = useNavigate();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -168,37 +181,37 @@ export default function Player() {
   );
 
   const nav = (
-    <div className="player__nav">
-      <Link to="/library" className="wordmark" style={{ textDecoration: "none" }}>
-        Library
+    <div className="pnav">
+      <Link to="/library" className="pnav__btn" aria-label="Library" title="Library">
+        <VinylRecord size={15} />
       </Link>
-      <Link to="/visualizer" className="wordmark" style={{ textDecoration: "none" }}>
-        Visualizer
+      <Link to="/visualizer" className="pnav__btn" aria-label="Visualizer" title="Visualizer">
+        <Waveform size={15} />
       </Link>
-      <Link to="/stats" className="wordmark" style={{ textDecoration: "none" }}>
-        Stats
+      <Link to="/stats" className="pnav__btn" aria-label="Stats" title="Stats">
+        <ChartBar size={15} />
       </Link>
-      <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
-        {bridge.productName}
+      <Link to="/settings" className="pnav__btn" aria-label="Settings" title="Settings">
+        <GearSix size={15} />
       </Link>
-      <button
-        className="wordmark palette-open"
-        aria-label="Share now playing"
-        title="Share now playing"
-        onClick={() => setShare(true)}
-      >
-        <Export size={13} />
+      <span className="pnav__sep" />
+      <button className="pnav__btn" aria-label="Share now playing" title="Share now playing" onClick={() => setShare(true)}>
+        <Export size={14} />
       </button>
-      <button className="wordmark palette-open" onClick={openPalette}>
-        Ctrl K
+      <button className="pnav__btn" aria-label="Command palette" title="Commands (Ctrl K)" onClick={openPalette}>
+        <Command size={14} />
       </button>
       <button
-        className="wordmark palette-open"
+        className="pnav__btn"
         aria-label="Toggle fullscreen"
         title="Fullscreen"
-        onClick={() => void bridge.toggleFullscreen()}
+        onClick={() =>
+          void bridge.toggleFullscreen().then((on) => {
+            if (on) go("/fullscreen");
+          })
+        }
       >
-        <ArrowsOut size={13} />
+        <ArrowsOut size={14} />
       </button>
     </div>
   );
@@ -216,12 +229,6 @@ export default function Player() {
           <div className="kbg__veil" />
         </div>
         <div className="player player--karaoke">
-          <div className="kmeta">
-            <div className="kmeta__title">{track?.title ?? "Nothing playing"}</div>
-            <div className="kmeta__sub">
-              {track ? `${track.artist} · ${track.album}` : "Start music in any app"}
-            </div>
-          </div>
           <div className="kcenter">
             {lyrics && active >= 0 ? (
               <KaraokeLyric
@@ -233,8 +240,34 @@ export default function Player() {
               <div className="karaoke__idle">{track ? track.title : bridge.productName}</div>
             )}
           </div>
-          {progress}
-          {controls}
+          {/* iBaila karaoke: one floating transport bar — controls left,
+              art + meta + hairline progress. */}
+          <div className="kbar">
+            <button className="ctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>{PREV}</button>
+            <button className="ctl ctl--play ctl--play-sm" aria-label={playing ? "Pause" : "Play"} onClick={() => bridge.mediaControl("play-pause")}>
+              {playing ? <Pause weight="fill" size={16} /> : <Play weight="fill" size={16} />}
+            </button>
+            <button className="ctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>{NEXT}</button>
+            {art ? <img className="kbar__art" src={art} alt="" /> : <div className="kbar__art kbar__art--ph" />}
+            <span className="kbar__txt">
+              <span className="kbar__title">{track?.title ?? "Nothing playing"}</span>
+              <span className="kbar__sub">{track ? `${track.artist} — ${track.album}` : ""}</span>
+              <span
+                className="kbar__prog"
+                role="slider"
+                aria-label="Seek"
+                style={{ cursor: np?.source === "local" ? "pointer" : "default" }}
+                onClick={(e) => {
+                  if (np?.source !== "local" || !track?.durationMs) return;
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const frac = (e.clientX - r.left) / r.width;
+                  void bridge.seek(Math.floor(frac * track.durationMs));
+                }}
+              >
+                <span className="kbar__fill" style={{ transform: `scaleX(${track?.durationMs ? Math.min(1, pos / track.durationMs) : 0})` }} />
+              </span>
+            </span>
+          </div>
           {nav}
         </div>
         {shareCard}
