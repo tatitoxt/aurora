@@ -853,6 +853,7 @@ fn import_playlist(
 /// Outcome of `export_playlist`: where the .m3u8 landed, how many local
 /// tracks were written and how many remote items were skipped.
 #[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ExportResult {
     path: String,
     exported: u32,
@@ -978,7 +979,11 @@ fn playlist_path_checked(
             .filter(|p| p.to_string_lossy() == path)
             .collect();
     match matches.as_slice() {
-        [one] => Ok(one.clone()),
+        // Make it absolute without resolving links — `parse`'s base dir
+        // must be absolute so relative entries don't double-prefix on
+        // rewrite, but canonicalize would point delete/rename at the
+        // symlink's target instead of the link itself.
+        [one] => std::path::absolute(one).map_err(|e| e.to_string()),
         [] => Err("not a playlist in the music folder".into()),
         _ => Err("name isn't representable — rename it in a file manager first".into()),
     }
@@ -1027,6 +1032,202 @@ fn rename_playlist(
         name: name.to_string(),
         path: target.to_string_lossy().into_owned(),
     })
+}
+
+/// One row of a playlist opened for editing: display metadata, the
+/// resolved path, and whether it is a remote stream URL.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PlaylistTrack {
+    title: String,
+    artist: String,
+    duration_ms: u64,
+    path: String,
+    remote: bool,
+}
+
+/// Contents of a discovered playlist file, one row per entry, in order.
+/// Remote URLs are included (marked `remote`) so a removal index always
+/// lines up with what the file actually lists.
+#[tauri::command]
+fn playlist_tracks(state: State<AppState>, path: String) -> Result<Vec<PlaylistTrack>, String> {
+    let file = playlist_path_checked(&state, &path)?;
+    let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    Ok(noctbeat_core::playlists::parse(&file, &content)
+        .iter()
+        .map(|e| match e {
+            noctbeat_core::playlists::PlaylistEntry::File {
+                path,
+                title,
+                artist,
+                duration_ms,
+            } => PlaylistTrack {
+                title: title.clone().unwrap_or_default(),
+                artist: artist.clone().unwrap_or_default(),
+                duration_ms: duration_ms.unwrap_or(0),
+                path: path.to_string_lossy().into_owned(),
+                remote: false,
+            },
+            noctbeat_core::playlists::PlaylistEntry::Remote(url) => PlaylistTrack {
+                title: String::new(),
+                artist: String::new(),
+                duration_ms: 0,
+                path: url.clone(),
+                remote: true,
+            },
+        })
+        .collect())
+}
+
+/// Editing rewrites the file as extended M3U, so only .m3u/.m3u8 are
+/// writable; .pls and .xspf would lose their format (and metadata the
+/// M3U serializer can't express).
+fn m3u_editable(file: &std::path::Path) -> Result<(), String> {
+    match file
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("m3u") | Some("m3u8") => Ok(()),
+        _ => Err("editing works on .m3u/.m3u8 playlists".into()),
+    }
+}
+
+/// Serialize entries back to `file` as extended M3U. Remote rows keep
+/// their URL as the path (no metadata to preserve).
+fn rewrite_playlist(
+    file: &std::path::Path,
+    entries: &[noctbeat_core::playlists::PlaylistEntry],
+) -> Result<(), String> {
+    let items: Vec<noctbeat_core::playlists::M3uItem> = entries
+        .iter()
+        .map(|e| match e {
+            noctbeat_core::playlists::PlaylistEntry::File {
+                path,
+                title,
+                artist,
+                duration_ms,
+            } => noctbeat_core::playlists::M3uItem {
+                path: path.to_string_lossy().into_owned(),
+                title: title.clone().unwrap_or_default(),
+                artist: artist.clone().unwrap_or_default(),
+                duration_ms: duration_ms.unwrap_or(0),
+            },
+            noctbeat_core::playlists::PlaylistEntry::Remote(url) => {
+                noctbeat_core::playlists::M3uItem {
+                    path: url.clone(),
+                    title: String::new(),
+                    artist: String::new(),
+                    duration_ms: 0,
+                }
+            }
+        })
+        .collect();
+    // Write-then-rename: a failed `write` (e.g. full disk) would leave
+    // the original truncated, so stage the new content in a sibling
+    // file and swap it in atomically. `create_new` (O_EXCL) picks a
+    // name that cannot clobber an existing file — a fixed tmp name
+    // could silently destroy an unrelated sibling.
+    let body = noctbeat_core::playlists::write_m3u(&items);
+    let stem = file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "playlist".into());
+    let mut tmp = None;
+    for n in 0..100u32 {
+        let candidate = file.with_file_name(format!(".{stem}.noctbeat-tmp{n}"));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(mut f) => {
+                use std::io::Write;
+                if let Err(e) = f.write_all(body.as_bytes()) {
+                    let _ = std::fs::remove_file(&candidate);
+                    return Err(format!("write {}: {e}", candidate.display()));
+                }
+                tmp = Some(candidate);
+                break;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(format!("write {}: {e}", candidate.display())),
+        }
+    }
+    let tmp = tmp.ok_or_else(|| "no free temp name beside the playlist".to_string())?;
+    std::fs::rename(&tmp, file).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("write {}: {e}", file.display())
+    })
+}
+
+/// Drop the entry at `index` from a playlist and rewrite it in place.
+/// The index counts every entry (files and remote rows) exactly as
+/// `playlist_tracks` lists them.
+#[tauri::command]
+fn playlist_remove_track(state: State<AppState>, path: String, index: u32) -> Result<(), String> {
+    let file = playlist_path_checked(&state, &path)?;
+    m3u_editable(&file)?;
+    let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let mut entries = noctbeat_core::playlists::parse(&file, &content);
+    let i = index as usize;
+    if i >= entries.len() {
+        return Err("track index out of range".into());
+    }
+    entries.remove(i);
+    rewrite_playlist(&file, &entries)
+}
+
+/// Append local files to a playlist and rewrite it. Returns how many
+/// entries were added — paths that aren't real files are skipped (a
+/// stale queue item or a `remote:` pseudo-path must not land in the
+/// file, where it would import back as a broken row).
+#[tauri::command]
+fn playlist_add_tracks(
+    state: State<AppState>,
+    path: String,
+    paths: Vec<String>,
+) -> Result<u32, String> {
+    let file = playlist_path_checked(&state, &path)?;
+    m3u_editable(&file)?;
+    let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let mut entries = noctbeat_core::playlists::parse(&file, &content);
+    let mut added = 0u32;
+    for p in paths {
+        // Same anchoring as export: relative queue paths resolve against
+        // the launch cwd so the row imports back correctly later.
+        let abs = match std::fs::canonicalize(&p) {
+            Ok(c) => c,
+            Err(_) => {
+                let rel = std::path::Path::new(&p);
+                if rel.is_absolute() {
+                    rel.to_path_buf()
+                } else {
+                    match std::env::current_dir() {
+                        Ok(cwd) => cwd.join(rel),
+                        Err(_) => continue,
+                    }
+                }
+            }
+        };
+        if !abs.is_file() {
+            continue;
+        }
+        let track = noctbeat_core::library::tag_track(&abs);
+        entries.push(noctbeat_core::playlists::PlaylistEntry::File {
+            path: abs,
+            title: (!track.title.is_empty()).then_some(track.title),
+            artist: (!track.artist.is_empty()).then_some(track.artist),
+            duration_ms: (track.duration_ms > 0).then_some(track.duration_ms),
+        });
+        added += 1;
+    }
+    if added == 0 {
+        return Err("no local files to add".into());
+    }
+    rewrite_playlist(&file, &entries)?;
+    Ok(added)
 }
 
 /// Outcome of `import_playlist_url`: the playlist's own title and how
@@ -2348,6 +2549,9 @@ pub fn run() {
             list_playlists,
             rename_playlist,
             delete_playlist,
+            playlist_tracks,
+            playlist_remove_track,
+            playlist_add_tracks,
             get_stats,
             get_artist_stats,
             get_wrapped,
