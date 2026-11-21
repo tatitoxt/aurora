@@ -246,6 +246,19 @@ impl LocalPlayer {
         self.audio.seek(position_ms)
     }
 
+    /// Pause and report Stopped. Queue and index are kept so the next
+    /// PlayPause resumes the same track from the start (MPRIS Stop).
+    pub fn stop(&mut self) {
+        self.audio.pause();
+        let _ = self.audio.seek(0);
+        self.status = PlaybackStatus::Stopped;
+    }
+
+    /// Current playback position without ticking side effects.
+    pub fn position_ms(&self) -> u64 {
+        self.audio.position_ms()
+    }
+
     /// Snapshot `(position_ms, was_playing)` of the current track. Must be
     /// taken before the audio stream is swapped — after `set_device` the new
     /// stream reports position 0.
@@ -540,6 +553,20 @@ mod tests {
         p.play_index(0).unwrap();
         audio.finished.store(true, Ordering::SeqCst);
         assert_eq!(p.tick().status, PlaybackStatus::Stopped);
+    }
+
+    #[test]
+    fn stop_pauses_and_keeps_queue() {
+        let (mut p, _audio) = player();
+        p.set_queue(vec![item("a"), item("b")]);
+        p.play_index(0).unwrap();
+        p.stop();
+        assert_eq!(p.status(), PlaybackStatus::Stopped);
+        assert_eq!(p.current_index(), Some(0));
+        // PlayPause from Stopped resumes the same track.
+        p.control(Control::PlayPause).unwrap();
+        assert_eq!(p.status(), PlaybackStatus::Playing);
+        assert_eq!(p.current_index(), Some(0));
     }
 
     #[test]

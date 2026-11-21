@@ -13,6 +13,8 @@ use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
 use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
+#[cfg(target_os = "linux")]
+mod mpris;
 use noctbeat_core::settings::{Profile, Settings};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -41,6 +43,9 @@ struct AppState {
     rodio: Option<std::sync::Arc<audio::RodioOut>>,
     /// Listening history, persisted to history.json beside settings.
     history: Mutex<History>,
+    /// Linux MPRIS server (media keys / DE widgets), set up in `setup`.
+    #[cfg(target_os = "linux")]
+    mpris: std::sync::OnceLock<mpris::MprisHandle>,
     history_path: PathBuf,
     /// Wall-clock time accumulated on the track currently playing.
     listen: Mutex<ListenTracker>,
@@ -1693,6 +1698,10 @@ fn spawn_poller(app: &tauri::AppHandle) {
             }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
+            #[cfg(target_os = "linux")]
+            if let Some(m) = state.mpris.get() {
+                m.update(&np, local_active(&state));
+            }
             update_tray(&state, &np, &energy);
             flush_hud_position(&app);
             flush_desk_lyrics_position(&app);
@@ -1771,6 +1780,8 @@ pub fn run() {
             tray: Mutex::new(None),
             tray_default: Mutex::new(None),
             tray_dyn: std::sync::Arc::new(Mutex::new(TrayDyn::default())),
+            #[cfg(target_os = "linux")]
+            mpris: std::sync::OnceLock::new(),
             demo,
         })
         .invoke_handler(tauri::generate_handler![
@@ -1823,6 +1834,10 @@ pub fn run() {
             clear_history,
         ])
         .setup(move |app| {
+            #[cfg(target_os = "linux")]
+            if let Some(h) = mpris::start(app.handle()) {
+                let _ = app.state::<AppState>().mpris.set(h);
+            }
             spawn_poller(app.handle());
             let state = app.state::<AppState>();
             if let Some(rodio) = &state.rodio {
