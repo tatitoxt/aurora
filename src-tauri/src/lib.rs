@@ -947,11 +947,17 @@ fn system_on_battery() -> bool {
         return false;
     };
     rd.flatten().any(|e| {
-        // Only the system battery dims: peripheral entries (hidpp_*, scope
-        // "Device") also report type "Battery" and discharging status.
+        // Only the system battery dims: peripheral entries (hidpp_*,
+        // xpadneo_*, ...) also report type "Battery" and discharging status.
+        // scope is absent on many fuel-gauge drivers (cw2015, rk817), so
+        // fall back to excluding known peripheral name prefixes.
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        let peripheral = ["hid", "xpadneo", "bluez", "sony_controller", "devc_"]
+            .iter()
+            .any(|p| name.starts_with(p));
         let system = std::fs::read_to_string(e.path().join("scope"))
-            .map(|s| s.trim() == "System")
-            .unwrap_or_else(|_| e.file_name().to_string_lossy().starts_with("BAT"));
+            .map(|s| s.trim().eq_ignore_ascii_case("system"))
+            .unwrap_or(!peripheral);
         system
             && std::fs::read_to_string(e.path().join("type"))
                 .map(|t| t.trim() == "Battery")
