@@ -59,11 +59,18 @@ export default function Fullscreen() {
 
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
-  const dur = track?.durationMs ?? 1;
+  const dur = track?.durationMs ?? 0;
 
   // Keyboard: space toggles play, arrows seek/skip, Esc exits.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Palette overlay or any editable owns the keys.
+      const t = e.target as HTMLElement | null;
+      if (
+        t?.closest(".palette") ||
+        t?.closest("input, textarea, [contenteditable]")
+      )
+        return;
       if (e.key === " ") {
         e.preventDefault();
         void bridge.mediaControl("play-pause");
@@ -174,7 +181,7 @@ export default function Fullscreen() {
             role="slider"
             aria-label="Seek"
             onClick={(e) => {
-              if (np?.source !== "local") return;
+              if (np?.source !== "local" || !dur) return;
               const r = e.currentTarget.getBoundingClientRect();
               const frac = (e.clientX - r.left) / r.width;
               void bridge.seek(Math.floor(frac * dur));
