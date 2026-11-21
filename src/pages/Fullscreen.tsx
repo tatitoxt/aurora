@@ -390,7 +390,10 @@ export default function Fullscreen() {
                 role="button"
                 tabIndex={0}
                 onClick={() => void bridge.playQueueIndex(idx)}
-                onKeyDown={(e) => e.key === "Enter" && void bridge.playQueueIndex(idx)}
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && e.key === "Enter")
+                    void bridge.playQueueIndex(idx);
+                }}
               >
                 <div className="fs__qbody">
                   <QueueThumb track={it.track} />
