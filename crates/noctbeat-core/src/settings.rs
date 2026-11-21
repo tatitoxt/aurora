@@ -117,6 +117,10 @@ pub struct Settings {
     /// re-save into it (explicit save does).
     #[serde(default)]
     pub active_profile: Option<String>,
+    /// Absolute epoch ms when the sleep timer fires and playback pauses.
+    /// Persisted so a relaunched app still honors a running timer.
+    #[serde(default)]
+    pub sleep_timer_ends_ms: Option<u64>,
 }
 
 fn default_eq_preset() -> String {
@@ -159,6 +163,7 @@ impl Default for Settings {
             desk_lyrics_position: None,
             profiles: Vec::new(),
             active_profile: None,
+            sleep_timer_ends_ms: None,
         }
     }
 }

@@ -612,6 +612,18 @@ fn delete_profile(app: tauri::AppHandle, id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Arm or clear the sleep timer. `minutes` sets an absolute deadline
+/// (persisted, so a relaunch still honors it); `None` clears it.
+#[tauri::command]
+fn set_sleep_timer(app: tauri::AppHandle, minutes: Option<u64>) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    s.sleep_timer_ends_ms = minutes.map(|m| now_ms() + m.saturating_mul(60_000));
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
+    Ok(())
+}
+
 /// OS audio output device names for the settings picker.
 #[tauri::command]
 fn list_outputs() -> Vec<String> {
@@ -1083,6 +1095,32 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 }
                 poll_np(&state)
             };
+            // Sleep timer: pause whatever is playing when the deadline hits.
+            {
+                let ends = state
+                    .settings
+                    .lock()
+                    .ok()
+                    .and_then(|s| s.sleep_timer_ends_ms);
+                if ends.is_some_and(|t| now_ms() >= t) {
+                    if local_active(&state) {
+                        if let Ok(mut p) = state.player.lock() {
+                            if p.status() == PlaybackStatus::Playing {
+                                let _ = p.control(Control::PlayPause);
+                            }
+                        }
+                    } else if np.status == PlaybackStatus::Playing {
+                        if let Ok(mut s) = state.source.lock() {
+                            let _ = s.control(Control::PlayPause);
+                        }
+                    }
+                    if let Ok(mut s) = state.settings.lock() {
+                        s.sleep_timer_ends_ms = None;
+                        let _ = s.save(&state.settings_path);
+                        let _ = app.emit("settings", s.clone());
+                    }
+                }
+            }
             let energy = {
                 let prev = *state.last_energy.lock().unwrap_or_else(|e| e.into_inner());
                 let next = if state.demo {
@@ -1211,6 +1249,7 @@ pub fn run() {
             save_profile,
             apply_profile,
             delete_profile,
+            set_sleep_timer,
             import_playlist,
             import_playlist_url,
             get_stats,

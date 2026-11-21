@@ -315,6 +315,31 @@ export default function Settings() {
         )}
 
         <div className="field">
+          <span>Sleep timer</span>
+          <select
+            value={s.sleepTimerEndsMs === null ? "" : "armed"}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "armed") return;
+              void bridge.setSleepTimer(v === "" ? null : Number(v));
+            }}
+          >
+            <option value="">Off</option>
+            {s.sleepTimerEndsMs !== null && <option value="armed">Armed</option>}
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+            <option value="90">90 min</option>
+          </select>
+          {s.sleepTimerEndsMs !== null && (
+            <span className="share__note">
+              Pauses playback at {new Date(s.sleepTimerEndsMs).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+
+        <div className="field">
           <span>Music folder</span>
           <input
             type="text"

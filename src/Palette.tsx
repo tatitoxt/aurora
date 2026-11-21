@@ -109,6 +109,15 @@ export default function Palette() {
       { id: "stats", label: "Open listening stats", hint: "nav", run: () => nav("/stats") },
       { id: "wrapped", label: "Open monthly recap", hint: "nav", run: () => nav("/wrapped") },
       { id: "settings", label: "Open settings", hint: "nav", run: () => nav("/settings") },
+      { id: "sleep15", label: "Sleep timer 15 min", hint: "timer", run: () => void bridge.setSleepTimer(15) },
+      { id: "sleep30", label: "Sleep timer 30 min", hint: "timer", run: () => void bridge.setSleepTimer(30) },
+      { id: "sleep60", label: "Sleep timer 60 min", hint: "timer", run: () => void bridge.setSleepTimer(60) },
+      {
+        id: "sleepoff",
+        label: "Sleep timer off",
+        hint: "timer",
+        run: () => void bridge.setSleepTimer(null),
+      },
       {
         id: "rescan",
         label: "Rescan music folder",
