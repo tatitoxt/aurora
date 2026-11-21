@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { branding } from "../branding";
 import { THEMES, presetVar } from "../themes";
 import {
   bridge,
@@ -457,6 +458,7 @@ export default function Settings() {
               <input
                 type="text" placeholder="License key" value={key}
                 onChange={(e) => setKey(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && key.trim() && bridge.activateLicense(key.trim()).then(setLicense)}
               />
               <div className="seg">
                 <button
@@ -465,8 +467,18 @@ export default function Settings() {
                 >
                   Activate
                 </button>
+                <button onClick={() => bridge.openUrl(branding.checkoutUrl)}>
+                  Buy a license
+                </button>
               </div>
             </>
+          )}
+          {(license.state === "valid" || license.state === "offline") && (
+            <div className="seg">
+              <button onClick={() => bridge.deactivateLicense().then(setLicense)}>
+                Deactivate
+              </button>
+            </div>
           )}
         </div>
       </div>
