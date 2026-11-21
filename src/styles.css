@@ -851,6 +851,14 @@ body {
 .fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
 .fs__qnum { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; width: 2ch; flex: none; text-align: right; }
 .fs__qdur { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; margin-left: auto; }
+.fs__lyric, .fs__timing { pointer-events: auto; }
+.fs__lyric { cursor: context-menu; }
+.fs__timing {
+  display: inline-flex; gap: 4px; margin-top: 10px;
+  padding: 4px 6px; border-radius: 999px;
+  background: rgba(12,12,17,0.6); border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+}
 .fs__stylehead {
   display: block; padding: 8px 10px 3px; font-size: 9.5px; font-weight: 700;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);
@@ -1017,6 +1025,7 @@ body {
 .fs--tile .fs__meta, .fs--showcase .fs__meta { max-width: 100%; }
 .fs--showcase .fs__pill { width: min(380px, 34vw); }
 .fs__cardlyric {
+  cursor: context-menu;
   font-family: "Bebas Neue", var(--serif); font-size: 16px; letter-spacing: 0.08em;
   text-transform: uppercase; line-height: 1; padding-top: 8px; opacity: 0.92;
 }

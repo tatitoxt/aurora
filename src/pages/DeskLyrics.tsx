@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { bridge, subscribe, type LrcLine, type NowPlaying } from "../bridge";
 import { KaraokeLyric } from "../Lyrics";
 import { activeLyricIndex } from "../lib";
+import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import { X } from "@phosphor-icons/react";
 
 /** Floating desktop lyrics overlay: the karaoke line on a small glass chip,
@@ -9,6 +10,9 @@ import { X } from "@phosphor-icons/react";
 export default function DeskLyrics() {
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => subscribeLyroff(() => setTick((t) => t + 1)), []);
+  void tick;
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -22,7 +26,8 @@ export default function DeskLyrics() {
   }, [trackId]);
 
   const pos = np?.positionMs ?? 0;
-  const active = lyrics ? activeLyricIndex(lyrics, pos) : -1;
+  const lyricPos = pos + lyricOffsetFor(np);
+  const active = lyrics ? activeLyricIndex(lyrics, lyricPos) : -1;
   const line = active >= 0 ? lyrics![active] : null;
   const nextLine = lyrics && active >= 0 ? (lyrics[active + 1] ?? null) : null;
 
@@ -43,7 +48,7 @@ export default function DeskLyrics() {
         <X weight="bold" size={13} />
       </button>
       {line ? (
-        <KaraokeLyric line={line} nextLine={nextLine} posMs={pos} />
+        <KaraokeLyric line={line} nextLine={nextLine} posMs={lyricPos} />
       ) : (
         <div className="dlyrics__idle">
           {np?.track ? `${np.track.artist} · ${np.track.title}` : bridge.productName}
