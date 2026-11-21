@@ -683,6 +683,13 @@ export const bridge = {
     isTauri()
       ? invokeCmd<PlaylistFile[]>("list_playlists")
       : Promise.resolve([{ name: "Favorites", path: "/demo/favorites.m3u8" }]),
+  /** Rename a playlist file in place, keeping its extension. */
+  renamePlaylist: (path: string, name: string): Promise<PlaylistFile> =>
+    isTauri()
+      ? invokeCmd<PlaylistFile>("rename_playlist", { path, name })
+      : Promise.resolve({ name, path }),
+  deletePlaylist: (path: string): Promise<void> =>
+    isTauri() ? invokeCmd("delete_playlist", { path }) : Promise.resolve(),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
