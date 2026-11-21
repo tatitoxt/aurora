@@ -2,10 +2,11 @@
 // (and any static host) can offer it as a download: load the unzipped folder
 // at chrome://extensions → Developer mode → Load unpacked.
 import { existsSync, mkdirSync, readdirSync, statSync, createWriteStream, readFileSync } from "node:fs";
-import { deflateSync } from "node:zlib";
+import { deflateRawSync } from "node:zlib";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const src = join(root, "extension");
 const outDir = join(root, "dist");
 
@@ -38,7 +39,7 @@ for (const file of files) {
   head.writeUInt32LE(data.length, 18);
   head.writeUInt32LE(data.length, 22);
   head.writeUInt16LE(name.length, 26);
-  const deflated = deflateSync(data);
+  const deflated = deflateRawSync(data);
   head.writeUInt32LE(deflated.length, 18);
   chunks.push(head, name, deflated);
   central.push({ name, crc, csize: deflated.length, usize: data.length, offset });

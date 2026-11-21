@@ -8,6 +8,7 @@ import {
   type NowPlaying,
   type Settings,
   type QueueState,
+  type LrcLine,
 } from "../bridge";
 import {
   Monitor,
@@ -22,7 +23,10 @@ import {
   MusicNote,
   Shuffle,
   Image,
+  Subtitles,
 } from "@phosphor-icons/react";
+import { LineLyrics } from "../Lyrics";
+import { activeLyricIndex } from "../lib";
 import {
   favEntryFor,
   favKeyFor,
@@ -51,11 +55,19 @@ export default function Hud() {
   const [mode, setMode] = useState<"list" | "focus">(
     () => (localStorage.getItem("noctbeat.hudmode") as "list" | "focus") || "list",
   );
-  const [mediaMode, setMediaMode] = useState<"art" | "video">(
-    () => (localStorage.getItem("noctbeat.hudmedia") as "art" | "video") || "art",
+  const [mediaMode, setMediaMode] = useState<"art" | "video" | "lyrics">(
+    () => (localStorage.getItem("noctbeat.hudmedia") as "art" | "video" | "lyrics") || "art",
   );
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
+  const [clock, setClock] = useState(() => new Date());
   const videoReq = useRef(0);
+
+  // PiP clock — small, filled, above the thumbnail.
+  useEffect(() => {
+    const id = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -77,17 +89,19 @@ export default function Hud() {
   const track = np?.track ?? null;
   useEffect(() => {
     if (track?.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);
+    void bridge.getLyrics().then(setLyrics);
   }, [track]);
   const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
-    if (mediaMode !== "video" || !settings.videoBackdrop || !trackKey || !track) return;
+    // video mode plays the clip; lyrics mode shows it behind the words
+    if (mediaMode === "art" || !trackKey || !track) return;
     const req = ++videoReq.current;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (videoReq.current === req && u) setVideoUrl(u);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mediaMode, settings.videoBackdrop, trackKey]);
+  }, [mediaMode, trackKey]);
   useEffect(() => {
     const urls = [...new Set(queue.items.map((i) => i.track.artworkUrl).filter(Boolean))];
     void Promise.all(urls.map((u) => bridge.artSrc(u).catch(() => ""))).then((srcs) =>
@@ -98,6 +112,13 @@ export default function Hud() {
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 1;
   const playing = np?.status === "playing";
+  const active = lyrics ? activeLyricIndex(lyrics, pos) : -1;
+  const canSeek = np?.source === "local" || np?.source === "demo";
+  const seekBar = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!canSeek || !track?.durationMs) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    void bridge.seek(Math.floor(((e.clientX - r.left) / r.width) * track.durationMs));
+  };
   const pinned = settings.hudAlwaysOnTop;
   const fav = favKeys(favs).has(favKeyFor(np));
   const onToggleFav = () => {
@@ -133,7 +154,11 @@ export default function Hud() {
             <div className="hud__body">
               <div className="hud__title">{track?.title ?? "Nothing playing"}</div>
               <div className="hud__sub">{track ? track.artist : bridge.productName}</div>
-              <div className="hud__progress">
+              <div
+                className="hud__progress"
+                style={{ cursor: canSeek ? "pointer" : "default" }}
+                onClick={seekBar}
+              >
                 <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
               </div>
             </div>
@@ -223,32 +248,59 @@ export default function Hud() {
         </>
       ) : (
         <div className="hud__focus">
+          <div className="hud__clock">
+            {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </div>
           <div className="hud__focusart">
             {mediaMode === "video" && videoUrl ? (
               <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+            ) : mediaMode === "lyrics" ? (
+              <>
+                {videoUrl ? (
+                  <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+                ) : art ? (
+                  <img src={art} alt="" />
+                ) : null}
+                <div className="hud__lyrover">
+                  {lyrics && lyrics.length > 0 ? (
+                    <LineLyrics lines={lyrics} active={active} />
+                  ) : (
+                    <span className="hud__lyridle">{track?.title ?? "—"}</span>
+                  )}
+                </div>
+              </>
             ) : art ? (
               <img src={art} alt="" />
             ) : (
               <MusicNote size={40} weight="thin" />
             )}
-            {settings.videoBackdrop && (
-              <button
-                className="hud__artswap"
-                aria-label={mediaMode === "video" ? "Show artwork" : "Show video"}
-                title={mediaMode === "video" ? "Show artwork" : "Show video"}
-                onClick={() => {
-                  const next = mediaMode === "video" ? "art" : "video";
-                  setMediaMode(next);
-                  localStorage.setItem("noctbeat.hudmedia", next);
-                }}
-              >
-                {mediaMode === "video" ? <Image size={13} /> : <Monitor size={13} />}
-              </button>
-            )}
+            <button
+              className="hud__artswap"
+              aria-label="Swap art / video / lyrics"
+              title="Swap art / video / lyrics"
+              onClick={() => {
+                const order = ["art", "video", "lyrics"] as const;
+                const next = order[(order.indexOf(mediaMode) + 1) % order.length];
+                setMediaMode(next);
+                localStorage.setItem("noctbeat.hudmedia", next);
+              }}
+            >
+              {mediaMode === "art" ? (
+                <Monitor size={13} />
+              ) : mediaMode === "video" ? (
+                <Subtitles size={13} />
+              ) : (
+                <Image size={13} />
+              )}
+            </button>
           </div>
           <div className="hud__focustitle">{track?.title ?? "Nothing playing"}</div>
           <div className="hud__focussub">{track ? track.artist : ""}</div>
-          <div className="hud__progress">
+          <div
+            className="hud__progress"
+            style={{ cursor: canSeek ? "pointer" : "default" }}
+            onClick={seekBar}
+          >
             <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
           </div>
           <div className="hud__pill">

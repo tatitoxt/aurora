@@ -252,7 +252,11 @@ export default function Player() {
   const showVideo = view === "video" && videoUrl;
   const showBigLyrics = view === "lyrics";
   return (
-    <div className="glass">
+    <div className={`glass ${showVideo ? "glass--videobg" : ""}`}>
+      {/* videoclip view: the resolved stream IS the window background —
+          lyrics and the transport float over it. */}
+      {showVideo ? <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} /> : null}
+      {showVideo ? <div className="glass__veil" /> : null}
       <div className="player">
         <div className="player__modes">
           <button
@@ -290,10 +294,7 @@ export default function Player() {
             </div>
           ) : (
             <>
-              {art ? <img src={art} alt={track?.album ?? ""} /> : null}
-              {showVideo ? (
-                <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-              ) : null}
+              {showVideo ? null : art ? <img src={art} alt={track?.album ?? ""} /> : null}
               {view === "video" && lyricsOn && lyrics && lyrics.length > 0 ? (
                 <div className="player__lyrover">
                   <LineLyrics lines={lyrics} active={active} />
