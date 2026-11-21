@@ -99,6 +99,23 @@ export function toggleFav(entries: FavEntry[], entry: FavEntry): FavEntry[] {
   return next;
 }
 
+/**
+ * Re-read favs on change: FAVS_EVENT reaches this document, the DOM
+ * `storage` event reaches the *other* windows (hud/desklyrics) — each
+ * webview is its own document, so both are needed.
+ */
+export function subscribeFavs(cb: () => void): () => void {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === KEY || e.key === null) cb();
+  };
+  window.addEventListener(FAVS_EVENT, cb);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(FAVS_EVENT, cb);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 /** Entries the Liked view can list and replay (legacy keys are skipped). */
 export function listable(entries: FavEntry[]): FavEntry[] {
   return entries.filter((e) => e.trackId !== "");

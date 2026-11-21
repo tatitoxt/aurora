@@ -11,11 +11,11 @@ import {
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
 import {
-  FAVS_EVENT,
   favEntryFor,
   favKeyFor,
   favKeys,
   loadFavs,
+  subscribeFavs,
   toggleFav,
   type FavEntry,
 } from "../favs";
@@ -155,11 +155,7 @@ export default function Fullscreen() {
   );
   const [qpage, setQpage] = useState(0);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
-  useEffect(() => {
-    const onFavs = () => setFavs(loadFavs());
-    window.addEventListener(FAVS_EVENT, onFavs);
-    return () => window.removeEventListener(FAVS_EVENT, onFavs);
-  }, []);
+  useEffect(() => subscribeFavs(() => setFavs(loadFavs())), []);
   const favSet = useMemo(() => favKeys(favs), [favs]);
 
   useEffect(() => {

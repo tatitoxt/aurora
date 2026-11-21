@@ -9,11 +9,11 @@ import {
 } from "../bridge";
 import { subscribe } from "../bridge";
 import {
-  FAVS_EVENT,
   listable,
   loadFavs,
   remoteParts,
   replayFor,
+  subscribeFavs,
   toQueueItem,
   type FavEntry,
 } from "../favs";
@@ -54,12 +54,11 @@ export default function Library() {
     void bridge.providerStatus().then(setYtReady);
     const off = subscribe<NowPlaying>("now-playing", () => refresh());
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
-    const onFavs = () => setFavs(loadFavs());
-    window.addEventListener(FAVS_EVENT, onFavs);
+    const offFavs = subscribeFavs(() => setFavs(loadFavs()));
     return () => {
       off();
       offNp();
-      window.removeEventListener(FAVS_EVENT, onFavs);
+      offFavs();
     };
   }, []);
 
