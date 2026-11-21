@@ -91,6 +91,95 @@ where
     }
 }
 
+/// Mono PCM tap shared with the analysis poller: `next` appends, the
+/// poller drains — the real spectrum source for the visualizer.
+pub struct Tap {
+    pub mono: Mutex<Vec<f32>>,
+    /// Sample rate of the last wrapped source (0 before any open).
+    pub rate: std::sync::atomic::AtomicU32,
+}
+
+/// `Source` wrapper that copies a mono downmix of passing samples into
+/// the shared tap; playback samples are untouched.
+struct TapSource<I> {
+    inner: I,
+    tap: Arc<Tap>,
+    /// Running sum for the frame being downmixed.
+    acc: f32,
+    ch: usize,
+}
+
+impl<I> TapSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    fn wrap(inner: I, tap: Arc<Tap>) -> Self {
+        tap.rate.store(
+            inner.sample_rate().get(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        Self {
+            inner,
+            tap,
+            acc: 0.0,
+            ch: 0,
+        }
+    }
+}
+
+impl<I> Iterator for TapSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    type Item = Sample;
+
+    #[inline]
+    fn next(&mut self) -> Option<Sample> {
+        let x = self.inner.next()?;
+        self.acc += x;
+        self.ch += 1;
+        if self.ch >= self.inner.channels().get() as usize {
+            let mono = self.acc / self.ch as f32;
+            self.acc = 0.0;
+            self.ch = 0;
+            if let Ok(mut v) = self.tap.mono.lock() {
+                // Bound the backlog: ~2 s at 48 kHz, oldest dropped first.
+                if v.len() > 96_000 {
+                    let drop = v.len() - 96_000;
+                    v.drain(..drop);
+                }
+                v.push(mono);
+            }
+        }
+        Some(x)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl<I> Source for TapSource<I>
+where
+    I: Source<Item = Sample>,
+{
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len()
+    }
+    fn channels(&self) -> rodio::ChannelCount {
+        self.inner.channels()
+    }
+    fn sample_rate(&self) -> rodio::SampleRate {
+        self.inner.sample_rate()
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+    fn try_seek(&mut self, pos: Duration) -> Result<(), rodio::source::SeekError> {
+        self.inner.try_seek(pos)
+    }
+}
+
 pub struct RodioOut {
     inner: Mutex<Option<Inner>>,
     /// Position to report after `seek` (rodio counts source position, and a
@@ -98,6 +187,8 @@ pub struct RodioOut {
     fallback_pos: Mutex<Option<Duration>>,
     /// Live EQ gains shared with every wrapped source.
     eq: Arc<EqState>,
+    /// Shared analysis tap for the beat/spectrum poller.
+    tap: Arc<Tap>,
 }
 
 fn device_name(d: &rodio::cpal::Device) -> String {
@@ -148,12 +239,29 @@ impl RodioOut {
             })),
             fallback_pos: Mutex::new(None),
             eq: Arc::new(EqState::new()),
+            tap: Arc::new(Tap {
+                mono: Mutex::new(Vec::new()),
+                rate: std::sync::atomic::AtomicU32::new(0),
+            }),
         })
     }
 
     /// Shared EQ handle — `set` retunes every source live.
     pub fn eq(&self) -> Arc<EqState> {
         self.eq.clone()
+    }
+
+    /// Analysis tap: drains mono samples and reports the current rate so
+    /// the poller can rebuild its detector when the rate changes.
+    pub fn tap_take(&self) -> (Vec<f32>, u32) {
+        let buf = self
+            .tap
+            .mono
+            .lock()
+            .map(|mut v| std::mem::take(&mut *v))
+            .unwrap_or_default();
+        let rate = self.tap.rate.load(std::sync::atomic::Ordering::Relaxed);
+        (buf, rate)
     }
 
     /// Re-point playback at the device `name` (None = OS default). The
@@ -178,9 +286,10 @@ impl AudioOut for RodioOut {
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_mut().ok_or("no audio device")?;
         inner.player.clear();
-        inner
-            .player
-            .append(EqSource::wrap(decoder, self.eq.clone()));
+        inner.player.append(TapSource::wrap(
+            EqSource::wrap(decoder, self.eq.clone()),
+            self.tap.clone(),
+        ));
         *self.fallback_pos.lock().map_err(|e| e.to_string())? = Some(Duration::ZERO);
         Ok(dur)
     }

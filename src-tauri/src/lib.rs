@@ -1026,8 +1026,8 @@ fn flush_desk_lyrics_position(app: &tauri::AppHandle) {
     );
 }
 
-/// Synthetic energy for demo/fallback: tempo-synced pulses while playing.
-/// Real loopback capture plugs into the same `last_energy` sink later.
+/// Synthetic energy for demo/fallback: tempo-synced pulses while playing,
+/// with a rotating spectrum so the visualizer still reads as music.
 fn synthetic_energy(np: &NowPlaying, prev: &EnergyUpdate) -> EnergyUpdate {
     match np.status {
         noctbeat_core::media::PlaybackStatus::Playing => {
@@ -1038,16 +1038,26 @@ fn synthetic_energy(np: &NowPlaying, prev: &EnergyUpdate) -> EnergyUpdate {
             } else {
                 (prev.level * 0.94).max(0.25)
             };
+            // Deterministic rotating hump across bands, scaled by level.
+            let center = (np.position_ms / 400 % 16) as f32;
+            let bands = std::array::from_fn(|i| {
+                let d = (i as f32 - center)
+                    .abs()
+                    .min(16.0 - (i as f32 - center).abs());
+                (level * (1.0 - d / 7.0).max(0.08)).min(1.0)
+            });
             EnergyUpdate {
                 level,
                 beat,
                 bpm: Some(120.0),
+                bands,
             }
         }
         _ => EnergyUpdate {
             level: prev.level * 0.9,
             beat: false,
             bpm: prev.bpm,
+            bands: std::array::from_fn(|i| prev.bands[i] * 0.9),
         },
     }
 }
@@ -1088,13 +1098,22 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 let next = if state.demo {
                     synthetic_energy(&np, &prev)
                 } else {
+                    // Real PCM tap from the playback source; empty while
+                    // nothing local plays so the UI rests honestly (OS-level
+                    // loopback capture is still the roadmap item).
+                    let (samples, rate) = state
+                        .rodio
+                        .as_ref()
+                        .map(|r| r.tap_take())
+                        .unwrap_or_default();
                     let mut det = match state.beat.lock() {
                         Ok(d) => d,
                         Err(_) => continue,
                     };
-                    // No capture source yet (see README: platform capture roadmap);
-                    // keep the detector fed with silence so the UI rests honestly.
-                    det.push(&[0.0f32; 1024])
+                    if rate != 0 && det.sample_rate() != rate {
+                        *det = BeatDetector::new(rate);
+                    }
+                    det.push(&samples)
                 };
                 *state.last_energy.lock().unwrap_or_else(|e| e.into_inner()) = next;
                 next
@@ -1161,6 +1180,7 @@ pub fn run() {
                 level: 0.0,
                 beat: false,
                 bpm: None,
+                bands: [0.0; noctbeat_core::energy::BANDS],
             }),
             lyrics: Mutex::new(None),
             lyrics_cache: LyricsCache::new(
