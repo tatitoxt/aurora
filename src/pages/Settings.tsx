@@ -4,6 +4,8 @@ import { THEMES, presetVar } from "../themes";
 import {
   bridge,
   DEFAULT_SETTINGS,
+  EQ_FREQS,
+  EQ_PRESETS,
   type DisplayInfo,
   type LicenseState,
   type Settings,
@@ -168,6 +170,48 @@ export default function Settings() {
               value={s.theme.accent2 ?? presetVar(s.theme.name, "--accent2")}
               onChange={(e) => patch({ theme: { ...s.theme, accent2: e.target.value } })}
             />
+          </div>
+        </div>
+
+        <div className="field">
+          <span>Equalizer</span>
+          <div className="seg">
+            {[...Object.keys(EQ_PRESETS), "custom"].map((p) => (
+              <button
+                key={p}
+                className={s.eqPreset === p ? "on" : ""}
+                onClick={() => {
+                  if (p === "custom") return;
+                  const bands = EQ_PRESETS[p];
+                  setS({ ...s, eqPreset: p, eqBands: bands });
+                  void bridge.setEq(p, bands);
+                }}
+              >
+                {p[0].toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="eq-bands">
+            {EQ_FREQS.map((freq, i) => (
+              <label key={freq} className="eq-band">
+                <input
+                  type="range"
+                  min={-18}
+                  max={18}
+                  step={0.5}
+                  value={s.eqBands[i] ?? 0}
+                  onChange={(e) => {
+                    const bands = EQ_FREQS.map((_, j) =>
+                      j === i ? Number(e.target.value) : (s.eqBands[j] ?? 0),
+                    );
+                    setS({ ...s, eqPreset: "custom", eqBands: bands });
+                    void bridge.setEq("custom", bands);
+                  }}
+                />
+                <span>{freq >= 1000 ? `${freq / 1000}k` : freq}</span>
+                <em>{(s.eqBands[i] ?? 0).toFixed(1)}</em>
+              </label>
+            ))}
           </div>
         </div>
 

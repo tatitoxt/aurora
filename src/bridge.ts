@@ -65,7 +65,21 @@ export interface Settings {
   videoBackdrop: boolean;
   /** Audio output device name; null = OS default. */
   audioOutput: string | null;
+  /** Active EQ preset name; "custom" after a slider moves. */
+  eqPreset: string;
+  /** Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat. */
+  eqBands: number[];
 }
+
+/** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
+export const EQ_FREQS = [60, 250, 1000, 4000, 12000];
+/** Named EQ presets as dB arrays matching EQ_FREQS. */
+export const EQ_PRESETS: Record<string, number[]> = {
+  flat: [0, 0, 0, 0, 0],
+  bass: [6, 4, 0, 0, 0],
+  vocal: [-2, 0, 4, 3, 0],
+  treble: [0, 0, 0, 3, 5],
+};
 
 export interface ThemeSettings {
   name: string;
@@ -117,6 +131,8 @@ export const DEFAULT_SETTINGS: Settings = {
   lyricsMode: "lines",
   videoBackdrop: true,
   audioOutput: null,
+  eqPreset: "flat",
+  eqBands: [],
 };
 
 const isTauri = () =>
@@ -360,6 +376,12 @@ export const bridge = {
   setOutputDevice: (name: string | null) => {
     if (isTauri()) return invokeCmd<null>("set_output_device", { name });
     settingsStore = { ...settingsStore, audioOutput: name };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(null);
+  },
+  setEq: (preset: string, bands: number[]) => {
+    if (isTauri()) return invokeCmd<null>("set_eq", { preset, bands });
+    settingsStore = { ...settingsStore, eqPreset: preset, eqBands: bands };
     emitMock("settings", settingsStore);
     return Promise.resolve(null);
   },
