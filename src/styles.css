@@ -850,7 +850,7 @@ body {
 .fs__clock {
   font-family: ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Helvetica Rounded", system-ui, sans-serif;
   font-weight: 400;
-  font-size: clamp(64px, 11vh, 120px); line-height: 0.95;
+  font-size: calc(clamp(64px, 11vh, 120px) * var(--clksc, 1)); line-height: 0.95;
   letter-spacing: 0.02em;
   color: rgba(244, 245, 250, 0.94);
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
@@ -872,7 +872,7 @@ body {
 .fs__lyrics { display: flex; flex-direction: column; align-items: center; gap: 1.4vh; }
 .fs__lyric {
   font-family: var(--serif); font-style: italic; font-weight: 600;
-  font-size: clamp(38px, 6.5vh, 76px);
+  font-size: calc(clamp(38px, 6.5vh, 76px) * var(--lyrsc, 1));
   letter-spacing: 0; text-align: center; line-height: 1.05;
   text-shadow: 0 2px 30px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
   animation: fs-lyric-in 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
@@ -1194,7 +1194,7 @@ body {
 
 /* lyric fit inside the remaining stage for wide text in these styles */
 .fs--pearl .fs__lyric, .fs--arc .fs__lyric, .fs--studio .fs__lyric {
-  font-size: clamp(36px, 7vh, 78px); max-width: 100%;
+  font-size: calc(clamp(36px, 7vh, 78px) * var(--lyrsc, 1)); max-width: 100%;
 }
 /* studio: keep the lyric out from under the right-docked queue */
 .fs--studio .fs__lyric {

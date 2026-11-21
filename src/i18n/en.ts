@@ -172,6 +172,8 @@ const en = {
   "fs.size": "Cover size",
   "fs.lockSize": "Lock size",
   "fs.unlockSize": "Unlock size",
+  "fs.clockSize": "Clock size",
+  "fs.lyricSize": "Lyric size",
   "fs.nowPlaying": "Now Playing",
   "fs.upNext": "Up next",
   "fs.nothingPlaying": "Nothing playing",

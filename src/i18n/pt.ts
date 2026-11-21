@@ -163,6 +163,8 @@ const pt: Record<keyof typeof en, string> = {
   "fs.size": "Tamanho das capas",
   "fs.lockSize": "Bloquear tamanho",
   "fs.unlockSize": "Desbloquear tamanho",
+  "fs.clockSize": "Tamanho do relógio",
+  "fs.lyricSize": "Tamanho da letra",
   "fs.nowPlaying": "Tocando agora",
   "fs.upNext": "A seguir",
   "fs.nothingPlaying": "Nada tocando",
