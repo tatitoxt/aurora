@@ -96,11 +96,16 @@ export default function Settings() {
   return (
     <div className="glass">
       <div className="settings">
-        <div className="row">
-          <h1>Settings</h1>
-          <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
-            Back
-          </Link>
+        <div className="pagehead" style={{ padding: "0 0 4px" }}>
+          <div className="pagehead__top">
+            <span className="art__kicker">Control</span>
+            <span className="pagehead__links">
+              <Link to="/" className="pagehead__link">
+                Back
+              </Link>
+            </span>
+          </div>
+          <h1 className="pagehead__name">Settings</h1>
         </div>
 
         <div className="field">
