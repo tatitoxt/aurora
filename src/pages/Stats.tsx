@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { bridge, type Stats } from "../bridge";
+import { useT } from "../i18n";
 
 function fmtDur(ms: number): string {
   const s = Math.round(ms / 1000);
@@ -13,6 +14,7 @@ function fmtDur(ms: number): string {
 /** Wrapped-style listening stats: totals, daily activity, top tracks and
  * artists from the persisted play history. */
 export default function Stats() {
+  const t = useT();
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -34,17 +36,17 @@ export default function Stats() {
       <div className="settings">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
-            <span className="art__kicker">Insights</span>
+            <span className="art__kicker">{t("stats.insights")}</span>
             <span className="pagehead__links">
               <Link to="/wrapped" className="pagehead__link">
-                Recap
+                {t("stats.recap")}
               </Link>
               <Link to="/" className="pagehead__link">
-                Back
+                {t("nav.back")}
               </Link>
             </span>
           </div>
-          <h1 className="pagehead__name">Listening stats</h1>
+          <h1 className="pagehead__name">{t("stats.title")}</h1>
         </div>
 
         {stats.plays === 0 ? (
@@ -83,7 +85,7 @@ export default function Stats() {
             </div>
 
             <div className="panel">
-              <span>Top tracks</span>
+              <span>{t("stats.topTracks")}</span>
               <div className="tops">
                 {stats.topTracks.map((t, i) => (
                   <div className="tops__row" key={`${t.name}-${i}`}>
@@ -101,7 +103,7 @@ export default function Stats() {
             </div>
 
             <div className="panel">
-              <span>Top artists</span>
+              <span>{t("stats.topArtists")}</span>
               <div className="tops">
                 {stats.topArtists.map((a, i) => (
                   <div className="tops__row" key={`${a.name}-${i}`}>

@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { useEffect, useState } from "react";
 import {
   bridge,
@@ -18,6 +19,7 @@ import {
 } from "../favs";
 
 export default function Hud() {
+  const t = useT();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [art, setArt] = useState("");
@@ -94,7 +96,7 @@ export default function Hud() {
         <button
           className={`hctl ${fav ? "hctl--on" : ""}`}
           aria-label={fav ? "Unlike" : "Like"}
-          title={fav ? "Unlike" : "Like"}
+          title={fav ? t("hud.unlike") : t("hud.like")}
           onClick={onToggleFav}
           disabled={!track}
         >
@@ -103,7 +105,7 @@ export default function Hud() {
         <button
           className={`hctl ${pinned ? "hctl--on" : ""}`}
           aria-label={pinned ? "Unpin from top" : "Keep on top"}
-          title={pinned ? "Unpin (let it go behind other windows)" : "Keep on top"}
+          title={pinned ? t("hud.unpin") : t("hud.pin")}
           onClick={() => void bridge.setHudPinned(!pinned)}
         >
           <PushPin weight={pinned ? "fill" : "regular"} size={15} />

@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { bridge, type Wrapped } from "../bridge";
@@ -15,6 +16,7 @@ function fmtDur(ms: number): string {
 /** Monthly recap poster: hero numbers plus top-5 tracks and artists for
  * the current calendar month. */
 export default function WrappedPage() {
+  const t = useT();
   const [wrapped, setWrapped] = useState<Wrapped | null>(null);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function WrappedPage() {
             </div>
 
             <div className="panel">
-              <span>Top tracks this month</span>
+              <span>{t("wrapped.topTracks")}</span>
               <div className="tops">
                 {wrapped.topTracks.map((t, i) => (
                   <div className="tops__row" key={`${t.name}-${i}`}>
@@ -93,7 +95,7 @@ export default function WrappedPage() {
             </div>
 
             <div className="panel">
-              <span>Top artists this month</span>
+              <span>{t("wrapped.topArtists")}</span>
               <div className="tops">
                 {wrapped.topArtists.map((a, i) => (
                   <div className="tops__row" key={`${a.name}-${i}`}>

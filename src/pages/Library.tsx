@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -61,6 +62,7 @@ const SOURCES = [
 ];
 
 export default function Library() {
+  const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
@@ -335,20 +337,20 @@ export default function Library() {
       <div className="settings">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
-            <span className="art__kicker">Collection</span>
+            <span className="art__kicker">{t("lib.collection")}</span>
             <span className="pagehead__links">
               <Link to="/albums" className="pagehead__link">
-                Albums
+                {t("lib.albums")}
               </Link>
               <Link to="/" className="pagehead__link">
-                Back
+                {t("nav.back")}
               </Link>
             </span>
           </div>
-          <h1 className="pagehead__name">Library</h1>
+          <h1 className="pagehead__name">{t("lib.title")}</h1>
           <span className="pagehead__meta">
-            {queue.items.length} {queue.items.length === 1 ? "track" : "tracks"}
-            {playlists.length > 0 && ` · ${playlists.length} playlists`}
+            {queue.items.length} {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")}
+            {playlists.length > 0 && ` · ${playlists.length} ${t("lib.playlistsLower")}`}
           </span>
         </div>
 
@@ -370,7 +372,7 @@ export default function Library() {
           <MagnifyingGlass />
           <input
             type="text"
-            placeholder="Search tracks…"
+            placeholder={t("lib.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
@@ -385,36 +387,36 @@ export default function Library() {
           </span>
         )}
         <div className="lib">
-          {results.map((t) => (
+          {results.map((trk) => (
             <button
-              key={`${t.source}:${t.id}`}
+              key={`${trk.source}:${trk.id}`}
               className="lib__row"
-              onClick={() => playRemote(t)}
+              onClick={() => playRemote(trk)}
               disabled={downloading !== null}
             >
-              <LibThumb url={t.artworkUrl} />
+              <LibThumb url={trk.artworkUrl} />
               <span className="lib__title">
-                {downloading === t.id ? "⤓ " : ""}
-                {t.title}
+                {downloading === trk.id ? "⤓ " : ""}
+                {trk.title}
               </span>
-              <span className="lib__sub">{t.artist}</span>
+              <span className="lib__sub">{trk.artist}</span>
               <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
                 <span
                   role="button"
                   tabIndex={0}
                   className="lib__act"
-                  title="Add to queue"
-                  onClick={() => enqueueRemote(t)}
+                  title={t("lib.addToQueue")}
+                  onClick={() => enqueueRemote(trk)}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter" && e.key !== " ") return;
                     e.preventDefault();
                     e.stopPropagation();
-                    enqueueRemote(t);
+                    enqueueRemote(trk);
                   }}
                 >
                   <Plus size={11} />
                 </span>
-                {t.durationMs ? formatTime(t.durationMs) : ""}
+                {trk.durationMs ? formatTime(trk.durationMs) : ""}
               </span>
             </button>
           ))}
@@ -460,7 +462,7 @@ export default function Library() {
               onKeyDown={(e) => e.key === "Enter" && importUrl()}
             />
             <button onClick={importUrl} disabled={importingUrl || !plUrl.trim()}>
-              {importingUrl ? "…" : "Add"}
+              {importingUrl ? "…" : t("lib.add")}
             </button>
           </div>
         )}
@@ -499,7 +501,7 @@ export default function Library() {
         </div>
         {liked.length > 0 && (
           <>
-            <h2 className="art__h">Liked</h2>
+            <h2 className="art__h">{t("lib.liked")}</h2>
             <div className="lib">
               {liked.map((e) => {
                 const replay = replayFor(e);
@@ -535,7 +537,7 @@ export default function Library() {
         )}
         {playlists.length > 0 && (
           <>
-            <h2 className="art__h">Playlists</h2>
+            <h2 className="art__h">{t("lib.playlists")}</h2>
             <div className="lib">
               {playlists.map((p) => (
                 <div key={p.path}>
