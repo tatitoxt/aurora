@@ -91,9 +91,14 @@ impl NowPlayingSource for NullSource {
     }
 }
 
-/// Platform dispatch: MPRIS on Linux, osascript on macOS, SMTC on Windows.
-/// Falls back to `NullSource` where no implementation exists yet.
+/// Platform dispatch: the browser-extension source wrapping the OS source
+/// (MPRIS on Linux, osascript on macOS, SMTC on Windows). Falls back to
+/// `NullSource` where no OS implementation exists yet.
 pub fn platform_source() -> Box<dyn NowPlayingSource> {
+    Box::new(browser::BrowserSource::new(platform_inner()))
+}
+
+fn platform_inner() -> Box<dyn NowPlayingSource> {
     #[cfg(target_os = "linux")]
     {
         match crate::media::mpris::MprisSource::new() {
@@ -121,6 +126,7 @@ pub fn platform_source() -> Box<dyn NowPlayingSource> {
 /// Implementation: `demo.rs`.
 pub use demo::DemoSource;
 
+pub mod browser;
 pub mod demo;
 // Platform modules (implemented in crates/noctbeat-core/src/media/):
 #[cfg(target_os = "linux")]

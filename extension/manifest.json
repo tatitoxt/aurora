@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Noctbeat Bridge",
+  "version": "0.1.0",
+  "description": "Reports what is playing in your music tabs to the Noctbeat app (YouTube Music, Spotify, SoundCloud, Apple Music, Tidal).",
+  "permissions": [],
+  "host_permissions": ["http://127.0.0.1:17893/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://music.youtube.com/*",
+        "*://www.youtube.com/*",
+        "*://open.spotify.com/*",
+        "*://soundcloud.com/*",
+        "*://music.apple.com/*",
+        "*://listen.tidal.com/*",
+        "*://music.amazon.com/*",
+        "*://music.amazon.co.uk/*",
+        "*://music.amazon.de/*",
+        "*://music.amazon.fr/*",
+        "*://music.amazon.es/*",
+        "*://music.amazon.it/*",
+        "*://music.amazon.co.jp/*",
+        "*://music.amazon.ca/*",
+        "*://music.amazon.com.au/*",
+        "*://music.amazon.com.br/*",
+        "*://music.amazon.com.mx/*",
+        "*://music.amazon.in/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": { "128": "icon.png" }
+}
