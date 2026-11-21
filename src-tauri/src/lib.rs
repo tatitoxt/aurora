@@ -1302,6 +1302,20 @@ fn set_eq(app: tauri::AppHandle, preset: String, bands: Vec<f32>) -> Result<(), 
     Ok(())
 }
 
+/// Switch the live sound-FX mode (off/reverb/8d/echo) and persist it.
+#[tauri::command]
+fn set_fx(app: tauri::AppHandle, mode: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    if let Some(rodio) = &state.rodio {
+        rodio.fx().set(&mode);
+    }
+    let mut s = state.settings.lock().map_err(|e| e.to_string())?;
+    s.sound_fx = noctbeat_core::fx::mode_name(noctbeat_core::fx::mode_from_name(&mode)).into();
+    s.save(&state.settings_path).map_err(|e| e.to_string())?;
+    let _ = app.emit("settings", s.clone());
+    Ok(())
+}
+
 /// Capture the current look+sound as a named profile (same name upserts).
 #[tauri::command]
 fn save_profile(app: tauri::AppHandle, name: String) -> Result<Profile, String> {
@@ -2550,6 +2564,7 @@ pub fn run() {
             list_outputs,
             set_output_device,
             set_eq,
+            set_fx,
             save_profile,
             apply_profile,
             delete_profile,
@@ -2580,6 +2595,7 @@ pub fn run() {
             if let Some(rodio) = &state.rodio {
                 if let Ok(s) = state.settings.lock() {
                     rodio.eq().set(&s.eq_bands);
+                    rodio.fx().set(&s.sound_fx);
                 }
             }
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();

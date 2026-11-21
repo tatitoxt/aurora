@@ -76,6 +76,8 @@ export interface Settings {
   eqPreset: string;
   /** Per-band gain in dB (5 bands: 60/250/1k/4k/12k Hz). Empty = flat. */
   eqBands: number[];
+  /** Master sound effect: "off" | "reverb" | "8d" | "echo". */
+  soundFx: string;
   /** Crossfade length in ms between tracks; 0 = hard cut. */
   crossfadeMs: number;
   /** Floating karaoke overlay window on the desktop. */
@@ -235,6 +237,7 @@ export const DEFAULT_SETTINGS: Settings = {
   audioOutput: null,
   eqPreset: "flat",
   eqBands: [],
+  soundFx: "off",
   crossfadeMs: 3000,
   deskLyricsEnabled: false,
   deskLyricsPosition: null,
@@ -634,6 +637,12 @@ export const bridge = {
   setEq: (preset: string, bands: number[]) => {
     if (isTauri()) return invokeCmd<null>("set_eq", { preset, bands });
     settingsStore = { ...settingsStore, eqPreset: preset, eqBands: bands };
+    emitMock("settings", settingsStore);
+    return Promise.resolve(null);
+  },
+  setFx: (mode: string) => {
+    if (isTauri()) return invokeCmd<null>("set_fx", { mode });
+    settingsStore = { ...settingsStore, soundFx: mode };
     emitMock("settings", settingsStore);
     return Promise.resolve(null);
   },
