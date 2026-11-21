@@ -165,7 +165,9 @@ export default function Fullscreen() {
       {queue.items.length > 0 && (
         <aside className="fs__queue">
           <div className="fs__qhead">Continue Playing</div>
-          <div className="fs__qsub2">Up next on your queue</div>
+          <div className="fs__qsub2">
+            Up next{{ local: " in your library", youtube: " on YouTube", soundcloud: " on SoundCloud", mpris: " on your player", demo: "" }[np?.source ?? "local"] ?? ""}
+          </div>
           <div className="fs__qlist">
             {queue.items.slice(0, 12).map((it, i) => (
               <button
