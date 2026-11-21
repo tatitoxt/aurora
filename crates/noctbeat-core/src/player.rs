@@ -127,6 +127,12 @@ pub struct LocalPlayer {
     /// xorshift64 state for shuffle picks — avoids pulling in `rand`
     /// for one call site.
     rng: u64,
+    /// Whether the audio stream is open for the current index. False
+    /// after a session restore: the queue and position exist but no
+    /// file (or remote stream) is touched until the user presses play.
+    loaded: bool,
+    /// Position to seek to when a restored (not yet loaded) track starts.
+    resume_position_ms: u64,
 }
 
 impl LocalPlayer {
@@ -141,6 +147,8 @@ impl LocalPlayer {
             repeat: RepeatMode::Off,
             volume: 1.0,
             rng: now_ms() | 1,
+            loaded: false,
+            resume_position_ms: 0,
         }
     }
 
@@ -213,6 +221,8 @@ impl LocalPlayer {
         self.audio.pause();
         self.queue = items;
         self.index = None;
+        self.loaded = false;
+        self.resume_position_ms = 0;
         self.status = PlaybackStatus::Stopped;
     }
 
@@ -224,6 +234,8 @@ impl LocalPlayer {
         self.audio.pause();
         self.queue.clear();
         self.index = None;
+        self.loaded = false;
+        self.resume_position_ms = 0;
         self.status = PlaybackStatus::Stopped;
     }
 
@@ -238,11 +250,53 @@ impl LocalPlayer {
         self.audio.open(&path)?;
         self.audio.play();
         self.index = Some(index);
+        self.loaded = true;
+        self.resume_position_ms = 0;
         self.status = PlaybackStatus::Playing;
         Ok(())
     }
 
-    pub fn seek(&self, position_ms: u64) -> Result<(), String> {
+    /// Restore a persisted session: queue, repeat and shuffle modes and
+    /// the current item paused at `position_ms` — without opening any
+    /// audio (remote items are not re-downloaded at startup). The first
+    /// PlayPause loads the file and seeks to `position_ms`.
+    pub fn restore(
+        &mut self,
+        items: Vec<QueueItem>,
+        index: Option<usize>,
+        position_ms: u64,
+        repeat: RepeatMode,
+        shuffle: bool,
+    ) {
+        self.set_queue(items);
+        self.repeat = repeat;
+        self.shuffle = shuffle;
+        if let Some(i) = index {
+            if i < self.queue.len() {
+                self.index = Some(i);
+                self.status = PlaybackStatus::Paused;
+                self.loaded = false;
+                self.resume_position_ms = position_ms;
+            }
+        }
+    }
+
+    /// Queue + cursor + position for persisting the session. Position
+    /// comes from the resume marker while nothing is loaded.
+    pub fn session(&self) -> (&[QueueItem], Option<usize>, u64, RepeatMode, bool) {
+        let pos = if self.loaded {
+            self.audio.position_ms()
+        } else {
+            self.resume_position_ms
+        };
+        (&self.queue, self.index, pos, self.repeat, self.shuffle)
+    }
+
+    pub fn seek(&mut self, position_ms: u64) -> Result<(), String> {
+        if !self.loaded {
+            self.resume_position_ms = position_ms;
+            return Ok(());
+        }
         self.audio.seek(position_ms)
     }
 
@@ -251,12 +305,19 @@ impl LocalPlayer {
     pub fn stop(&mut self) {
         self.audio.pause();
         let _ = self.audio.seek(0);
+        self.resume_position_ms = 0;
         self.status = PlaybackStatus::Stopped;
     }
 
-    /// Current playback position without ticking side effects.
+    /// Current playback position without ticking side effects. While a
+    /// restored track is still unloaded this is the saved resume point,
+    /// so relative seeks and Previous's >3s restart rule start right.
     pub fn position_ms(&self) -> u64 {
-        self.audio.position_ms()
+        if self.loaded {
+            self.audio.position_ms()
+        } else {
+            self.resume_position_ms
+        }
     }
 
     /// Snapshot `(position_ms, was_playing)` of the current track. Must be
@@ -278,7 +339,7 @@ impl LocalPlayer {
         let Some(item) = self.queue.get(i).cloned() else {
             return Ok(());
         };
-        if item.path.is_empty() {
+        if item.path.is_empty() || !self.loaded {
             return Ok(());
         }
         let path = self.item_path(&item)?;
@@ -341,7 +402,7 @@ impl LocalPlayer {
                 .and_then(|i| self.queue.get(i))
                 .map(|q| q.track.clone()),
             status: self.status,
-            position_ms: self.audio.position_ms(),
+            position_ms: self.position_ms(),
             source: "local".into(),
             updated_at_ms: now_ms(),
         }
@@ -364,6 +425,18 @@ impl NowPlayingSource for LocalPlayer {
                     Ok(())
                 }
                 PlaybackStatus::Paused => {
+                    if !self.loaded {
+                        // Restored session: open the file only now, then
+                        // honor the seek the user saved (play_index
+                        // clears the marker, so read it first).
+                        let i = self.index.unwrap_or(0);
+                        let resume = self.resume_position_ms;
+                        self.play_index(i).map_err(MediaError::Control)?;
+                        if resume > 0 {
+                            let _ = self.audio.seek(resume);
+                        }
+                        return Ok(());
+                    }
                     self.audio.play();
                     self.status = PlaybackStatus::Playing;
                     Ok(())
@@ -377,8 +450,10 @@ impl NowPlayingSource for LocalPlayer {
                 .map_err(|e| MediaError::Control(e.to_string())),
             Control::Previous => {
                 // Convention: >3s in, restart the track; else go back.
-                if self.audio.position_ms() > 3_000 {
-                    self.audio.seek(0).map_err(MediaError::Control)
+                // self.seek (not audio.seek): an unloaded restored track
+                // restarts by zeroing the resume marker.
+                if self.position_ms() > 3_000 {
+                    self.seek(0).map_err(MediaError::Control)
                 } else {
                     self.advance(-1)
                         .map_err(|e| MediaError::Control(e.to_string()))
@@ -567,6 +642,62 @@ mod tests {
         p.control(Control::PlayPause).unwrap();
         assert_eq!(p.status(), PlaybackStatus::Playing);
         assert_eq!(p.current_index(), Some(0));
+    }
+
+    #[test]
+    fn restore_pauses_without_opening_and_resumes_at_position() {
+        let (mut p, audio) = player();
+        p.restore(
+            vec![item("a"), item("b")],
+            Some(1),
+            12_000,
+            RepeatMode::All,
+            true,
+        );
+        assert_eq!(p.status(), PlaybackStatus::Paused);
+        assert_eq!(p.current_index(), Some(1));
+        // Nothing opened or downloaded yet; snapshot reports saved pos.
+        assert!(audio.opened.lock().unwrap().is_empty());
+        assert_eq!(p.tick().position_ms, 12_000);
+        let (_, i, pos, repeat, shuffle) = p.session();
+        assert_eq!(
+            (i, pos, repeat, shuffle),
+            (Some(1), 12_000, RepeatMode::All, true)
+        );
+        // Seeking before playback moves the resume marker.
+        p.seek(15_000).unwrap();
+        p.control(Control::PlayPause).unwrap();
+        assert_eq!(p.status(), PlaybackStatus::Playing);
+        assert_eq!(audio.opened.lock().unwrap()[0], "/music/b.mp3");
+        assert_eq!(audio.pos.load(Ordering::SeqCst), 15_000);
+    }
+
+    #[test]
+    fn restored_session_transport_uses_saved_position() {
+        let (mut p, _audio) = player();
+        p.restore(
+            vec![item("a"), item("b")],
+            Some(1),
+            12_000,
+            RepeatMode::Off,
+            false,
+        );
+        // Relative-seek math and Previous's >3s rule see the saved point.
+        assert_eq!(p.position_ms(), 12_000);
+        p.control(Control::Previous).unwrap(); // >3s in → restart, not prev
+        assert_eq!(p.current_index(), Some(1));
+        assert_eq!(p.position_ms(), 0);
+        // Stop clears the saved position so a re-saved session keeps 0.
+        p.restore(
+            vec![item("a"), item("b")],
+            Some(1),
+            12_000,
+            RepeatMode::Off,
+            false,
+        );
+        p.stop();
+        assert_eq!(p.session().2, 0);
+        assert_eq!(p.status(), PlaybackStatus::Stopped);
     }
 
     #[test]

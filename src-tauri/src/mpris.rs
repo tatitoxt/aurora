@@ -168,11 +168,11 @@ impl PlayerIface {
     fn with_player<R>(
         &self,
         default: R,
-        f: impl FnOnce(&noctbeat_core::player::LocalPlayer) -> R,
+        f: impl FnOnce(&mut noctbeat_core::player::LocalPlayer) -> R,
     ) -> R {
         let state = self.app.state::<AppState>();
         let r = match state.player.lock() {
-            Ok(p) => f(&p),
+            Ok(mut p) => f(&mut p),
             Err(_) => default,
         };
         r
@@ -222,7 +222,7 @@ impl PlayerIface {
     /// Microseconds offset relative to the current position.
     fn seek(&self, offset_us: i64) -> fdo::Result<()> {
         let state = self.app.state::<AppState>();
-        let p = state
+        let mut p = state
             .player
             .lock()
             .map_err(|_| fdo::Error::Failed("player lock poisoned".into()))?;

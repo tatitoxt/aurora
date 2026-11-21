@@ -130,6 +130,10 @@ pub struct Settings {
     /// Persisted so a relaunched app still honors a running timer.
     #[serde(default)]
     pub sleep_timer_ends_ms: Option<u64>,
+    /// Restore the last queue paused at the saved position on launch
+    /// (the "Continue Playing" state).
+    #[serde(default = "default_true")]
+    pub resume_on_launch: bool,
 }
 
 fn default_eq_preset() -> String {
@@ -176,6 +180,7 @@ impl Default for Settings {
             profiles: Vec::new(),
             active_profile: None,
             sleep_timer_ends_ms: None,
+            resume_on_launch: true,
         }
     }
 }
