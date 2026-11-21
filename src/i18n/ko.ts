@@ -147,6 +147,7 @@ const ko: Record<keyof typeof en, string> = {
   "set.listenLeave": "나가기",
   "set.listenMissing": "라이브러리에 없음",
   "set.listenErr": "해당 주소에 연결할 수 없음",
+  "set.listenNoAddr": "LAN 주소를 찾을 수 없음 — 수동으로 공유하세요",
   "set.minutes90": "90\ubd84",
   "set.licensed": "\ub77c\uc774\uc13c\uc2a4 \uc801\uc6a9\ub428",
   "set.licensedTo": "\ub77c\uc774\uc13c\uc2a4 \ubcf4\uc720\uc790",

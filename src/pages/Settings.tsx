@@ -402,7 +402,7 @@ export default function Settings() {
             <>
               <span className="share__note">
                 <span className="srcdot" /> {t("set.listenHosting")}
-                {lst.hostAddr ? ` · ${lst.hostAddr}` : ""}
+                {lst.hostAddr ? ` · ${lst.hostAddr}` : ` · ${t("set.listenNoAddr")}`}
                 {lst.peers > 0 ? ` · ${lst.peers} ${t("set.listenPeers")}` : ""}
               </span>
               <div className="seg">

@@ -2053,7 +2053,7 @@ fn listen_status_of(state: &AppState) -> listen::ListenStatus {
     if let Ok(h) = state.listen_host.lock() {
         if let Some(h) = h.as_ref() {
             st.hosting = true;
-            st.host_addr = Some(format!("http://{}", h.addr));
+            st.host_addr = h.share_url();
             st.host_name = Some(h.name());
             st.peers = h.peers();
         }
@@ -2105,10 +2105,14 @@ fn listen_host_stop(state: State<AppState>) -> listen::ListenStatus {
     listen_status_of(&state)
 }
 
-/// Join a host session by address (`ip`, `ip:port` or `http://…`). Fails
-/// fast when the host is unreachable.
+/// Join a host session by address (`ip`, `ip:port` or the `http://…/<key>`
+/// share URL). Fails fast when the host is unreachable or the key is wrong.
+/// Async so the connect probe never blocks the IPC thread.
 #[tauri::command]
-fn listen_join(state: State<AppState>, addr: String) -> Result<listen::ListenStatus, String> {
+async fn listen_join(
+    state: State<'_, AppState>,
+    addr: String,
+) -> Result<listen::ListenStatus, String> {
     let f = listen::Follower::join(&addr)?;
     *state.listen_follower.lock().map_err(|e| e.to_string())? = Some(f);
     *state.listen_host.lock().map_err(|e| e.to_string())? = None;
@@ -2143,6 +2147,12 @@ fn apply_listen_sync(app: &tauri::AppHandle, state: &State<AppState>, local: &No
         SyncAction::Nothing => {}
         SyncAction::Seek(pos) => {
             if let Ok(mut p) = state.player.lock() {
+                // Stopped (queue ended on this track): reload it, then land
+                // on the host position — a seek alone can't restart audio.
+                if p.status() == PlaybackStatus::Stopped {
+                    let i = p.current_index().unwrap_or(0);
+                    let _ = p.play_index(i);
+                }
                 let _ = p.seek(pos);
             }
         }
@@ -2155,8 +2165,15 @@ fn apply_listen_sync(app: &tauri::AppHandle, state: &State<AppState>, local: &No
         }
         SyncAction::Resume => {
             if let Ok(mut p) = state.player.lock() {
-                if p.status() == PlaybackStatus::Paused {
-                    let _ = p.control(Control::PlayPause);
+                match p.status() {
+                    PlaybackStatus::Paused => {
+                        let _ = p.control(Control::PlayPause);
+                    }
+                    PlaybackStatus::Stopped => {
+                        let i = p.current_index().unwrap_or(0);
+                        let _ = p.play_index(i);
+                    }
+                    _ => {}
                 }
             }
         }

@@ -75,25 +75,44 @@ pub struct ListenStatus {
 struct HostShared {
     np: Option<NowPlaying>,
     host_name: String,
+    /// Session token the share URL carries; /state rejects requests that
+    /// don't present it.
+    key: String,
     seq: u64,
     peers: HashMap<String, Instant>,
+}
+
+/// 16-hex-char session token — keeps casual LAN readers/forgers out of the
+/// state endpoint (an active on-path MITM still needs TLS: roadmap).
+fn session_key() -> String {
+    let mut b = [0u8; 8];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        if f.read_exact(&mut b).is_ok() {
+            return b.iter().map(|x| format!("{x:02x}")).collect();
+        }
+    }
+    format!("{:016x}", now_ms() ^ ((std::process::id() as u64) << 32))
 }
 
 pub struct Host {
     shared: Arc<Mutex<HostShared>>,
     alive: Arc<AtomicBool>,
-    /// Our LAN address as `ip:port` for the share URL.
-    pub addr: String,
+    /// Our LAN address as `ip:port`; None when no non-loopback interface
+    /// was discovered (isolated setups share it by hand).
+    pub addr: Option<String>,
+    /// Session token — followers joining without it get 403.
+    pub key: String,
 }
 
 impl Host {
-    /// Start serving `GET /state` on `0.0.0.0:port`. None if the bind fails.
+    /// Start serving `GET /<key>` on `0.0.0.0:port`. None if the bind fails.
     pub fn start(host_name: impl Into<String>, port: u16) -> Option<Self> {
         let listener = TcpListener::bind(("0.0.0.0", port)).ok()?;
         listener.set_nonblocking(true).ok()?;
         let shared = Arc::new(Mutex::new(HostShared {
             np: None,
             host_name: host_name.into(),
+            key: session_key(),
             seq: 0,
             peers: HashMap::new(),
         }));
@@ -105,7 +124,10 @@ impl Host {
                 match listener.accept() {
                     Ok((stream, peer)) => {
                         record_peer(&s, peer.ip().to_string());
-                        serve_state(stream, &s);
+                        // Per-connection thread: an idle client that never
+                        // finishes its request must not stall other peers.
+                        let s2 = Arc::clone(&s);
+                        std::thread::spawn(move || serve_state(stream, &s2));
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                         std::thread::sleep(Duration::from_millis(80));
@@ -114,22 +136,35 @@ impl Host {
                 }
             }
         });
-        let addr = format!(
-            "{}:{}",
-            lan_ip().unwrap_or_else(|| "127.0.0.1".into()),
-            port
-        );
+        let addr = lan_ip().map(|ip| format!("{ip}:{port}"));
+        let key = shared.lock().unwrap().key.clone();
         Some(Self {
             shared,
             alive,
             addr,
+            key,
         })
     }
 
-    /// Publish the latest now-playing snapshot for followers.
+    /// `http://ip:port/<key>` — the string friends paste to join.
+    pub fn share_url(&self) -> Option<String> {
+        self.addr
+            .as_ref()
+            .map(|a| format!("http://{a}/{}", self.key))
+    }
+
+    /// Publish the latest now-playing snapshot for followers. Local file
+    /// paths (track ids, cache artwork) are stripped before broadcast.
     pub fn publish(&self, np: &NowPlaying) {
+        let mut np = np.clone();
+        if let Some(t) = np.track.as_mut() {
+            t.id = format!("{}:{}:{}", np.source, t.artist, t.title);
+            if !t.artwork_url.starts_with("http") {
+                t.artwork_url.clear();
+            }
+        }
         let mut s = self.shared.lock().unwrap();
-        s.np = Some(np.clone());
+        s.np = Some(np);
         s.seq += 1;
     }
 
@@ -163,9 +198,19 @@ fn record_peer(shared: &Arc<Mutex<HostShared>>, ip: String) {
 
 fn serve_state(mut stream: TcpStream, shared: &Arc<Mutex<HostShared>>) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
-    // Consume the request head; only GET /state is served.
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(2)));
+    // Consume the request head; only `GET /<key>` is served.
     let mut buf = [0u8; 2048];
-    if stream.read(&mut buf).unwrap_or(0) == 0 {
+    let n = stream.read(&mut buf).unwrap_or(0);
+    if n == 0 {
+        return;
+    }
+    let head = String::from_utf8_lossy(&buf[..n]);
+    let path = head.split_whitespace().nth(1).unwrap_or("");
+    let key = shared.lock().unwrap().key.clone();
+    if path != format!("/{key}") {
+        let _ = stream
+            .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         return;
     }
     let body = {
@@ -192,15 +237,32 @@ fn serve_state(mut stream: TcpStream, shared: &Arc<Mutex<HostShared>>) {
 }
 
 /// The local LAN address, best-effort: a UDP "connect" picks the outbound
-/// interface without sending traffic.
+/// interface without sending traffic. The broadcast/multicast fallbacks
+/// cover interfaces on isolated LANs with no default route.
 pub fn lan_ip() -> Option<String> {
-    let sock = std::net::UdpSocket::bind(("0.0.0.0", 0)).ok()?;
-    sock.connect("192.0.2.1:80").ok()?; // TEST-NET-1: routing only, no packets
-    Some(sock.local_addr().ok()?.ip().to_string())
+    for target in ["192.0.2.1:80", "255.255.255.255:80", "224.0.0.1:80"] {
+        let Ok(sock) = std::net::UdpSocket::bind(("0.0.0.0", 0)) else {
+            continue;
+        };
+        if sock.connect(target).is_err() {
+            continue;
+        }
+        if let Ok(a) = sock.local_addr() {
+            if !a.ip().is_loopback() && !a.ip().is_unspecified() {
+                return Some(a.ip().to_string());
+            }
+        }
+    }
+    None
 }
 
+/// A broadcast older than this no longer drives sync — the session is
+/// gone, so the last snapshot must not keep controlling playback.
+const FOLLOW_STALE: Duration = Duration::from_secs(4);
+
 struct FollowShared {
-    latest: Option<Broadcast>,
+    /// (When it arrived, what arrived). Expires via FOLLOW_STALE.
+    latest: Option<(Instant, Broadcast)>,
     host_name: Option<String>,
     last_error: Option<String>,
 }
@@ -213,14 +275,14 @@ pub struct Follower {
 }
 
 impl Follower {
-    /// Join `addr` (`ip:port` or `http://ip:port`). Validates by fetching
-    /// state once; Err means the host is unreachable.
+    /// Join `addr` (`ip`, `ip:port` or a `http://ip:port/<key>` share URL).
+    /// Validates by fetching state once; Err means unreachable or bad key.
     pub fn join(addr: &str) -> Result<Self, String> {
-        let addr = normalize_addr(addr);
+        let (addr, key) = normalize_addr(addr);
         // One probe up front so join() can fail fast on a bad address.
-        let b = fetch_broadcast(&addr).map_err(|e| format!("{addr}: {e}"))?;
+        let b = fetch_broadcast(&addr, key.as_deref()).map_err(|e| format!("{addr}: {e}"))?;
         let shared = Arc::new(Mutex::new(FollowShared {
-            latest: b.clone(),
+            latest: b.clone().map(|b| (Instant::now(), b)),
             host_name: b.map(|x| x.host),
             last_error: None,
         }));
@@ -231,13 +293,13 @@ impl Follower {
         std::thread::spawn(move || {
             while a.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(800));
-                match fetch_broadcast(&worker_addr) {
+                match fetch_broadcast(&worker_addr, key.as_deref()) {
                     Ok(mut b) => {
                         let mut g = s.lock().unwrap();
                         g.last_error = None;
                         if let Some(b) = b.take() {
                             g.host_name = Some(b.host.clone());
-                            g.latest = Some(b);
+                            g.latest = Some((Instant::now(), b));
                         }
                     }
                     Err(e) => s.lock().unwrap().last_error = Some(e),
@@ -251,9 +313,16 @@ impl Follower {
         })
     }
 
-    /// Latest host snapshot, if one was ever received.
+    /// Latest host snapshot — None once it goes stale (session ended or
+    /// host unreachable), so a dead session can't keep driving playback.
     pub fn latest(&self) -> Option<Broadcast> {
-        self.shared.lock().unwrap().latest.clone()
+        self.shared
+            .lock()
+            .unwrap()
+            .latest
+            .as_ref()
+            .filter(|(t, _)| t.elapsed() < FOLLOW_STALE)
+            .map(|(_, b)| b.clone())
     }
 
     pub fn host_name(&self) -> Option<String> {
@@ -271,20 +340,32 @@ impl Drop for Follower {
     }
 }
 
-fn normalize_addr(addr: &str) -> String {
+/// Split `addr` into (`ip:port`, optional session key from the URL path).
+fn normalize_addr(addr: &str) -> (String, Option<String>) {
     let a = addr.trim().trim_end_matches('/');
-    let a = a.strip_prefix("http://").unwrap_or(a);
-    let a = a.strip_prefix('/').unwrap_or(a); // tolerate trailing /state etc
-    let a = a.strip_suffix("/state").unwrap_or(a);
-    if a.contains(':') {
-        a.to_string()
+    let a = a
+        .strip_prefix("http://")
+        .or_else(|| a.strip_prefix("https://"))
+        .unwrap_or(a);
+    let (host, key) = match a.split_once('/') {
+        // `/state` from older URLs isn't a key; anything else is.
+        Some((h, p)) => {
+            let p = p.trim_matches('/');
+            (h, (!p.is_empty() && p != "state").then(|| p.to_string()))
+        }
+        None => (a, None),
+    };
+    let host = if host.contains(':') {
+        host.to_string()
     } else {
-        format!("{a}:{LISTEN_PORT}")
-    }
+        format!("{host}:{LISTEN_PORT}")
+    };
+    (host, key)
 }
 
-/// `GET /state` against `ip:port` — minimal blocking client, 1.5s timeout.
-fn fetch_broadcast(addr: &str) -> Result<Option<Broadcast>, String> {
+/// `GET /<key>` against `ip:port` — minimal blocking client, bounded to
+/// ~3s total so a hostile endpoint can't stall the caller.
+fn fetch_broadcast(addr: &str, key: Option<&str>) -> Result<Option<Broadcast>, String> {
     let sock: std::net::SocketAddr = addr
         .parse()
         .map_err(|_| "bad address (expected ip:port)".to_string())?;
@@ -293,12 +374,20 @@ fn fetch_broadcast(addr: &str) -> Result<Option<Broadcast>, String> {
     stream
         .set_read_timeout(Some(Duration::from_millis(1_500)))
         .ok();
+    let req = format!(
+        "GET /{} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n",
+        key.unwrap_or("")
+    );
     stream
-        .write_all(b"GET /state HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
+        .write_all(req.as_bytes())
         .map_err(|e| e.to_string())?;
+    let started = Instant::now();
     let mut buf = Vec::with_capacity(8192);
     let mut chunk = [0u8; 8192];
     loop {
+        if started.elapsed() > Duration::from_secs(3) {
+            return Err("response timed out".into());
+        }
         match stream.read(&mut chunk) {
             Ok(0) => break,
             Ok(n) => {
@@ -309,6 +398,10 @@ fn fetch_broadcast(addr: &str) -> Result<Option<Broadcast>, String> {
             }
             Err(_) => break,
         }
+    }
+    let head = String::from_utf8_lossy(&buf);
+    if head.starts_with("HTTP/1.1 403") || head.starts_with("HTTP/1.0 403") {
+        return Err("bad session link".into());
     }
     let head_end = find(&buf, b"\r\n\r\n").ok_or("not an HTTP response")? + 4;
     let mut b: Option<Broadcast> =
@@ -369,6 +462,8 @@ pub fn sync_decision(host: &Broadcast, local: Option<&NowPlaying>, drift_ms: u64
     if !host_playing {
         return match local.status {
             PlaybackStatus::Playing => SyncAction::Pause,
+            // Host scrubbed a paused track: converge position too.
+            _ if local.position_ms.abs_diff(host_pos) > drift_ms => SyncAction::Seek(host_pos),
             _ => SyncAction::Nothing,
         };
     }
@@ -378,6 +473,8 @@ pub fn sync_decision(host: &Broadcast, local: Option<&NowPlaying>, drift_ms: u64
     }
     match local.status {
         PlaybackStatus::Playing => SyncAction::Nothing,
+        // Stopped (queue ended) restarts via the same Resume path — the
+        // apply layer reloads the selected item.
         _ => SyncAction::Resume,
     }
 }
@@ -467,6 +564,27 @@ mod tests {
     }
 
     #[test]
+    fn paused_host_drift_seeks() {
+        // Both paused at different positions: still converge.
+        let d = sync_decision(
+            &b(np("A", "X", 65_000, PlaybackStatus::Paused)),
+            Some(&np("A", "X", 15_000, PlaybackStatus::Paused)),
+            DRIFT_MS,
+        );
+        assert_eq!(d, SyncAction::Seek(65_000));
+    }
+
+    #[test]
+    fn stopped_follower_resumes() {
+        let d = sync_decision(
+            &b(np("A", "X", 1_000, PlaybackStatus::Playing)),
+            Some(&np("A", "X", 1_000, PlaybackStatus::Stopped)),
+            DRIFT_MS,
+        );
+        assert_eq!(d, SyncAction::Resume);
+    }
+
+    #[test]
     fn host_play_resumes() {
         let d = sync_decision(
             &b(np("A", "X", 5_000, PlaybackStatus::Playing)),
@@ -490,21 +608,56 @@ mod tests {
 
     #[test]
     fn addr_normalization() {
-        assert_eq!(normalize_addr("192.168.1.5"), "192.168.1.5:17894");
+        assert_eq!(
+            normalize_addr("192.168.1.5"),
+            ("192.168.1.5:17894".to_string(), None)
+        );
         assert_eq!(
             normalize_addr("http://192.168.1.5:9999"),
-            "192.168.1.5:9999"
+            ("192.168.1.5:9999".to_string(), None)
         );
-        assert_eq!(normalize_addr("10.0.0.2:17894/"), "10.0.0.2:17894");
-        assert_eq!(normalize_addr("10.0.0.2:1/state"), "10.0.0.2:1");
+        assert_eq!(
+            normalize_addr("10.0.0.2:17894/"),
+            ("10.0.0.2:17894".to_string(), None)
+        );
+        assert_eq!(
+            normalize_addr("10.0.0.2:1/state"),
+            ("10.0.0.2:1".to_string(), None)
+        );
+        assert_eq!(
+            normalize_addr("http://10.0.0.2:17894/abcdef0123456789"),
+            (
+                "10.0.0.2:17894".to_string(),
+                Some("abcdef0123456789".to_string())
+            )
+        );
     }
 
     #[test]
     fn host_serves_state() {
         let host = Host::start("test host", 19_994).unwrap();
         host.publish(&np("Song", "Artist", 1_234, PlaybackStatus::Playing));
-        let got = fetch_broadcast("127.0.0.1:19994").unwrap().unwrap();
+        // Wrong/no key → 403.
+        assert!(fetch_broadcast("127.0.0.1:19994", None).is_err());
+        let got = fetch_broadcast("127.0.0.1:19994", Some(&host.key))
+            .unwrap()
+            .unwrap();
         assert_eq!(got.host, "test host");
         assert_eq!(got.np.track.unwrap().title, "Song");
+    }
+
+    #[test]
+    fn publish_strips_local_paths() {
+        let host = Host::start("p", 19_995).unwrap();
+        let mut n = np("Song", "Artist", 0, PlaybackStatus::Playing);
+        n.track.as_mut().unwrap().id = "/home/fausto/Music/song.mp3".into();
+        n.track.as_mut().unwrap().artwork_url = "/home/fausto/.cache/art.jpg".into();
+        host.publish(&n);
+        let got = fetch_broadcast("127.0.0.1:19995", Some(&host.key))
+            .unwrap()
+            .unwrap();
+        let raw = serde_json::to_string(&got).unwrap();
+        assert!(!raw.contains("/home/fausto"));
+        assert!(!got.np.track.as_ref().unwrap().id.contains('/'));
     }
 }

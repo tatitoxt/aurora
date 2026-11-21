@@ -147,6 +147,7 @@ const es: Record<keyof typeof en, string> = {
   "set.listenLeave": "Salir",
   "set.listenMissing": "No está en tu biblioteca",
   "set.listenErr": "No se pudo conectar a esa dirección",
+  "set.listenNoAddr": "sin dirección LAN detectada — compartila a mano",
   "set.minutes90": "90 min",
   "set.licensed": "Con licencia",
   "set.licensedTo": "Con licencia para",

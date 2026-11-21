@@ -147,6 +147,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.listenLeave": "离开",
   "set.listenMissing": "不在你的曲库中",
   "set.listenErr": "无法连接到该地址",
+  "set.listenNoAddr": "未检测到 LAN 地址 — 请手动分享",
   "set.minutes90": "90\u5206\u949f",
   "set.licensed": "\u5df2\u6388\u6743",
   "set.licensedTo": "\u5df2\u6388\u6743\u7ed9",

@@ -78,6 +78,7 @@ const en = {
   "set.listenLeave": "Leave",
   "set.listenMissing": "Not in your library",
   "set.listenErr": "Couldn't reach that address",
+  "set.listenNoAddr": "no LAN address found — share it manually",
   "set.minutes90": "90 min",
   "set.licensed": "Licensed",
   "set.licensedTo": "Licensed to",
