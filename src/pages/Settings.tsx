@@ -11,6 +11,7 @@ import {
   EQ_FREQS,
   EQ_PRESETS,
   type LicenseState,
+  type NowPlaying,
   type Settings,
 } from "../bridge";
 
@@ -30,6 +31,12 @@ export default function Settings() {
   };
   const [profileName, setProfileName] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [np, setNp] = useState<NowPlaying | null>(null);
+
+  useEffect(() => {
+    void bridge.getNowPlaying().then(setNp).catch(() => {});
+    return subscribe<NowPlaying>("now-playing", setNp);
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -353,6 +360,21 @@ export default function Settings() {
             value={s.musicDir ?? ""}
             onChange={(e) => patch({ musicDir: e.target.value || null })}
           />
+        </div>
+
+        <div className="field">
+          <span>{t("set.sources")}</span>
+          <span className="share__note">
+            {np?.source?.includes(".") ? (
+              <>
+                <span className="srcdot" /> {t("set.sourceLive")} · {np.source}
+              </>
+            ) : np?.source === "local" || np?.source === "demo" ? (
+              <>{branding.productName} · {np.source}</>
+            ) : (
+              <>{t("set.sourceSys")}{np?.source ? ` · ${np.source}` : ""}</>
+            )}
+          </span>
         </div>
 
         <div className="field">
