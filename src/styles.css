@@ -123,7 +123,7 @@ body {
   from { opacity: 0; transform: translateY(14px) scale(.97); }
   to { opacity: 1; transform: none; }
 }
-.kword { color: rgba(242, 242, 245, 0.3); margin-right: .28em; transition: color .25s, text-shadow .25s; display: inline-block; }
+.kword { color: rgba(242, 242, 245, 0.3); margin-right: .28em; transition: color .25s, text-shadow .25s; display: inline-block; unicode-bidi: embed; }
 .kword--now {
   color: #fff;
   text-shadow: 0 0 26px rgba(255, 255, 255, 0.55);
@@ -140,7 +140,7 @@ body {
 .kword--adlib.kword--now { text-shadow: 0 0 14px rgba(255, 255, 255, 0.3); }
 /* Fullscreen word spans are inline by default — inline-block so the
  * per-word lyric-animation transforms actually move them. */
-.fsword { display: inline-block; }
+.fsword { display: inline-block; unicode-bidi: embed; }
 /* Line-level adlib spans (fullscreen + list lyrics). */
 .adlib {
   opacity: 0.5;
