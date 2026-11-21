@@ -356,8 +356,8 @@ export default function Fullscreen() {
           <img className="fs__tilebg" src={art} alt="" />
         ) : wall.length > 1 ? (
           <div className="fs__wall">
-            {(wall.length < 12
-              ? Array.from({ length: Math.ceil(12 / wall.length) }, () => wall).flat()
+            {(wall.length < 24
+              ? Array.from({ length: Math.ceil(24 / wall.length) }, () => wall).flat()
               : wall
             ).map((src, i) => (
               <img key={i} src={src} alt="" />
