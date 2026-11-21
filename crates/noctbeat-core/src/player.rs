@@ -230,6 +230,53 @@ impl LocalPlayer {
         self.queue.push(item);
     }
 
+    /// Drop the item at `index`, keeping the cursor on the same track.
+    /// Removing the selected item is rejected whether it is loaded or
+    /// merely restored — pause or switch tracks first.
+    pub fn remove(&mut self, index: usize) -> Result<(), String> {
+        if index >= self.queue.len() {
+            return Err(format!("no item at index {index}"));
+        }
+        if self.index == Some(index) {
+            return Err("cannot remove the selected track".into());
+        }
+        self.queue.remove(index);
+        if let Some(i) = self.index {
+            if index < i {
+                self.index = Some(i - 1);
+            }
+        }
+        Ok(())
+    }
+
+    /// Move the item at `from` to `to`, shifting the ones in between and
+    /// keeping the cursor on the same track.
+    pub fn move_item(&mut self, from: usize, to: usize) -> Result<(), String> {
+        let len = self.queue.len();
+        if from >= len || to >= len {
+            return Err(format!(
+                "queue move out of bounds: {from} -> {to} (len {len})"
+            ));
+        }
+        if from == to {
+            return Ok(());
+        }
+        let item = self.queue.remove(from);
+        self.queue.insert(to, item);
+        if let Some(i) = self.index {
+            self.index = Some(if i == from {
+                to
+            } else if from < to && i > from && i <= to {
+                i - 1
+            } else if to < from && i >= to && i < from {
+                i + 1
+            } else {
+                i
+            });
+        }
+        Ok(())
+    }
+
     pub fn clear(&mut self) {
         self.audio.pause();
         self.queue.clear();
@@ -827,5 +874,45 @@ mod tests {
         let (pos, playing) = p.reopen_snapshot();
         p.reopen_current(pos, playing).unwrap();
         assert!(audio.opened.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn remove_keeps_cursor_on_same_track() {
+        let (mut p, _) = player();
+        p.set_queue(vec![item("a"), item("b"), item("c"), item("d")]);
+        p.play_index(2).unwrap();
+        p.remove(0).unwrap();
+        assert_eq!(p.current_index(), Some(1));
+        assert_eq!(p.queue()[1].path, "/music/c.mp3");
+        assert!(p.remove(1).is_err(), "cannot drop the selected track");
+        assert!(p.remove(9).is_err());
+    }
+
+    #[test]
+    fn move_item_shifts_middle_and_follows_cursor() {
+        let (mut p, _) = player();
+        p.set_queue(vec![item("a"), item("b"), item("c"), item("d")]);
+        p.play_index(1).unwrap();
+        // Move a non-current item down across the cursor.
+        p.move_item(0, 2).unwrap();
+        assert_eq!(
+            p.queue()
+                .iter()
+                .map(|i| i.path.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "/music/b.mp3",
+                "/music/c.mp3",
+                "/music/a.mp3",
+                "/music/d.mp3"
+            ]
+        );
+        assert_eq!(p.current_index(), Some(0));
+        // Move the current item itself to the end.
+        p.move_item(0, 3).unwrap();
+        assert_eq!(p.current_index(), Some(3));
+        assert!(p.move_item(0, 9).is_err());
+        p.move_item(3, 3).unwrap();
+        assert_eq!(p.current_index(), Some(3));
     }
 }

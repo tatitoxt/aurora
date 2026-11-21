@@ -12,6 +12,7 @@ import {
 import { activeLyricIndex, formatTime } from "../lib";
 import {
   CaretDown,
+  CaretUp,
   CornersIn,
   Export,
   GearSix,
@@ -31,6 +32,7 @@ import {
   TextT,
   YoutubeLogo,
   SoundcloudLogo,
+  X,
   SpotifyLogo,
   AppleLogo,
   AmazonLogo,
@@ -378,11 +380,17 @@ export default function Fullscreen() {
           <>
           {queue.items.length > 0 && (
           <div className="fs__qlist">
-            {queue.items.slice(qp * 8, qp * 8 + 8).map((it, i) => (
-              <button
-                key={it.path + (qp * 8 + i)}
-                className={`fs__qrow ${qp * 8 + i === queue.currentIndex ? "fs__qrow--on" : ""}`}
-                onClick={() => void bridge.playQueueIndex(qp * 8 + i)}
+            {queue.items.slice(qp * 8, qp * 8 + 8).map((it, i) => {
+              const idx = qp * 8 + i;
+              const current = idx === queue.currentIndex;
+              return (
+              <div
+                key={it.path + idx}
+                className={`fs__qrow ${current ? "fs__qrow--on" : ""}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => void bridge.playQueueIndex(idx)}
+                onKeyDown={(e) => e.key === "Enter" && void bridge.playQueueIndex(idx)}
               >
                 <div className="fs__qbody">
                   <QueueThumb track={it.track} />
@@ -390,11 +398,37 @@ export default function Fullscreen() {
                     <span className="fs__qtitle">{it.track.title}</span>
                     <span className="fs__qsub">{it.track.artist}</span>
                   </span>
-                  <span className="fs__qnum">{qp * 8 + i + 1}</span>
+                  <span className="fs__qctl" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="fs__qctlbtn"
+                      title="Move up"
+                      disabled={idx === 0}
+                      onClick={() => void bridge.queueMove(idx, idx - 1)}
+                    >
+                      <CaretUp size={11} />
+                    </button>
+                    <button
+                      className="fs__qctlbtn"
+                      title="Move down"
+                      disabled={idx === queue.items.length - 1}
+                      onClick={() => void bridge.queueMove(idx, idx + 1)}
+                    >
+                      <CaretDown size={11} />
+                    </button>
+                    <button
+                      className="fs__qctlbtn"
+                      title={current ? "Playing — can't remove" : "Remove from queue"}
+                      disabled={current}
+                      onClick={() => void bridge.queueRemove(idx)}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                  <span className="fs__qnum">{idx + 1}</span>
                   <span className="fs__qdur">
                     {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
                   </span>
-                  {qp * 8 + i === queue.currentIndex && playing && (
+                  {current && playing && (
                     <span className="fs__eq" aria-hidden="true">
                       <i />
                       <i />
@@ -402,8 +436,9 @@ export default function Fullscreen() {
                     </span>
                   )}
                 </div>
-              </button>
-            ))}
+              </div>
+              );
+            })}
           </div>
           )}
           {queue.items.length > 8 && (

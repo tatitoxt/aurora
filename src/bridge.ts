@@ -466,6 +466,25 @@ export const bridge = {
     isTauri() ? invokeCmd<boolean>("fullscreen_app_active") : Promise.resolve(false),
   clearQueue: () =>
     isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
+  queueRemove: (index: number): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("queue_remove", { index });
+    if (index !== mock.index) {
+      mock.playlist.splice(index, 1);
+      if (index < mock.index) mock.index -= 1;
+    }
+    return Promise.resolve(null);
+  },
+  queueMove: (from: number, to: number): Promise<null> => {
+    if (isTauri()) return invokeCmd<null>("queue_move", { from, to });
+    const [item] = mock.playlist.splice(from, 1);
+    if (item) {
+      mock.playlist.splice(to, 0, item);
+      if (mock.index === from) mock.index = to;
+      else if (from < to && mock.index > from && mock.index <= to) mock.index -= 1;
+      else if (to < from && mock.index >= to && mock.index < from) mock.index += 1;
+    }
+    return Promise.resolve(null);
+  },
   scanLibrary: (dir?: string) =>
     isTauri()
       ? invokeCmd<QueueItem[]>("scan_library", { dir: dir ?? null })
