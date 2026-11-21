@@ -7,7 +7,7 @@ import {
   type QueueState,
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
-import { CornersIn, Pause, Play, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { CornersIn, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 
 /** iBaila "Albums"-style fullscreen: blurred art wall, giant outlined clock,
@@ -24,9 +24,11 @@ export default function Fullscreen() {
     bridge.getNowPlaying().then(setNp);
     bridge.getQueue().then(setQueue);
     const off = subscribe<NowPlaying>("now-playing", setNp);
+    const offQ = subscribe<QueueState>("queue", setQueue);
     const clock = setInterval(() => setNow(new Date()), 1000);
     return () => {
       off();
+      offQ();
       clearInterval(clock);
     };
   }, []);
@@ -114,9 +116,6 @@ export default function Fullscreen() {
           <span className="fs__time">{formatTime(dur)}</span>
         </div>
         <div className="fs__pill">
-          <button className="fs__icon" aria-label="Shuffle" onClick={() => void bridge.mediaControl("next")}>
-            <Shuffle size={15} />
-          </button>
           <button className="fs__icon" aria-label="Previous" onClick={() => void bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={17} />
           </button>
