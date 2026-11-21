@@ -1046,6 +1046,7 @@ export default function Fullscreen() {
                 <button className="fs__morebtn" onClick={() => { void bridge.setSleepTimer(30); setMoreOpen(false); }}>
                   <Moon size={13} /> Sleep 30 min
                 </button>
+                <span className="fs__moresep" />
                 <span className="fs__stylehead">Speed</span>
                 {([
                   ["Slowed", 0.8],
@@ -1060,6 +1061,7 @@ export default function Fullscreen() {
                     {label} {v}×
                   </button>
                 ))}
+                <span className="fs__moresep" />
                 <button className="fs__morebtn" onClick={() => nav("/library")}>
                   <Playlist size={13} /> {t("nav.library")}
                 </button>
@@ -1072,6 +1074,7 @@ export default function Fullscreen() {
                 >
                   <CornersIn size={13} /> Exit fullscreen
                 </button>
+                <span className="fs__moresep" />
                 <span className="fs__stylehead">{t("fs.size")}</span>
                 <span className="fs__sizerow">
                   <input
@@ -1128,6 +1131,7 @@ export default function Fullscreen() {
                     }}
                   />
                 </span>
+                <span className="fs__moresep" />
                 <span className="fs__stylehead">{t("fs.soundFx")}</span>
                 {([
                   ["Off", "off"],
@@ -1143,6 +1147,7 @@ export default function Fullscreen() {
                     {label}
                   </button>
                 ))}
+                <span className="fs__moresep" />
                 <span className="fs__stylehead">Style</span>
                 {FS_STYLES.map((s) => (
                   <button

@@ -17,6 +17,7 @@ import {
   FilmStrip,
   MicrophoneStage,
   Pause,
+  PictureInPicture,
   Play,
   Queue,
   SkipBack,
@@ -184,6 +185,14 @@ export default function Player() {
       </button>
       <button
         className="pnav__btn"
+        aria-label={t("nav.hud")}
+        title={t("nav.hud")}
+        onClick={() => void bridge.updateSettings({ ...settings, hudEnabled: true })}
+      >
+        <PictureInPicture size={14} />
+      </button>
+      <button
+        className="pnav__btn"
         aria-label="Toggle fullscreen"
         title={t("player.fullscreen")}
         onClick={() =>
@@ -201,9 +210,16 @@ export default function Player() {
     <ShareCard track={track} artUrl={art} posMs={pos} onClose={() => setShare(false)} />
   );
 
+  // Borderless window: drag it from any non-interactive glass surface.
+  const onGlassMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest("button, input, a, select, [role='slider'], .player__lyrics, .player__lyrfill, .stkr")) return;
+    void bridge.playerStartDrag();
+  };
+
   if (karaoke) {
     return (
-      <div className="glass glass--bare">
+      <div className="glass glass--bare" onMouseDown={onGlassMouseDown}>
         <StickerLayer />
         <div className="kbg">
           {art ? <img src={art} alt="" /> : null}
@@ -250,7 +266,7 @@ export default function Player() {
   const showVideo = view === "video" && videoUrl;
   const showBigLyrics = view === "lyrics";
   return (
-    <div className={`glass ${showVideo ? "glass--videobg" : ""}`}>
+    <div className={`glass ${showVideo ? "glass--videobg" : ""}`} onMouseDown={onGlassMouseDown}>
       {/* videoclip view: the resolved stream IS the window background —
           lyrics and the transport float over it. */}
       {showVideo ? <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} /> : null}

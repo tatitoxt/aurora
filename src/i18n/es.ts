@@ -8,6 +8,7 @@ const es: Record<keyof typeof en, string> = {
   "nav.back": "Volver",
   "nav.share": "Compartir lo que suena",
   "nav.commands": "Comandos (Ctrl K)",
+  "nav.hud": "Abrir HUD",
   "nav.fullscreen": "Pantalla completa",
   "set.title": "Ajustes",
   "set.edgeThickness": "Grosor del borde",

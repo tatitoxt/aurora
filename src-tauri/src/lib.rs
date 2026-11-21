@@ -1652,6 +1652,16 @@ fn hud_start_drag(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Begin an OS-native drag of the main player window (mousedown on empty
+/// glass areas — the window is borderless so there's no titlebar).
+#[tauri::command]
+fn player_start_drag(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("player") {
+        win.start_dragging().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Bring the full player window forward (HUD expand button).
 #[tauri::command]
 fn show_player(app: tauri::AppHandle) -> Result<(), String> {
@@ -2652,6 +2662,7 @@ pub fn run() {
             set_hud_pinned,
             hud_start_drag,
             desk_lyrics_start_drag,
+            player_start_drag,
             show_player,
             toggle_fullscreen,
             seek,

@@ -478,6 +478,8 @@ export const bridge = {
     isTauri() ? invokeCmd<null>("hud_start_drag") : Promise.resolve(null),
   deskLyricsStartDrag: () =>
     isTauri() ? invokeCmd<null>("desk_lyrics_start_drag") : Promise.resolve(null),
+  playerStartDrag: () =>
+    isTauri() ? invokeCmd<null>("player_start_drag") : Promise.resolve(null),
   showPlayer: () => {
     if (isTauri()) return invokeCmd<null>("show_player");
     window.location.hash = "#/";

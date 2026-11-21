@@ -42,7 +42,9 @@ const conf = {
         title: brand.productName,
         width: 340,
         height: 560,
-        resizable: false,
+        resizable: true,
+        minWidth: 300,
+        minHeight: 480,
         decorations: false,
         transparent: true,
         windowEffects: {

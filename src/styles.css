@@ -344,9 +344,10 @@ body {
 }
 
 /* Liquid-glass icon pill nav (iBaila grammar: one floating bar, icon chips). */
+/* pinned to the bottom of the window — no dead gap below it. */
 .pnav {
   display: flex; align-items: center; justify-content: center; gap: 2px;
-  align-self: center;
+  align-self: center; margin-top: auto;
   padding: 5px 8px; border-radius: 999px;
   background: rgba(14, 14, 20, 0.55);
   backdrop-filter: blur(22px) saturate(1.4);
@@ -1152,7 +1153,16 @@ body {
 .fs__morebtn--on { color: var(--accent); }
 .fs__morebtn:disabled { opacity: 0.45; cursor: default; }
 .fs__morebtn:disabled:hover { background: none; }
-.fs__provpop { min-width: 230px; left: -6px; transform: none; }
+/* provider picker: floats centered well above the transport pill so it
+   never covers the now-playing controls. */
+.fs__provpop {
+  min-width: 240px; max-width: 320px; max-height: 46vh;
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
+}
+.fs__moresep {
+  height: 1px; margin: 6px 10px; flex: none;
+  background: rgba(255, 255, 255, 0.10);
+}
 .fs__extlive {
   display: block; font-size: 10px; font-weight: 600;
   color: #34d399; padding: 2px 8px 6px; letter-spacing: 0.02em;
