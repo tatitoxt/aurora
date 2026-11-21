@@ -10,6 +10,10 @@
     "core:window:default",
     "dialog:default",
     "dialog:allow-open",
-    "notification:default"
+    "notification:default",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:allow-restart"
   ]
 }

@@ -3,7 +3,7 @@
 // Rename the product by editing branding.json, then run `pnpm branding`.
 // See RENAMING.md for the full checklist.
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +18,12 @@ const write = (rel, content) => {
 };
 
 // --- src-tauri/tauri.conf.json -------------------------------------------
+// The updater pubkey lives in tauri.conf.json only; carry it forward so a
+// branding sync never silently disables auto-update.
+const prevConf = existsSync(join(root, "src-tauri/tauri.conf.json"))
+  ? JSON.parse(readFileSync(join(root, "src-tauri/tauri.conf.json"), "utf8"))
+  : {};
+const prevUpdater = prevConf.plugins?.updater;
 const conf = {
   $schema: "https://schema.tauri.app/config/2",
   productName: brand.productName,
@@ -63,6 +69,16 @@ const conf = {
     shortDescription: brand.description,
     longDescription: brand.description,
     copyright: brand.copyright,
+    createUpdaterArtifacts: true,
+  },
+  plugins: {
+    updater: {
+      pubkey: prevUpdater?.pubkey ?? brand.updaterPubkey ?? "",
+      endpoints: [
+        "https://github.com/tatitoxt/aurora/releases/latest/download/latest.json",
+      ],
+      windows: { installMode: "passive" },
+    },
   },
 };
 write("src-tauri/tauri.conf.json", JSON.stringify(conf, null, 2) + "\n");

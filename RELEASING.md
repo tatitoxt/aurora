@@ -1,16 +1,30 @@
 # Releasing
 
-`build.yml` produces unsigned bundles for Linux/macOS/Windows on every push to main and every `v*` tag. For commercial distribution you want signed builds + license sales.
+`build.yml` builds Linux/macOS/Windows bundles on every `v*` tag and opens a **draft GitHub Release** with the installers and updater artifacts (`latest.json` + signatures) via `tauri-action`.
 
-## Signing
+## Auto-update
 
-Set these repo secrets (never in-tree):
+The updater plugin is wired end-to-end:
 
-- `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — `pnpm tauri signer generate` produces the updater keypair; the public key goes in `tauri.conf.json` → `plugins.updater.pubkey`.
+- `tauri.conf.json → plugins.updater` holds the minisign public key and polls `releases/latest/download/latest.json`.
+- `bundle.createUpdaterArtifacts: true` makes the bundler emit `.sig` updater packages.
+- The app checks on launch (player window only), downloads + installs in the background, then relaunches.
+
+One manual step before the first release — add the private key as a repo secret:
+
+```
+gh secret set TAURI_SIGNING_PRIVATE_KEY < noctbeat-updater.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD -b "<password or empty>"
+```
+
+(The keypair was generated with `pnpm tauri signer generate`; the private key lives outside the repo — keep it safe, losing it means updates stop working. The matching public key is already committed in `tauri.conf.json`.)
+
+Until those secrets exist, releases still publish but ship unsigned updater artifacts, so in-app update stays off.
+
+## OS signing (store-quality)
+
 - macOS: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` for Developer ID signing + notarization.
 - Windows: `WINDOWS_CERTIFICATE` + password (or a HSM/KeyVault flow) fed to `signtool`/tauri-bundler.
-
-Then replace `--no-sign` with a signed `pnpm tauri build` on tag builds.
 
 ## Licensing (Lemon Squeezy)
 
