@@ -940,7 +940,7 @@ export default function Fullscreen() {
                   >
                     {label} {v}×
                   </button>
-                ))
+                ))}
                 <button className="fs__morebtn" onClick={() => nav("/settings")}>
                   <GearSix size={13} /> Settings
                 </button>
