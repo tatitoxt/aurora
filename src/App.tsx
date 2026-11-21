@@ -44,8 +44,38 @@ export default function App() {
       <PaletteGate />
       <DropGate />
       <ShortcutsGate />
+      <UpdateGate />
     </>
   );
+}
+
+/** Silent auto-update: check once on launch in the player window,
+ * download+install in the background, relaunch when done. Offline,
+ * dev builds and unsigned builds just ignore the failure. */
+function UpdateGate() {
+  const loc = useLocation();
+  useEffect(() => {
+    if (loc.pathname !== "/") return;
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { check } = await import("@tauri-apps/plugin-updater");
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        const update = await check();
+        if (update && !cancelled) {
+          await update.downloadAndInstall();
+          if (!cancelled) await relaunch();
+        }
+      } catch {
+        // no release endpoint yet, offline, or dev build
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loc.pathname]);
+  return null;
 }
 
 /** Ctrl+K palette lives in the player window only — never on the

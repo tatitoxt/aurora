@@ -30,15 +30,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libxdo-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
       - run: pnpm install --frozen-lockfile
-      - name: Build (unsigned)
-        run: pnpm tauri build --no-sign
-      - uses: actions/upload-artifact@v4
-        with:
-          name: noctbeat-${{ matrix.target }}
-          path: |
-            target/release/bundle/**/*.deb
-            target/release/bundle/**/*.AppImage
-            target/release/bundle/**/*.dmg
-            target/release/bundle/**/*.msi
-            target/release/bundle/**/*.nsis.zip
-          if-no-files-found: ignore
+      # tauri-action builds every bundle and — on tag pushes — opens a
+      # draft GitHub Release with installers + updater artifacts
+      # (latest.json + .sig files). The updater signature needs the
+      # TAURI_SIGNING_PRIVATE_KEY secret; without it the release is
+      # published unsigned and in-app auto-update stays disabled.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
