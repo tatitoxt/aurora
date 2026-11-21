@@ -291,11 +291,9 @@ fn clear_history(state: State<AppState>) -> Result<(), String> {
     h.save(&state.history_path).map_err(|e| e.to_string())
 }
 
-/// Async: a play/pause/next that lands on an uncached remote track can
-/// block for a yt-dlp download — that must happen on the runtime pool,
-/// not the IPC thread.
-/// Transport routing shared by the IPC command and the tray menu: the
-/// local player when it holds the queue, the external source otherwise.
+/// Transport routing shared by the IPC command, the tray menu and
+/// global hotkeys: the local player when it holds the queue, the
+/// external source otherwise.
 fn media_control_inner(state: &AppState, cmd: Control) -> Result<(), String> {
     if local_active(state) {
         return state
@@ -313,6 +311,9 @@ fn media_control_inner(state: &AppState, cmd: Control) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Async: a play/pause/next that lands on an uncached remote track can
+/// block for a yt-dlp download — that must happen on the runtime pool,
+/// not the IPC thread.
 #[tauri::command]
 async fn media_control(state: State<'_, AppState>, cmd: Control) -> Result<(), String> {
     media_control_inner(&state, cmd)
@@ -2057,6 +2058,36 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state != tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        return;
+                    }
+                    use tauri_plugin_global_shortcut::Code;
+                    let cmd = match shortcut.key {
+                        Code::MediaPlayPause => Control::PlayPause,
+                        Code::MediaTrackNext | Code::MediaFastForward => Control::Next,
+                        Code::MediaTrackPrevious | Code::MediaRewind => Control::Previous,
+                        _ => return,
+                    };
+                    // The hotkey thread must not block on a remote
+                    // resolve — same reason media_control is async.
+                    let app = app.clone();
+                    std::thread::spawn(move || {
+                        let state = app.state::<AppState>();
+                        // While another app owns playback (Spotify, a
+                        // browser) the OS already routes the media key
+                        // to its session — forwarding it again through
+                        // the source would toggle it twice, cancelling
+                        // out. Hotkeys only drive our own player.
+                        if local_active(&state) {
+                            let _ = media_control_inner(&state, cmd);
+                        }
+                    });
+                })
+                .build(),
+        )
         .manage(AppState {
             source: Mutex::new(source),
             player: Mutex::new(local_player),
@@ -2167,6 +2198,7 @@ pub fn run() {
             sync_hud_window(app.handle(), &s);
             sync_desk_lyrics_window(app.handle(), &s);
             build_tray(app.handle())?;
+            register_media_hotkeys(app.handle());
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -2196,6 +2228,48 @@ fn tray_media_control(app: &tauri::AppHandle, cmd: Control) {
         let _ = media_control_inner(&state, cmd);
     });
 }
+
+/// Register OS-level media keys so play/pause/next/prev work even when
+/// no Noctbeat window is focused. Skipped on Linux: the MPRIS2 server
+/// already delivers desktop media keys there, and grabbing the keys
+/// could double-fire controls.
+#[cfg(not(target_os = "linux"))]
+fn register_media_hotkeys(app: &tauri::AppHandle) {
+    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut};
+    let mut registered = 0usize;
+    for code in [
+        Code::MediaPlayPause,
+        Code::MediaTrackNext,
+        Code::MediaTrackPrevious,
+        // Some keyboards emit Fast/Rewind for track skips instead of
+        // Next/Previous — bind both so those keys work too.
+        Code::MediaFastForward,
+        Code::MediaRewind,
+    ] {
+        // Another app may already hold a key (Spotify, a browser):
+        // skip that binding instead of failing startup.
+        if app
+            .global_shortcut()
+            .register(Shortcut::new(None, code))
+            .is_ok()
+        {
+            registered += 1;
+        }
+    }
+    // On macOS every registration fails without Accessibility access —
+    // say so once instead of leaving dead shortcuts unexplained.
+    #[cfg(target_os = "macos")]
+    if registered == 0 {
+        eprintln!(
+            "media keys unavailable: grant Noctbeat Accessibility access in \
+             System Settings → Privacy & Security → Accessibility"
+        );
+    }
+}
+
+/// Linux uses the MPRIS2 server (started in `setup`) for media keys.
+#[cfg(target_os = "linux")]
+fn register_media_hotkeys(_app: &tauri::AppHandle) {}
 
 fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
