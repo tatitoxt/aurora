@@ -160,12 +160,21 @@ fn resolve_remote(
     cache: &std::path::Path,
     key: &str,
 ) -> Result<PathBuf, String> {
-    let rt = map
-        .lock()
-        .map_err(|e| e.to_string())?
-        .get(key)
-        .cloned()
-        .ok_or_else(|| format!("unknown remote track {key}"))?;
+    let rt = map.lock().map_err(|e| e.to_string())?.get(key).cloned();
+    let Some(rt) = rt else {
+        // A restored queue can reference a remote track whose metadata
+        // is gone; the cache name derives from the key alone, so a
+        // downloaded file still plays.
+        let (source, id) = key
+            .split_once(':')
+            .ok_or_else(|| format!("unknown remote track {key}"))?;
+        let name = format!(
+            "{source}-{}",
+            id.replace(|c: char| !c.is_alphanumeric(), "_")
+        );
+        return providers::cached_file(cache, &name)
+            .ok_or_else(|| format!("unknown remote track {key}"));
+    };
     let name = remote_cache_name(&rt);
     if let Some(f) = providers::cached_file(cache, &name) {
         return Ok(f);
@@ -332,6 +341,10 @@ struct SessionState {
     position_ms: u64,
     repeat: RepeatMode,
     shuffle: bool,
+    /// Remote metadata for `remote:` queue paths, so a relaunched app
+    /// can resolve them even if they were never cached.
+    #[serde(default)]
+    remote: std::collections::HashMap<String, RemoteTrack>,
 }
 
 /// Write the player's queue + cursor + position to session.json; an
@@ -349,6 +362,7 @@ fn write_session(state: &AppState) {
         position_ms,
         repeat,
         shuffle,
+        remote: state.remote.lock().map(|m| m.clone()).unwrap_or_default(),
     };
     if let Ok(json) = serde_json::to_string(&session) {
         let _ = std::fs::write(&state.session_path, json);
@@ -374,6 +388,11 @@ fn restore_session(state: &AppState) {
     };
     if s.items.is_empty() {
         return;
+    }
+    // Repopulate resolver metadata first — the resolver rejects remote
+    // keys it doesn't know, even for files already in the cache.
+    if let Ok(mut m) = state.remote.lock() {
+        m.extend(s.remote);
     }
     if let Ok(mut p) = state.player.lock() {
         p.restore(s.items, s.index, s.position_ms, s.repeat, s.shuffle);

@@ -305,12 +305,19 @@ impl LocalPlayer {
     pub fn stop(&mut self) {
         self.audio.pause();
         let _ = self.audio.seek(0);
+        self.resume_position_ms = 0;
         self.status = PlaybackStatus::Stopped;
     }
 
-    /// Current playback position without ticking side effects.
+    /// Current playback position without ticking side effects. While a
+    /// restored track is still unloaded this is the saved resume point,
+    /// so relative seeks and Previous's >3s restart rule start right.
     pub fn position_ms(&self) -> u64 {
-        self.audio.position_ms()
+        if self.loaded {
+            self.audio.position_ms()
+        } else {
+            self.resume_position_ms
+        }
     }
 
     /// Snapshot `(position_ms, was_playing)` of the current track. Must be
@@ -395,11 +402,7 @@ impl LocalPlayer {
                 .and_then(|i| self.queue.get(i))
                 .map(|q| q.track.clone()),
             status: self.status,
-            position_ms: if self.loaded {
-                self.audio.position_ms()
-            } else {
-                self.resume_position_ms
-            },
+            position_ms: self.position_ms(),
             source: "local".into(),
             updated_at_ms: now_ms(),
         }
@@ -447,8 +450,10 @@ impl NowPlayingSource for LocalPlayer {
                 .map_err(|e| MediaError::Control(e.to_string())),
             Control::Previous => {
                 // Convention: >3s in, restart the track; else go back.
-                if self.audio.position_ms() > 3_000 {
-                    self.audio.seek(0).map_err(MediaError::Control)
+                // self.seek (not audio.seek): an unloaded restored track
+                // restarts by zeroing the resume marker.
+                if self.position_ms() > 3_000 {
+                    self.seek(0).map_err(MediaError::Control)
                 } else {
                     self.advance(-1)
                         .map_err(|e| MediaError::Control(e.to_string()))
@@ -665,6 +670,34 @@ mod tests {
         assert_eq!(p.status(), PlaybackStatus::Playing);
         assert_eq!(audio.opened.lock().unwrap()[0], "/music/b.mp3");
         assert_eq!(audio.pos.load(Ordering::SeqCst), 15_000);
+    }
+
+    #[test]
+    fn restored_session_transport_uses_saved_position() {
+        let (mut p, _audio) = player();
+        p.restore(
+            vec![item("a"), item("b")],
+            Some(1),
+            12_000,
+            RepeatMode::Off,
+            false,
+        );
+        // Relative-seek math and Previous's >3s rule see the saved point.
+        assert_eq!(p.position_ms(), 12_000);
+        p.control(Control::Previous).unwrap(); // >3s in → restart, not prev
+        assert_eq!(p.current_index(), Some(1));
+        assert_eq!(p.position_ms(), 0);
+        // Stop clears the saved position so a re-saved session keeps 0.
+        p.restore(
+            vec![item("a"), item("b")],
+            Some(1),
+            12_000,
+            RepeatMode::Off,
+            false,
+        );
+        p.stop();
+        assert_eq!(p.session().2, 0);
+        assert_eq!(p.status(), PlaybackStatus::Stopped);
     }
 
     #[test]
