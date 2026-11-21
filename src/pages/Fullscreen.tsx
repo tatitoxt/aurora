@@ -652,6 +652,9 @@ export default function Fullscreen() {
                 </button>
                 {provOpen && (
                   <span className="fs__volpop fs__morepop fs__provpop">
+                    {np?.source?.includes(".") && (
+                      <span className="fs__extlive">Browser bridge · {np.source} ● live</span>
+                    )}
                     {PROVIDERS.map((p) => (
                       <button
                         key={p.id}

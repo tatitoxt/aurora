@@ -840,6 +840,10 @@ body {
 .fs__morebtn:disabled { opacity: 0.45; cursor: default; }
 .fs__morebtn:disabled:hover { background: none; }
 .fs__provpop { min-width: 210px; left: -6px; transform: none; }
+.fs__extlive {
+  display: block; font-size: 10px; font-weight: 600;
+  color: #34d399; padding: 2px 8px 6px; letter-spacing: 0.02em;
+}
 .fs__provq {
   margin: 4px 4px 0; background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1); border-radius: 999px;
