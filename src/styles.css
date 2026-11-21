@@ -2011,3 +2011,14 @@ body {
   .fs__clockwrap { padding-top: 1.5vh; }
   .fs__center { padding: 0 6vw; }
 }
+
+/* Overflow section inside the "…" menu — only rendered below 560px where the
+   pill hides the optional controls. */
+.fs__menuopt { display: none; }
+@media (max-width: 560px) {
+  .fs__menuopt {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 6px 6px;
+  }
+  .fs__menuopt .fs__slider { flex: 1; min-width: 60px; }
+}

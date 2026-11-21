@@ -59,7 +59,7 @@ import {
   TidalLogo,
 } from "@phosphor-icons/react";
 import { useLocation, useNavigate } from "react-router-dom";
-import ShareCard from "../ShareCard";
+import ShareCard, { SHARE_EVENT } from "../ShareCard";
 import AmbientBg from "../AmbientBg";
 import { openPalette } from "../Palette";
 import { StickerLayer } from "../Stickers";
@@ -195,6 +195,13 @@ export default function Stage() {
   );
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
   useEffect(() => subscribeFavs(() => setFavs(loadFavs())), []);
+  // Palette's "Share now playing" dispatches a window event — the share card
+  // is only mounted here, so listen for it.
+  useEffect(() => {
+    const on = () => setShare(true);
+    window.addEventListener(SHARE_EVENT, on);
+    return () => window.removeEventListener(SHARE_EVENT, on);
+  }, []);
   const favSet = useMemo(() => favKeys(favs), [favs]);
 
   useEffect(() => {
@@ -287,13 +294,23 @@ export default function Stage() {
       } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
         const d = e.key === "ArrowUp" ? 0.05 : -0.05;
-        void bridge.getVolume().then((v) => bridge.setVolume(Math.min(1, Math.max(0, v + d))));
+        void bridge.getVolume().then((v) => {
+          const nv = Math.min(1, Math.max(0, v + d));
+          setVol(nv);
+          void bridge.setVolume(nv);
+        });
       } else if (e.key === "s" || e.key === "S") {
-        void bridge.getShuffle().then((on) => bridge.setShuffle(!on));
+        void bridge.getShuffle().then((on) => {
+          const next = !on;
+          setShuffle(next);
+          void bridge.setShuffle(next);
+        });
       } else if (e.key === "r" || e.key === "R") {
-        void bridge.getRepeat().then((m) =>
-          bridge.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
-        );
+        void bridge.getRepeat().then((m) => {
+          const next = m === "off" ? "all" : m === "all" ? "one" : "off";
+          setRepeat(next as "off" | "all" | "one");
+          void bridge.setRepeat(next);
+        });
       } else if (e.key === "l" || e.key === "L") {
         const entry = favEntryFor(np);
         if (entry) setFavs((prev) => toggleFav(prev, entry));
@@ -891,6 +908,50 @@ export default function Stage() {
             </button>
             {moreOpen && (
               <span className="fs__volpop fs__morepop">
+                {/* Compact-window controls: below 560px the pill hides
+                    shuffle/repeat/fav/volume — reachable here instead. */}
+                <span className="fs__menuopt">
+                  <button
+                    className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
+                    aria-label="Shuffle"
+                    title={t("fs.shuffle")}
+                    onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
+                  >
+                    <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
+                  </button>
+                  <button
+                    className={`fs__icon ${repeat !== "off" ? "fs__icon--on" : ""}`}
+                    aria-label={`Repeat: ${repeat}`}
+                    title={t("fs.repeat", { mode: repeat })}
+                    onClick={() => {
+                      const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
+                      void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
+                    }}
+                  >
+                    {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
+                  </button>
+                  <button
+                    className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+                    aria-label={fav ? "Unlike" : "Like"}
+                    title={fav ? t("fs.unlike") : t("fs.like")}
+                    onClick={onToggleFav}
+                  >
+                    <Heart size={15} weight={fav ? "fill" : "regular"} />
+                  </button>
+                  <input
+                    type="range"
+                    className="fs__slider"
+                    aria-label="Volume"
+                    min={0}
+                    max={100}
+                    value={Math.round(vol * 100)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value) / 100;
+                      setVol(v);
+                      void bridge.setVolume(v);
+                    }}
+                  />
+                </span>
                 <button className="fs__morebtn" onClick={() => { setShare(true); setMoreOpen(false); }}>
                   <Export size={13} /> {t("fs.share")}
                 </button>

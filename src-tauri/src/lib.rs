@@ -2929,17 +2929,16 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open" => {
-                if let Some(w) = app.get_webview_window("player") {
-                    let _ = w.show();
-                    let _ = w.set_focus();
-                }
+                // show_player clears hud_enabled first — otherwise the next
+                // settings save re-hides the player under the HUD.
+                let _ = show_player(app.clone());
             }
             "playpause" => tray_media_control(app, Control::PlayPause),
             "next" => tray_media_control(app, Control::Next),
             "prev" => tray_media_control(app, Control::Previous),
             "settings" => {
+                let _ = show_player(app.clone());
                 if let Some(w) = app.get_webview_window("player") {
-                    let _ = w.show();
                     let _ = w.eval("location.hash = '#/settings'");
                 }
             }
