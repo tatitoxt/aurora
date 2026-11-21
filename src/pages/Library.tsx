@@ -8,6 +8,15 @@ import {
   type RemoteTrack,
 } from "../bridge";
 import { subscribe } from "../bridge";
+import {
+  FAVS_EVENT,
+  listable,
+  loadFavs,
+  remoteParts,
+  toQueueItem,
+  toRemoteTrack,
+  type FavEntry,
+} from "../favs";
 import { formatTime } from "../lib";
 
 const SOURCES = [
@@ -30,6 +39,7 @@ export default function Library() {
   const [plUrl, setPlUrl] = useState("");
   const [importingUrl, setImportingUrl] = useState(false);
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
+  const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -44,11 +54,40 @@ export default function Library() {
     void bridge.providerStatus().then(setYtReady);
     const off = subscribe<NowPlaying>("now-playing", () => refresh());
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
+    const onFavs = () => setFavs(loadFavs());
+    window.addEventListener(FAVS_EVENT, onFavs);
     return () => {
       off();
       offNp();
+      window.removeEventListener(FAVS_EVENT, onFavs);
     };
   }, []);
+
+  const liked = listable(favs);
+  // Local likes replay as one queue so next/prev flows through the list;
+  // streamed likes play one at a time (same as tapping a search result).
+  const playLiked = (entry: FavEntry) => {
+    setError("");
+    const remote = toRemoteTrack(entry);
+    if (remote) {
+      setDownloading(entry.key);
+      bridge
+        .providerPlay(remote)
+        .then(() => refresh())
+        .catch((e) => setError(String(e)))
+        .finally(() => setDownloading(null));
+      return;
+    }
+    const locals = liked
+      .filter((e) => remoteParts(e.trackId) === null)
+      .map(toQueueItem);
+    const index = locals.findIndex((i) => i.path === entry.trackId);
+    if (index < 0) return;
+    bridge
+      .playItems(locals, index)
+      .then(() => refresh())
+      .catch((e) => setError(String(e)));
+  };
 
   const rescan = () => {
     setError("");
@@ -289,6 +328,38 @@ export default function Library() {
             );
           })}
         </div>
+        {liked.length > 0 && (
+          <>
+            <div className="row">
+              <span>Liked</span>
+            </div>
+            <div className="lib">
+              {liked.map((e) => {
+                const remote = remoteParts(e.trackId);
+                return (
+                  <button
+                    key={e.key}
+                    className="lib__row"
+                    onClick={() => playLiked(e)}
+                    disabled={downloading !== null}
+                  >
+                    <span className="lib__title">
+                      {downloading === e.key ? "⤓ " : "♥ "}
+                      {e.title}
+                    </span>
+                    <span className="lib__sub">
+                      {e.artist}
+                      {remote ? ` · ${remote.source}` : ""}
+                    </span>
+                    <span className="lib__dur">
+                      {e.durationMs ? formatTime(e.durationMs) : ""}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         {playlists.length > 0 && (
           <>
             <div className="row">
