@@ -1771,3 +1771,22 @@ body {
 }
 @keyframes srcpulse { 50% { opacity: 0.55; } }
 @media (prefers-reduced-motion: reduce) { .srcdot { animation: none; } }
+
+/* Theme gallery: marketplace-style swatch chips in Settings. */
+.themegal {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+}
+.themechip {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 8px 6px; border-radius: 16px; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+  color: var(--dim); font-size: 10.5px; font-weight: 600; font-family: inherit;
+  transition: border-color .15s, background .15s, color .15s, transform .15s;
+}
+.themechip:hover { background: rgba(255,255,255,0.09); color: var(--text); transform: translateY(-1px); }
+.themechip.on { border-color: rgba(255,255,255,0.5); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
+.themechip__sw {
+  width: 100%; height: 34px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14); display: block;
+}
