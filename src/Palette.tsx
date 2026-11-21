@@ -100,6 +100,7 @@ export default function Palette() {
       },
       { id: "player", label: "Back to player", hint: "nav", run: () => nav("/") },
       { id: "library", label: "Open library", hint: "nav", run: () => nav("/library") },
+      { id: "stats", label: "Open listening stats", hint: "nav", run: () => nav("/stats") },
       { id: "settings", label: "Open settings", hint: "nav", run: () => nav("/settings") },
       {
         id: "rescan",

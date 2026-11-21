@@ -6,6 +6,7 @@
 pub mod branding;
 pub mod energy;
 pub mod eq;
+pub mod history;
 pub mod library;
 pub mod licensing;
 pub mod lyrics;
