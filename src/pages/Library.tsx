@@ -107,9 +107,14 @@ export default function Library() {
       <div className="settings">
         <div className="row">
           <h1>Library</h1>
-          <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
-            Back
-          </Link>
+          <span style={{ display: "flex", gap: 12 }}>
+            <Link to="/albums" className="wordmark" style={{ textDecoration: "none" }}>
+              Albums
+            </Link>
+            <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
+              Back
+            </Link>
+          </span>
         </div>
 
         <div className="row">

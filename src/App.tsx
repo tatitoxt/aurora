@@ -7,6 +7,8 @@ import Hud from "./pages/Hud";
 import DeskLyrics from "./pages/DeskLyrics";
 import Library from "./pages/Library";
 import Artist from "./pages/Artist";
+import Albums from "./pages/Albums";
+import Album from "./pages/Album";
 import Stats from "./pages/Stats";
 import Wrapped from "./pages/Wrapped";
 import Visualizer from "./pages/Visualizer";
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/desklyrics" element={<DeskLyrics />} />
         <Route path="/library" element={<Library />} />
         <Route path="/artist/:name" element={<Artist />} />
+        <Route path="/albums" element={<Albums />} />
+        <Route path="/album/:artist/:name" element={<Album />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/wrapped" element={<Wrapped />} />
         <Route path="/visualizer" element={<Visualizer />} />
