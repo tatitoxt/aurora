@@ -5,6 +5,7 @@
 // sends back by clicking the site's own controls.
 
 const SEND_MS = 1500;
+const TAB_ID = crypto.randomUUID();
 const host = location.hostname.replace(/^www\./, "");
 
 const BUTTONS = {
@@ -49,6 +50,7 @@ function collect() {
   const el = mediaEl();
   const art = (m?.artwork || []).slice(-1)[0]?.src || "";
   return {
+    tabId: TAB_ID,
     provider: host,
     title: m?.title || "",
     artist: m?.artist || "",
