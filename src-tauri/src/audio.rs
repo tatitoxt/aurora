@@ -205,6 +205,10 @@ pub struct RodioOut {
     /// User volume (f32 bits) — the ramp thread targets this so a volume
     /// change mid-fade still lands on the latest value.
     base_volume: Arc<AtomicU32>,
+    /// Playback speed (f32 bits) — restored onto every replacement channel
+    /// (crossfade B, post-`set_device` player) and used to convert between
+    /// rodio's speed-adjusted time base and source positions.
+    speed: Arc<AtomicU32>,
     /// Live crossfade job, if any.
     fade: Mutex<Option<Fade>>,
     /// (path, duration) the second channel is fading in; consumed by
@@ -267,6 +271,7 @@ impl RodioOut {
                 rate: std::sync::atomic::AtomicU32::new(0),
             }),
             base_volume: Arc::new(AtomicU32::new(1.0f32.to_bits())),
+            speed: Arc::new(AtomicU32::new(1.0f32.to_bits())),
             fade: Mutex::new(None),
             armed: Mutex::new(None),
         })
@@ -299,7 +304,10 @@ impl RodioOut {
     }
 
     /// Analysis tap: drains mono samples and reports the current rate so
-    /// the poller can rebuild its detector when the rate changes.
+    /// the poller can rebuild its detector when the rate changes. The rate
+    /// is scaled by playback speed: at 1.25× the sink consumes 25% more
+    /// samples per second, so reporting `rate × speed` keeps the detector's
+    /// clock (and Goertzel bins) in audible time/frequency.
     pub fn tap_take(&self) -> (Vec<f32>, u32) {
         let buf = self
             .tap
@@ -308,7 +316,8 @@ impl RodioOut {
             .map(|mut v| std::mem::take(&mut *v))
             .unwrap_or_default();
         let rate = self.tap.rate.load(std::sync::atomic::Ordering::Relaxed);
-        (buf, rate)
+        let speed = f32::from_bits(self.speed.load(Ordering::Relaxed));
+        ((buf), ((rate as f32) * speed).round() as u32)
     }
 
     /// Re-point playback at the device `name` (None = OS default). The
@@ -318,6 +327,7 @@ impl RodioOut {
         self.disarm();
         let sink = Self::open_sink(name).ok_or("audio device unavailable")?;
         let player = rodio::Player::connect_new(sink.mixer());
+        player.set_speed(f32::from_bits(self.speed.load(Ordering::Relaxed)));
         *self.inner.lock().map_err(|e| e.to_string())? = Some(Inner {
             mixer: sink.mixer().clone(),
             _sink: sink,
@@ -371,7 +381,10 @@ impl AudioOut for RodioOut {
     fn position_ms(&self) -> u64 {
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {
-                return i.player.get_pos().as_millis() as u64;
+                // rodio reports elapsed play time (speed-adjusted): multiply
+                // back to the source position the UI/lyrics expect.
+                return (i.player.get_pos().as_secs_f64() * i.player.speed() as f64 * 1000.0)
+                    as u64;
             }
         }
         0
@@ -381,9 +394,12 @@ impl AudioOut for RodioOut {
         self.disarm();
         let guard = self.inner.lock().map_err(|e| e.to_string())?;
         let inner = guard.as_ref().ok_or("no audio device")?;
+        // rodio's speed filter multiplies the seek target by the factor,
+        // so pass source position ÷ speed to land on `position_ms`.
+        let speed = inner.player.speed() as f64;
         inner
             .player
-            .try_seek(Duration::from_millis(position_ms))
+            .try_seek(Duration::from_secs_f64(position_ms as f64 / 1000.0 / speed))
             .map_err(|e| e.to_string())
     }
     fn set_volume(&self, volume: f32) {
@@ -391,6 +407,17 @@ impl AudioOut for RodioOut {
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {
                 i.player.set_volume(volume);
+            }
+        }
+    }
+    fn set_speed(&self, speed: f32) {
+        self.speed.store(speed.to_bits(), Ordering::Relaxed);
+        if let Ok(g) = self.inner.lock() {
+            if let Some(i) = g.as_ref() {
+                i.player.set_speed(speed);
+                if let Some(b) = i.b_player.as_ref() {
+                    b.set_speed(speed);
+                }
             }
         }
     }
@@ -427,6 +454,7 @@ impl AudioOut for RodioOut {
         }
         inner.b_player = None;
         let b = rodio::Player::connect_new(&inner.mixer);
+        b.set_speed(f32::from_bits(self.speed.load(Ordering::Relaxed)));
         b.append(TapSource::wrap(
             EqSource::wrap(decoder, self.eq.clone()),
             self.tap.clone(),
