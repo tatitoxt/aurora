@@ -26,6 +26,8 @@ import {
   SkipForward,
   SpeakerHigh,
   SpeakerX,
+  DotsThree,
+  Heart,
   TextT,
 } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
@@ -110,6 +112,15 @@ export default function Fullscreen() {
   const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
   const [searching, setSearching] = useState(false);
   const [queueErr, setQueueErr] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [qpage, setQpage] = useState(0);
+  const [favs, setFavs] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("noctbeat.favs") ?? "[]"));
+    } catch {
+      return new Set();
+    }
+  });
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -134,6 +145,18 @@ export default function Fullscreen() {
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 0;
+  const favKey = track ? `${np?.source ?? ""}:${track.id}` : "";
+  const fav = favKey !== "" && favs.has(favKey);
+  const toggleFav = () => {
+    if (!favKey) return;
+    setFavs((prev) => {
+      const next = new Set(prev);
+      if (next.has(favKey)) next.delete(favKey);
+      else next.add(favKey);
+      localStorage.setItem("noctbeat.favs", JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   // Resolved artwork URLs for the mosaic wall and the cover carousel.
   const [artMap, setArtMap] = useState<Record<string, string>>({});
@@ -353,11 +376,11 @@ export default function Fullscreen() {
           )}
           {queue.items.length > 0 && (
           <div className="fs__qlist">
-            {queue.items.slice(0, 12).map((it, i) => (
+            {queue.items.slice(qpage * 8, qpage * 8 + 8).map((it, i) => (
               <button
-                key={it.path + i}
-                className={`fs__qrow ${i === queue.currentIndex ? "fs__qrow--on" : ""}`}
-                onClick={() => void bridge.playQueueIndex(i)}
+                key={it.path + (qpage * 8 + i)}
+                className={`fs__qrow ${qpage * 8 + i === queue.currentIndex ? "fs__qrow--on" : ""}`}
+                onClick={() => void bridge.playQueueIndex(qpage * 8 + i)}
               >
                 <div className="fs__qbody">
                   <QueueThumb track={it.track} />
@@ -365,7 +388,7 @@ export default function Fullscreen() {
                     <span className="fs__qtitle">{it.track.title}</span>
                     <span className="fs__qsub">{it.track.artist}</span>
                   </span>
-                  {i === queue.currentIndex && playing && (
+                  {qpage * 8 + i === queue.currentIndex && playing && (
                     <span className="fs__eq" aria-hidden="true">
                       <i />
                       <i />
@@ -376,6 +399,18 @@ export default function Fullscreen() {
               </button>
             ))}
           </div>
+          )}
+          {queue.items.length > 8 && (
+            <div className="fs__qdots">
+              {Array.from({ length: Math.ceil(queue.items.length / 8) }, (_, p) => (
+                <button
+                  key={p}
+                  className={`fs__qdot ${p === qpage ? "fs__qdot--on" : ""}`}
+                  aria-label={`Queue page ${p + 1}`}
+                  onClick={() => setQpage(p)}
+                />
+              ))}
+            </div>
           )}
           </>
           )}
@@ -502,6 +537,14 @@ export default function Fullscreen() {
             </div>
           </div>
           <button
+            className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+            aria-label={fav ? "Unlike" : "Like"}
+            title={fav ? "Unlike" : "Like"}
+            onClick={toggleFav}
+          >
+            <Heart size={15} weight={fav ? "fill" : "regular"} />
+          </button>
+          <button
             className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
             aria-label="Toggle lyrics"
             title="Lyrics / thumbnails"
@@ -516,14 +559,6 @@ export default function Fullscreen() {
             onClick={() => setQueueOpen((v) => !v)}
           >
             <Queue size={15} />
-          </button>
-          <button
-            className="fs__icon"
-            aria-label="Share now playing"
-            title="Share"
-            onClick={() => setShare(true)}
-          >
-            <Export size={14} />
           </button>
           <span className="fs__vol">
             <button
@@ -551,32 +586,35 @@ export default function Fullscreen() {
               </span>
             )}
           </span>
-          <button
-            className="fs__icon"
-            aria-label="Sleep timer"
-            title="Sleep timer · 30 min"
-            onClick={() => void bridge.setSleepTimer(30)}
-          >
-            <Moon size={15} />
-          </button>
-          <button
-            className="fs__icon"
-            aria-label="Settings"
-            title="Settings"
-            onClick={() => nav("/settings")}
-          >
-            <GearSix size={15} />
-          </button>
-          <button
-            className="fs__icon"
-            aria-label="Exit fullscreen"
-            title="Exit fullscreen (Esc)"
-            onClick={() =>
-              void bridge.toggleFullscreen().then(() => nav("/"))
-            }
-          >
-            <CornersIn size={15} />
-          </button>
+          <span className="fs__vol">
+            <button
+              className={`fs__icon ${moreOpen ? "fs__icon--on" : ""}`}
+              aria-label="More actions"
+              title="More"
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              <DotsThree size={17} weight="bold" />
+            </button>
+            {moreOpen && (
+              <span className="fs__volpop fs__morepop">
+                <button className="fs__morebtn" onClick={() => { setShare(true); setMoreOpen(false); }}>
+                  <Export size={13} /> Share
+                </button>
+                <button className="fs__morebtn" onClick={() => { void bridge.setSleepTimer(30); setMoreOpen(false); }}>
+                  <Moon size={13} /> Sleep 30 min
+                </button>
+                <button className="fs__morebtn" onClick={() => nav("/settings")}>
+                  <GearSix size={13} /> Settings
+                </button>
+                <button
+                  className="fs__morebtn"
+                  onClick={() => void bridge.toggleFullscreen().then(() => nav("/"))}
+                >
+                  <CornersIn size={13} /> Exit fullscreen
+                </button>
+              </span>
+            )}
+          </span>
         </div>
       </div>
       {share && (

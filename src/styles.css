@@ -719,6 +719,21 @@ body {
 .fs__qsearch input::placeholder { color: var(--dim); }
 .fs__qerr { font-size: 10.5px; color: #f1a8a8; }
 .fs__qresults { max-height: 150px; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; }
+/* Queue page dots + overflow menu + like. */
+.fs__qdots { display: flex; justify-content: center; gap: 5px; padding: 4px 0 8px; }
+.fs__qdot {
+  width: 5px; height: 5px; border-radius: 50%; border: none; padding: 0;
+  background: rgba(255,255,255,0.25); cursor: pointer;
+}
+.fs__qdot--on { background: #fff; }
+.fs__icon--fav { color: #f472b6 !important; }
+.fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; }
+.fs__morebtn {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  background: none; border: none; border-radius: 9px; color: var(--text);
+  font-size: 12px; font-weight: 600; cursor: pointer; text-align: left; font-family: inherit;
+}
+.fs__morebtn:hover { background: rgba(255,255,255,0.08); }
 /* Lyrics-off: thumbnails take the stage. */
 .fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
 .fs__covers--big .fs__cover--on { width: clamp(320px, 38vh, 560px); }
