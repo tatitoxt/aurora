@@ -84,7 +84,13 @@ export default function Player() {
 
   const track = np?.track ?? null;
   useEffect(() => {
-    if (track && track.id !== trackId.current) {
+    if (!track) {
+      trackId.current = null;
+      setArt("");
+      setLyrics(null);
+      return;
+    }
+    if (track.id !== trackId.current) {
       trackId.current = track.id;
       bridge.getLyrics().then(setLyrics);
       if (track.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);

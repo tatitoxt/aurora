@@ -129,12 +129,15 @@ export default function ShareCard({
   onClose: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [ready, setReady] = useState(false);
   const [note, setNote] = useState("");
 
   useEffect(() => {
+    setReady(false);
     const paint = (art: CanvasImageSource | null) => {
       const ctx = canvasRef.current?.getContext("2d");
       if (ctx) paintCard(ctx, cardModel(track, posMs), art, readAccents());
+      setReady(true);
     };
     if (!artUrl) {
       paint(null);
@@ -152,9 +155,13 @@ export default function ShareCard({
 
   const copy = async () => {
     try {
-      const blob = await toBlob();
-      if (!blob) throw new Error("empty");
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      // Hand the ClipboardItem a promise so the write happens inside the
+      // click gesture — awaiting toBlob first drops it on strict WebKit.
+      const pending = toBlob().then((b) => {
+        if (!b) throw new Error("empty");
+        return b;
+      });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": pending })]);
       setNote("Copied");
     } catch {
       setNote("Copy unavailable — use download");
@@ -182,10 +189,10 @@ export default function ShareCard({
         </div>
         <canvas ref={canvasRef} width={W} height={H} />
         <div className="share__row">
-          <button onClick={copy}>
+          <button onClick={copy} disabled={!ready}>
             <Copy size={13} /> Copy image
           </button>
-          <button onClick={download}>
+          <button onClick={download} disabled={!ready}>
             <DownloadSimple size={13} /> Download PNG
           </button>
           {note && <span className="share__note">{note}</span>}
