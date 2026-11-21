@@ -30,20 +30,30 @@ export function paintCard(
   art: CanvasImageSource | null,
   accents: { a1: string; a2: string },
 ) {
-  // Backdrop: deep navy with accent glows, mirroring the app's glass.
-  ctx.fillStyle = "#0b0b16";
+  // Backdrop: the artwork, darkened — iBaila-moody, no neon.
+  ctx.fillStyle = "#07070c";
   ctx.fillRect(0, 0, W, H);
-  const glow = (x: number, y: number, r: number, c: string) => {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, c);
+  if (art) {
+    const iw = (art as HTMLImageElement).width || 1;
+    const ih = (art as HTMLImageElement).height || 1;
+    const scale = Math.max(W / iw, H / ih) * 1.1;
+    const dw = iw * scale,
+      dh = ih * scale;
+    ctx.save();
+    ctx.filter = "blur(48px) brightness(0.5) saturate(1.15)";
+    ctx.drawImage(art, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.restore();
+    ctx.fillStyle = "rgba(5,5,9,0.45)";
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    const g = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, W * 0.7);
+    g.addColorStop(0, accents.a1 + "22");
     g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
-  };
-  glow(120, 60, 560, accents.a1 + "55");
-  glow(W - 80, H - 40, 620, accents.a2 + "44");
+  }
 
-  // Art tile (or accent gradient stand-in).
+  // Art tile (or neutral tile stand-in — no gradient slop).
   const AX = 72,
     AY = (H - 380) / 2,
     AS = 380;
@@ -53,11 +63,13 @@ export function paintCard(
   if (art) {
     ctx.drawImage(art, AX, AY, AS, AS);
   } else {
-    const g = ctx.createLinearGradient(AX, AY, AX + AS, AY + AS);
-    g.addColorStop(0, accents.a1);
-    g.addColorStop(1, accents.a2);
-    ctx.fillStyle = g;
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
     ctx.fillRect(AX, AY, AS, AS);
+    ctx.fillStyle = "rgba(255,255,255,0.32)";
+    ctx.font = "600 130px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("♪", AX + AS / 2, AY + AS / 2 + 45);
+    ctx.textAlign = "left";
   }
   ctx.restore();
   rr(ctx, AX, AY, AS, AS, 28);
@@ -75,18 +87,20 @@ export function paintCard(
   ctx.font = "400 34px system-ui, -apple-system, sans-serif";
   ctx.fillText(m.subtitle, TX, 268, W - TX - 72);
 
-  // Progress bar.
+  // Progress bar: thin white track + knob, iBaila-style restraint.
   const BY = 390,
     BW = W - TX - 72;
-  ctx.fillStyle = "rgba(255,255,255,0.14)";
-  rr(ctx, TX, BY, BW, 10, 5);
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  rr(ctx, TX, BY, BW, 8, 4);
   ctx.fill();
   if (m.progress > 0) {
-    const g = ctx.createLinearGradient(TX, 0, TX + BW, 0);
-    g.addColorStop(0, accents.a1);
-    g.addColorStop(1, accents.a2);
-    ctx.fillStyle = g;
-    rr(ctx, TX, BY, Math.max(10, BW * m.progress), 10, 5);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    const fw = Math.max(8, BW * m.progress);
+    rr(ctx, TX, BY, fw, 8, 4);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(TX + fw, BY + 4, 11, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
     ctx.fill();
   }
   ctx.fillStyle = "rgba(244,244,250,0.55)";
@@ -96,15 +110,13 @@ export function paintCard(
   ctx.fillText(m.total, TX + BW, BY + 52);
   ctx.textAlign = "left";
 
-  // Wordmark.
+  // Wordmark: quiet, single accent dot — no gradient bar.
   ctx.fillStyle = "rgba(244,244,250,0.4)";
   ctx.font = "300 26px system-ui, -apple-system, sans-serif";
   ctx.fillText(branding.productName, TX, H - 64);
-  const eg = ctx.createLinearGradient(TX, 0, W - 72, 0);
-  eg.addColorStop(0, accents.a1);
-  eg.addColorStop(1, accents.a2);
-  ctx.fillStyle = eg;
-  rr(ctx, W - 200, H - 84, 128, 20, 10);
+  ctx.beginPath();
+  ctx.arc(TX + ctx.measureText(branding.productName).width + 22, H - 73, 7, 0, Math.PI * 2);
+  ctx.fillStyle = accents.a1;
   ctx.fill();
 }
 

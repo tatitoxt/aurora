@@ -88,7 +88,7 @@ body {
 }
 
 /* ---------- karaoke mode ---------- */
-.kbg { position: absolute; inset: 0; overflow: hidden; }
+.kbg { position: absolute; inset: 0; overflow: hidden; background: #0a0a10; }
 .kbg img {
   width: 100%; height: 100%; object-fit: cover; display: block;
   transform: scale(1.18);
@@ -134,6 +134,49 @@ body {
 .kword--done { color: #fff; }
 .karaoke__next { margin-top: 18px; font-size: 14px; color: rgba(242, 242, 245, 0.4); font-family: var(--serif); font-style: italic; }
 .karaoke__idle { font-family: var(--serif); font-size: 28px; font-weight: 700; font-style: italic; color: rgba(242,242,245,.85); }
+
+/* iBaila "albums" video card: clip playing inside, meta overlaid. */
+.kcard {
+  position: relative; height: 172px; border-radius: 18px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 18px 46px rgba(0,0,0,0.42);
+}
+.kcard .kbg__video { filter: none; transform: none; }
+.kcard__art { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kcard__scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(4,4,8,0.72));
+}
+.kcard__meta { position: absolute; left: 14px; right: 14px; bottom: 10px; }
+.kcard__title { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+.kcard__sub { font-size: 11.5px; color: rgba(242,242,245,0.72); margin-top: 1px; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+
+/* albums-dark glass transport bar. */
+.kbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 16px;
+  background: rgba(16,16,22,0.55);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.kbar__art { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; flex: none; }
+.kbar__art--ph { background: rgba(255,255,255,0.08); }
+.kbar__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.kbar__title { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kbar__sub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kbar__prog { position: relative; height: 10px; margin-top: 4px; }
+.kbar__prog::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px;
+  background: rgba(255,255,255,0.16); border-radius: 1px;
+}
+.kbar__fill {
+  position: absolute; left: 0; top: 4px; height: 2px; width: 100%;
+  background: #fff; border-radius: 1px; transform-origin: left center;
+  transition: transform .25s linear;
+}
+.ctl--play-sm { width: 34px; height: 34px; }
 
 /* ---------- desktop lyrics overlay ---------- */
 .dlyrics {
@@ -596,8 +639,15 @@ body {
 }
 .fs__cover { width: clamp(90px, 11vh, 140px); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
-.fs__cover--on { width: clamp(140px, 17vh, 210px); opacity: 1; }
+.fs__cover--on { width: clamp(240px, 26vh, 380px); opacity: 1; }
 .fs__cover--on img { border-radius: 16px; }
+/* iBaila center card: media fills the card, meta overlaid on a scrim. */
+.fs__coverimg { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 26px 70px -12px rgba(0,0,0,0.75); background: rgba(255,255,255,0.05); }
+.fs__coverimg img, .fs__cvid { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fs__cscrim { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, rgba(4,4,8,0.78)); }
+.fs__cvmeta { position: absolute; left: 18px; right: 18px; bottom: 14px; text-align: left; }
+.fs__cvtitle { font-size: clamp(16px, 2.2vh, 24px); font-weight: 700; letter-spacing: 0.01em; text-shadow: 0 2px 10px rgba(0,0,0,.65); }
+.fs__cvart { font-size: clamp(11px, 1.5vh, 15px); color: rgba(242,242,245,0.78); margin-top: 2px; text-shadow: 0 2px 10px rgba(0,0,0,.65); }
 .fs__cname { font-size: 12px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__cart { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__bottom { position: relative; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }

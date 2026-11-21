@@ -317,16 +317,40 @@ export default function Fullscreen() {
 
       {covers.length > 1 && (
         <div className="fs__covers">
-          {covers.map((c) => (
-            <div
-              key={c.key}
-              className={`fs__cover ${c.on ? "fs__cover--on" : ""}`}
-            >
-              {c.src ? <img src={c.src} alt="" /> : <div className="fs__cover-img fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 12 }} />}
-              <div className="fs__cname">{c.title}</div>
-              <div className="fs__cart">{c.artist}</div>
-            </div>
-          ))}
+          {covers.map((c) =>
+            c.on ? (
+              /* iBaila center card: video/art inside, meta overlaid on scrim. */
+              <div key={c.key} className="fs__cover fs__cover--on">
+                <div className="fs__coverimg">
+                  {videoUrl ? (
+                    <video
+                      className="fs__cvid"
+                      src={videoUrl}
+                      muted
+                      playsInline
+                      autoPlay
+                      loop
+                    />
+                  ) : c.src ? (
+                    <img src={c.src} alt="" />
+                  ) : (
+                    <div className="fs__meta-art" style={{ width: "100%", height: "100%" }} />
+                  )}
+                  <div className="fs__cscrim" />
+                  <div className="fs__cvmeta">
+                    <div className="fs__cvtitle">{c.title}</div>
+                    <div className="fs__cvart">{c.artist}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div key={c.key} className="fs__cover">
+                {c.src ? <img src={c.src} alt="" /> : <div className="fs__cover-img fs__meta-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 12 }} />}
+                <div className="fs__cname">{c.title}</div>
+                <div className="fs__cart">{c.artist}</div>
+              </div>
+            )
+          )}
         </div>
       )}
 
