@@ -14,7 +14,7 @@ export const THEMES: ThemeDef[] = [
     label: "Ember",
     vars: {
       "--bg": "#120a0a",
-      "--panel": "rgba(40, 22, 18, 0.62)",
+      "--panel": "rgba(36, 20, 16, 0.68)",
       "--accent": "#f97316",
       "--accent2": "#f43f5e",
     },
@@ -24,9 +24,9 @@ export const THEMES: ThemeDef[] = [
     label: "Glacier",
     vars: {
       "--bg": "#080d16",
-      "--panel": "rgba(14, 24, 40, 0.62)",
+      "--panel": "rgba(12, 22, 38, 0.68)",
       "--text": "#eaf2ff",
-      "--dim": "#93a5c9",
+      "--dim": "#a7b8dd",
       "--accent": "#38bdf8",
       "--accent2": "#818cf8",
     },
@@ -36,21 +36,51 @@ export const THEMES: ThemeDef[] = [
     label: "Mono",
     vars: {
       "--bg": "#0b0b0c",
-      "--panel": "rgba(24, 24, 26, 0.66)",
-      "--dim": "#8b8f98",
+      "--panel": "rgba(20, 20, 22, 0.68)",
+      "--dim": "#b6bac4",
       "--accent": "#e5e7eb",
       "--accent2": "#9ca3af",
+    },
+  },
+  {
+    name: "rose",
+    label: "Rose",
+    vars: {
+      "--bg": "#150a10",
+      "--panel": "rgba(34, 14, 24, 0.68)",
+      "--accent": "#f472b6",
+      "--accent2": "#fb7185",
+    },
+  },
+  {
+    name: "meadow",
+    label: "Meadow",
+    vars: {
+      "--bg": "#08120c",
+      "--panel": "rgba(12, 26, 18, 0.68)",
+      "--accent": "#34d399",
+      "--accent2": "#a3e635",
+    },
+  },
+  {
+    name: "dusk",
+    label: "Dusk",
+    vars: {
+      "--bg": "#100a16",
+      "--panel": "rgba(26, 14, 36, 0.68)",
+      "--accent": "#fb923c",
+      "--accent2": "#c084fc",
     },
   },
 ];
 
 /** Values matching the :root block in styles.css, for preset fallbacks. */
 export const ROOT_VARS: Record<string, string> = {
-  "--bg": "#0a0a12",
-  "--panel": "rgba(20, 20, 34, 0.62)",
-  "--line": "rgba(255, 255, 255, 0.09)",
-  "--text": "#eef0ff",
-  "--dim": "#9aa0c3",
+  "--bg": "#0b0b0e",
+  "--panel": "rgba(14, 16, 24, 0.68)",
+  "--line": "rgba(255, 255, 255, 0.16)",
+  "--text": "#f4f5fa",
+  "--dim": "#c6cbdb",
   "--accent": "#8b5cf6",
   "--accent2": "#22d3ee",
 };
