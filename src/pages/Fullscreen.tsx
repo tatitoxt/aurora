@@ -680,11 +680,28 @@ export default function Fullscreen() {
           onPointerDown={(e) => {
             const el = coversRef.current;
             if (!el) return;
+            e.preventDefault(); // stop native image/text dragging
             const sx = e.clientX, sl = el.scrollLeft;
-            const move = (ev: PointerEvent) => { el.scrollLeft = sl - (ev.clientX - sx); };
-            const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+            let moved = false;
+            const move = (ev: PointerEvent) => {
+              const dx = ev.clientX - sx;
+              if (Math.abs(dx) > 6) moved = true;
+              el.scrollLeft = sl - dx;
+            };
+            const end = () => {
+              window.removeEventListener("pointermove", move);
+              window.removeEventListener("pointerup", end);
+              window.removeEventListener("pointercancel", end);
+              // A real drag must not count as a click on the cover under it.
+              if (moved) {
+                const cap = (ce: Event) => { ce.stopPropagation(); ce.preventDefault(); };
+                el.addEventListener("click", cap, { capture: true, once: true });
+                window.setTimeout(() => el.removeEventListener("click", cap, { capture: true }), 400);
+              }
+            };
             window.addEventListener("pointermove", move);
-            window.addEventListener("pointerup", up);
+            window.addEventListener("pointerup", end);
+            window.addEventListener("pointercancel", end);
           }}
         >
           {covers.map((c) =>
