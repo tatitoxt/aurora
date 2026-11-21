@@ -138,6 +138,9 @@ body {
   transform: translateY(-0.12em);
 }
 .kword--adlib.kword--now { text-shadow: 0 0 14px rgba(255, 255, 255, 0.3); }
+/* Fullscreen word spans are inline by default — inline-block so the
+ * per-word lyric-animation transforms actually move them. */
+.fsword { display: inline-block; }
 /* Line-level adlib spans (fullscreen + list lyrics). */
 .adlib {
   opacity: 0.5;
