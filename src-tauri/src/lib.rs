@@ -1833,31 +1833,72 @@ struct DisplayInfo {
     id: String,
     name: String,
     primary: bool,
+    /// Pre-upgrade positional id (`display-N`); saved rules may still use it.
+    legacy_id: String,
 }
 
-/// Stable id for a monitor: its OS name (output connector / EDID) survives
-/// re-enumeration when a sibling is unplugged, where an index would shift
-/// and apply one display's rules to another.
-fn display_id(i: usize, monitor: &tauri::Monitor) -> String {
-    monitor
-        .name()
-        .cloned()
-        .unwrap_or_else(|| format!("display-{i}"))
+/// Stable ids for the current monitor set: the OS name (output connector /
+/// EDID) survives re-enumeration when a sibling is unplugged, where an index
+/// would shift and apply one display's rules to another. Same-model monitors
+/// get a `-N` suffix so each still owns its rules.
+fn display_ids(monitors: &[tauri::Monitor]) -> Vec<String> {
+    let mut totals: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for m in monitors {
+        if let Some(name) = m.name() {
+            *totals.entry(name.clone()).or_insert(0) += 1;
+        }
+    }
+    let mut seen: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    monitors
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let base = m
+                .name()
+                .cloned()
+                .unwrap_or_else(|| format!("display-{i}"));
+            if totals.get(&base).copied().unwrap_or(0) > 1 {
+                let n = seen.entry(base.clone()).or_insert(0);
+                *n += 1;
+                format!("{base}-{n}")
+            } else {
+                base
+            }
+        })
+        .collect()
+}
+
+/// Window labels accept a limited charset (alphanumeric plus `-_/:.`);
+/// map anything else to `-` so an exotic monitor name still builds.
+fn label_safe(id: &str) -> String {
+    id.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '/' | ':' | '_' | '.') {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 #[tauri::command]
 fn list_displays(app: tauri::AppHandle) -> Result<Vec<DisplayInfo>, String> {
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
+    let ids = display_ids(&monitors);
     Ok(monitors
         .into_iter()
         .enumerate()
         .map(|(i, m)| DisplayInfo {
-            id: display_id(i, &m),
+            id: ids[i].clone(),
             name: m
                 .name()
                 .cloned()
                 .unwrap_or_else(|| format!("Display {}", i + 1)),
             primary: i == 0,
+            legacy_id: format!("display-{i}"),
         })
         .collect())
 }
@@ -1870,14 +1911,22 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
     let Ok(monitors) = app.available_monitors() else {
         return;
     };
+    let ids = display_ids(&monitors);
     let mut expected: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, monitor) in monitors.iter().enumerate() {
-        let id = display_id(i, monitor);
-        let label = format!("edge-{id}");
+        let id = &ids[i];
+        let label = format!("edge-{}", label_safe(id));
+        // Rules saved before the name-based ids still carry `display-N`.
         let enabled = settings
             .displays
             .iter()
-            .find(|d| d.display_id == id)
+            .find(|d| &d.display_id == id)
+            .or_else(|| {
+                settings
+                    .displays
+                    .iter()
+                    .find(|d| d.display_id == format!("display-{i}"))
+            })
             .map(|d| d.enabled)
             .unwrap_or(true);
         if !enabled {
@@ -2306,12 +2355,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 if let Ok(monitors) = app.available_monitors() {
                     // Compare identities, not the count: swapping one monitor
                     // for another keeps the total but needs a re-sync.
-                    let sig = monitors
-                        .iter()
-                        .enumerate()
-                        .map(|(i, m)| display_id(i, m))
-                        .collect::<Vec<_>>()
-                        .join(",");
+                    let sig = display_ids(&monitors).join(",");
                     if sig != last_monitor_sig {
                         last_monitor_sig = sig;
                         if let Ok(s) = state.settings.lock() {
