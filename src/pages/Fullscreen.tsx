@@ -751,7 +751,13 @@ export default function Fullscreen() {
                         live
                       </span>
                     ) : (
-                      <span className="fs__extlive fs__extlive--off">{t("fs.extHint")}</span>
+                      <span className="fs__extlive fs__extlive--off">
+                        {t("fs.extHint")}
+                        <br />
+                        {t("fs.extStep1")}
+                        <br />
+                        {t("fs.extStep2")}
+                      </span>
                     )}
                     {PROVIDERS.map((p) => (
                       <button
