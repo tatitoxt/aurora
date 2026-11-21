@@ -54,6 +54,7 @@ struct ListenTracker {
     source: String,
     ms: u64,
     since_ms: u64,
+    last_pos_ms: u64,
 }
 
 impl ListenTracker {
@@ -64,9 +65,19 @@ impl ListenTracker {
         hist: &Mutex<History>,
         path: &std::path::Path,
     ) {
-        let same = matches!((&self.track, &np.track), (Some(a), Some(b)) if a.id == b.id)
-            || (self.track.is_none() && np.track.is_none());
-        if !same {
+        // Stopped (even with track metadata still attached) ends the
+        // listen: flush it and stay idle instead of buffering forever.
+        if np.status == PlaybackStatus::Stopped {
+            self.flush(hist, path);
+            self.ms = 0;
+            return;
+        }
+        // Boundary: the track id changed, or the position rewound — repeat
+        // and restart reset it near zero. A >2 s user seek-back also reads
+        // as a new play; an accepted trade-off for catching repeats.
+        let same_track = matches!((&self.track, &np.track), (Some(a), Some(b)) if a.id == b.id);
+        let rewound = same_track && np.position_ms + 2_000 < self.last_pos_ms;
+        if !same_track || rewound {
             self.flush(hist, path);
             self.track = np.track.clone();
             self.source = np.source.clone();
@@ -76,9 +87,11 @@ impl ListenTracker {
         if np.status == PlaybackStatus::Playing && np.track.is_some() {
             self.ms += tick_ms;
         }
+        self.last_pos_ms = np.position_ms;
     }
 
     fn flush(&mut self, hist: &Mutex<History>, path: &std::path::Path) {
+        self.last_pos_ms = 0;
         let Some(t) = self.track.take() else { return };
         if self.ms >= play_threshold_ms(t.duration_ms) {
             let rec = PlayRecord {
@@ -839,9 +852,14 @@ fn spawn_poller(app: &tauri::AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         let mut ticks = 0u64;
+        let mut last_tick = std::time::Instant::now();
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
+            // Real elapsed time: polling work (e.g. subprocess calls in
+            // external sources) adds to the interval beyond the sleep.
+            let tick_ms = last_tick.elapsed().as_millis() as u64;
+            last_tick = std::time::Instant::now();
             let state = app.state::<AppState>();
             let np = {
                 if !local_active(&state) {
@@ -878,7 +896,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 next
             };
             if let Ok(mut t) = state.listen.lock() {
-                t.update(&np, 200, &state.history, &state.history_path);
+                t.update(&np, tick_ms, &state.history, &state.history_path);
             }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
@@ -984,8 +1002,18 @@ pub fn run() {
             build_tray(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Noctbeat");
+        .build(tauri::generate_context!())
+        .expect("error while building Noctbeat")
+        .run(|app, event| {
+            // Any exit path (last window closed, tray quit) persists the
+            // in-flight play before the process dies.
+            if let tauri::RunEvent::Exit = event {
+                let state = app.state::<AppState>();
+                if let Ok(mut t) = state.listen.lock() {
+                    t.flush(&state.history, &state.history_path);
+                };
+            }
+        });
 }
 
 fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -1036,13 +1064,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     let _ = app.emit("settings", s);
                 };
             }
-            "quit" => {
-                let state = app.state::<AppState>();
-                if let Ok(mut t) = state.listen.lock() {
-                    t.flush(&state.history, &state.history_path);
-                }
-                app.exit(0)
-            }
+            "quit" => app.exit(0),
             _ => {}
         })
         .build(app)?;
