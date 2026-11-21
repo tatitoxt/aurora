@@ -4,6 +4,7 @@ import {
   bridge,
   type NowPlaying,
   type PlaylistFile,
+  type PlaylistTrack,
   type QueueState,
   type RemoteTrack,
 } from "../bridge";
@@ -18,7 +19,13 @@ import {
   type FavEntry,
 } from "../favs";
 import { formatTime } from "../lib";
-import { PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import {
+  ListBullets,
+  PencilSimple,
+  Plus,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 
 const SOURCES = [
   { id: "youtube", label: "YouTube" },
@@ -45,6 +52,8 @@ export default function Library() {
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [editingPl, setEditingPl] = useState<string | null>(null);
+  const [plTracks, setPlTracks] = useState<PlaylistTrack[]>([]);
 
   const refresh = () => bridge.getQueue().then(setQueue).catch(() => {});
   const refreshPlaylists = () =>
@@ -231,13 +240,67 @@ export default function Library() {
     if (!window.confirm(`Delete "${p.name}"? The file is removed from your music folder.`)) {
       return;
     }
+    if (editingPl === p.path) setEditingPl(null);
     bridge
       .deletePlaylist(p.path)
       .then(refreshPlaylists)
       .catch((e) => setError(String(e)));
   };
 
+  const openPlaylist = (p: PlaylistFile) => {
+    setError("");
+    if (editingPl === p.path) {
+      setEditingPl(null);
+      return;
+    }
+    setEditingPl(p.path);
+    setPlTracks([]);
+    bridge
+      .playlistTracks(p.path)
+      .then(setPlTracks)
+      .catch((e) => setError(String(e)));
+  };
+
+  const removePlTrack = (p: PlaylistFile, index: number) => {
+    setError("");
+    // Drop the row optimistically: a second removal before the refresh
+    // must index into the list after this deletion, matching the file.
+    setPlTracks((ts) => ts.filter((_, i) => i !== index));
+    bridge
+      .playlistRemoveTrack(p.path, index)
+      .then(() => bridge.playlistTracks(p.path))
+      .then(setPlTracks)
+      .catch((e) => {
+        setError(String(e));
+        // Restore truth if the write failed.
+        bridge
+          .playlistTracks(p.path)
+          .then(setPlTracks)
+          .catch(() => {});
+      });
+  };
+
+  const addToPlaylist = (p: PlaylistFile, paths: string[]) => {
+    setError("");
+    setImportNote("");
+    bridge
+      .playlistAddTracks(p.path, paths)
+      .then((n) => {
+        setImportNote(`${n} track${n === 1 ? "" : "s"} added to “${p.name}”`);
+        return bridge.playlistTracks(p.path);
+      })
+      .then(setPlTracks)
+      .catch((e) => setError(String(e)));
+  };
+
   const playing = np?.status === "playing";
+  const playingPath =
+    queue.currentIndex != null ? queue.items[queue.currentIndex]?.path : null;
+  const playingLocal =
+    playingPath && !playingPath.startsWith("remote:") ? playingPath : null;
+  const localQueuePaths = queue.items
+    .map((i) => i.path)
+    .filter((p) => !p.startsWith("remote:"));
 
   return (
     <div className="glass">
@@ -438,52 +501,109 @@ export default function Library() {
             </div>
             <div className="lib">
               {playlists.map((p) => (
-                <div
-                  key={p.path}
-                  className="lib__row"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => importPlaylistFile(p.path)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.target === e.currentTarget) {
-                      importPlaylistFile(p.path);
-                    }
-                  }}
-                >
-                  {renaming === p.path ? (
-                    <input
-                      className="lib__rename"
-                      defaultValue={p.name}
-                      autoFocus
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === "Enter") commitRename(p, e.currentTarget.value);
-                        if (e.key === "Escape") setRenaming(null);
-                      }}
-                      onBlur={() => setRenaming(null)}
-                    />
-                  ) : (
-                    <span className="lib__title">{p.name}</span>
+                <div key={p.path}>
+                  <div
+                    className="lib__row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => importPlaylistFile(p.path)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && e.target === e.currentTarget) {
+                        importPlaylistFile(p.path);
+                      }
+                    }}
+                  >
+                    {renaming === p.path ? (
+                      <input
+                        className="lib__rename"
+                        defaultValue={p.name}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === "Enter") commitRename(p, e.currentTarget.value);
+                          if (e.key === "Escape") setRenaming(null);
+                        }}
+                        onBlur={() => setRenaming(null)}
+                      />
+                    ) : (
+                      <span className="lib__title">{p.name}</span>
+                    )}
+                    <span className="lib__sub">playlist</span>
+                    <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="lib__act"
+                        title="Edit tracks"
+                        onClick={() => openPlaylist(p)}
+                      >
+                        <ListBullets size={11} />
+                      </button>
+                      <button
+                        className="lib__act"
+                        title="Rename"
+                        onClick={() => setRenaming(p.path)}
+                      >
+                        <PencilSimple size={11} />
+                      </button>
+                      <button
+                        className="lib__act"
+                        title="Delete"
+                        onClick={() => deletePlaylist(p)}
+                      >
+                        <Trash size={11} />
+                      </button>
+                      <span aria-hidden="true">⤓</span>
+                    </span>
+                  </div>
+                  {editingPl === p.path && (
+                    <div className="lib__tracks">
+                      {plTracks.map((t, i) => (
+                        <div className="lib__trow" key={`${t.path}-${i}`}>
+                          <span className="lib__tidx">{i + 1}</span>
+                          <span className="lib__title">
+                            {t.title || t.path.split("/").pop()}
+                          </span>
+                          <span className="lib__tdur">
+                            {t.remote
+                              ? "stream"
+                              : t.durationMs
+                                ? formatTime(t.durationMs)
+                                : ""}
+                          </span>
+                          <span className="lib__tact">
+                            <button
+                              className="lib__act"
+                              title="Remove from playlist"
+                              onClick={() => removePlTrack(p, i)}
+                            >
+                              <X size={11} />
+                            </button>
+                          </span>
+                        </div>
+                      ))}
+                      {plTracks.length === 0 && (
+                        <div className="lib__sub">Empty playlist</div>
+                      )}
+                      <div className="lib__tactions">
+                        {playingLocal && (
+                          <button
+                            className="lib__add"
+                            onClick={() => addToPlaylist(p, [playingLocal])}
+                          >
+                            <Plus size={10} /> playing
+                          </button>
+                        )}
+                        {localQueuePaths.length > 0 && (
+                          <button
+                            className="lib__add"
+                            onClick={() => addToPlaylist(p, localQueuePaths)}
+                          >
+                            <Plus size={10} /> queue
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  <span className="lib__sub">playlist</span>
-                  <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className="lib__act"
-                      title="Rename"
-                      onClick={() => setRenaming(p.path)}
-                    >
-                      <PencilSimple size={11} />
-                    </button>
-                    <button
-                      className="lib__act"
-                      title="Delete"
-                      onClick={() => deletePlaylist(p)}
-                    >
-                      <Trash size={11} />
-                    </button>
-                    <span aria-hidden="true">⤓</span>
-                  </span>
                 </div>
               ))}
             </div>

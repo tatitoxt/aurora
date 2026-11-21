@@ -356,6 +356,27 @@ body {
   border: 1px solid rgba(255,255,255,.16); border-radius: 6px;
   padding: 2px 6px; outline: none; min-width: 0;
 }
+.lib__tracks {
+  margin: 0 2px 6px 10px; padding: 2px 0 4px 8px;
+  border-left: 1px solid var(--line);
+}
+.lib__trow {
+  display: grid; grid-template-columns: 16px 1fr auto auto;
+  gap: 4px 6px; align-items: center;
+  padding: 2px 4px; border-radius: 6px;
+}
+.lib__trow:hover { background: rgba(255,255,255,.05); }
+.lib__trow:hover .lib__act { opacity: 1; }
+.lib__tidx { font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums; text-align: right; }
+.lib__tdur { font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.lib__tactions { display: flex; gap: 6px; padding: 6px 4px 0; }
+.lib__add {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; padding: 3px 8px; border-radius: 7px;
+  border: 1px solid var(--line); background: transparent;
+  color: var(--dim); cursor: pointer; font: inherit;
+}
+.lib__add:hover { color: var(--text); border-color: var(--accent); }
 
 /* ---------- settings ---------- */
 .settings { padding: 16px; gap: 14px; overflow-y: auto; height: 100%; }

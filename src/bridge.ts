@@ -157,6 +157,13 @@ export interface PlaylistFile {
   name: string;
   path: string;
 }
+export interface PlaylistTrack {
+  title: string;
+  artist: string;
+  durationMs: number;
+  path: string;
+  remote: boolean;
+}
 export interface TopEntry {
   name: string;
   /** Track artist; empty for artist entries. */
@@ -728,6 +735,29 @@ export const bridge = {
       : Promise.resolve({ name, path }),
   deletePlaylist: (path: string): Promise<void> =>
     isTauri() ? invokeCmd("delete_playlist", { path }) : Promise.resolve(),
+  /** Every entry of a playlist file, in order — files and remote rows. */
+  playlistTracks: (path: string): Promise<PlaylistTrack[]> =>
+    isTauri()
+      ? invokeCmd<PlaylistTrack[]>("playlist_tracks", { path })
+      : Promise.resolve(
+          mock.playlist.map(([title, artist, , durationMs], i) => ({
+            title,
+            artist,
+            durationMs,
+            path: `/demo/${i}.mp3`,
+            remote: false,
+          })),
+        ),
+  /** Drop the entry at `index` from an .m3u/.m3u8 playlist. */
+  playlistRemoveTrack: (path: string, index: number): Promise<void> =>
+    isTauri()
+      ? invokeCmd("playlist_remove_track", { path, index })
+      : Promise.resolve(),
+  /** Append local files to an .m3u/.m3u8 playlist; returns added count. */
+  playlistAddTracks: (path: string, paths: string[]): Promise<number> =>
+    isTauri()
+      ? invokeCmd<number>("playlist_add_tracks", { path, paths })
+      : Promise.resolve(paths.length),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
