@@ -6,21 +6,33 @@ import {
   type NowPlaying,
   type Settings,
 } from "../bridge";
-import { Monitor, PushPin, SkipBack, SkipForward, Pause, Play, X } from "@phosphor-icons/react";
+import { Monitor, PushPin, SkipBack, SkipForward, Pause, Play, X, Heart } from "@phosphor-icons/react";
+import {
+  favEntryFor,
+  favKeyFor,
+  favKeys,
+  loadFavs,
+  subscribeFavs,
+  toggleFav,
+  type FavEntry,
+} from "../favs";
 
 export default function Hud() {
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [art, setArt] = useState("");
+  const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
     bridge.getSettings().then(setSettings);
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
     const offS = subscribe<Settings>("settings", setSettings);
+    const offFavs = subscribeFavs(() => setFavs(loadFavs()));
     return () => {
       offNp();
       offS();
+      offFavs();
     };
   }, []);
 
@@ -33,6 +45,11 @@ export default function Hud() {
   const dur = track?.durationMs ?? 1;
   const playing = np?.status === "playing";
   const pinned = settings.hudAlwaysOnTop;
+  const fav = favKeys(favs).has(favKeyFor(np));
+  const onToggleFav = () => {
+    const entry = favEntryFor(np);
+    if (entry) setFavs((prev) => toggleFav(prev, entry));
+  };
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -74,6 +91,15 @@ export default function Hud() {
         </button>
       </div>
       <div className="hud__side">
+        <button
+          className={`hctl ${fav ? "hctl--on" : ""}`}
+          aria-label={fav ? "Unlike" : "Like"}
+          title={fav ? "Unlike" : "Like"}
+          onClick={onToggleFav}
+          disabled={!track}
+        >
+          <Heart weight={fav ? "fill" : "regular"} size={15} />
+        </button>
         <button
           className={`hctl ${pinned ? "hctl--on" : ""}`}
           aria-label={pinned ? "Unpin from top" : "Keep on top"}
