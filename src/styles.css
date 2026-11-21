@@ -688,7 +688,7 @@ body {
   from { transform: rotate(-4deg) scale(1.02); }
   to { transform: rotate(4deg) scale(1.12); }
 }
-.fs__clockwrap { position: relative; text-align: center; padding-top: 5vh; }
+.fs__clockwrap { position: relative; text-align: center; padding-top: 5vh; background: radial-gradient(52% 100% at 50% 18%, rgba(5,5,8,0.4), transparent 72%); }
 .fs__date {
   font-size: 12.5px; color: rgba(242,242,245,0.75); letter-spacing: 0.3em;
   text-transform: uppercase; font-weight: 500; margin-bottom: 6px;
@@ -733,7 +733,10 @@ body {
   cursor: pointer; text-align: left; font: inherit; color: var(--text);
 }
 .fs__qrow:hover { background: rgba(255,255,255,0.06); }
-.fs__qrow--on { background: rgba(255,255,255,0.10); }
+.fs__qrow--on {
+  background: color-mix(in srgb, var(--accent) 24%, rgba(255,255,255,0.08));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 /* Reorder/remove controls — revealed on row hover, overlaid so they never
    steal text width (iBaila drawer style). */
 .fs__qctl {
@@ -775,7 +778,9 @@ body {
   font-family: var(--serif); font-style: italic; font-weight: 600;
   font-size: clamp(44px, 7.5vh, 88px);
   letter-spacing: 0; text-align: center; line-height: 1.05;
-  text-shadow: 0 2px 26px rgba(0,0,0,0.65);
+  padding: 10px 28px; border-radius: 28px;
+  background: radial-gradient(58% 130% at 50% 55%, rgba(5,5,8,0.5), transparent 78%);
+  text-shadow: 0 2px 26px rgba(0,0,0,0.75);
   animation: fs-lyric-in 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 @keyframes fs-lyric-in {
@@ -794,9 +799,9 @@ body {
   transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
 }
 .fs__covers--panel { padding-left: calc(3.5vw + min(240px, 24vw) + 32px); }
-.fs__cover { width: clamp(70px, 8.5vh, 108px); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
+.fs__cover { width: calc(clamp(70px, 8.5vh, 108px) * var(--cscale, 1)); flex: none; text-align: center; opacity: 0.55; transition: opacity .25s, transform .25s; }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 20px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
-.fs__cover--on { width: clamp(240px, 26vh, 380px); opacity: 1; }
+.fs__cover--on { width: calc(clamp(240px, 26vh, 380px) * var(--cscale, 1)); opacity: 1; }
 .fs__cover--on img { border-radius: 22px; }
 /* Media fills the card, meta overlaid on a scrim. */
 .fs__coverimg { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 26px 70px -12px rgba(0,0,0,0.75); background: rgba(255,255,255,0.05); }
@@ -843,6 +848,12 @@ body {
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 14px 40px rgba(0,0,0,0.45);
 }
+/* Cover-size slider + lock inside the "…" menu. */
+.fs__sizerow { display: flex; align-items: center; gap: 8px; padding: 2px 10px 6px; }
+.fs__sizeslider { flex: 1; min-width: 0; }
+.fs__sizelock { width: 24px; height: 24px; flex: none; }
+.fs__sizeslider:disabled { opacity: 0.45; }
+
 .fs__volpop input[type="range"] {
   width: 110px; accent-color: #fff; cursor: pointer;
 }
@@ -855,7 +866,7 @@ body {
 }
 .fs__qdot--on { background: #fff; }
 .fs__icon--fav { color: #f472b6 !important; }
-.fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; }
+.fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; max-height: min(72vh, 560px); overflow-y: auto; }
 .fs__morebtn {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px;
   background: none; border: none; border-radius: 12px; color: var(--text);
@@ -901,7 +912,7 @@ body {
 }
 /* Lyrics-off: thumbnails take the stage. */
 .fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
-.fs__covers--big .fs__cover--on { width: clamp(320px, 38vh, 560px); }
+.fs__covers--big .fs__cover--on { width: calc(clamp(320px, 38vh, 560px) * var(--cscale, 1)); }
 .fs__covers { transition: transform .35s cubic-bezier(.2,.9,.25,1); }
 /* Film grain over the whole surface — the iBaila wall has texture, not flat blur. */
 .fs__grain {
@@ -961,8 +972,9 @@ body {
 
 /* arc: 3D cover-flow + flat transport + accent hairline */
 .fs--arc .fs__covers { perspective: 900px; justify-content: center; }
-.fs--arc .fs__cover--l { transform: rotateY(38deg) scale(0.82); transform-origin: right center; }
-.fs--arc .fs__cover--r { transform: rotateY(-38deg) scale(0.82); transform-origin: left center; }
+.fs--arc .fs__cover--l { transform: rotateY(52deg) scale(0.72) translateZ(-40px); transform-origin: right center; opacity: 0.4; }
+.fs--arc .fs__cover--r { transform: rotateY(-52deg) scale(0.72) translateZ(-40px); transform-origin: left center; opacity: 0.4; }
+.fs--arc .fs__cover--on { width: calc(clamp(300px, 34vh, 480px) * var(--cscale, 1)); }
 .fs--arc .fs__hairfill { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, #fff), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
 .fs--arc .fs__pill, .fs--pearl .fs__pill, .fs--studio .fs__pill, .fs--vision .fs__pill {
   background: transparent; border: none; box-shadow: none;
@@ -974,9 +986,11 @@ body {
 }
 .fs--arc .fs__icon { border-radius: 50%; }
 
-/* pearl: centered title+artist above covers */
+/* pearl: one cover alone, centered like a pearl — no side covers */
 .fs--pearl .fs__covers { justify-content: center; padding-left: 0; }
 .fs--pearl .fs__center--panel { padding-left: 8vw; }
+.fs--pearl .fs__cover:not(.fs__cover--on) { display: none; }
+.fs--pearl .fs__cover--on { width: calc(clamp(340px, 44vh, 620px) * var(--cscale, 1)); }
 
 /* studio: queue docked right as a numbered list, carousel stays left */
 .fs--studio .fs__queue { left: auto; right: 3.5vw; width: min(320px, 32vw); }
@@ -1088,13 +1102,16 @@ body {
 /* dial: side covers orbiting the disc (right arc) */
 .fs__orbit { position: absolute; inset: 0; pointer-events: none; }
 .fs__orbititem {
-  position: absolute; left: 56%; top: 42%; width: 72px;
+  position: absolute; left: 56%; top: 42%; width: calc(92px * var(--cscale, 1));
   transition: transform 0.5s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 .fs__orbititem img {
   width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.55); display: block;
 }
+
+/* showcase: the strip wall sits much dimmer so the clock reads cleanly */
+.fs--showcase .fs__wall { filter: blur(22px) saturate(1.05) brightness(0.35); }
 
 /* tile: sharp current cover as the backdrop */
 .fs__tilebg {

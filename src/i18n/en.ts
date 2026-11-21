@@ -147,6 +147,9 @@ const en = {
   "hud.unpin": "Unpin (let it go behind other windows)",
   // desk lyrics
   "desk.waiting": "Waiting for music…",
+  "fs.size": "Cover size",
+  "fs.lockSize": "Lock size",
+  "fs.unlockSize": "Unlock size",
   "fs.nowPlaying": "Now Playing",
   "fs.nothingPlaying": "Nothing playing",
   "fs.provider": "Music provider",
