@@ -32,17 +32,19 @@ export default function Stats() {
   return (
     <div className="glass">
       <div className="settings">
-        <div className="row">
-          <h1>Listening stats</h1>
-          <span>
-            <Link to="/wrapped" className="wordmark" style={{ textDecoration: "none" }}>
-              Recap
-            </Link>
-            {" · "}
-            <Link to="/" className="wordmark" style={{ textDecoration: "none" }}>
-              Back
-            </Link>
-          </span>
+        <div className="pagehead" style={{ padding: "0 0 4px" }}>
+          <div className="pagehead__top">
+            <span className="art__kicker">Insights</span>
+            <span className="pagehead__links">
+              <Link to="/wrapped" className="pagehead__link">
+                Recap
+              </Link>
+              <Link to="/" className="pagehead__link">
+                Back
+              </Link>
+            </span>
+          </div>
+          <h1 className="pagehead__name">Listening stats</h1>
         </div>
 
         {stats.plays === 0 ? (
@@ -66,7 +68,7 @@ export default function Stats() {
               </div>
             </div>
 
-            <div className="field">
+            <div className="panel">
               <span>Last 14 days</span>
               <div className="days">
                 {stats.days.map((d) => (
@@ -80,7 +82,7 @@ export default function Stats() {
               </div>
             </div>
 
-            <div className="field">
+            <div className="panel">
               <span>Top tracks</span>
               <div className="tops">
                 {stats.topTracks.map((t, i) => (
@@ -98,7 +100,7 @@ export default function Stats() {
               </div>
             </div>
 
-            <div className="field">
+            <div className="panel">
               <span>Top artists</span>
               <div className="tops">
                 {stats.topArtists.map((a, i) => (
