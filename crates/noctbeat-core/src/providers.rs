@@ -46,6 +46,38 @@ const VIDEO_SELECTOR: &str = concat!(
     "b/bv*",
 );
 
+/// A flat playlist listing — title plus the tracks it holds, none of
+/// them downloaded yet.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemotePlaylist {
+    pub title: String,
+    pub tracks: Vec<RemoteTrack>,
+}
+
+/// Provider key inferred from a URL host. Defaults to "youtube" so flat
+/// entries still get a playable watch URL even off-provider.
+pub fn provider_of_url(url: &str) -> &'static str {
+    if url.contains("soundcloud.com") {
+        "soundcloud"
+    } else {
+        "youtube"
+    }
+}
+
+/// A previously downloaded stream file by dest name (extension unknown).
+pub fn cached_file(dest_dir: &Path, dest_name: &str) -> Option<PathBuf> {
+    std::fs::read_dir(dest_dir)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| {
+            p.file_stem()
+                .and_then(|s| s.to_str())
+                .is_some_and(|s| s == dest_name)
+        })
+}
+
 /// Provider prefix understood by yt-dlp (`<prefix><N>:<query>`).
 pub fn search_prefix(source: &str) -> Option<&'static str> {
     match source {
@@ -160,16 +192,31 @@ impl YtDlp {
         if !out.status.success() {
             return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
         }
-        std::fs::read_dir(dest_dir)
-            .map_err(|e| e.to_string())?
-            .flatten()
-            .map(|e| e.path())
-            .find(|p| {
-                p.file_stem()
-                    .and_then(|s| s.to_str())
-                    .is_some_and(|s| s == dest_name)
-            })
+        cached_file(dest_dir, dest_name)
             .ok_or_else(|| "download finished but no file was written".into())
+    }
+
+    /// List a playlist/mix URL without downloading: `--flat-playlist`
+    /// returns entry skeletons in one yt-dlp call, cheap even for long
+    /// lists. `limit` caps how much of a giant mix is enqueued.
+    pub fn playlist(&self, url: &str, limit: u32) -> Result<RemotePlaylist, String> {
+        let out = Command::new(&self.bin)
+            .args([
+                "--flat-playlist",
+                "--dump-single-json",
+                "--no-warnings",
+                "--playlist-end",
+                &limit.to_string(),
+                url,
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+        }
+        let v: serde_json::Value =
+            serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
+        Ok(parse_playlist(url, &v))
     }
 }
 
@@ -192,6 +239,25 @@ fn which(name: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Split a playlist info dump into title + tracks. Split out for tests —
+/// entries are parsed exactly like search results.
+fn parse_playlist(url: &str, v: &serde_json::Value) -> RemotePlaylist {
+    let source = provider_of_url(v.get("webpage_url").and_then(|u| u.as_str()).unwrap_or(url));
+    let tracks = v
+        .get("entries")
+        .and_then(|e| e.as_array())
+        .map(|es| es.iter().filter_map(|e| parse_entry(source, e)).collect())
+        .unwrap_or_default();
+    RemotePlaylist {
+        title: v
+            .get("title")
+            .and_then(|t| t.as_str())
+            .unwrap_or("Playlist")
+            .to_string(),
+        tracks,
+    }
 }
 
 /// Map one yt-dlp info JSON object to a RemoteTrack. Entries without an id or
@@ -302,6 +368,34 @@ mod tests {
     fn null_webpage_url_falls_back() {
         let t = entry(r#"{"id":"a","title":"S","webpage_url":null,"url":"https://x/y"}"#).unwrap();
         assert_eq!(t.url, "https://x/y");
+    }
+
+    #[test]
+    fn playlist_parses_entries() {
+        let v: serde_json::Value = serde_json::from_str(
+            r#"{"title":"Mix","webpage_url":"https://soundcloud.com/x/sets/m",
+                "entries":[{"id":"1","title":"A"},{"id":"2","title":"B","duration":60.0}]}"#,
+        )
+        .unwrap();
+        let pl = parse_playlist("https://soundcloud.com/x/sets/m", &v);
+        assert_eq!(pl.title, "Mix");
+        assert_eq!(pl.tracks.len(), 2);
+        assert_eq!(pl.tracks[0].source, "soundcloud");
+        assert_eq!(pl.tracks[1].duration_ms, 60_000);
+    }
+
+    #[test]
+    fn playlist_without_entries_is_empty() {
+        let v: serde_json::Value = serde_json::from_str(r#"{"title":"Solo"}"#).unwrap();
+        let pl = parse_playlist("https://youtu.be/x", &v);
+        assert!(pl.tracks.is_empty());
+    }
+
+    #[test]
+    fn provider_detection() {
+        assert_eq!(provider_of_url("https://soundcloud.com/a/b"), "soundcloud");
+        assert_eq!(provider_of_url("https://youtu.be/x"), "youtube");
+        assert_eq!(provider_of_url("https://anything.example"), "youtube");
     }
 
     #[test]

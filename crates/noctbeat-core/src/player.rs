@@ -99,12 +99,18 @@ impl AudioOut for NullAudio {
     }
 }
 
+/// Turns a queue item into a playable file path — e.g. resolves a
+/// `remote:` pseudo-path into a downloaded stream file. Err aborts the
+/// play; the item stays queued for a retry.
+pub type PathResolver = Box<dyn Fn(&QueueItem) -> Result<String, String> + Send + Sync>;
+
 /// Player state machine: queue + transport, delegating I/O to `AudioOut`.
 pub struct LocalPlayer {
     audio: std::sync::Arc<dyn AudioOut>,
     queue: Vec<QueueItem>,
     index: Option<usize>,
     status: PlaybackStatus,
+    resolver: Option<PathResolver>,
 }
 
 impl LocalPlayer {
@@ -114,6 +120,22 @@ impl LocalPlayer {
             queue: Vec::new(),
             index: None,
             status: PlaybackStatus::Stopped,
+            resolver: None,
+        }
+    }
+
+    /// Install a resolver consulted every time an item is opened — play,
+    /// auto-advance and device-swap reopen alike. Without one the item's
+    /// own `path` is used verbatim.
+    pub fn set_resolver(&mut self, resolver: PathResolver) {
+        self.resolver = Some(resolver);
+    }
+
+    /// The on-disk path `audio` should open for `item`.
+    fn item_path(&self, item: &QueueItem) -> Result<String, String> {
+        match &self.resolver {
+            Some(r) => r(item),
+            None => Ok(item.path.clone()),
         }
     }
 
@@ -156,7 +178,8 @@ impl LocalPlayer {
             .get(index)
             .cloned()
             .ok_or_else(|| format!("no item at index {index}"))?;
-        self.audio.open(&item.path)?;
+        let path = self.item_path(&item)?;
+        self.audio.open(&path)?;
         self.audio.play();
         self.index = Some(index);
         self.status = PlaybackStatus::Playing;
@@ -189,7 +212,8 @@ impl LocalPlayer {
         if item.path.is_empty() {
             return Ok(());
         }
-        self.audio.open(&item.path)?;
+        let path = self.item_path(&item)?;
+        self.audio.open(&path)?;
         self.audio.seek(position_ms)?;
         if playing {
             self.audio.play();
@@ -452,6 +476,50 @@ mod tests {
         assert_eq!(audio.position_ms(), 12_000);
         assert!(audio.playing.load(Ordering::SeqCst));
         assert_eq!(p.tick().status, PlaybackStatus::Playing);
+    }
+
+    #[test]
+    fn resolver_maps_item_path_before_open() {
+        let (mut p, audio) = player();
+        p.set_resolver(Box::new(|item| {
+            if let Some(key) = item.path.strip_prefix("remote:") {
+                Ok(format!("/cache/{key}.m4a"))
+            } else {
+                Ok(item.path.clone())
+            }
+        }));
+        p.set_queue(vec![
+            item("a"),
+            QueueItem {
+                track: Track {
+                    id: "r".into(),
+                    title: "remote".into(),
+                    artist: String::new(),
+                    album: String::new(),
+                    artwork_url: String::new(),
+                    duration_ms: 0,
+                },
+                path: "remote:yt-1".into(),
+            },
+        ]);
+        p.play_index(1).unwrap();
+        assert_eq!(audio.opened.lock().unwrap()[0], "/cache/yt-1.m4a");
+        // A device-swap reopen goes through the resolver too.
+        let (pos, playing) = p.reopen_snapshot();
+        p.reopen_current(pos, playing).unwrap();
+        assert_eq!(
+            audio.opened.lock().unwrap().last().unwrap(),
+            "/cache/yt-1.m4a"
+        );
+    }
+
+    #[test]
+    fn resolver_error_aborts_play() {
+        let (mut p, _) = player();
+        p.set_resolver(Box::new(|_| Err("download failed".into())));
+        p.set_queue(vec![item("a")]);
+        assert!(p.play_index(0).is_err());
+        assert_eq!(p.tick().status, PlaybackStatus::Stopped);
     }
 
     #[test]

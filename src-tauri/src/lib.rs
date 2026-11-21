@@ -10,7 +10,7 @@ use noctbeat_core::media::{
 };
 use noctbeat_core::palette::{extract_palette_bytes, Palette};
 use noctbeat_core::player::{LocalPlayer, QueueItem};
-use noctbeat_core::providers::{RemoteTrack, YtDlp};
+use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
 use noctbeat_core::settings::Settings;
@@ -23,7 +23,8 @@ struct AppState {
     source: Mutex<Box<dyn NowPlayingSource>>,
     /// In-app player for local files; wins over `source` while active.
     player: Mutex<LocalPlayer>,
-    settings: Mutex<Settings>,
+    /// Arc-shared with the player's path resolver so settings edits reach it.
+    settings: std::sync::Arc<Mutex<Settings>>,
     settings_path: PathBuf,
     beat: Mutex<BeatDetector>,
     last_energy: Mutex<EnergyUpdate>,
@@ -43,6 +44,9 @@ struct AppState {
     history_path: PathBuf,
     /// Wall-clock time accumulated on the track currently playing.
     listen: Mutex<ListenTracker>,
+    /// Metadata for queue items whose `path` is a `remote:<source>:<id>`
+    /// pseudo-path; the player's resolver downloads them on demand.
+    remote: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>>,
     demo: bool,
 }
 
@@ -391,6 +395,47 @@ fn import_playlist(state: State<AppState>, path: String) -> Result<ImportResult,
         }
     }
     Ok(res)
+}
+
+/// Outcome of `import_playlist_url`: the playlist's own title and how
+/// many tracks were queued for lazy download.
+#[derive(serde::Serialize)]
+struct PlaylistUrlResult {
+    title: String,
+    imported: u32,
+}
+
+/// Enqueue every entry of a remote playlist/mix URL. Tracks carry a
+/// `remote:` pseudo-path and download one by one as playback reaches
+/// them — a 200-track list must not trigger 200 downloads up front.
+#[tauri::command]
+async fn import_playlist_url(
+    state: State<'_, AppState>,
+    url: String,
+) -> Result<PlaylistUrlResult, String> {
+    let ytdlp = detected_ytdlp(&state)?;
+    let pl = ytdlp.playlist(&url, 200)?;
+    let mut map = state.remote.lock().map_err(|e| e.to_string())?;
+    let mut player = state.player.lock().map_err(|e| e.to_string())?;
+    for t in &pl.tracks {
+        let key = format!("{}:{}", t.source, t.id);
+        map.insert(key.clone(), t.clone());
+        player.add(QueueItem {
+            track: Track {
+                id: key.clone(),
+                title: t.title.clone(),
+                artist: t.artist.clone(),
+                album: pl.title.clone(),
+                artwork_url: t.artwork_url.clone(),
+                duration_ms: t.duration_ms,
+            },
+            path: format!("remote:{key}"),
+        });
+    }
+    Ok(PlaylistUrlResult {
+        title: pl.title,
+        imported: pl.tracks.len() as u32,
+    })
 }
 
 /// Retune the live EQ (dB per band) and persist the choice.
@@ -926,13 +971,50 @@ pub fn run() {
         Some(out) => out,
         None => std::sync::Arc::new(noctbeat_core::player::NullAudio::new()),
     };
+    let settings_arc = std::sync::Arc::new(Mutex::new(settings.clone()));
+    let remote_map: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>> =
+        std::sync::Arc::new(Mutex::new(std::collections::HashMap::new()));
+    let mut local_player = LocalPlayer::new(audio_out);
+    {
+        // Resolves `remote:<source>:<id>` queue paths to downloaded files
+        // in the streams cache; everything else passes through unchanged.
+        let map = remote_map.clone();
+        let settings = settings_arc.clone();
+        let cache = dir.join("streams");
+        local_player.set_resolver(Box::new(move |item| {
+            let Some(key) = item.path.strip_prefix("remote:") else {
+                return Ok(item.path.clone());
+            };
+            let rt = map
+                .lock()
+                .map_err(|e| e.to_string())?
+                .get(key)
+                .cloned()
+                .ok_or_else(|| format!("unknown remote track {key}"))?;
+            let name = format!(
+                "{}-{}",
+                rt.source,
+                rt.id.replace(|c: char| !c.is_alphanumeric(), "_")
+            );
+            if let Some(f) = providers::cached_file(&cache, &name) {
+                return Ok(f.display().to_string());
+            }
+            let ytdlp = {
+                let s = settings.lock().map_err(|e| e.to_string())?;
+                YtDlp::detect(s.ytdlp_path.as_deref())
+            }
+            .ok_or("yt-dlp not installed")?;
+            let f = ytdlp.download(&rt.url, &cache, &name)?;
+            Ok(f.display().to_string())
+        }));
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             source: Mutex::new(source),
-            player: Mutex::new(LocalPlayer::new(audio_out)),
-            settings: Mutex::new(settings.clone()),
+            player: Mutex::new(local_player),
+            settings: settings_arc,
             settings_path: settings_path.clone(),
             beat: Mutex::new(BeatDetector::new(48_000)),
             last_energy: Mutex::new(EnergyUpdate {
@@ -952,6 +1034,7 @@ pub fn run() {
             hud_pos_pending: Mutex::new(None),
             desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
+            remote: remote_map,
             demo,
         })
         .invoke_handler(tauri::generate_handler![
@@ -984,6 +1067,7 @@ pub fn run() {
             set_output_device,
             set_eq,
             import_playlist,
+            import_playlist_url,
             get_stats,
             clear_history,
         ])

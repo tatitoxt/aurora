@@ -109,6 +109,11 @@ export interface QueueState {
   items: QueueItem[];
   currentIndex: number | null;
 }
+export interface PlaylistUrlResult {
+  title: string;
+  imported: number;
+}
+
 export interface ImportResult {
   imported: number;
   remote: number;
@@ -435,6 +440,10 @@ export const bridge = {
     isTauri()
       ? invokeCmd<ImportResult>("import_playlist", { path })
       : Promise.resolve({ imported: 0, remote: 0, missing: 0 }),
+  importPlaylistUrl: (url: string): Promise<PlaylistUrlResult> =>
+    isTauri()
+      ? invokeCmd<PlaylistUrlResult>("import_playlist_url", { url })
+      : Promise.resolve({ title: "Demo mix", imported: 0 }),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
