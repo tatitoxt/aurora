@@ -612,6 +612,9 @@ fn clear_queue(app: tauri::AppHandle, state: State<AppState>) -> Result<(), Stri
 /// expanding a leading `~`. Error strings are shown to the user.
 fn resolve_music_dir(state: &State<AppState>, dir: Option<String>) -> Result<String, String> {
     let dir = dir.or_else(|| state.settings.lock().ok().and_then(|s| s.music_dir.clone()));
+    // First-run zero-config: fall back to the conventional ~/Music folder so
+    // scanning works before the user ever opens Settings.
+    let dir = dir.or_else(default_music_dir);
     let Some(dir) = dir else {
         return Err("no music folder configured".into());
     };
@@ -628,6 +631,12 @@ fn resolve_music_dir(state: &State<AppState>, dir: Option<String>) -> Result<Str
         return Err(format!("not a directory: {dir}"));
     }
     Ok(dir)
+}
+
+/// The conventional per-user music folder, when it exists (`~/Music`).
+fn default_music_dir() -> Option<String> {
+    let d = std::env::home_dir()?.join("Music");
+    d.is_dir().then(|| d.display().to_string())
 }
 
 /// Scan `dir` (or the configured music dir) and replace the play queue.
@@ -2694,6 +2703,39 @@ pub fn run() {
             restore_session(&state);
             emit_queue(app.handle(), &state);
             spawn_poller(app.handle());
+            // First-run zero-config: no music dir configured, ~/Music exists
+            // and the queue is empty → seed it from ~/Music in the background
+            // so music is on screen before Settings is ever opened.
+            {
+                let need_seed = state
+                    .settings
+                    .lock()
+                    .map(|s| s.music_dir.is_none())
+                    .unwrap_or(false)
+                    && default_music_dir().is_some()
+                    && state
+                        .player
+                        .lock()
+                        .map(|p| p.queue().is_empty())
+                        .unwrap_or(false);
+                if need_seed {
+                    let app = app.handle().clone();
+                    std::thread::spawn(move || {
+                        let state = app.state::<AppState>();
+                        if let Ok(dir) = resolve_music_dir(&state, None) {
+                            let items = noctbeat_core::library::scan(std::path::Path::new(&dir));
+                            if !items.is_empty() {
+                                if let Ok(mut p) = state.player.lock() {
+                                    if p.queue().is_empty() {
+                                        p.set_queue(items);
+                                    }
+                                }
+                                emit_queue(&app, &state);
+                            }
+                        }
+                    });
+                }
+            }
             if let Some(rodio) = &state.rodio {
                 if let Ok(s) = state.settings.lock() {
                     rodio.eq().set(&s.eq_bands);
