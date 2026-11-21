@@ -523,7 +523,7 @@ export default function Fullscreen() {
                     key={c.key}
                     className="fs__orbititem"
                     style={{
-                      transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-32vh) rotate(${-angle}deg)`,
+                      transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-30vh) rotate(${-angle}deg)`,
                     }}
                   >
                     {c.src ? (
@@ -535,25 +535,6 @@ export default function Fullscreen() {
                 );
               })}
           </div>
-        </div>
-      )}
-
-      {fsStyle === "tile" && (
-        <div className="fs__tile">
-          {queue.items.slice(0, 12).map((it, i) => (
-            <button
-              key={it.path + i}
-              className={`fs__tileitem ${i === ci ? "fs__tileitem--on" : ""}`}
-              onClick={() => void bridge.playQueueIndex(i)}
-            >
-              {artMap[it.track.artworkUrl] ? (
-                <img src={artMap[it.track.artworkUrl]} alt="" />
-              ) : (
-                <span className="fs__meta-art" style={{ display: "block", width: "100%", height: "100%" }} />
-              )}
-              {i === ci && <span className="fs__tilemeta">{it.track.title}</span>}
-            </button>
-          ))}
         </div>
       )}
 
