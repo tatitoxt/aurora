@@ -1833,46 +1833,108 @@ struct DisplayInfo {
     id: String,
     name: String,
     primary: bool,
+    /// Pre-upgrade positional id (`display-N`); saved rules may still use it.
+    legacy_id: String,
+}
+
+/// Stable ids for the current monitor set: the OS name (output connector /
+/// EDID) survives re-enumeration when a sibling is unplugged, where an index
+/// would shift and apply one display's rules to another. Same-model monitors
+/// get a `-<x>x<y>` position suffix so each still owns its rules and the id
+/// survives a sibling unplugging.
+fn display_ids(monitors: &[tauri::Monitor]) -> Vec<String> {
+    let mut totals: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for m in monitors {
+        if let Some(name) = m.name() {
+            *totals.entry(name.clone()).or_insert(0) += 1;
+        }
+    }
+    monitors
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let base = m.name().cloned().unwrap_or_else(|| format!("display-{i}"));
+            if totals.get(&base).copied().unwrap_or(0) > 1 {
+                // Same-model duplicates: anchor on the physical position so
+                // unplugging a sibling keeps this monitor's id (and rules).
+                let pos = m.position();
+                format!("{base}-{}x{}", pos.x, pos.y)
+            } else {
+                base
+            }
+        })
+        .collect()
+}
+
+/// Window labels accept a limited charset (alphanumeric plus `-_/:.`);
+/// map anything else to `-` so an exotic monitor name still builds.
+fn label_safe(id: &str) -> String {
+    id.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '/' | ':' | '_' | '.') {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 #[tauri::command]
 fn list_displays(app: tauri::AppHandle) -> Result<Vec<DisplayInfo>, String> {
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
+    let ids = display_ids(&monitors);
     Ok(monitors
         .into_iter()
         .enumerate()
         .map(|(i, m)| DisplayInfo {
-            id: format!("display-{i}"),
+            id: ids[i].clone(),
             name: m
                 .name()
                 .cloned()
                 .unwrap_or_else(|| format!("Display {}", i + 1)),
             primary: i == 0,
+            legacy_id: format!("display-{i}"),
         })
         .collect())
 }
 
 /// One click-through, transparent overlay window per enabled display.
+/// Also tears down edge windows whose display was disabled or unplugged.
 fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
-    let monitors = app.available_monitors().unwrap_or_default();
+    // Bail on enumeration errors: with no monitor list the cleanup below
+    // would read every edge window as stale and close them all.
+    let Ok(monitors) = app.available_monitors() else {
+        return;
+    };
+    let ids = display_ids(&monitors);
+    let mut expected: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, monitor) in monitors.iter().enumerate() {
-        let id = format!("display-{i}");
-        let label = format!("edge-{id}");
+        let id = &ids[i];
+        let label = format!("edge-{}", label_safe(id));
+        // Rules saved before the name-based ids still carry `display-N`.
         let enabled = settings
             .displays
             .iter()
-            .find(|d| d.display_id == id)
+            .find(|d| &d.display_id == id)
+            .or_else(|| {
+                settings
+                    .displays
+                    .iter()
+                    .find(|d| d.display_id == format!("display-{i}"))
+            })
             .map(|d| d.enabled)
             .unwrap_or(true);
-        if let Some(win) = app.get_webview_window(&label) {
-            if !enabled {
-                let _ = win.close();
-            }
-            continue;
-        }
         if !enabled {
             continue;
         }
+        expected.insert(label.clone());
+        if app.get_webview_window(&label).is_some() {
+            continue;
+        }
+        // Monitor size()/position() are physical; the builder wants logical
+        // or a scaled display would double-apply the scale factor.
+        let scale = monitor.scale_factor();
         let size = monitor.size();
         let pos = monitor.position();
         if let Ok(win) = tauri::WebviewWindowBuilder::new(
@@ -1885,11 +1947,16 @@ fn sync_edge_windows(app: &tauri::AppHandle, settings: &Settings) {
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
-        .inner_size(size.width as f64, size.height as f64)
-        .position(pos.x as f64, pos.y as f64)
+        .inner_size(size.width as f64 / scale, size.height as f64 / scale)
+        .position(pos.x as f64 / scale, pos.y as f64 / scale)
         .build()
         {
             let _ = win.set_ignore_cursor_events(true);
+        }
+    }
+    for (label, win) in app.webview_windows() {
+        if label.starts_with("edge-") && !expected.contains(&label) {
+            let _ = win.close();
         }
     }
 }
@@ -2268,6 +2335,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
         let mut last_track_id: Option<String> = None;
+        let mut last_monitor_sig = String::new();
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
@@ -2276,6 +2344,22 @@ fn spawn_poller(app: &tauri::AppHandle) {
             let tick_ms = last_tick.elapsed().as_millis() as u64;
             last_tick = std::time::Instant::now();
             let state = app.state::<AppState>();
+            // Reconcile edge overlays with the monitor set ~1/s: a hotplugged
+            // display gets its glow (or loses its stale window) without a
+            // settings write.
+            if ticks.is_multiple_of(5) {
+                if let Ok(monitors) = app.available_monitors() {
+                    // Compare identities, not the count: swapping one monitor
+                    // for another keeps the total but needs a re-sync.
+                    let sig = display_ids(&monitors).join(",");
+                    if sig != last_monitor_sig {
+                        last_monitor_sig = sig;
+                        if let Ok(s) = state.settings.lock() {
+                            sync_edge_windows(&app, &s);
+                        }
+                    }
+                }
+            }
             let np = {
                 if !local_active(&state) {
                     // Rediscover the platform player source while idle.

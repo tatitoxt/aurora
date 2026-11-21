@@ -37,6 +37,8 @@ export interface DisplayInfo {
   id: string;
   name: string;
   primary: boolean;
+  /** Pre-upgrade positional id (`display-N`); saved rules may still use it. */
+  legacyId: string;
 }
 export type ColorMode = { mode: "artwork" } | { mode: "custom" };
 export interface DisplayRule {
@@ -778,7 +780,14 @@ export const bridge = {
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
-      : Promise.resolve([{ id: "display-0", name: "Display 1", primary: true }]),
+      : Promise.resolve([
+          {
+            id: "display-0",
+            name: "Display 1",
+            primary: true,
+            legacyId: "display-0",
+          },
+        ]),
   getArtistStats: (artist: string): Promise<ArtistStats> =>
     isTauri()
       ? invokeCmd<ArtistStats>("get_artist_stats", { artist })
