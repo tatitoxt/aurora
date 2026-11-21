@@ -982,6 +982,140 @@ fn system_on_battery() -> bool {
     false
 }
 
+/// True while another application owns a fullscreen window. The edge hides
+/// then; own windows (e.g. the fullscreen player) are excluded by pid.
+/// Async so the per-OS subprocess probes never stall Tauri's event thread.
+#[tauri::command]
+async fn fullscreen_app_active() -> bool {
+    system_fullscreen_app_active()
+}
+
+#[cfg(target_os = "linux")]
+fn system_fullscreen_app_active() -> bool {
+    // X11 only; Wayland gives no cross-app window state, so report false.
+    if std::env::var_os("DISPLAY").is_none() {
+        return false;
+    }
+    let out = std::process::Command::new("xprop")
+        .args(["-root", "_NET_ACTIVE_WINDOW"])
+        .output();
+    let Ok(out) = out else { return false };
+    let text = String::from_utf8_lossy(&out.stdout);
+    // "_NET_ACTIVE_WINDOW(WINDOW): window id # 0x3c00007"
+    let id = text.split('#').nth(1).map(str::trim).unwrap_or("");
+    if id.is_empty() || id == "0x0" {
+        return false;
+    }
+    let own = std::process::id().to_string();
+    let mine = std::process::Command::new("xprop")
+        .args(["-id", id, "_NET_WM_PID"])
+        .output()
+        .map(|o| {
+            // "_NET_WM_PID(CARDINAL) = 2698" — exact match, not substring
+            // (a foreign pid containing ours must not self-exclude).
+            String::from_utf8_lossy(&o.stdout)
+                .rsplit('=')
+                .next()
+                .map(str::trim)
+                == Some(own.as_str())
+        })
+        .unwrap_or(false);
+    if mine {
+        return false;
+    }
+    std::process::Command::new("xprop")
+        .args(["-id", id, "_NET_WM_STATE"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("_NET_WM_STATE_FULLSCREEN"))
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
+fn system_fullscreen_app_active() -> bool {
+    // Foreground window covering its whole monitor = fullscreen; maximized
+    // windows stop at the taskbar so they do not match. Shell windows and
+    // our own pid are excluded. Prints "1" or "0".
+    let script = format!(
+        r#"$own={}
+$sig=@'
+using System;
+using System.Runtime.InteropServices;
+public static class U32 {{
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
+  [DllImport("user32.dll")] public static extern long GetWindowLongPtr(IntPtr h, int i);
+  [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr m, ref MI i);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
+  public struct RECT {{ public int Left, Top, Right, Bottom; }}
+  public struct MI {{ public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint flags; }}
+}}
+'@
+Add-Type -TypeDefinition $sig
+$h=[U32]::GetForegroundWindow()
+if($h -eq [IntPtr]::Zero){{'0';exit}}
+$p=[uint32]0;[void][U32]::GetWindowThreadProcessId($h,[ref]$p)
+if($p -eq $own){{'0';exit}}
+$cls=New-Object System.Text.StringBuilder 256;[void][U32]::GetClassName($h,$cls,256)
+if(@('Progman','WorkerW','Shell_TrayWnd','Shell_SecondaryTrayWnd') -contains $cls.ToString()){{'0';exit}}
+$wr=New-Object U32+RECT;[void][U32]::GetWindowRect($h,[ref]$wr)
+$mi=New-Object U32+MI;$mi.cbSize=[Runtime.InteropServices.Marshal]::SizeOf([U32+MI])
+[void][U32]::GetMonitorInfo([U32]::MonitorFromWindow($h,2),[ref]$mi)
+$covers=$wr.Left -le $mi.rcMonitor.Left -and $wr.Top -le $mi.rcMonitor.Top -and $wr.Right -ge $mi.rcMonitor.Right -and $wr.Bottom -ge $mi.rcMonitor.Bottom
+# A maximized window on a taskbar-free monitor also covers it; real
+# fullscreen windows strip WS_CAPTION (0x00C00000).
+$borderless=([U32]::GetWindowLongPtr($h,-16) -band 0xC00000L) -eq 0
+if($covers -and $borderless){{'1'}}else{{'0'}}"#,
+        std::process::id()
+    );
+    std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "1")
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "macos")]
+fn system_fullscreen_app_active() -> bool {
+    // AXFullScreen on the frontmost process needs accessibility permission;
+    // any error means "cannot determine" -> false, never hide on a guess.
+    std::process::Command::new("osascript")
+        .args([
+            "-e",
+            "tell application \"System Events\"",
+            "-e",
+            "set p to first process whose frontmost is true",
+            "-e",
+            &format!(
+                "if unix id of p is {} then return false",
+                std::process::id()
+            ),
+            "-e",
+            "if (count of windows of p) is 0 then return false",
+            "-e",
+            "try",
+            "-e",
+            "return value of attribute \"AXFullScreen\" of window 1 of p",
+            "-e",
+            "on error",
+            "-e",
+            "return false",
+            "-e",
+            "end try",
+            "-e",
+            "end tell",
+        ])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "true")
+        .unwrap_or(false)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+fn system_fullscreen_app_active() -> bool {
+    false
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DisplayInfo {
@@ -1615,6 +1749,7 @@ pub fn run() {
             activate_license,
             get_energy,
             on_battery,
+            fullscreen_app_active,
             list_displays,
             set_hud_pinned,
             hud_start_drag,

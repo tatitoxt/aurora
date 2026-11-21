@@ -10,6 +10,7 @@ export default function Edge() {
   const [palette, setPalette] = useState<{ dominant: string; accents: string[] } | null>(null);
   const [npStatus, setNpStatus] = useState<NowPlaying["status"]>("stopped");
   const [onBattery, setOnBattery] = useState(false);
+  const [fsActive, setFsActive] = useState(false);
   const [pulse, setPulse] = useState(0);
   const lastBeat = useRef(0);
   const lastArtwork = useRef("");
@@ -80,10 +81,24 @@ export default function Edge() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // Foreign fullscreen app: hide the glow while e.g. a video player owns the
+  // screen. Polled at 5s; skipped entirely when the setting is off.
+  useEffect(() => {
+    if (!settings.hideInFullscreen) {
+      setFsActive(false);
+      return;
+    }
+    const poll = () => bridge.getFullscreenAppActive().then(setFsActive).catch(() => {});
+    poll();
+    const timer = window.setInterval(poll, 5_000);
+    return () => window.clearInterval(timer);
+  }, [settings.hideInFullscreen]);
+
   const silent = settings.lightsOffOnSilence && npStatus !== "playing";
+  const suppressed = silent || fsActive;
 
   useEffect(() => {
-    if (settings.batterySaver || silent) return;
+    if (settings.batterySaver || suppressed) return;
     const loop = () => {
       setPulse(beatPulse(lastBeat.current, Date.now()));
       force((n) => n + 1);
@@ -91,7 +106,7 @@ export default function Edge() {
     };
     raf.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf.current);
-  }, [settings.batterySaver, silent]);
+  }, [settings.batterySaver, suppressed]);
 
   const useArtwork = settings.colorMode.mode === "artwork";
   // Before artwork extraction lands (or with no artwork), the glow follows
@@ -105,19 +120,19 @@ export default function Edge() {
   const t = settings.edgeThicknessPx;
   const dim = settings.batterySaver || (onBattery && settings.autoDimOnBattery) ? 0.55 : 1;
   const base = settings.brightness * dim;
-  const opacity = silent ? 0 : Math.min(1, base * (0.55 + pulse * 0.45));
+  const opacity = suppressed ? 0 : Math.min(1, base * (0.55 + pulse * 0.45));
 
   const style = {
     "--t": `${t}px`,
     "--c1": c1,
     "--c2": c2,
-    "--o": settings.batterySaver && !silent ? base : opacity,
+    "--o": settings.batterySaver && !suppressed ? base : opacity,
   } as React.CSSProperties;
 
   return (
     <div className="edge" data-testid="edge" style={style}>
       <div className="edge__glow" />
-      <div className={`edge__pulse ${pulse > 0.3 && !silent ? "on" : ""}`} style={{ "--t": `${t}px`, "--c2": c2 } as React.CSSProperties} />
+      <div className={`edge__pulse ${pulse > 0.3 && !suppressed ? "on" : ""}`} style={{ "--t": `${t}px`, "--c2": c2 } as React.CSSProperties} />
     </div>
   );
 }
