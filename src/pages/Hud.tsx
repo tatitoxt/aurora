@@ -27,6 +27,7 @@ import {
 } from "@phosphor-icons/react";
 import { LineLyrics } from "../Lyrics";
 import { activeLyricIndex } from "../lib";
+import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import {
   favEntryFor,
   favKeyFor,
@@ -87,11 +88,18 @@ export default function Hud() {
   }, []);
 
   const track = np?.track ?? null;
-  useEffect(() => {
-    if (track?.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);
-    void bridge.getLyrics().then(setLyrics);
-  }, [track]);
   const trackKey = track?.id ?? null;
+  const artworkUrl = track?.artworkUrl ?? null;
+  const [lyroffTick, setLyroffTick] = useState(0);
+  useEffect(() => subscribeLyroff(() => setLyroffTick((n) => n + 1)), []);
+  void lyroffTick;
+  useEffect(() => {
+    if (artworkUrl) void bridge.artSrc(artworkUrl).then(setArt);
+  }, [artworkUrl]);
+  useEffect(() => {
+    void bridge.getLyrics().then(setLyrics);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackKey]);
   useEffect(() => {
     setVideoUrl(null);
     // video mode plays the clip; lyrics mode shows it behind the words
@@ -112,7 +120,7 @@ export default function Hud() {
   const pos = np?.positionMs ?? 0;
   const dur = track?.durationMs ?? 1;
   const playing = np?.status === "playing";
-  const active = lyrics ? activeLyricIndex(lyrics, pos) : -1;
+  const active = lyrics ? activeLyricIndex(lyrics, pos + lyricOffsetFor(np)) : -1;
   const canSeek = np?.source === "local" || np?.source === "demo";
   const seekBar = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!canSeek || !track?.durationMs) return;
@@ -133,7 +141,7 @@ export default function Hud() {
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest("button, input")) return;
+    if ((e.target as HTMLElement).closest("button, input, .hud__progress")) return;
     void bridge.hudStartDrag();
   };
 
