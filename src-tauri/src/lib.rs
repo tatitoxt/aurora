@@ -700,41 +700,88 @@ async fn provider_search(
     detected_ytdlp(&state)?.search(&source, &query, 8)
 }
 
-/// Download the track's audio into the app cache and play it through the
-/// local player, so seek/queue/energy all work identically to local files.
+/// Queue identity of a remote track: a `remote:<source>:<id>`
+/// pseudo-path resolved (downloaded) lazily by the player's path
+/// resolver when playback reaches it.
+fn queue_item_for_remote(track: &RemoteTrack) -> QueueItem {
+    let key = format!("{}:{}", track.source, track.id);
+    QueueItem {
+        track: Track {
+            id: key.clone(),
+            title: track.title.clone(),
+            artist: track.artist.clone(),
+            album: String::new(),
+            artwork_url: track.artwork_url.clone(),
+            duration_ms: track.duration_ms,
+        },
+        path: format!("remote:{key}"),
+    }
+}
+
+/// Seed the remote resolver map for `track`, then return its index in
+/// the queue — existing slot when already queued, appended otherwise.
+fn enqueue_remote(
+    state: &State<AppState>,
+    track: RemoteTrack,
+) -> Result<(QueueItem, usize), String> {
+    let item = queue_item_for_remote(&track);
+    let key = format!("{}:{}", track.source, track.id);
+    state
+        .remote
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(key, track);
+    let mut p = state.player.lock().map_err(|e| e.to_string())?;
+    let idx = match p.queue().iter().position(|i| i.path == item.path) {
+        Some(i) => i,
+        None => {
+            p.add(item.clone());
+            p.queue().len() - 1
+        }
+    };
+    Ok((item, idx))
+}
+
+/// Play a remote track inside the user's queue: it joins the tail (or
+/// jumps to its existing slot) instead of replacing everything. The
+/// audio resolves lazily as a `remote:` path inside `play_index`, so
+/// seek/queue/energy behave identically to local files.
 #[tauri::command]
 async fn provider_play(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     track: RemoteTrack,
 ) -> Result<QueueItem, String> {
-    let ytdlp = detected_ytdlp(&state)?;
-    let cache = app
-        .path()
-        .app_cache_dir()
+    detected_ytdlp(&state)?;
+    let (item, idx) = enqueue_remote(&state, track)?;
+    // The queue changed even if playback below fails — announce it now
+    // so a failed track never lands silently in the list.
+    emit_queue(&app, &state);
+    // Resolve before the player lock, the same rule play_queue_index
+    // follows: a UI-initiated play must not hold the lock (and freeze
+    // every control) through a whole yt-dlp download.
+    let key = item.path["remote:".len()..].to_owned();
+    resolve_remote(&state.remote, &state.settings, &state.stream_cache, &key)?;
+    state
+        .player
+        .lock()
         .map_err(|e| e.to_string())?
-        .join("streams");
-    let name = format!(
-        "{}-{}",
-        track.source,
-        track.id.replace(|c: char| !c.is_alphanumeric(), "_")
-    );
-    let path = ytdlp.download(&track.url, &cache, &name)?;
-    let item = QueueItem {
-        track: Track {
-            id: format!("{}:{}", track.source, track.id),
-            title: track.title,
-            artist: track.artist,
-            album: String::new(),
-            artwork_url: track.artwork_url,
-            duration_ms: track.duration_ms,
-        },
-        path: path.display().to_string(),
-    };
-    let mut p = state.player.lock().map_err(|e| e.to_string())?;
-    p.set_queue(std::slice::from_ref(&item).to_vec());
-    p.play_index(0)?;
-    drop(p);
+        .play_index(idx)?;
+    prefetch_next(&state, idx);
+    emit_queue(&app, &state);
+    Ok(item)
+}
+
+/// Enqueue a remote track without touching playback or downloading —
+/// it resolves lazily when the queue reaches it. Returns the appended
+/// (or already-queued) item.
+#[tauri::command]
+fn provider_enqueue(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    track: RemoteTrack,
+) -> Result<QueueItem, String> {
+    let (item, _) = enqueue_remote(&state, track)?;
     emit_queue(&app, &state);
     Ok(item)
 }
@@ -2280,6 +2327,7 @@ pub fn run() {
             provider_status,
             provider_search,
             provider_play,
+            provider_enqueue,
             resolve_video,
             list_outputs,
             set_output_device,

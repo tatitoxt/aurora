@@ -18,7 +18,7 @@ import {
   type FavEntry,
 } from "../favs";
 import { formatTime } from "../lib";
-import { PencilSimple, Trash } from "@phosphor-icons/react";
+import { PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 
 const SOURCES = [
   { id: "youtube", label: "YouTube" },
@@ -134,6 +134,17 @@ export default function Library() {
       .then(() => refresh())
       .catch((e) => setError(String(e)))
       .finally(() => setDownloading(null));
+  };
+
+  const enqueueRemote = (t: RemoteTrack) => {
+    setError("");
+    bridge
+      .providerEnqueue(t)
+      .then(() => {
+        refresh();
+        setImportNote(`Queued “${t.title}”`);
+      })
+      .catch((e) => setError(String(e)));
   };
 
   const importPlaylist = () => {
@@ -287,7 +298,24 @@ export default function Library() {
                 {t.title}
               </span>
               <span className="lib__sub">{t.artist}</span>
-              <span className="lib__dur">{t.durationMs ? formatTime(t.durationMs) : ""}</span>
+              <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="lib__act"
+                  title="Add to queue"
+                  onClick={() => enqueueRemote(t)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    enqueueRemote(t);
+                  }}
+                >
+                  <Plus size={11} />
+                </span>
+                {t.durationMs ? formatTime(t.durationMs) : ""}
+              </span>
             </button>
           ))}
         </div>
