@@ -127,6 +127,7 @@ const ko: Record<keyof typeof en, string> = {
   "set.custom": "\uc0ac\uc6a9\uc790",
   "set.accent": "\uac15\uc870\uc0c9",
   "set.accent2": "\uac15\uc870\uc0c9 2",
+  "set.dynAccent": "강조색이 앨범 아트를 따름",
   "set.saveCurrent": "\ud604\uc7ac \uc800\uc7a5",
   "set.profilesNote": "\ud14c\ub9c8, EQ, \uac00\uc0ac \ubaa8\ub4dc\ub97c \uc774\ub984 \uc788\ub294 \ud504\ub85c\ud30c\uc77c\ub85c \ubb36\uc2b5\ub2c8\ub2e4",
   "set.crossfade": "\ud06c\ub85c\uc2a4\ud398\uc774\ub4dc",

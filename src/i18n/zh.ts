@@ -127,6 +127,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.custom": "\u81ea\u5b9a\u4e49",
   "set.accent": "\u5f3a\u8c03\u8272",
   "set.accent2": "\u5f3a\u8c03\u8272 2",
+  "set.dynAccent": "强调色跟随封面",
   "set.saveCurrent": "\u4fdd\u5b58\u5f53\u524d",
   "set.profilesNote": "\u5c06\u4e3b\u9898\u3001\u5747\u8861\u5668\u548c\u6b4c\u8bcd\u6a21\u5f0f\u7ed1\u5b9a\u4e3a\u547d\u540d\u914d\u7f6e\u6863",
   "set.crossfade": "\u4ea4\u53c9\u6de1\u53d8",

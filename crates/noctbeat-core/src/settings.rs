@@ -6,6 +6,10 @@ use std::path::Path;
 
 pub const CURRENT_VERSION: u32 = 1;
 
+fn default_dynamic() -> bool {
+    true
+}
+
 /// User theme: a preset name plus optional accent overrides applied on top.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +19,10 @@ pub struct ThemeSettings {
     pub accent: Option<String>,
     #[serde(default)]
     pub accent2: Option<String>,
+    /// Accent colors follow the playing track's artwork palette. Manual
+    /// accent/accent2 picks always win over the artwork colors.
+    #[serde(default = "default_dynamic")]
+    pub dynamic: bool,
 }
 
 impl Default for ThemeSettings {
@@ -23,6 +31,7 @@ impl Default for ThemeSettings {
             name: "noct".into(),
             accent: None,
             accent2: None,
+            dynamic: true,
         }
     }
 }

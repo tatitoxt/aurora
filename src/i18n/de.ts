@@ -127,6 +127,7 @@ const de: Record<keyof typeof en, string> = {
   "set.custom": "Eigene",
   "set.accent": "Akzent",
   "set.accent2": "Akzent 2",
+  "set.dynAccent": "Akzent folgt dem Cover",
   "set.saveCurrent": "Aktuelles speichern",
   "set.profilesNote": "Bündelt Theme, EQ und Lyrics-Modus in einem benannten Profil",
   "set.crossfade": "Crossfade",

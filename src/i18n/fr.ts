@@ -127,6 +127,7 @@ const fr: Record<keyof typeof en, string> = {
   "set.custom": "Personnalisée",
   "set.accent": "Accent",
   "set.accent2": "Accent 2",
+  "set.dynAccent": "L'accent suit la pochette",
   "set.saveCurrent": "Enregistrer",
   "set.profilesNote": "Regroupe thème, égaliseur et mode de paroles dans un profil nommé",
   "set.crossfade": "Crossfade",

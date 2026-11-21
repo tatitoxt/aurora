@@ -93,6 +93,8 @@ export interface ThemeSettings {
   name: string;
   accent: string | null;
   accent2: string | null;
+  /** Accents follow the playing track's artwork (manual picks win). */
+  dynamic: boolean;
 }
 /** A saved personalization bundle (theme + EQ + lyrics prefs). */
 export interface Profile {
@@ -214,7 +216,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hudPosition: null,
   musicDir: null,
   ytdlpPath: null,
-  theme: { name: "noct", accent: null, accent2: null },
+  theme: { name: "noct", accent: null, accent2: null, dynamic: true },
   lyricsMode: "lines",
   videoBackdrop: true,
   audioOutput: null,

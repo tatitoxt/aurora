@@ -197,6 +197,14 @@ export default function Settings() {
             />
           </div>
         </div>
+        <div className="row">
+          <span>{t("set.dynAccent")}</span>
+          <button
+            className={`toggle ${s.theme.dynamic ? "on" : ""}`}
+            aria-label="Accent follows artwork"
+            onClick={() => patch({ theme: { ...s.theme, dynamic: !s.theme.dynamic } })}
+          />
+        </div>
 
         <div className="field">
           <span>{t("set.eq")}</span>
