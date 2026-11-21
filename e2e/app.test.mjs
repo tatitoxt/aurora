@@ -49,21 +49,21 @@ try {
   // webkitgtk (returns "" for found elements).
   let text = "";
   const script = "return document.querySelector('.player__title')?.textContent ?? null";
-  for (let i = 0; i < 45 && !/Neon Reversal|Slow Meridian|Glass Tide/.test(text); i++) {
+  for (let i = 0; i < 45 && !/Aurora Reversal|Slow Meridian|Glass Tide/.test(text); i++) {
     const handles = await wd("GET", `/session/${session}/window`);
     for (const h of handles.body.value ?? []) {
       await wd("POST", `/session/${session}/window`, { handle: h });
       const r = await wd("POST", `/session/${session}/execute/sync`, { script, args: [] });
       if (r.status === 200 && typeof r.body.value === "string" && r.body.value) {
         text = r.body.value;
-        if (/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) break;
+        if (/Aurora Reversal|Slow Meridian|Glass Tide/.test(text)) break;
       }
     }
-    if (!/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) {
+    if (!/Aurora Reversal|Slow Meridian|Glass Tide/.test(text)) {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
-  if (!/Neon Reversal|Slow Meridian|Glass Tide/.test(text)) {
+  if (!/Aurora Reversal|Slow Meridian|Glass Tide/.test(text)) {
     throw new Error(`expected a demo track title, got "${text}"`);
   }
   console.log(`E2E ok: mini player shows "${text}" in NOCTBEAT_DEMO mode`);
