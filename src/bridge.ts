@@ -52,6 +52,12 @@ export interface Settings {
   customColor: string;
   batterySaver: boolean;
   hideInFullscreen: boolean;
+  /** Fade the edge glow out while nothing is playing. */
+  lightsOffOnSilence: boolean;
+  /** Dim the edge glow when running on battery. */
+  autoDimOnBattery: boolean;
+  /** Track artwork + beat/progress ring in the tray icon. */
+  trayLiveIcon: boolean;
   displays: DisplayRule[];
   licenseKey: string | null;
   hudEnabled: boolean;
@@ -184,6 +190,9 @@ export const DEFAULT_SETTINGS: Settings = {
   customColor: "#8b5cf6",
   batterySaver: false,
   hideInFullscreen: true,
+  lightsOffOnSilence: true,
+  autoDimOnBattery: true,
+  trayLiveIcon: true,
   displays: [],
   licenseKey: null,
   hudEnabled: true,
@@ -431,6 +440,9 @@ export const bridge = {
     isTauri() ? invokeCmd<"off" | "all" | "one">("get_repeat") : Promise.resolve("off"),
   getVolume: (): Promise<number> =>
     isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(1),
+  /** True while the system battery is discharging (edge auto-dim). */
+  getOnBattery: (): Promise<boolean> =>
+    isTauri() ? invokeCmd<boolean>("on_battery") : Promise.resolve(false),
   clearQueue: () =>
     isTauri() ? invokeCmd<null>("clear_queue") : Promise.resolve(null),
   scanLibrary: (dir?: string) =>
