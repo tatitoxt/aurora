@@ -819,6 +819,16 @@ fn show_player(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// iBaila-style "wallpaper" mode: fullscreen the player window so karaoke
+/// and the visualizer take over the screen. Returns the new state.
+#[tauri::command]
+fn toggle_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
+    let win = app.get_webview_window("player").ok_or("no player window")?;
+    let on = !win.is_fullscreen().map_err(|e| e.to_string())?;
+    win.set_fullscreen(on).map_err(|e| e.to_string())?;
+    Ok(on)
+}
+
 fn license_client<'a>(http: &'a dyn Http, state: &AppState) -> LicenseClient<'a> {
     LicenseClient::new(http, state.license_path.clone())
 }
@@ -1277,6 +1287,7 @@ pub fn run() {
             hud_start_drag,
             desk_lyrics_start_drag,
             show_player,
+            toggle_fullscreen,
             seek,
             set_volume,
             get_queue,
