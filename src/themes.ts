@@ -225,6 +225,10 @@ export function applyGlassOpacity(opacity: number) {
     const a = Math.min(0.95, Math.max(0.05, panelBaseAlpha.get(name)! * scale));
     root.style.setProperty(name, `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${a.toFixed(2)})`);
   }
+  /* Blur scales with opacity: more transparent -> lighter blur so the
+   * desktop shows through (vibrancy supplies the real bleed in Tauri). */
+  const blur = 18 + (Math.min(100, Math.max(15, opacity)) / 100) * 62;
+  root.style.setProperty("--gblur", `${blur.toFixed(0)}px`);
 }
 
 

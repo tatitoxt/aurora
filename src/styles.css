@@ -16,6 +16,16 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body, #root { height: 100%; }
+/* Glass scrollbar: thin, translucent, pill — blends into panels. */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16); border-radius: 99px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.30); background-clip: padding-box; border: 2px solid transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+
 body {
   background: transparent;
   color: var(--text);
@@ -30,8 +40,8 @@ body {
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 38%),
     var(--panel);
-  backdrop-filter: blur(80px) saturate(1.8);
-  -webkit-backdrop-filter: blur(80px) saturate(1.8);
+  backdrop-filter: blur(var(--gblur, 80px)) saturate(1.8);
+  -webkit-backdrop-filter: blur(var(--gblur, 80px)) saturate(1.8);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 26px;
   box-shadow:
@@ -515,6 +525,8 @@ body {
 .setgroup {
   display: flex; flex-direction: column; gap: 12px;
   background: rgba(255, 255, 255, 0.055);
+  backdrop-filter: blur(calc(var(--gblur, 80px) * 0.4));
+  -webkit-backdrop-filter: blur(calc(var(--gblur, 80px) * 0.4));
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 22px; padding: 16px 18px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
@@ -869,7 +881,12 @@ body {
   position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
   padding: 0 8vw; pointer-events: none;
 }
-.fs__lyrics { display: flex; flex-direction: column; align-items: center; gap: 1.4vh; }
+.fs__lyrics {
+  display: flex; flex-direction: column; align-items: center; gap: 1.4vh;
+  max-height: 34vh; overflow: hidden; width: 100%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+}
 .fs__lyric {
   font-family: var(--serif); font-style: italic; font-weight: 600;
   font-size: calc(clamp(38px, 6.5vh, 76px) * var(--lyrsc, 1));
@@ -899,8 +916,8 @@ body {
   display: flex; align-items: flex-end;
   gap: 18px; width: 100%; pointer-events: auto;
   margin-bottom: 3.5vh; padding: 0 calc(50% - 160px);
-  overflow-x: auto; scrollbar-width: none;
-  scroll-snap-type: x proximity;
+  overflow-x: hidden; scrollbar-width: none;
+  /* free browsing scroll — no snap, so scrolling never implies a track change */
 }
 .fs__covers::-webkit-scrollbar { display: none; }
 .fs__cover {

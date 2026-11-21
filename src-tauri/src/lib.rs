@@ -1746,6 +1746,16 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     )
     .transparent(true)
     .decorations(false)
+    .effects(
+        tauri::window::EffectsBuilder::new()
+            .effects(vec![
+                tauri::window::Effect::HudWindow,
+                tauri::window::Effect::Acrylic,
+            ])
+            .state(tauri::window::EffectState::Active)
+            .radius(18.0)
+            .build(),
+    )
     .always_on_top(settings.hud_always_on_top)
     .skip_taskbar(true)
     .resizable(true)
@@ -1789,6 +1799,16 @@ fn sync_desk_lyrics_window(app: &tauri::AppHandle, settings: &Settings) {
     )
     .transparent(true)
     .decorations(false)
+    .effects(
+        tauri::window::EffectsBuilder::new()
+            .effects(vec![
+                tauri::window::Effect::HudWindow,
+                tauri::window::Effect::Acrylic,
+            ])
+            .state(tauri::window::EffectState::Active)
+            .radius(18.0)
+            .build(),
+    )
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
