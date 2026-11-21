@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Player from "./pages/Player";
 import Edge from "./pages/Edge";
@@ -58,6 +58,8 @@ function PaletteGate() {
  * enqueues them (deduped). Surfaces a short confirmation toast. */
 function DropGate() {
   const t = useT();
+  const tRef = useRef(t);
+  tRef.current = t;
   const loc = useLocation();
   const [note, setNote] = useState("");
   useEffect(() => {
@@ -65,7 +67,8 @@ function DropGate() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const off = onFileDrop((paths) => {
       void bridge.enqueueFiles(paths).then((n) => {
-        setNote(n > 0 ? t(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n }) : t("app.noAudioDrop"));
+        const tt = tRef.current;
+        setNote(n > 0 ? tt(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n }) : tt("app.noAudioDrop"));
         clearTimeout(timer);
         timer = setTimeout(() => setNote(""), 2600);
       });
