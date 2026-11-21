@@ -866,7 +866,7 @@ body {
 }
 .fs__qdot--on { background: #fff; }
 .fs__icon--fav { color: #f472b6 !important; }
-.fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; }
+.fs__morepop { display: flex; flex-direction: column; padding: 6px; min-width: 150px; max-height: min(72vh, 560px); overflow-y: auto; }
 .fs__morebtn {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px;
   background: none; border: none; border-radius: 12px; color: var(--text);
