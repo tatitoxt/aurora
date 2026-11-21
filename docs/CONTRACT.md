@@ -199,7 +199,8 @@ transparent pill serving `/hud`; it is dragged via `hudStartDrag`, pinned via
   otherwise a browser mock identical to `DemoSource` (same playlist/titles)
   so `pnpm dev` works with no Rust.
 - Routes: `/` mini player, `/edge` glow overlay, `/settings` panel,
-  `/hud` floating pill, `/desklyrics` karaoke overlay, `/library` local queue.
+  `/hud` floating pill, `/desklyrics` karaoke overlay, `/library` local queue,
+  `/stats` listening stats.
 - Design: dark, frosted glass (backdrop-filter), thin wordmark, no emoji.
 - Tests: Vitest + Testing Library; test the mock bridge and pure helpers.
 - `src/branding.ts` is generated — import from it, never hard-code the name.
@@ -249,6 +250,13 @@ decoded source is wrapped in `EqSource` (src-tauri) which retunes its `EqBank`
 lock-free when the generation changes — sliders and presets apply live without
 restarting the track. `set_eq` persists `eq_preset`/`eq_bands` and the startup
 path re-applies them.
+
+`noctbeat-core::history` is the persisted listening log (`history.json`
+beside settings). The shell's poller accumulates wall-clock ms on the
+current track; on track change, stop, or quit the stretch becomes a
+`PlayRecord` when it passes `play_threshold_ms` (30 s, or the whole track
+when shorter). `get_stats` returns totals, top tracks/artists and the last
+14 days; `clear_history` empties the file. Records cap at 5 000.
 
 ## Non-negotiables
 

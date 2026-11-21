@@ -2,6 +2,7 @@
 //! Commands/event names are the contract in docs/CONTRACT.md.
 
 use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
+use noctbeat_core::history::{play_threshold_ms, History, PlayRecord, Stats};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
 use noctbeat_core::media::{
@@ -37,7 +38,64 @@ struct AppState {
     /// Concrete audio output, kept beside the trait object so the output
     /// device can be swapped live.
     rodio: Option<std::sync::Arc<audio::RodioOut>>,
+    /// Listening history, persisted to history.json beside settings.
+    history: Mutex<History>,
+    history_path: PathBuf,
+    /// Wall-clock time accumulated on the track currently playing.
+    listen: Mutex<ListenTracker>,
     demo: bool,
+}
+
+/// Accumulates wall-clock listening per track; on change/stop the stretch
+/// becomes a PlayRecord once it passes `play_threshold_ms`.
+#[derive(Default)]
+struct ListenTracker {
+    track: Option<Track>,
+    source: String,
+    ms: u64,
+    since_ms: u64,
+}
+
+impl ListenTracker {
+    fn update(
+        &mut self,
+        np: &NowPlaying,
+        tick_ms: u64,
+        hist: &Mutex<History>,
+        path: &std::path::Path,
+    ) {
+        let same = matches!((&self.track, &np.track), (Some(a), Some(b)) if a.id == b.id)
+            || (self.track.is_none() && np.track.is_none());
+        if !same {
+            self.flush(hist, path);
+            self.track = np.track.clone();
+            self.source = np.source.clone();
+            self.ms = 0;
+            self.since_ms = np.updated_at_ms;
+        }
+        if np.status == PlaybackStatus::Playing && np.track.is_some() {
+            self.ms += tick_ms;
+        }
+    }
+
+    fn flush(&mut self, hist: &Mutex<History>, path: &std::path::Path) {
+        let Some(t) = self.track.take() else { return };
+        if self.ms >= play_threshold_ms(t.duration_ms) {
+            let rec = PlayRecord {
+                track_id: t.id,
+                title: t.title,
+                artist: t.artist,
+                source: self.source.clone(),
+                duration_ms: t.duration_ms,
+                ms_listened: self.ms,
+                played_at_ms: self.since_ms,
+            };
+            if let Ok(mut h) = hist.lock() {
+                h.record(rec);
+                let _ = h.save(path);
+            }
+        }
+    }
 }
 
 fn config_dir() -> PathBuf {
@@ -83,6 +141,19 @@ fn poll_np(state: &AppState) -> NowPlaying {
 #[tauri::command]
 fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
     Ok(poll_np(&state))
+}
+
+#[tauri::command]
+fn get_stats(state: State<AppState>) -> Result<Stats, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    Ok(h.stats(14, now_ms()))
+}
+
+#[tauri::command]
+fn clear_history(state: State<AppState>) -> Result<(), String> {
+    let mut h = state.history.lock().map_err(|e| e.to_string())?;
+    h.records.clear();
+    h.save(&state.history_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -806,6 +877,9 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 *state.last_energy.lock().unwrap_or_else(|e| e.into_inner()) = next;
                 next
             };
+            if let Ok(mut t) = state.listen.lock() {
+                t.update(&np, 200, &state.history, &state.history_path);
+            }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
             flush_hud_position(&app);
@@ -854,6 +928,9 @@ pub fn run() {
                 std::time::Duration::from_secs(7 * 24 * 3600),
             ),
             license_path: dir.join("license.json"),
+            history: Mutex::new(History::load(&dir.join("history.json"))),
+            history_path: dir.join("history.json"),
+            listen: Mutex::new(ListenTracker::default()),
             hud_pos_pending: Mutex::new(None),
             desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
@@ -889,6 +966,8 @@ pub fn run() {
             set_output_device,
             set_eq,
             import_playlist,
+            get_stats,
+            clear_history,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());
@@ -957,7 +1036,13 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     let _ = app.emit("settings", s);
                 };
             }
-            "quit" => app.exit(0),
+            "quit" => {
+                let state = app.state::<AppState>();
+                if let Ok(mut t) = state.listen.lock() {
+                    t.flush(&state.history, &state.history_path);
+                }
+                app.exit(0)
+            }
             _ => {}
         })
         .build(app)?;

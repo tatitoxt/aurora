@@ -114,6 +114,27 @@ export interface ImportResult {
   remote: number;
   missing: number;
 }
+export interface TopEntry {
+  name: string;
+  /** Track artist; empty for artist entries. */
+  sub: string;
+  plays: number;
+  ms: number;
+}
+export interface DayStat {
+  /** "YYYY-MM-DD". */
+  date: string;
+  plays: number;
+  ms: number;
+}
+export interface Stats {
+  totalMs: number;
+  plays: number;
+  topTracks: TopEntry[];
+  topArtists: TopEntry[];
+  /** Daily activity, oldest first. */
+  days: DayStat[];
+}
 export type LicenseState =
   | { state: "unlicensed" }
   | { state: "valid"; customer_email: string | null; last_validated_ms: number }
@@ -418,4 +439,32 @@ export const bridge = {
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")
       : Promise.resolve([{ id: "display-0", name: "Display 1", primary: true }]),
+  getStats: (): Promise<Stats> => {
+    if (isTauri()) return invokeCmd<Stats>("get_stats");
+    // Deterministic sample so the page renders in browser dev.
+    const day = 86_400_000;
+    const today = Math.floor(Date.now() / day) * day;
+    const mk = (i: number, ms: number): DayStat => ({
+      date: new Date(today - i * day).toISOString().slice(0, 10),
+      plays: i === 0 ? 5 : 0,
+      ms,
+    });
+    return Promise.resolve({
+      totalMs: 1_830_000,
+      plays: 9,
+      topTracks: DEMO_PLAYLIST.map(([title, artist], i) => ({
+        name: title,
+        sub: artist,
+        plays: 3 - i,
+        ms: 500_000 - i * 120_000,
+      })),
+      topArtists: [
+        { name: "Violet Sector", sub: "", plays: 6, ms: 1_300_000 },
+        { name: "Ultramar", sub: "", plays: 3, ms: 530_000 },
+      ],
+      days: Array.from({ length: 14 }, (_, i) => mk(13 - i, i === 13 ? 1_830_000 : 0)),
+    });
+  },
+  clearHistory: () =>
+    isTauri() ? invokeCmd<null>("clear_history") : Promise.resolve(null),
 };

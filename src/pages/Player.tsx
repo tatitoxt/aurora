@@ -161,6 +161,9 @@ export default function Player() {
       <Link to="/library" className="wordmark" style={{ textDecoration: "none" }}>
         Library
       </Link>
+      <Link to="/stats" className="wordmark" style={{ textDecoration: "none" }}>
+        Stats
+      </Link>
       <Link to="/settings" className="wordmark" style={{ textDecoration: "none" }}>
         {bridge.productName}
       </Link>
