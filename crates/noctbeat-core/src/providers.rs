@@ -306,6 +306,11 @@ fn parse_entry(source: &str, v: &serde_json::Value) -> Option<RemoteTrack> {
     // Flat entries carry only an id; rebuild a watch/search URL per provider.
     let url = if url.is_empty() {
         match source {
+            // Numeric ids aren't permalink paths — `soundcloud.com/12345`
+            // matches no route; yt-dlp resolves the API form instead.
+            "soundcloud" if id.chars().all(|c| c.is_ascii_digit()) => {
+                format!("https://api.soundcloud.com/tracks/{id}")
+            }
             "soundcloud" => format!("https://soundcloud.com/{id}"),
             _ => format!("https://www.youtube.com/watch?v={id}"),
         }
@@ -368,9 +373,14 @@ mod tests {
 
     #[test]
     fn soundcloud_flat_url() {
+        // Numeric ids resolve via the API endpoint; slug ids via permalink.
         let v: serde_json::Value = serde_json::from_str(r#"{"id":"42","title":"S"}"#).unwrap();
         let t = parse_entry("soundcloud", &v).unwrap();
-        assert_eq!(t.url, "https://soundcloud.com/42");
+        assert_eq!(t.url, "https://api.soundcloud.com/tracks/42");
+        let v: serde_json::Value =
+            serde_json::from_str(r#"{"id":"user/track","title":"S"}"#).unwrap();
+        let t = parse_entry("soundcloud", &v).unwrap();
+        assert_eq!(t.url, "https://soundcloud.com/user/track");
     }
 
     #[test]

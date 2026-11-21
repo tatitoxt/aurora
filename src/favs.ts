@@ -104,7 +104,10 @@ export function toRemoteTrack(e: FavEntry): RemoteTrack | null {
   if (!p) return null;
   const url =
     p.source === "soundcloud"
-      ? `https://soundcloud.com/${p.id}`
+      ? // Numeric ids aren't permalink paths; yt-dlp resolves the API form.
+        /^\d+$/.test(p.id)
+        ? `https://api.soundcloud.com/tracks/${p.id}`
+        : `https://soundcloud.com/${p.id}`
       : `https://www.youtube.com/watch?v=${p.id}`;
   return {
     id: p.id,
