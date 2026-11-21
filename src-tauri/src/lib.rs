@@ -932,7 +932,9 @@ async fn activate_license(state: State<'_, AppState>, key: String) -> Result<Lic
 #[tauri::command]
 async fn deactivate_license(state: State<'_, AppState>) -> Result<LicenseState, String> {
     let http = UreqHttp;
-    license_client(&http, &state).deactivate();
+    license_client(&http, &state)
+        .deactivate()
+        .map_err(|e| format!("could not remove stored license: {e}"))?;
     Ok(LicenseState::Unlicensed)
 }
 
@@ -951,7 +953,16 @@ fn open_url(url: String) -> Result<(), String> {
     let r = std::process::Command::new("rundll32")
         .args(["url.dll,FileProtocolHandler", &url])
         .spawn();
-    r.map(|_| ()).map_err(|e| e.to_string())
+    match r {
+        Ok(mut child) => {
+            // Reap the launcher so exited helpers don't linger as zombies.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            Ok(())
+        }
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]

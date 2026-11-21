@@ -155,8 +155,14 @@ impl<'a> LicenseClient<'a> {
         }
     }
 
-    pub fn deactivate(&self) {
-        let _ = std::fs::remove_file(&self.state_path);
+    /// Remove the stored key. A missing file is fine; real I/O errors are
+    /// returned so callers don't claim success while the key survives.
+    pub fn deactivate(&self) -> std::io::Result<()> {
+        match std::fs::remove_file(&self.state_path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     fn offline_or_invalid(&self, _net: &str) -> LicenseState {
