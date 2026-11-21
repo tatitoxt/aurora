@@ -17,7 +17,8 @@ interface AlbumGroup {
 
 export default function Artist() {
   const { name = "" } = useParams();
-  const artist = decodeURIComponent(name);
+  // useParams already decodes — a second decodeURIComponent crashes on %.
+  const artist = name;
   const [items, setItems] = useState<QueueItem[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [np, setNp] = useState<NowPlaying | null>(null);
