@@ -6,7 +6,6 @@ import {
   type NowPlaying,
   type LrcLine,
   type QueueState,
-  type RemoteTrack,
   type Settings,
 } from "../bridge";
 import { activeLyricIndex, formatTime } from "../lib";
@@ -121,10 +120,6 @@ export default function Fullscreen() {
   const [lyricsOn, setLyricsOn] = useState(true);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
-  const [searchQ, setSearchQ] = useState("");
-  const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [queueErr, setQueueErr] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
   const [qpage, setQpage] = useState(0);
@@ -341,45 +336,6 @@ export default function Fullscreen() {
           </button>
           {queueOpen && (
           <>
-          {streamReady && (
-            <div className="fs__qsearch">
-              <input
-                value={searchQ}
-                placeholder="Search tracks…"
-                onChange={(e) => setSearchQ(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter" || !searchQ.trim() || searching) return;
-                  setSearching(true);
-                  setQueueErr("");
-                  void bridge
-                    .providerSearch(searchSrc, searchQ.trim())
-                    .then(setSearchRes)
-                    .catch((err) => setQueueErr(String(err)))
-                    .finally(() => setSearching(false));
-                }}
-              />
-              {queueErr && <span className="fs__qerr">{queueErr}</span>}
-              <div className="fs__qresults">
-              {searchRes.map((t) => (
-                <button
-                  key={`${t.source}:${t.id}`}
-                  className="fs__qrow"
-                  onClick={() => {
-                    setQueueErr("");
-                    void bridge.providerPlay(t).catch((e) => setQueueErr(String(e)));
-                  }}
-                >
-                  <div className="fs__qbody">
-                    <span className="fs__qtxt">
-                      <span className="fs__qtitle">{t.title}</span>
-                      <span className="fs__qsub">{t.artist}</span>
-                    </span>
-                  </div>
-                </button>
-              ))}
-              </div>
-            </div>
-          )}
           {queue.items.length > 0 && (
           <div className="fs__qlist">
             {queue.items.slice(qp * 8, qp * 8 + 8).map((it, i) => (
@@ -522,7 +478,6 @@ export default function Fullscreen() {
                         onClick={() => {
                           setSearchSrc(p.id);
                           setProvOpen(false);
-                          setQueueOpen(true);
                         }}
                       >
                         <p.icon size={14} weight="fill" /> {p.label}
