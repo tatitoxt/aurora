@@ -6,6 +6,8 @@ export interface FavEntry {
   key: string;
   /** `track.id` — a local path, or `provider:id` for streamed tracks. */
   trackId: string;
+  /** `np.source` at like time: "local" = in-app queue, others = external. */
+  playerSource: string;
   title: string;
   artist: string;
   artworkUrl: string;
@@ -24,7 +26,17 @@ export function loadFavs(): FavEntry[] {
       if (typeof v === "string") {
         // Legacy entries stored bare keys: keep the heart state alive, but
         // without metadata the Liked view can't list them.
-        return [{ key: v, trackId: "", title: "", artist: "", artworkUrl: "", durationMs: 0 }];
+        return [
+          {
+            key: v,
+            trackId: "",
+            playerSource: "",
+            title: "",
+            artist: "",
+            artworkUrl: "",
+            durationMs: 0,
+          },
+        ];
       }
       if (v !== null && typeof v === "object" && typeof (v as FavEntry).key === "string") {
         const e = v as Partial<FavEntry>;
@@ -32,6 +44,7 @@ export function loadFavs(): FavEntry[] {
           {
             key: e.key as string,
             trackId: typeof e.trackId === "string" ? e.trackId : "",
+            playerSource: typeof e.playerSource === "string" ? e.playerSource : "",
             title: typeof e.title === "string" ? e.title : "",
             artist: typeof e.artist === "string" ? e.artist : "",
             artworkUrl: typeof e.artworkUrl === "string" ? e.artworkUrl : "",
@@ -64,6 +77,7 @@ export function favEntryFor(np: NowPlaying | null): FavEntry | null {
   return {
     key,
     trackId: t.id,
+    playerSource: np?.source ?? "",
     title: t.title,
     artist: t.artist,
     artworkUrl: t.artworkUrl ?? "",
@@ -137,14 +151,18 @@ export type FavReplay =
 
 /**
  * - `provider:id` → replay the stream through `providerPlay`.
- * - a filesystem path → replay through the local queue.
+ * - liked under the in-app player (`playerSource` "local"), or any
+ *   absolute path → replay through the local queue (paths can be
+ *   relative when the music folder is).
  * - anything else (external players report `"{artist} — {title}"` ids)
  *   → a provider search query, since the file/stream isn't ours.
  */
 export function replayFor(e: FavEntry): FavReplay | null {
   const remote = toRemoteTrack(e);
   if (remote) return { kind: "provider", track: remote };
-  if (isLocalPath(e.trackId)) return { kind: "local", item: toQueueItem(e) };
+  if (e.playerSource === "local" || isLocalPath(e.trackId)) {
+    return { kind: "local", item: toQueueItem(e) };
+  }
   const query = [e.artist, e.title].filter((s) => s !== "").join(" ");
   return e.trackId !== "" && query !== "" ? { kind: "external", query } : null;
 }

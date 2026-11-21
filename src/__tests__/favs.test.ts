@@ -32,6 +32,7 @@ const np = (id: string, source = "local"): NowPlaying => ({
 const entry: FavEntry = {
   key: "local:/music/a.mp3",
   trackId: "/music/a.mp3",
+  playerSource: "local",
   title: "Song",
   artist: "Artist",
   artworkUrl: "https://art/x.jpg",
@@ -111,12 +112,16 @@ describe("favs", () => {
     expect(slug?.url).toBe("https://soundcloud.com/user/song");
   });
 
-  it("classifies replay by id kind, not by assumed source", () => {
+  it("classifies replay by id kind and like-time source", () => {
     expect(replayFor({ ...entry, trackId: "youtube:abc" })?.kind).toBe("provider");
     expect(replayFor(entry)?.kind).toBe("local");
     expect(replayFor({ ...entry, trackId: "C:\\music\\a.mp3" })?.kind).toBe("local");
+    // Relative ids under the local player stay local (relative music dir).
+    expect(
+      replayFor({ ...entry, playerSource: "local", trackId: "music/a.mp3" })?.kind,
+    ).toBe("local");
     // External players report "{artist} — {title}" ids — not queueable.
-    const ext = replayFor({ ...entry, trackId: "Artist — Song" });
+    const ext = replayFor({ ...entry, playerSource: "mpris", trackId: "Artist — Song" });
     expect(ext?.kind).toBe("external");
     expect(ext?.kind === "external" && ext.query).toBe("Artist Song");
   });
