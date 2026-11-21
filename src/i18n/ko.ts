@@ -162,6 +162,7 @@ const ko: Record<keyof typeof en, string> = {
   "fs.upNext": "다음 재생",
   "fs.nothingPlaying": "\uc7ac\uc0dd \uc911\uc778 \uace1\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
   "fs.provider": "\uc74c\uc545 \uc81c\uacf5\uc790",
+  "fs.extHint": "확장 프로그램을 설치하면 탭의 음악을 따라갑니다",
   "fs.queuePanel": "\uc774\uc5b4\uc11c \uc7ac\uc0dd \ud328\ub110",
   "fs.lyricsToggle": "\uac00\uc0ac / \uc378\ub124\uc77c",
   "fs.startMusic": "\uc74c\uc545 \uc2dc\uc791",

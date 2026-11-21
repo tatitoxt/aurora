@@ -171,6 +171,7 @@ const en = {
   "fs.upNext": "Up next",
   "fs.nothingPlaying": "Nothing playing",
   "fs.provider": "Music provider",
+  "fs.extHint": "Browser bridge: install the extension to follow your music tabs",
   "fs.queuePanel": "Continue Playing panel",
   "fs.lyricsToggle": "Lyrics / thumbnails",
   "fs.startMusic": "Start music",

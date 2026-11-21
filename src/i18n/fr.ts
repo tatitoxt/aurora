@@ -162,6 +162,7 @@ const fr: Record<keyof typeof en, string> = {
   "fs.upNext": "À suivre",
   "fs.nothingPlaying": "Rien en lecture",
   "fs.provider": "Fournisseur de musique",
+  "fs.extHint": "Extension : installez-la pour suivre vos onglets musique",
   "fs.queuePanel": "Panneau Continuer la lecture",
   "fs.lyricsToggle": "Paroles / miniatures",
   "fs.startMusic": "Lancer la musique",

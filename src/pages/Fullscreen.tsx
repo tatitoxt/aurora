@@ -64,6 +64,18 @@ const PROVIDERS = [
   { id: "amazon", label: "Amazon Music", icon: AmazonLogo, live: false },
 ] as const;
 
+/** Provider host reported by the browser extension → friendly label. */
+const EXT_HOSTS: [RegExp, string][] = [
+  [/(music|www)\.youtube\.com/, "YouTube Music"],
+  [/open\.spotify\.com/, "Spotify"],
+  [/soundcloud\.com/, "SoundCloud"],
+  [/music\.apple\.com/, "Apple Music"],
+  [/listen\.tidal\.com/, "Tidal"],
+  [/music\.amazon\./, "Amazon Music"],
+];
+const extLabel = (host: string) =>
+  EXT_HOSTS.find(([re]) => re.test(host))?.[1] ?? host;
+
 const FS_STYLES = [
   { id: "albums", label: "Albums" },
   { id: "arc", label: "Arc" },
@@ -142,6 +154,7 @@ export default function Fullscreen() {
   const [timingOpen, setTimingOpen] = useState(false);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
+  const [ext, setExt] = useState<{ tabs: number; provider: string | null } | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
   const [searching, setSearching] = useState(false);
@@ -181,6 +194,16 @@ export default function Fullscreen() {
       clearInterval(clock);
     };
   }, []);
+
+  /* Refresh the bridge state each time the picker opens — tabs can
+     connect or go quiet while fullscreen stays mounted. */
+  useEffect(() => {
+    if (!provOpen) return;
+    bridge
+      .getExtStatus()
+      .then(setExt)
+      .catch(() => {});
+  }, [provOpen]);
 
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
@@ -681,8 +704,13 @@ export default function Fullscreen() {
                 </button>
                 {provOpen && (
                   <span className="fs__volpop fs__morepop fs__provpop">
-                    {np?.source?.includes(".") && (
-                      <span className="fs__extlive">Browser bridge · {np.source} ● live</span>
+                    {ext && ext.tabs > 0 ? (
+                      <span className="fs__extlive">
+                        Browser bridge · {ext.provider ? extLabel(ext.provider) : "connected"} ●
+                        live
+                      </span>
+                    ) : (
+                      <span className="fs__extlive fs__extlive--off">{t("fs.extHint")}</span>
                     )}
                     {PROVIDERS.map((p) => (
                       <button
