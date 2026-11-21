@@ -276,7 +276,7 @@ export default function Fullscreen() {
         </div>
       </div>
 
-      {queue.items.length > 0 && (
+      {(queue.items.length > 0 || streamReady) && (
         <aside className="fs__queue">
           <button
             className="fs__qheadrow"
@@ -330,6 +330,7 @@ export default function Fullscreen() {
                 }}
               />
               {queueErr && <span className="fs__qerr">{queueErr}</span>}
+              <div className="fs__qresults">
               {searchRes.map((t) => (
                 <button
                   key={`${t.source}:${t.id}`}
@@ -347,8 +348,10 @@ export default function Fullscreen() {
                   </div>
                 </button>
               ))}
+              </div>
             </div>
           )}
+          {queue.items.length > 0 && (
           <div className="fs__qlist">
             {queue.items.slice(0, 12).map((it, i) => (
               <button
@@ -373,6 +376,7 @@ export default function Fullscreen() {
               </button>
             ))}
           </div>
+          )}
           </>
           )}
         </aside>

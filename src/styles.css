@@ -718,6 +718,7 @@ body {
 }
 .fs__qsearch input::placeholder { color: var(--dim); }
 .fs__qerr { font-size: 10.5px; color: #f1a8a8; }
+.fs__qresults { max-height: 150px; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; }
 /* Lyrics-off: thumbnails take the stage. */
 .fs__covers--big .fs__coverimg { aspect-ratio: 16/10; }
 .fs__covers--big .fs__cover--on { width: clamp(320px, 38vh, 560px); }
