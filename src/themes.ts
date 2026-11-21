@@ -171,6 +171,7 @@ export function cssVar(name: string): string {
 const KNOWN_VARS = [
   "--bg",
   "--panel",
+  "--panel-strong",
   "--line",
   "--text",
   "--dim",
@@ -186,6 +187,7 @@ export function applyTheme(theme: ThemeSettings) {
   for (const [k, val] of Object.entries(def.vars)) root.style.setProperty(k, val);
   if (theme.accent) root.style.setProperty("--accent", theme.accent);
   if (theme.accent2) root.style.setProperty("--accent2", theme.accent2);
+  panelBaseAlpha.clear();
 }
 
 /** Artwork-driven accents (iBaila-style): the two most vibrant colors from
@@ -201,6 +203,13 @@ export function applyDynAccent(theme: ThemeSettings, accent: string, accent2: st
   if (accent2 && !theme.accent2) root.style.setProperty("--accent2", accent2);
 }
 
+/* Base panel alphas captured before the first rescale so repeated calls
+ * always scale from the theme's value instead of compounding. --panel-strong
+ * is not in KNOWN_VARS, so applyTheme never resets it — without the base map
+ * every settings save would multiply the already-scaled alpha again and
+ * opacity 68 could never be restored. */
+const panelBaseAlpha = new Map<string, number>();
+
 /** Glass transparency: rescales the alpha channel of every rgba() panel var
  * to `opacity`%. Applied after applyTheme / theme changes. */
 export function applyGlassOpacity(opacity: number) {
@@ -212,7 +221,10 @@ export function applyGlassOpacity(opacity: number) {
       getComputedStyle(root).getPropertyValue(name).trim();
     const m = raw.match(/rgba\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/);
     if (!m) continue;
-    const a = Math.min(0.95, Math.max(0.05, parseFloat(m[4]) * scale));
+    if (!panelBaseAlpha.has(name)) panelBaseAlpha.set(name, parseFloat(m[4]));
+    const a = Math.min(0.95, Math.max(0.05, panelBaseAlpha.get(name)! * scale));
     root.style.setProperty(name, `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${a.toFixed(2)})`);
   }
 }
+
+
