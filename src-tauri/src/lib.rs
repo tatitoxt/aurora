@@ -865,6 +865,76 @@ fn list_playlists(state: State<AppState>) -> Result<Vec<PlaylistFile>, String> {
         .collect())
 }
 
+/// Guard for the playlist-management commands: resolve `path` (a
+/// display string from `list_playlists`) back to the real discovered
+/// file. Display names are lossy — non-UTF-8 bytes become `�` — so the
+/// incoming string is only a lookup key, never a filesystem path: an
+/// `a\xFF.m3u8` and a literal `a�.m3u8` collapse to the same display
+/// string, and acting on the string could hit the wrong file. No match
+/// or more than one → refuse; exactly one → act on the discovered
+/// `PathBuf` (the real bytes).
+fn playlist_path_checked(
+    state: &State<AppState>,
+    path: &str,
+) -> Result<std::path::PathBuf, String> {
+    let dir = resolve_music_dir(state, None)?;
+    let matches: Vec<std::path::PathBuf> =
+        noctbeat_core::playlists::list(std::path::Path::new(&dir))
+            .into_iter()
+            .filter(|p| p.to_string_lossy() == path)
+            .collect();
+    match matches.as_slice() {
+        [one] => Ok(one.clone()),
+        [] => Err("not a playlist in the music folder".into()),
+        _ => Err("name isn't representable — rename it in a file manager first".into()),
+    }
+}
+
+#[tauri::command]
+fn delete_playlist(state: State<AppState>, path: String) -> Result<(), String> {
+    let file = playlist_path_checked(&state, &path)?;
+    std::fs::remove_file(&file).map_err(|e| e.to_string())
+}
+
+/// Rename keeps the original extension; the new file stays in the same
+/// directory (the guard above) so only the stem changes.
+#[tauri::command]
+fn rename_playlist(
+    state: State<AppState>,
+    path: String,
+    name: String,
+) -> Result<PlaylistFile, String> {
+    let file = playlist_path_checked(&state, &path)?;
+    let name = name.trim();
+    // `:` is banned on Windows only — `C:Name` parses drive-relative and
+    // `:` isn't a valid filename char there anyway — while names like
+    // "Live: 2025" are fine on Unix.
+    if name.is_empty()
+        || name.contains(['/', '\\'])
+        || name.starts_with('.')
+        || (cfg!(windows) && name.contains(':'))
+    {
+        return Err("invalid playlist name".into());
+    }
+    let ext = file.extension().and_then(|e| e.to_str()).unwrap_or("m3u8");
+    let target = file.with_file_name(format!("{name}.{ext}"));
+    // Whatever the platform read into the name, the destination must
+    // stay beside the original file.
+    if target.parent() != file.parent() {
+        return Err("invalid playlist name".into());
+    }
+    // symlink_metadata sees dangling links that Path::exists misses —
+    // renaming onto one would silently replace it.
+    if target.symlink_metadata().is_ok() {
+        return Err("a playlist with that name already exists".into());
+    }
+    std::fs::rename(&file, &target).map_err(|e| e.to_string())?;
+    Ok(PlaylistFile {
+        name: name.to_string(),
+        path: target.to_string_lossy().into_owned(),
+    })
+}
+
 /// Outcome of `import_playlist_url`: the playlist's own title and how
 /// many tracks were queued for lazy download.
 #[derive(serde::Serialize)]
@@ -2174,6 +2244,8 @@ pub fn run() {
             import_playlist_url,
             export_playlist,
             list_playlists,
+            rename_playlist,
+            delete_playlist,
             get_stats,
             get_artist_stats,
             get_wrapped,
