@@ -501,7 +501,9 @@ export default function Fullscreen() {
             {covers
               .filter((c) => !c.on)
               .map((c, idx, arr) => {
-                const angle = arr.length > 1 ? 15 + (idx * 150) / (arr.length - 1) : 90;
+                /* Right hemisphere only (45°..135°): the 15°..165° sweep
+                   dropped covers onto the clock and the track title. */
+                const angle = arr.length > 1 ? 45 + (idx * 90) / (arr.length - 1) : 90;
                 return (
                   <span
                     key={c.key}
@@ -632,6 +634,33 @@ export default function Fullscreen() {
               </div>
             )
           )}
+        </div>
+      )}
+
+      {fsStyle === "studio" && queue.items.length > 0 && (
+        <div className="fs__studioq">
+          <span className="fs__alhead">{t("fs.upNext")}</span>
+          {queue.items.map((it, i) => (
+            <button
+              key={it.path + i}
+              className={`fs__vrow ${i === queue.currentIndex ? "fs__vrow--on" : ""}`}
+              onClick={() => void bridge.playQueueIndex(i)}
+            >
+              <span className="fs__qnum">{i + 1}</span>
+              {artMap[it.track.artworkUrl] ? (
+                <img className="fs__qthumb" src={artMap[it.track.artworkUrl]} alt="" />
+              ) : (
+                <span className="fs__qthumb fs__meta-art" />
+              )}
+              <span className="fs__provrow">
+                <span className="fs__provtitle">{it.track.title}</span>
+                <span className="fs__provsub">{it.track.artist}</span>
+              </span>
+              <span className="fs__qdur">
+                {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
