@@ -12,3 +12,12 @@ repository = "https://github.com/tatitoxt/aurora"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+
+# Small-binary release profile: thin LTO + single codegen unit + stripped
+# symbols keep the installer tiny (the webview is the OS's, not bundled).
+# opt-level 3 for the decode path; size comes mostly from codegen-units=1.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
