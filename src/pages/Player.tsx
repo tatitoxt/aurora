@@ -26,6 +26,7 @@ import { openPalette } from "../Palette";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
 import { activeLyricIndex, formatTime } from "../lib";
 import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
+import { useT } from "../i18n";
 
 const PREV = <SkipBack weight="fill" size={18} />;
 const NEXT = <SkipForward weight="fill" size={18} />;
@@ -73,6 +74,7 @@ function VideoBackdrop({
 }
 
 export default function Player() {
+  const t = useT();
   const go = useNavigate();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
@@ -187,29 +189,29 @@ export default function Player() {
 
   const nav = (
     <div className="pnav">
-      <Link to="/library" className="pnav__btn" aria-label="Library" title="Library">
+      <Link to="/library" className="pnav__btn" aria-label={t("nav.library")} title={t("nav.library")}>
         <VinylRecord size={15} />
       </Link>
-      <Link to="/visualizer" className="pnav__btn" aria-label="Visualizer" title="Visualizer">
+      <Link to="/visualizer" className="pnav__btn" aria-label={t("nav.visualizer")} title={t("nav.visualizer")}>
         <Waveform size={15} />
       </Link>
-      <Link to="/stats" className="pnav__btn" aria-label="Stats" title="Stats">
+      <Link to="/stats" className="pnav__btn" aria-label={t("nav.stats")} title={t("nav.stats")}>
         <ChartBar size={15} />
       </Link>
-      <Link to="/settings" className="pnav__btn" aria-label="Settings" title="Settings">
+      <Link to="/settings" className="pnav__btn" aria-label={t("nav.settings")} title={t("nav.settings")}>
         <GearSix size={15} />
       </Link>
       <span className="pnav__sep" />
-      <button className="pnav__btn" aria-label="Share now playing" title="Share now playing" onClick={() => setShare(true)}>
+      <button className="pnav__btn" aria-label={t("nav.share")} title={t("nav.share")} onClick={() => setShare(true)}>
         <Export size={14} />
       </button>
-      <button className="pnav__btn" aria-label="Command palette" title="Commands (Ctrl K)" onClick={openPalette}>
+      <button className="pnav__btn" aria-label={t("nav.commands")} title={t("nav.commands")} onClick={openPalette}>
         <Command size={14} />
       </button>
       <button
         className="pnav__btn"
         aria-label="Toggle fullscreen"
-        title="Fullscreen"
+        title={t("player.fullscreen")}
         onClick={() =>
           void bridge.toggleFullscreen().then((on) => {
             if (on) go("/fullscreen");
@@ -287,7 +289,7 @@ export default function Player() {
         <div className="player__meta">
           <div className="player__title">{track?.title ?? "Nothing playing"}</div>
           <div className="player__sub">
-            {track ? `${track.artist} · ${track.album}` : "Start music in any app"}
+            {track ? `${track.artist} · ${track.album}` : t("player.startMusic")}
           </div>
         </div>
         {progress}

@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { artSrc, bridge, type QueueItem } from "../bridge";
@@ -11,6 +12,7 @@ interface AlbumGroup {
 }
 
 export default function Albums() {
+  const t = useT();
   const [groups, setGroups] = useState<AlbumGroup[]>([]);
   const [arts, setArts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
@@ -68,7 +70,7 @@ export default function Albums() {
         </Link>
         <div className="art__heroBody">
           <span className="art__kicker">Collection</span>
-          <h1 className="art__name">Albums</h1>
+          <h1 className="art__name">{t("lib.albums")}</h1>
           <span className="art__meta">
             {stats.albums} {stats.albums === 1 ? "album" : "albums"} · {stats.tracks}{" "}
             {stats.tracks === 1 ? "track" : "tracks"}

@@ -121,6 +121,9 @@ pub struct Settings {
     /// applied live in the decode chain.
     #[serde(default = "default_sound_fx")]
     pub sound_fx: String,
+    /// UI language: "en" | "es" | "pt" | "fr" | "de" | "it" | "ja" | "zh" | "ko".
+    #[serde(default = "default_language")]
+    pub language: String,
     /// Floating always-on-top desktop lyrics overlay.
     #[serde(default)]
     pub desk_lyrics_enabled: bool,
@@ -149,6 +152,10 @@ pub struct Settings {
 
 fn default_sound_fx() -> String {
     "off".into()
+}
+
+fn default_language() -> String {
+    "en".into()
 }
 fn default_eq_preset() -> String {
     "flat".into()
@@ -195,6 +202,7 @@ impl Default for Settings {
             eq_preset: default_eq_preset(),
             eq_bands: Vec::new(),
             sound_fx: default_sound_fx(),
+            language: default_language(),
             desk_lyrics_enabled: false,
             desk_lyrics_position: None,
             profiles: Vec::new(),

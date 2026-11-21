@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   bridge,
@@ -133,6 +134,7 @@ function FsVideo({
 /** iBaila "Albums"-style fullscreen: blurred art wall, giant outlined clock,
  * Continue Playing panel left, lyric center, transport pill bottom. */
 export default function Fullscreen() {
+  const t = useT();
   const nav = useNavigate();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
@@ -389,7 +391,7 @@ export default function Fullscreen() {
               ))}
             </span>
             <span className="fs__qheadtxt">
-              <span className="fs__qhead">Continue Playing</span>
+              <span className="fs__qhead">{t("fs.continuePlaying")}</span>
               <span className="fs__qsub2">
                 Up next{{ local: " in your library", youtube: " on YouTube", soundcloud: " on SoundCloud", mpris: " on your player", demo: "" }[np?.source ?? "local"] ?? ""}
               </span>
@@ -432,7 +434,7 @@ export default function Fullscreen() {
                   <span className="fs__qctl" onClick={(e) => e.stopPropagation()}>
                     <button
                       className="fs__qctlbtn"
-                      title="Move up"
+                      title={t("fs.moveUp")}
                       disabled={idx === 0}
                       onClick={() => void bridge.queueMove(idx, idx - 1)}
                     >
@@ -440,7 +442,7 @@ export default function Fullscreen() {
                     </button>
                     <button
                       className="fs__qctlbtn"
-                      title="Move down"
+                      title={t("fs.moveDown")}
                       disabled={idx === queue.items.length - 1}
                       onClick={() => void bridge.queueMove(idx, idx + 1)}
                     >
@@ -448,7 +450,7 @@ export default function Fullscreen() {
                     </button>
                     <button
                       className="fs__qctlbtn"
-                      title={current ? "Playing — can't remove" : "Remove from queue"}
+                      title={current ? t("fs.playingCantRemove") : t("fs.moveDown")}
                       disabled={current}
                       onClick={() => void bridge.queueRemove(idx)}
                     >
@@ -542,8 +544,8 @@ export default function Fullscreen() {
         <div className="fs__spot">
           <div className="fs__spotmain">
             <div className="fs__npcard">
-              <span className="fs__npkick">Now Playing</span>
-              <span className="fs__nptitle">{track?.title ?? "Nothing playing"}</span>
+              <span className="fs__npkick">{t("fs.nowPlaying")}</span>
+              <span className="fs__nptitle">{track?.title ?? t("fs.nothingPlaying")}</span>
               <span className="fs__npsub">
                 {track ? `${track.artist} · ${track.album}` : ""}
               </span>
@@ -611,7 +613,7 @@ export default function Fullscreen() {
             <span className="fs__discdot" />
           </div>
           <div className="fs__dialmeta">
-            <span className="fs__dialtitle">{track?.title ?? "Nothing playing"}</span>
+            <span className="fs__dialtitle">{track?.title ?? t("fs.nothingPlaying")}</span>
             <span className="fs__dialsub">{track ? `${track.artist} · ${track.album}` : ""}</span>
           </div>
           <div className="fs__orbit" aria-hidden="true">
@@ -702,7 +704,7 @@ export default function Fullscreen() {
             </span>
           </div>
           <div className="fs__visnp">
-            <span className="fs__npkick">Now Playing</span>
+            <span className="fs__npkick">{t("fs.nowPlaying")}</span>
             {art ? <img className="fs__visart" src={art} alt="" /> : null}
             <span className="fs__nptitle">{track?.title ?? ""}</span>
             <span className="fs__npsub">{track?.artist ?? ""}</span>
@@ -757,8 +759,8 @@ export default function Fullscreen() {
               <span className="fs__vol">
                 <button
                   className={`fs__icon ${provOpen ? "fs__icon--on" : ""}`}
-                  aria-label="Music provider"
-                  title="Music provider"
+                  aria-label={t("fs.provider")}
+                  title={t("fs.provider")}
                   onClick={() => setProvOpen((v) => !v)}
                 >
                   {searchSrc === "youtube" ? (
@@ -783,7 +785,7 @@ export default function Fullscreen() {
                     <input
                       className="fs__provq"
                       value={searchQ}
-                      placeholder={`Search ${PROVIDERS.find((p) => p.id === searchSrc)?.label ?? ""}…`}
+                      placeholder={t("fs.search", { src: PROVIDERS.find((p) => p.id === searchSrc)?.label ?? "" })}
                       onChange={(e) => setSearchQ(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key !== "Enter" || !searchQ.trim() || searching) return;
@@ -804,14 +806,14 @@ export default function Fullscreen() {
                     {searchErr && <span className="fs__proverr">{searchErr}</span>}
                     {searchRes.length > 0 && (
                       <span className="fs__provres">
-                        {searchRes.map((t) => (
+                        {searchRes.map((trk) => (
                           <button
-                            key={`${t.source}:${t.id}`}
+                            key={`${trk.source}:${trk.id}`}
                             className="fs__morebtn"
                             onClick={() => {
                               setSearchErr("");
                               void bridge
-                                .providerPlay(t)
+                                .providerPlay(trk)
                                 .then(() => {
                                   setProvOpen(false);
                                   setSearchRes([]);
@@ -821,19 +823,19 @@ export default function Fullscreen() {
                             }}
                           >
                             <span className="fs__provrow">
-                              <span className="fs__provtitle">{t.title}</span>
-                              <span className="fs__provsub">{t.artist}</span>
+                              <span className="fs__provtitle">{trk.title}</span>
+                              <span className="fs__provsub">{trk.artist}</span>
                             </span>
                             <span
                               role="button"
                               tabIndex={0}
                               className="fs__provadd"
-                              title="Add to queue"
+                              title={t("fs.addToQueue")}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSearchErr("");
                                 void bridge
-                                  .providerEnqueue(t)
+                                  .providerEnqueue(trk)
                                   .then(() => setSearchRes([]))
                                   .catch((err) => setSearchErr(String(err)));
                               }}
@@ -843,7 +845,7 @@ export default function Fullscreen() {
                                 e.stopPropagation();
                                 setSearchErr("");
                                 void bridge
-                                  .providerEnqueue(t)
+                                  .providerEnqueue(trk)
                                   .then(() => setSearchRes([]))
                                   .catch((err) => setSearchErr(String(err)));
                               }}
@@ -861,7 +863,7 @@ export default function Fullscreen() {
           <button
             className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
             aria-label="Shuffle"
-            title="Shuffle"
+            title={t("fs.shuffle")}
             onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
           >
             <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
@@ -882,7 +884,7 @@ export default function Fullscreen() {
           <button
             className={`fs__icon ${repeat !== "off" ? "fs__icon--on" : ""}`}
             aria-label={`Repeat: ${repeat}`}
-            title={`Repeat: ${repeat}`}
+            title={t("fs.repeat", { mode: repeat })}
             onClick={() => {
               const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
               void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
@@ -898,9 +900,9 @@ export default function Fullscreen() {
                 <div className="fs__meta-art" />
               )}
               <div className="fs__meta-txt">
-                <div className="fs__mtitle">{track?.title ?? "Nothing playing"}</div>
+                <div className="fs__mtitle">{track?.title ?? t("fs.nothingPlaying")}</div>
                 <div className="fs__msub">
-                  {track ? `${track.artist} · ${track.album}` : "Start music"}
+                  {track ? `${track.artist} · ${track.album}` : t("fs.startMusic")}
                 </div>
               </div>
             </div>
@@ -944,15 +946,15 @@ export default function Fullscreen() {
           <button
             className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
             aria-label={fav ? "Unlike" : "Like"}
-            title={fav ? "Unlike" : "Like"}
+            title={fav ? t("fs.unlike") : t("fs.like")}
             onClick={onToggleFav}
           >
             <Heart size={15} weight={fav ? "fill" : "regular"} />
           </button>
           <button
             className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
-            aria-label="Toggle lyrics"
-            title="Lyrics / thumbnails"
+            aria-label={t("fs.lyricsToggle")}
+            title={t("fs.lyricsToggle")}
             onClick={() => setLyricsOn((v) => !v)}
           >
             <TextT size={15} />
@@ -960,7 +962,7 @@ export default function Fullscreen() {
           <button
             className={`fs__icon ${queueOpen ? "fs__icon--on" : ""}`}
             aria-label="Toggle queue panel"
-            title="Continue Playing panel"
+            title={t("fs.queuePanel")}
             onClick={() => setQueueOpen((v) => !v)}
           >
             <Queue size={15} />
@@ -969,7 +971,7 @@ export default function Fullscreen() {
             <button
               className={`fs__icon ${vol === 0 ? "fs__icon--on" : ""}`}
               aria-label="Volume"
-              title="Volume"
+              title={t("fs.volume")}
               onClick={() => setVolOpen((v) => !v)}
             >
               {vol === 0 ? <SpeakerX size={15} /> : <SpeakerHigh size={15} />}
@@ -994,8 +996,8 @@ export default function Fullscreen() {
           <span className="fs__vol">
             <button
               className={`fs__icon ${moreOpen ? "fs__icon--on" : ""}`}
-              aria-label="More actions"
-              title="More"
+              aria-label={t("fs.more")}
+              title={t("fs.more")}
               onClick={() => setMoreOpen((v) => !v)}
             >
               <DotsThree size={17} weight="bold" />
@@ -1031,7 +1033,7 @@ export default function Fullscreen() {
                 >
                   <CornersIn size={13} /> Exit fullscreen
                 </button>
-                <span className="fs__stylehead">Sound FX</span>
+                <span className="fs__stylehead">{t("fs.soundFx")}</span>
                 {([
                   ["Off", "off"],
                   ["Reverb", "reverb"],
