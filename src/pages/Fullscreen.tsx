@@ -183,7 +183,6 @@ export default function Fullscreen() {
     bridge.getVolume().then(setVol);
     bridge.getSettings().then(setSettings);
     bridge.providerStatus().then(setStreamReady);
-    bridge.getExtStatus().then(setExt).catch(() => {});
     const off = subscribe<NowPlaying>("now-playing", setNp);
     const offQ = subscribe<QueueState>("queue", setQueue);
     const offS = subscribe<Settings>("settings", setSettings);
@@ -195,6 +194,16 @@ export default function Fullscreen() {
       clearInterval(clock);
     };
   }, []);
+
+  /* Refresh the bridge state each time the picker opens — tabs can
+     connect or go quiet while fullscreen stays mounted. */
+  useEffect(() => {
+    if (!provOpen) return;
+    bridge
+      .getExtStatus()
+      .then(setExt)
+      .catch(() => {});
+  }, [provOpen]);
 
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
