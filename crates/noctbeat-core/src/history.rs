@@ -203,11 +203,15 @@ impl History {
     /// Per-artist totals plus that artist's tracks ranked by plays —
     /// untruncated, unlike `stats`' global top-10 lists.
     pub fn artist_stats(&self, artist: &str) -> ArtistStats {
+        // Same normalization the artist page applies to library tracks:
+        // trimmed, Unicode-aware lowercase (eq_ignore_ascii_case would miss
+        // whitespace-padded or non-ASCII tags the page groups together).
+        let key = artist.trim().to_lowercase();
         let mut plays = 0u64;
         let mut total_ms = 0u64;
         let mut tracks: BTreeMap<String, (u64, u64)> = BTreeMap::new();
         for r in &self.records {
-            if !r.artist.eq_ignore_ascii_case(artist) {
+            if r.artist.trim().to_lowercase() != key {
                 continue;
             }
             plays += 1;
@@ -441,9 +445,18 @@ mod tests {
         h.record(rec("y", "Other", "Artist Y", 500_000, day));
         // Case-insensitive match.
         h.record(rec("z", "Case", "artist x", 60_000, day));
+        // Whitespace-padded and non-ASCII tags match too.
+        h.record(rec("w", "Spaced", "  Artist X ", 40_000, day));
+        h.record(rec(
+            "v",
+            "Accented",
+            "Artist X".to_uppercase().as_str(),
+            30_000,
+            day,
+        ));
         let s = h.artist_stats("Artist X");
-        assert_eq!(s.plays, 16);
-        assert_eq!(s.tracks.len(), 16);
+        assert_eq!(s.plays, 18);
+        assert_eq!(s.tracks.len(), 18);
         assert_eq!(s.tracks[0].plays, 1);
         assert!(s.tracks.iter().all(|t| t.sub == "Artist X"));
         assert!(h.artist_stats("Nobody").tracks.is_empty());
