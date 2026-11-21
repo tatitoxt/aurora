@@ -6,6 +6,7 @@ import Settings from "./pages/Settings";
 import Hud from "./pages/Hud";
 import DeskLyrics from "./pages/DeskLyrics";
 import Library from "./pages/Library";
+import Stats from "./pages/Stats";
 import Palette from "./Palette";
 import { bridge, subscribe, type Settings as AppSettings } from "./bridge";
 import { applyTheme } from "./themes";
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/hud" element={<Hud />} />
         <Route path="/desklyrics" element={<DeskLyrics />} />
         <Route path="/library" element={<Library />} />
+        <Route path="/stats" element={<Stats />} />
       </Routes>
       <PaletteGate />
     </>

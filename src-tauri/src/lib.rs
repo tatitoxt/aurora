@@ -2,6 +2,7 @@
 //! Commands/event names are the contract in docs/CONTRACT.md.
 
 use noctbeat_core::energy::{BeatDetector, EnergyUpdate};
+use noctbeat_core::history::{play_threshold_ms, History, PlayRecord, Stats};
 use noctbeat_core::licensing::{Http, LicenseClient, LicenseState, UreqHttp};
 use noctbeat_core::lyrics::{active_line, LrcLine, LrclibClient, LyricsCache};
 use noctbeat_core::media::{
@@ -37,7 +38,77 @@ struct AppState {
     /// Concrete audio output, kept beside the trait object so the output
     /// device can be swapped live.
     rodio: Option<std::sync::Arc<audio::RodioOut>>,
+    /// Listening history, persisted to history.json beside settings.
+    history: Mutex<History>,
+    history_path: PathBuf,
+    /// Wall-clock time accumulated on the track currently playing.
+    listen: Mutex<ListenTracker>,
     demo: bool,
+}
+
+/// Accumulates wall-clock listening per track; on change/stop the stretch
+/// becomes a PlayRecord once it passes `play_threshold_ms`.
+#[derive(Default)]
+struct ListenTracker {
+    track: Option<Track>,
+    source: String,
+    ms: u64,
+    since_ms: u64,
+    last_pos_ms: u64,
+}
+
+impl ListenTracker {
+    fn update(
+        &mut self,
+        np: &NowPlaying,
+        tick_ms: u64,
+        hist: &Mutex<History>,
+        path: &std::path::Path,
+    ) {
+        // Stopped (even with track metadata still attached) ends the
+        // listen: flush it and stay idle instead of buffering forever.
+        if np.status == PlaybackStatus::Stopped {
+            self.flush(hist, path);
+            self.ms = 0;
+            return;
+        }
+        // Boundary: the track id changed, or the position rewound — repeat
+        // and restart reset it near zero. A >2 s user seek-back also reads
+        // as a new play; an accepted trade-off for catching repeats.
+        let same_track = matches!((&self.track, &np.track), (Some(a), Some(b)) if a.id == b.id);
+        let rewound = same_track && np.position_ms + 2_000 < self.last_pos_ms;
+        if !same_track || rewound {
+            self.flush(hist, path);
+            self.track = np.track.clone();
+            self.source = np.source.clone();
+            self.ms = 0;
+            self.since_ms = np.updated_at_ms;
+        }
+        if np.status == PlaybackStatus::Playing && np.track.is_some() {
+            self.ms += tick_ms;
+        }
+        self.last_pos_ms = np.position_ms;
+    }
+
+    fn flush(&mut self, hist: &Mutex<History>, path: &std::path::Path) {
+        self.last_pos_ms = 0;
+        let Some(t) = self.track.take() else { return };
+        if self.ms >= play_threshold_ms(t.duration_ms) {
+            let rec = PlayRecord {
+                track_id: t.id,
+                title: t.title,
+                artist: t.artist,
+                source: self.source.clone(),
+                duration_ms: t.duration_ms,
+                ms_listened: self.ms,
+                played_at_ms: self.since_ms,
+            };
+            if let Ok(mut h) = hist.lock() {
+                h.record(rec);
+                let _ = h.save(path);
+            }
+        }
+    }
 }
 
 fn config_dir() -> PathBuf {
@@ -83,6 +154,19 @@ fn poll_np(state: &AppState) -> NowPlaying {
 #[tauri::command]
 fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
     Ok(poll_np(&state))
+}
+
+#[tauri::command]
+fn get_stats(state: State<AppState>) -> Result<Stats, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    Ok(h.stats(14, now_ms()))
+}
+
+#[tauri::command]
+fn clear_history(state: State<AppState>) -> Result<(), String> {
+    let mut h = state.history.lock().map_err(|e| e.to_string())?;
+    h.records.clear();
+    h.save(&state.history_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -768,9 +852,14 @@ fn spawn_poller(app: &tauri::AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         let mut ticks = 0u64;
+        let mut last_tick = std::time::Instant::now();
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
+            // Real elapsed time: polling work (e.g. subprocess calls in
+            // external sources) adds to the interval beyond the sleep.
+            let tick_ms = last_tick.elapsed().as_millis() as u64;
+            last_tick = std::time::Instant::now();
             let state = app.state::<AppState>();
             let np = {
                 if !local_active(&state) {
@@ -806,6 +895,9 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 *state.last_energy.lock().unwrap_or_else(|e| e.into_inner()) = next;
                 next
             };
+            if let Ok(mut t) = state.listen.lock() {
+                t.update(&np, tick_ms, &state.history, &state.history_path);
+            }
             let _ = app.emit("now-playing", &np);
             let _ = app.emit("energy", energy);
             flush_hud_position(&app);
@@ -854,6 +946,9 @@ pub fn run() {
                 std::time::Duration::from_secs(7 * 24 * 3600),
             ),
             license_path: dir.join("license.json"),
+            history: Mutex::new(History::load(&dir.join("history.json"))),
+            history_path: dir.join("history.json"),
+            listen: Mutex::new(ListenTracker::default()),
             hud_pos_pending: Mutex::new(None),
             desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
@@ -889,6 +984,8 @@ pub fn run() {
             set_output_device,
             set_eq,
             import_playlist,
+            get_stats,
+            clear_history,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());
@@ -905,8 +1002,18 @@ pub fn run() {
             build_tray(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Noctbeat");
+        .build(tauri::generate_context!())
+        .expect("error while building Noctbeat")
+        .run(|app, event| {
+            // Any exit path (last window closed, tray quit) persists the
+            // in-flight play before the process dies.
+            if let tauri::RunEvent::Exit = event {
+                let state = app.state::<AppState>();
+                if let Ok(mut t) = state.listen.lock() {
+                    t.flush(&state.history, &state.history_path);
+                };
+            }
+        });
 }
 
 fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
