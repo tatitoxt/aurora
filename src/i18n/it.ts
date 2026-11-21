@@ -162,6 +162,7 @@ const it: Record<keyof typeof en, string> = {
   "fs.upNext": "A seguire",
   "fs.nothingPlaying": "Niente in riproduzione",
   "fs.provider": "Provider musicale",
+  "fs.extHint": "Estensione: installala per seguire la musica delle schede",
   "fs.queuePanel": "Pannello Continua a riprodurre",
   "fs.lyricsToggle": "Testi / miniature",
   "fs.startMusic": "Avvia musica",

@@ -162,6 +162,7 @@ const de: Record<keyof typeof en, string> = {
   "fs.upNext": "Als Nächstes",
   "fs.nothingPlaying": "Nichts spielt",
   "fs.provider": "Musikanbieter",
+  "fs.extHint": "Erweiterung: installieren, um Musik-Tabs zu folgen",
   "fs.queuePanel": "Weiter-h\u00f6ren-Panel",
   "fs.lyricsToggle": "Lyrics / Thumbnails",
   "fs.startMusic": "Musik starten",

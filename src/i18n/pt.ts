@@ -162,6 +162,7 @@ const pt: Record<keyof typeof en, string> = {
   "fs.upNext": "A seguir",
   "fs.nothingPlaying": "Nada tocando",
   "fs.provider": "Provedor de m\u00fasica",
+  "fs.extHint": "Extensão: instale para seguir a música das suas abas",
   "fs.queuePanel": "Painel Continuar tocando",
   "fs.lyricsToggle": "Letras / miniaturas",
   "fs.startMusic": "Iniciar m\u00fasica",

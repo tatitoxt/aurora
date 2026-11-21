@@ -430,6 +430,11 @@ export const bridge = {
   productName: branding.productName,
 
   getNowPlaying: () => (isTauri() ? invokeCmd<NowPlaying>("get_now_playing") : Promise.resolve(mock.poll())),
+  /** Browser-extension bridge: { tabs, provider host } — null without a bridge. */
+  getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
+    isTauri()
+      ? invokeCmd("get_ext_status")
+      : Promise.resolve({ tabs: 1, provider: "music.youtube.com" }),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);

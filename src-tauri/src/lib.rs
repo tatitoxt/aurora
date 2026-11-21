@@ -290,6 +290,22 @@ fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
     Ok(poll_np(&state))
 }
 
+/// Browser-extension bridge status for the provider picker: how many
+/// music tabs are reporting right now and which provider host is active.
+/// None when the running source has no extension layer (demo mode).
+#[derive(serde::Serialize)]
+struct ExtStatus {
+    tabs: usize,
+    provider: Option<String>,
+}
+
+#[tauri::command]
+fn get_ext_status(state: State<AppState>) -> Result<Option<ExtStatus>, String> {
+    let s = state.source.lock().map_err(|e| e.to_string())?;
+    Ok(s.ext_status()
+        .map(|(tabs, provider)| ExtStatus { tabs, provider }))
+}
+
 #[tauri::command]
 fn get_stats(state: State<AppState>) -> Result<Stats, String> {
     let h = state.history.lock().map_err(|e| e.to_string())?;
@@ -2570,6 +2586,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_now_playing,
+            get_ext_status,
             media_control,
             get_palette,
             get_lyrics,

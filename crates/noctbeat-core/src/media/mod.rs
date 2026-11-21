@@ -68,6 +68,12 @@ pub trait NowPlayingSource: Send {
     fn poll(&mut self) -> Result<NowPlaying, MediaError>;
     /// Transport control. Sources that cannot control return Err(Control(..)).
     fn control(&mut self, cmd: Control) -> Result<(), MediaError>;
+    /// Browser-extension bridge state, when this source wraps the
+    /// listener: (fresh reporting tabs, provider host of the active tab).
+    /// None for sources with no extension layer.
+    fn ext_status(&self) -> Option<(usize, Option<String>)> {
+        None
+    }
 }
 
 /// Source used when nothing real is available: reports Stopped.
