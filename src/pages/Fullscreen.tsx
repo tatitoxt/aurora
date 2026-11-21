@@ -776,7 +776,7 @@ export default function Fullscreen() {
                 </div>
               </div>
             </div>
-            {(fsStyle === "tile" || fsStyle === "showcase") && line && (
+            {lyricsOn && (fsStyle === "tile" || fsStyle === "showcase") && line && (
               <div className="fs__cardlyric">{line}</div>
             )}
             <div
