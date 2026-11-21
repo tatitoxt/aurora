@@ -16,7 +16,7 @@
         "title": "Noctbeat",
         "width": 340,
         "height": 560,
-        "resizable": true,
+        "resizable": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,

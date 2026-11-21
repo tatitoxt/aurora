@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   bridge,
   subscribe,
@@ -60,6 +60,7 @@ function VideoBackdrop({
 }
 
 export default function Player() {
+  const go = useNavigate();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -196,7 +197,11 @@ export default function Player() {
         className="wordmark palette-open"
         aria-label="Toggle fullscreen"
         title="Fullscreen"
-        onClick={() => void bridge.toggleFullscreen()}
+        onClick={() =>
+          void bridge.toggleFullscreen().then((on) => {
+            if (on) go("/fullscreen");
+          })
+        }
       >
         <ArrowsOut size={13} />
       </button>

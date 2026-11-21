@@ -446,6 +446,77 @@ body {
   }
 }
 
+/* ---------- fullscreen "albums" mode ---------- */
+.fs { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; }
+.fs__bg { position: absolute; inset: 0; }
+.fs__bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.15); filter: blur(50px) saturate(1.3) brightness(0.55); }
+.fs__veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,5,8,0.35), rgba(5,5,8,0.15) 40%, rgba(5,5,8,0.6)); }
+.fs__clockwrap { position: relative; text-align: center; padding-top: 5vh; }
+.fs__date { font-size: 14px; color: var(--dim); letter-spacing: 0.02em; }
+.fs__clock {
+  font-size: clamp(110px, 21vh, 230px); line-height: 1; font-weight: 100;
+  font-stretch: condensed; letter-spacing: -0.02em;
+  color: transparent; -webkit-text-stroke: 2px rgba(255,255,255,0.75);
+}
+.fs__colon { -webkit-text-stroke-width: 1px; }
+.fs__queue {
+  position: absolute; left: 3.5vw; top: 22vh; width: min(240px, 24vw);
+  background: var(--panel); backdrop-filter: blur(48px) saturate(1.3);
+  -webkit-backdrop-filter: blur(48px) saturate(1.3);
+  border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 18px 50px -14px rgba(0,0,0,0.6);
+}
+.fs__qhead { padding: 12px 14px 8px; font-size: 13px; font-weight: 700; }
+.fs__qlist { max-height: 46vh; overflow-y: auto; scrollbar-width: none; padding: 0 6px 8px; }
+.fs__qrow {
+  display: flex; flex-direction: column; gap: 1px; width: 100%;
+  background: none; border: none; border-radius: 10px; padding: 7px 10px;
+  cursor: pointer; text-align: left; font: inherit; color: var(--text);
+}
+.fs__qrow:hover { background: rgba(255,255,255,0.06); }
+.fs__qrow--on { background: rgba(255,255,255,0.10); }
+.fs__qtitle { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__qsub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__center {
+  position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 0 12vw;
+}
+.fs__lyric {
+  font-family: var(--serif); font-size: clamp(34px, 5.5vh, 64px); font-weight: 700;
+  font-style: italic; text-align: center; line-height: 1.15;
+  text-shadow: 0 2px 30px rgba(0,0,0,0.5);
+}
+.fs__lyric--title { font-family: inherit; font-style: normal; font-weight: 800; }
+.fs__bottom { position: relative; padding: 0 8vw 5vh; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.fs__prog { display: flex; align-items: center; gap: 12px; width: min(760px, 100%); }
+.fs__time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
+.fs__bar { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; position: relative; }
+.fs__barfill { position: absolute; inset: 0 auto 0 0; background: var(--text); border-radius: 2px; }
+.fs__pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel-strong); backdrop-filter: blur(56px) saturate(1.3);
+  -webkit-backdrop-filter: blur(56px) saturate(1.3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px;
+  box-shadow: 0 18px 50px -14px rgba(0,0,0,0.7);
+}
+.fs__icon {
+  background: none; border: none; color: var(--dim); cursor: pointer;
+  width: 32px; height: 32px; display: grid; place-items: center;
+  border-radius: 50%; font-size: 15px; transition: background .15s, color .15s;
+}
+.fs__icon:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.fs__play {
+  width: 40px; height: 40px; border: none; border-radius: 50%;
+  background: var(--text); color: var(--bg); cursor: pointer;
+  display: grid; place-items: center; transition: transform .1s;
+}
+.fs__play:active { transform: scale(.92); }
+.fs__meta { display: flex; align-items: center; gap: 9px; margin: 0 8px; min-width: 0; max-width: 300px; }
+.fs__meta img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex: none; }
+.fs__meta-txt { min-width: 0; }
+.fs__mtitle { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__msub { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---- Visualizer ---- */
 .viz { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
 .viz__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
