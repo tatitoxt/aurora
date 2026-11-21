@@ -4,7 +4,12 @@
 use super::{Control, MediaError, NowPlaying, NowPlayingSource, PlaybackStatus, Track};
 
 const PLAYLIST: &[(&str, &str, &str, u64)] = &[
-    ("Aurora Reversal", "Violet Sector", "Parallax Bloom", 214_000),
+    (
+        "Aurora Reversal",
+        "Violet Sector",
+        "Parallax Bloom",
+        214_000,
+    ),
     ("Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000),
     ("Glass Tide", "Ultramar", "Field Lines", 243_000),
     (
