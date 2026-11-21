@@ -225,12 +225,10 @@ fn prefetch_next(state: &AppState, index: usize) {
 /// The local player claims the transport while it is playing or paused;
 /// otherwise whatever the OS reports (Spotify, browser, …) wins.
 fn local_active(state: &AppState) -> bool {
-    // A loaded-but-stopped queue still owns playback: Play should start
-    // queue[0] locally, not be routed to an external source.
     state
         .player
         .lock()
-        .map(|p| p.status() != PlaybackStatus::Stopped || !p.queue().is_empty())
+        .map(|p| p.status() != PlaybackStatus::Stopped)
         .unwrap_or(false)
 }
 
@@ -2729,7 +2727,11 @@ pub fn run() {
                             if !items.is_empty() {
                                 if let Ok(mut p) = state.player.lock() {
                                     if p.queue().is_empty() {
-                                        p.set_queue(items);
+                                        // Seed as a paused selection, like a
+                                        // restored session: Play then starts
+                                        // track 0 locally instead of routing
+                                        // to an external source.
+                                        p.restore(items, Some(0), 0, RepeatMode::Off, false);
                                     }
                                 }
                                 emit_queue(&app, &state);
