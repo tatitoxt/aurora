@@ -280,15 +280,21 @@ class MockSource {
       : this.positionMs;
   }
 
-  private track(): Track {
-    const [title, artist, album, durationMs] = this.playlist[this.index % this.playlist.length];
+  private track(): Track | null {
+    const entry = this.playlist[this.index % this.playlist.length];
+    if (!entry) return null;
+    const [title, artist, album, durationMs] = entry;
     return { id: `${artist} — ${title}`, title, artist, album, artworkUrl: "", durationMs };
   }
 
   poll(): NowPlaying {
+    if (this.playlist.length === 0) {
+      this.status = "stopped";
+      return { track: null, status: "stopped", positionMs: 0, source: "demo", updatedAtMs: Date.now() };
+    }
     let p = this.pos();
     const t = this.track();
-    if (p >= t.durationMs) this.skip(1), (p = this.pos());
+    if (t && p >= t.durationMs) this.skip(1), (p = this.pos());
     return { track: this.track(), status: this.status, positionMs: p, source: "demo", updatedAtMs: Date.now() };
   }
 
@@ -301,6 +307,12 @@ class MockSource {
   }
 
   private skip(dir: number) {
+    if (this.playlist.length === 0) {
+      this.index = 0;
+      this.status = "stopped";
+      this.positionMs = 0;
+      return;
+    }
     this.index = (this.index + dir + this.playlist.length) % this.playlist.length;
     this.positionMs = 0;
     this.anchor = Date.now();
