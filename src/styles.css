@@ -654,6 +654,7 @@ body {
 .fs__covers {
   display: flex; align-items: flex-end; justify-content: center;
   gap: 18px; width: 100%; pointer-events: none;
+  margin-bottom: 3.5vh;
   transition: padding-left .35s cubic-bezier(.2,.9,.25,1);
 }
 .fs__covers--panel { padding-left: calc(3.5vw + min(240px, 24vw) + 32px); }
