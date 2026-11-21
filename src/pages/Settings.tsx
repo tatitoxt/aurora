@@ -10,7 +10,6 @@ import {
   DEFAULT_SETTINGS,
   EQ_FREQS,
   EQ_PRESETS,
-  type DisplayInfo,
   type LicenseState,
   type Settings,
 } from "../bridge";
@@ -18,7 +17,6 @@ import {
 export default function Settings() {
   const t = useT();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
-  const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [outputs, setOutputs] = useState<string[]>([]);
   const [license, setLicense] = useState<LicenseState>({ state: "unlicensed" });
   const [key, setKey] = useState("");
@@ -36,12 +34,10 @@ export default function Settings() {
   useEffect(() => {
     Promise.all([
       bridge.getSettings(),
-      bridge.listDisplays(),
       bridge.getLicenseState(),
       bridge.listOutputs(),
-    ]).then(([st, ds, lic, outs]) => {
+    ]).then(([st, lic, outs]) => {
       setS(st);
-      setDisplays(ds);
       setLicense(lic);
       setOutputs(outs);
       setLoaded(true);
@@ -77,21 +73,6 @@ export default function Settings() {
   };
   const patch = (p: Partial<Settings>) => save({ ...s, ...p });
 
-  const toggleDisplay = (d: DisplayInfo) => {
-    const rules = [...s.displays];
-    // Prefer the stable-id rule (what displayEnabled shows); only then a
-    // pre-upgrade positional `display-N` rule, which we migrate forward.
-    let i = rules.findIndex((r) => r.displayId === d.id);
-    if (i < 0) i = rules.findIndex((r) => r.displayId === d.legacyId);
-    if (i >= 0)
-      rules[i] = { displayId: d.id, enabled: !rules[i].enabled };
-    else rules.push({ displayId: d.id, enabled: false });
-    patch({ displays: rules });
-  };
-  const displayEnabled = (d: DisplayInfo) =>
-    (s.displays.find((r) => r.displayId === d.id) ??
-      s.displays.find((r) => r.displayId === d.legacyId))?.enabled ?? true;
-
   const saveAsProfile = () => {
     const name = profileName.trim();
     if (!name) return;
@@ -114,28 +95,6 @@ export default function Settings() {
             </span>
           </div>
           <h1 className="pagehead__name">{t("set.title")}</h1>
-        </div>
-
-        <div className="field">
-          <span>{t("set.edgeThickness")} · {s.edgeThicknessPx}px</span>
-          <input
-            type="range" min={8} max={64} value={s.edgeThicknessPx}
-            onChange={(e) => patch({ edgeThicknessPx: +e.target.value })}
-          />
-        </div>
-        <div className="field">
-          <span>{t("set.glow")} · {Math.round(s.glowStrength * 100)}%</span>
-          <input
-            type="range" min={0} max={100} value={s.glowStrength * 100}
-            onChange={(e) => patch({ glowStrength: +e.target.value / 100 })}
-          />
-        </div>
-        <div className="field">
-          <span>{t("set.brightness")} · {Math.round(s.brightness * 100)}%</span>
-          <input
-            type="range" min={0} max={100} value={s.brightness * 100}
-            onChange={(e) => patch({ brightness: +e.target.value / 100 })}
-          />
         </div>
 
         <div className="row">
@@ -179,33 +138,6 @@ export default function Settings() {
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
               aria-label="Music video backdrop"
               onClick={() => patch({ videoBackdrop: !s.videoBackdrop })}
-            />
-          </div>
-        )}
-
-        <div className="row">
-          <span>{t("set.colors")}</span>
-          <div className="seg">
-            <button
-              className={s.colorMode.mode === "artwork" ? "on" : ""}
-              onClick={() => patch({ colorMode: { mode: "artwork" } })}
-            >
-              {t("set.artwork")}
-            </button>
-            <button
-              className={s.colorMode.mode === "custom" ? "on" : ""}
-              onClick={() => patch({ colorMode: { mode: "custom" } })}
-            >
-              {t("set.custom")}
-            </button>
-          </div>
-        </div>
-        {s.colorMode.mode === "custom" && (
-          <div className="field">
-            <span>{t("set.customColor")}</span>
-            <input
-              type="color" value={s.customColor}
-              onChange={(e) => patch({ customColor: e.target.value })}
             />
           </div>
         )}
@@ -434,30 +366,6 @@ export default function Settings() {
         </div>
 
         <div className="row">
-          <span>{t("set.batterySaver")}</span>
-          <button
-            className={`toggle ${s.batterySaver ? "on" : ""}`}
-            aria-label="Battery saver"
-            onClick={() => patch({ batterySaver: !s.batterySaver })}
-          />
-        </div>
-        <div className="row">
-          <span>{t("set.dimOnBattery")}</span>
-          <button
-            className={`toggle ${s.autoDimOnBattery ? "on" : ""}`}
-            aria-label="Dim on battery"
-            onClick={() => patch({ autoDimOnBattery: !s.autoDimOnBattery })}
-          />
-        </div>
-        <div className="row">
-          <span>{t("set.lightsOff")}</span>
-          <button
-            className={`toggle ${s.lightsOffOnSilence ? "on" : ""}`}
-            aria-label="Lights off when music stops"
-            onClick={() => patch({ lightsOffOnSilence: !s.lightsOffOnSilence })}
-          />
-        </div>
-        <div className="row">
           <span>{t("set.liveTrayIcon")}</span>
           <button
             className={`toggle ${s.trayLiveIcon ? "on" : ""}`}
@@ -489,14 +397,6 @@ export default function Settings() {
             onClick={() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled })}
           />
         </div>
-        <div className="row">
-          <span>{t("set.hideFullscreen")}</span>
-          <button
-            className={`toggle ${s.hideInFullscreen ? "on" : ""}`}
-            aria-label="Hide in fullscreen"
-            onClick={() => patch({ hideInFullscreen: !s.hideInFullscreen })}
-          />
-        </div>
 
         <div className="row">
           <span>{t("set.language")}</span>
@@ -509,25 +409,6 @@ export default function Settings() {
             ))}
           </select>
         </div>
-
-        {displays.length > 0 && (
-          <div className="field">
-            <span>{t("set.displays")}</span>
-            {displays.map((d) => (
-              <div className="row" key={d.id}>
-                <span>
-                  {d.name}
-                  {d.primary ? " (primary)" : ""}
-                </span>
-                <button
-                  className={`toggle ${displayEnabled(d) ? "on" : ""}`}
-                  aria-label={`${t("set.toggleDisplay")} ${d.name}`}
-                  onClick={() => toggleDisplay(d)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
 
         <div className="field">
           <span>{t("set.license")}</span>

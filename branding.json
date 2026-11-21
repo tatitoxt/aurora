@@ -5,7 +5,7 @@
   "domain": "noctbeat.app",
   "altDomain": "noctbeat.com",
   "tagline": "Light that listens.",
-  "description": "Ambient edge light, a glass mini player and synced lyrics that follow whatever music is playing on your computer.",
+  "description": "A floating glass HUD, synced lyrics and a fullscreen stage that follow whatever music is playing on your computer.",
   "version": "0.1.0",
   "author": "Fausto Pastura",
   "homepage": "https://noctbeat.app",
