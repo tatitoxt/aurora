@@ -9,7 +9,7 @@ import {
   type RemoteTrack,
   type Settings,
 } from "../bridge";
-import { activeLyricIndex, formatTime } from "../lib";
+import { activeLyricIndex } from "../lib";
 import {
   CaretDown,
   CornersIn,
@@ -485,9 +485,13 @@ export default function Fullscreen() {
                             className="fs__morebtn"
                             onClick={() => {
                               setSearchErr("");
-                              setProvOpen(false);
                               void bridge
                                 .providerPlay(t)
+                                .then(() => {
+                                  setProvOpen(false);
+                                  setSearchRes([]);
+                                  setSearchQ("");
+                                })
                                 .catch((err) => setSearchErr(String(err)));
                             }}
                           >
