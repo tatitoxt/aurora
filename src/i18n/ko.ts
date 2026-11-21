@@ -212,6 +212,13 @@ const ko: Record<keyof typeof en, string> = {
   "anim.ink": "\uc789\ud06c",
   "anim.shimmer": "\ubc18\uc9dd\uc784",
   "anim.none": "\uc5c6\uc74c",
+  "set.grp.lyrics": "가사와 비주얼",
+  "set.grp.look": "모양",
+  "set.grp.sound": "사운드",
+  "set.grp.play": "재생",
+  "set.grp.sources": "소스",
+  "set.grp.windows": "창",
+  "set.grp.license": "라이선스",
 };
 
 export default ko;

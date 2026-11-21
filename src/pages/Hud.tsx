@@ -1,5 +1,6 @@
 import { useT } from "../i18n";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { VideoBackdrop } from "../VideoBackdrop";
 import {
   bridge,
   subscribe,
@@ -20,6 +21,7 @@ import {
   ListBullets,
   MusicNote,
   Shuffle,
+  Image,
 } from "@phosphor-icons/react";
 import {
   favEntryFor,
@@ -49,6 +51,11 @@ export default function Hud() {
   const [mode, setMode] = useState<"list" | "focus">(
     () => (localStorage.getItem("noctbeat.hudmode") as "list" | "focus") || "list",
   );
+  const [mediaMode, setMediaMode] = useState<"art" | "video">(
+    () => (localStorage.getItem("noctbeat.hudmedia") as "art" | "video") || "art",
+  );
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const videoReq = useRef(0);
 
   useEffect(() => {
     bridge.getNowPlaying().then(setNp);
@@ -71,6 +78,16 @@ export default function Hud() {
   useEffect(() => {
     if (track?.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);
   }, [track]);
+  const trackKey = track?.id ?? null;
+  useEffect(() => {
+    setVideoUrl(null);
+    if (mediaMode !== "video" || !settings.videoBackdrop || !trackKey || !track) return;
+    const req = ++videoReq.current;
+    bridge.resolveVideo(track.artist, track.title).then((u) => {
+      if (videoReq.current === req && u) setVideoUrl(u);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaMode, settings.videoBackdrop, trackKey]);
   useEffect(() => {
     const urls = [...new Set(queue.items.map((i) => i.track.artworkUrl).filter(Boolean))];
     void Promise.all(urls.map((u) => bridge.artSrc(u).catch(() => ""))).then((srcs) =>
@@ -207,7 +224,27 @@ export default function Hud() {
       ) : (
         <div className="hud__focus">
           <div className="hud__focusart">
-            {art ? <img src={art} alt="" /> : <MusicNote size={40} weight="thin" />}
+            {mediaMode === "video" && videoUrl ? (
+              <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
+            ) : art ? (
+              <img src={art} alt="" />
+            ) : (
+              <MusicNote size={40} weight="thin" />
+            )}
+            {settings.videoBackdrop && (
+              <button
+                className="hud__artswap"
+                aria-label={mediaMode === "video" ? "Show artwork" : "Show video"}
+                title={mediaMode === "video" ? "Show artwork" : "Show video"}
+                onClick={() => {
+                  const next = mediaMode === "video" ? "art" : "video";
+                  setMediaMode(next);
+                  localStorage.setItem("noctbeat.hudmedia", next);
+                }}
+              >
+                {mediaMode === "video" ? <Image size={13} /> : <Monitor size={13} />}
+              </button>
+            )}
           </div>
           <div className="hud__focustitle">{track?.title ?? "Nothing playing"}</div>
           <div className="hud__focussub">{track ? track.artist : ""}</div>

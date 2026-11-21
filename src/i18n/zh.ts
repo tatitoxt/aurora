@@ -212,6 +212,13 @@ const zh: Record<keyof typeof en, string> = {
   "anim.ink": "\u58a8\u6c34",
   "anim.shimmer": "\u95ea\u70c1",
   "anim.none": "\u65e0",
+  "set.grp.lyrics": "歌词与视觉",
+  "set.grp.look": "外观",
+  "set.grp.sound": "声音",
+  "set.grp.play": "播放",
+  "set.grp.sources": "来源",
+  "set.grp.windows": "窗口",
+  "set.grp.license": "许可证",
 };
 
 export default zh;
