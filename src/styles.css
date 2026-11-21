@@ -583,10 +583,10 @@ body {
   position: fixed; inset: 0;
   display: flex; flex-direction: column;
   padding: 8px 10px;
-  background: rgba(16, 16, 19, 0.55);
-  backdrop-filter: blur(72px) saturate(1.4);
-  -webkit-backdrop-filter: blur(72px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(28, 28, 36, 0.5), rgba(12, 12, 16, 0.38));
+  backdrop-filter: blur(90px) saturate(1.6);
+  -webkit-backdrop-filter: blur(90px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 28px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
@@ -618,23 +618,26 @@ body {
 .hud__qsub { font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hud__qdur { flex: none; font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .hud__pill {
-  flex: none; display: flex; justify-content: center; gap: 4px;
-  margin-top: 8px; padding: 4px 10px;
+  flex: none; display: flex; justify-content: center; gap: 6px;
+  margin-top: 8px; padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
-.hud__focus { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; }
+.hud__pill .hctl { width: 32px; height: 32px; }
+.hud__pill .hctl--play { width: 40px; height: 40px; }
+.hud__focus { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
 .hud__focusart {
-  flex: 1 1 0; min-height: 44px;
-  width: min(55vh, 100%); max-width: 100%; border-radius: 24px;
+  flex: none;
+  width: min(64%, 280px); aspect-ratio: 1; border-radius: 26px;
   overflow: hidden; background: #1b1b21;
   box-shadow: inset 0 0 0 1px var(--line), 0 14px 40px -12px rgba(0,0,0,.6);
   display: grid; place-items: center; color: var(--dim);
 }
 .hud__focusart img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.hud__focustitle { font-size: 16px; font-weight: 700; text-align: center; font-family: var(--serif); font-style: italic; }
+.hud__focustitle { font-size: 17px; font-weight: 700; text-align: center; font-family: var(--serif); font-style: italic; }
 .hud__focussub { font-size: 11px; color: var(--dim); text-align: center; }
+.hud__focus .hud__progress { width: min(100%, 300px); margin-top: 0; }
 .hud__focusrow { display: flex; gap: 2px; }
 .hud__art {
   flex: none; width: 52px; height: 52px; border-radius: 50%;
