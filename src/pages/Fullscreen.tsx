@@ -41,10 +41,12 @@ function FsVideo({
   url,
   posMs,
   playing,
+  cls = "fs__video",
 }: {
   url: string;
   posMs: number;
   playing: boolean;
+  cls?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
@@ -66,7 +68,7 @@ function FsVideo({
   return (
     <video
       ref={ref}
-      className={`fs__video ${ready ? "fs__video--ready" : ""}`}
+      className={`${cls} ${ready ? "fs__video--ready" : ""}`}
       src={url}
       muted
       playsInline
@@ -323,14 +325,7 @@ export default function Fullscreen() {
               <div key={c.key} className="fs__cover fs__cover--on">
                 <div className="fs__coverimg">
                   {videoUrl ? (
-                    <video
-                      className="fs__cvid"
-                      src={videoUrl}
-                      muted
-                      playsInline
-                      autoPlay
-                      loop
-                    />
+                    <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__cvid" />
                   ) : c.src ? (
                     <img src={c.src} alt="" />
                   ) : (

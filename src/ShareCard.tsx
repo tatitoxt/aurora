@@ -45,6 +45,12 @@ export function paintCard(
     ctx.restore();
     ctx.fillStyle = "rgba(5,5,9,0.45)";
     ctx.fillRect(0, 0, W, H);
+    // Bottom vignette so the wordmark/progress never fight busy art.
+    const v = ctx.createLinearGradient(0, H * 0.55, 0, H);
+    v.addColorStop(0, "rgba(0,0,0,0)");
+    v.addColorStop(1, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, W, H);
   } else {
     const g = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, W * 0.7);
     g.addColorStop(0, accents.a1 + "22");
@@ -57,6 +63,14 @@ export function paintCard(
   const AX = 72,
     AY = (H - 380) / 2,
     AS = 380;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = 60;
+  ctx.shadowOffsetY = 24;
+  rr(ctx, AX, AY, AS, AS, 28);
+  ctx.fillStyle = "#000";
+  ctx.fill();
+  ctx.restore();
   ctx.save();
   rr(ctx, AX, AY, AS, AS, 28);
   ctx.clip();
@@ -77,15 +91,18 @@ export function paintCard(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Text column.
+  // Text column: small caps kicker, big title, dim subtitle.
   const TX = AX + AS + 64;
   ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(244,244,250,0.5)";
+  ctx.font = "600 22px system-ui, -apple-system, sans-serif";
+  ctx.fillText("NOW PLAYING", TX, 158);
   ctx.fillStyle = "#f4f4fa";
-  ctx.font = "600 58px system-ui, -apple-system, sans-serif";
-  ctx.fillText(m.title, TX, 210, W - TX - 72);
+  ctx.font = "700 62px system-ui, -apple-system, sans-serif";
+  ctx.fillText(m.title, TX, 230, W - TX - 72);
   ctx.fillStyle = "rgba(244,244,250,0.62)";
   ctx.font = "400 34px system-ui, -apple-system, sans-serif";
-  ctx.fillText(m.subtitle, TX, 268, W - TX - 72);
+  ctx.fillText(m.subtitle, TX, 286, W - TX - 72);
 
   // Progress bar: thin white track + knob, iBaila-style restraint.
   const BY = 390,

@@ -221,12 +221,6 @@ export default function Player() {
           <div className="kbg__veil" />
         </div>
         <div className="player player--karaoke">
-          <div className="kmeta">
-            <div className="kmeta__title">{track?.title ?? "Nothing playing"}</div>
-            <div className="kmeta__sub">
-              {track ? `${track.artist} · ${track.album}` : "Start music in any app"}
-            </div>
-          </div>
           <div className="kcenter">
             {lyrics && active >= 0 ? (
               <KaraokeLyric
@@ -238,22 +232,14 @@ export default function Player() {
               <div className="karaoke__idle">{track ? track.title : bridge.productName}</div>
             )}
           </div>
-          {/* iBaila albums-dark transport: video card + glass bar. */}
-          <div className="kcard">
-            {videoUrl ? (
-              <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-            ) : art ? (
-              <img className="kcard__art" src={art} alt="" />
-            ) : null}
-            <div className="kcard__scrim" />
-            <div className="kcard__meta">
-              <div className="kcard__title">{track?.title ?? "Nothing playing"}</div>
-              <div className="kcard__sub">
-                {track ? `${track.artist} — ${track.album}` : "Start music"}
-              </div>
-            </div>
-          </div>
+          {/* iBaila karaoke: one floating transport bar — controls left,
+              art + meta + hairline progress. */}
           <div className="kbar">
+            <button className="ctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>{PREV}</button>
+            <button className="ctl ctl--play ctl--play-sm" aria-label={playing ? "Pause" : "Play"} onClick={() => bridge.mediaControl("play-pause")}>
+              {playing ? <Pause weight="fill" size={16} /> : <Play weight="fill" size={16} />}
+            </button>
+            <button className="ctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>{NEXT}</button>
             {art ? <img className="kbar__art" src={art} alt="" /> : <div className="kbar__art kbar__art--ph" />}
             <span className="kbar__txt">
               <span className="kbar__title">{track?.title ?? "Nothing playing"}</span>
@@ -273,11 +259,6 @@ export default function Player() {
                 <span className="kbar__fill" style={{ transform: `scaleX(${track?.durationMs ? Math.min(1, pos / track.durationMs) : 0})` }} />
               </span>
             </span>
-            <button className="ctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>{PREV}</button>
-            <button className="ctl ctl--play ctl--play-sm" aria-label={playing ? "Pause" : "Play"} onClick={() => bridge.mediaControl("play-pause")}>
-              {playing ? <Pause weight="fill" size={16} /> : <Play weight="fill" size={16} />}
-            </button>
-            <button className="ctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>{NEXT}</button>
           </div>
           {nav}
         </div>
