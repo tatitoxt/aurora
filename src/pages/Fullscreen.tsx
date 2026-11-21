@@ -170,6 +170,14 @@ export default function Fullscreen() {
     const v = parseFloat(localStorage.getItem("noctbeat.fscss") ?? "100");
     return Number.isFinite(v) ? Math.min(160, Math.max(60, v)) : 100;
   });
+  const [clockScale, setClockScale] = useState(() => {
+    const v = parseFloat(localStorage.getItem("noctbeat.fsclocksc") ?? "100");
+    return Number.isFinite(v) ? Math.min(160, Math.max(60, v)) : 100;
+  });
+  const [lyricScale, setLyricScale] = useState(() => {
+    const v = parseFloat(localStorage.getItem("noctbeat.fslyrsc") ?? "100");
+    return Number.isFinite(v) ? Math.min(160, Math.max(60, v)) : 100;
+  });
   const [scaleLock, setScaleLock] = useState(
     () => localStorage.getItem("noctbeat.fslock") === "1"
   );
@@ -370,7 +378,14 @@ export default function Fullscreen() {
   });
 
   return (
-    <div className={`fs fs--${fsStyle}`} style={{ "--cscale": coverScale / 100 } as CSSProperties}>
+    <div
+      className={`fs fs--${fsStyle}`}
+      style={{
+        "--cscale": coverScale / 100,
+        "--clksc": clockScale / 100,
+        "--lyrsc": lyricScale / 100,
+      } as CSSProperties}
+    >
       <div className="fs__bg">
         {videoUrl ? (
           <FsVideo url={videoUrl} posMs={pos} playing={playing} />
@@ -1022,6 +1037,34 @@ export default function Fullscreen() {
                   >
                     {scaleLock ? <LockSimple size={13} /> : <LockSimpleOpen size={13} />}
                   </button>
+                </span>
+                <span className="fs__sizerow">
+                  <input
+                    type="range" min={60} max={160} step={5}
+                    className="fs__sizeslider"
+                    value={clockScale}
+                    disabled={scaleLock}
+                    aria-label={t("fs.clockSize")}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setClockScale(v);
+                      localStorage.setItem("noctbeat.fsclocksc", String(v));
+                    }}
+                  />
+                </span>
+                <span className="fs__sizerow">
+                  <input
+                    type="range" min={60} max={160} step={5}
+                    className="fs__sizeslider"
+                    value={lyricScale}
+                    disabled={scaleLock}
+                    aria-label={t("fs.lyricSize")}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setLyricScale(v);
+                      localStorage.setItem("noctbeat.fslyrsc", String(v));
+                    }}
+                  />
                 </span>
                 <span className="fs__stylehead">{t("fs.soundFx")}</span>
                 {([

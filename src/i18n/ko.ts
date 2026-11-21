@@ -163,6 +163,8 @@ const ko: Record<keyof typeof en, string> = {
   "fs.size": "커버 크기",
   "fs.lockSize": "크기 잠금",
   "fs.unlockSize": "크기 잠금 해제",
+  "fs.clockSize": "시계 크기",
+  "fs.lyricSize": "가사 크기",
   "fs.nowPlaying": "\uc7ac\uc0dd \uc911",
   "fs.upNext": "다음 재생",
   "fs.nothingPlaying": "\uc7ac\uc0dd \uc911\uc778 \uace1\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
