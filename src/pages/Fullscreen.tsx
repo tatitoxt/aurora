@@ -412,8 +412,13 @@ export default function Fullscreen() {
                 tabIndex={0}
                 onClick={() => void bridge.playQueueIndex(idx)}
                 onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && e.key === "Enter")
+                  if (
+                    e.target === e.currentTarget &&
+                    (e.key === "Enter" || e.key === " ")
+                  ) {
+                    e.preventDefault();
                     void bridge.playQueueIndex(idx);
+                  }
                 }}
               >
                 <div className="fs__qbody">
