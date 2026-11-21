@@ -394,6 +394,16 @@ impl AudioOut for RodioOut {
             }
         }
     }
+    fn set_speed(&self, speed: f32) {
+        if let Ok(g) = self.inner.lock() {
+            if let Some(i) = g.as_ref() {
+                i.player.set_speed(speed);
+                if let Some(b) = i.b_player.as_ref() {
+                    b.set_speed(speed);
+                }
+            }
+        }
+    }
     fn is_finished(&self) -> bool {
         if let Ok(g) = self.inner.lock() {
             if let Some(i) = g.as_ref() {

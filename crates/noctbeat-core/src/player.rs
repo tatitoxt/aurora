@@ -25,6 +25,9 @@ pub trait AudioOut: Send + Sync {
     fn position_ms(&self) -> u64;
     fn seek(&self, position_ms: u64) -> Result<(), String>;
     fn set_volume(&self, volume: f32);
+    /// Playback speed multiplier (1.0 = normal). Sink-level: persists
+    /// across `open` calls. Default: unsupported no-op.
+    fn set_speed(&self, _speed: f32) {}
     /// True once the current file has finished playing.
     fn is_finished(&self) -> bool;
     /// Fade the current track out while `path` fades in on a second
@@ -62,6 +65,8 @@ pub struct NullAudio {
     playing: std::sync::atomic::AtomicBool,
     anchor_ms: std::sync::atomic::AtomicU64,
     duration_ms: std::sync::atomic::AtomicU64,
+    /// f32 bits of the last requested speed — records calls for tests.
+    speed_bits: std::sync::atomic::AtomicU64,
 }
 
 impl Default for NullAudio {
@@ -77,6 +82,7 @@ impl NullAudio {
             playing: false.into(),
             anchor_ms: now_ms().into(),
             duration_ms: 0.into(),
+            speed_bits: (1.0f32.to_bits() as u64).into(),
         }
     }
 }
@@ -120,6 +126,10 @@ impl AudioOut for NullAudio {
         Ok(())
     }
     fn set_volume(&self, _volume: f32) {}
+    fn set_speed(&self, speed: f32) {
+        self.speed_bits
+            .store(speed.to_bits() as u64, std::sync::atomic::Ordering::SeqCst);
+    }
     fn is_finished(&self) -> bool {
         let dur = self.duration_ms.load(std::sync::atomic::Ordering::SeqCst);
         dur > 0 && self.position_ms() >= dur
@@ -141,6 +151,8 @@ pub struct LocalPlayer {
     shuffle: bool,
     repeat: RepeatMode,
     volume: f32,
+    /// Playback speed multiplier — survives track changes (sink-level).
+    speed: f32,
     /// xorshift64 state for shuffle picks — avoids pulling in `rand`
     /// for one call site.
     rng: u64,
@@ -171,6 +183,7 @@ impl LocalPlayer {
             shuffle: false,
             repeat: RepeatMode::Off,
             volume: 1.0,
+            speed: 1.0,
             rng: now_ms() | 1,
             loaded: false,
             resume_position_ms: 0,
@@ -203,6 +216,17 @@ impl LocalPlayer {
 
     pub fn volume(&self) -> f32 {
         self.volume
+    }
+
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
+
+    /// Playback speed multiplier, clamped to a sane musical range
+    /// (0.5–2.0 covers slowed/nightcore territory).
+    pub fn set_speed(&mut self, speed: f32) {
+        self.speed = speed.clamp(0.5, 2.0);
+        self.audio.set_speed(self.speed);
     }
 
     /// Next queue index under shuffle: any slot except the current one.
@@ -632,6 +656,7 @@ mod tests {
         finished: std::sync::atomic::AtomicBool,
         opened: std::sync::Mutex<Vec<String>>,
         xfaded: std::sync::Mutex<Option<(String, u64)>>,
+        speed_bits: AtomicU64,
     }
     impl FakeAudio {
         fn new() -> Self {
@@ -641,6 +666,7 @@ mod tests {
                 finished: false.into(),
                 opened: vec![].into(),
                 xfaded: None.into(),
+                speed_bits: (1.0f32.to_bits() as u64).into(),
             }
         }
     }
@@ -665,6 +691,9 @@ mod tests {
             Ok(())
         }
         fn set_volume(&self, _v: f32) {}
+        fn set_speed(&self, v: f32) {
+            self.speed_bits.store(v.to_bits() as u64, Ordering::SeqCst);
+        }
         fn is_finished(&self) -> bool {
             self.finished.load(Ordering::SeqCst)
         }
@@ -892,6 +921,21 @@ mod tests {
         assert_eq!(p.volume(), 0.4);
         p.set_volume(7.0);
         assert_eq!(p.volume(), 1.0);
+    }
+
+    #[test]
+    fn speed_is_tracked_clamped_and_propagated() {
+        let (mut p, audio) = player();
+        p.set_speed(1.25);
+        assert_eq!(p.speed(), 1.25);
+        assert_eq!(
+            f32::from_bits(audio.speed_bits.load(Ordering::SeqCst) as u32),
+            1.25
+        );
+        p.set_speed(9.0);
+        assert_eq!(p.speed(), 2.0);
+        p.set_speed(0.1);
+        assert_eq!(p.speed(), 0.5);
     }
 
     #[test]
