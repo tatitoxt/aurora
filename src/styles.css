@@ -123,7 +123,7 @@ body {
   from { opacity: 0; transform: translateY(14px) scale(.97); }
   to { opacity: 1; transform: none; }
 }
-.kword { color: rgba(242, 242, 245, 0.3); margin-right: .28em; transition: color .25s, text-shadow .25s; display: inline-block; }
+.kword { color: rgba(242, 242, 245, 0.3); margin-right: .28em; transition: color .25s, text-shadow .25s; display: inline-block; unicode-bidi: embed; }
 .kword--now {
   color: #fff;
   text-shadow: 0 0 26px rgba(255, 255, 255, 0.55);
@@ -138,6 +138,9 @@ body {
   transform: translateY(-0.12em);
 }
 .kword--adlib.kword--now { text-shadow: 0 0 14px rgba(255, 255, 255, 0.3); }
+/* Fullscreen word spans are inline by default — inline-block so the
+ * per-word lyric-animation transforms actually move them. */
+.fsword { display: inline-block; unicode-bidi: embed; }
 /* Line-level adlib spans (fullscreen + list lyrics). */
 .adlib {
   opacity: 0.5;
@@ -1465,6 +1468,116 @@ body {
 .lanim--letters .lyric--active {
   animation: lanim-letters 0.25s ease both;
 }
+@keyframes lanim-split {
+  from { opacity: 0; transform: translateX(var(--sx, 0.6em)); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes lanim-glitch {
+  0% { opacity: 0; transform: translate(2px, -1px) skewX(8deg); clip-path: inset(0 0 60% 0); }
+  30% { opacity: 1; transform: translate(-2px, 1px) skewX(-6deg); clip-path: inset(40% 0 0 0); }
+  60% { transform: translate(1px, 0) skewX(3deg); clip-path: inset(0); }
+  100% { opacity: 1; transform: none; clip-path: inset(0); }
+}
+@keyframes lanim-orbit {
+  from { opacity: 0; transform: translateY(0.5em) rotate(35deg) scale(0.7); }
+  to { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+@keyframes lanim-ripple {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes lanim-cascade {
+  from { opacity: 0; transform: translate(0.4em, -0.5em); }
+  to { opacity: 1; transform: translate(0, 0); }
+}
+@keyframes lanim-drift {
+  from { opacity: 0; transform: translateX(-0.8em); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes lanim-mask {
+  from { clip-path: inset(0 0 100% 0); transform: translateY(0.15em); }
+  to { clip-path: inset(0 0 0 0); transform: translateY(0); }
+}
+@keyframes lanim-swing {
+  0% { opacity: 0; transform: rotate(-9deg) translateY(0.3em); transform-origin: bottom left; }
+  60% { opacity: 1; transform: rotate(4deg); }
+  100% { opacity: 1; transform: rotate(0); }
+}
+@keyframes lanim-ink {
+  from { opacity: 0; filter: blur(4px); letter-spacing: 0.14em; }
+  to { opacity: 1; filter: blur(0); letter-spacing: normal; }
+}
+@keyframes lanim-shimmer {
+  from { opacity: 0; filter: brightness(2.2); }
+  to { opacity: 1; filter: brightness(1); }
+}
+.lanim--split .kword,
+.lanim--split .fsword {
+  animation: lanim-split 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+.lanim--split .kword:nth-child(odd),
+.lanim--split .fsword:nth-child(odd) {
+  --sx: -0.6em;
+}
+.lanim--split .lyric--active {
+  animation: lanim-fade 0.4s ease both;
+}
+.lanim--glitch .karaoke__line,
+.lanim--glitch.fs__lyric,
+.lanim--glitch .lyric--active {
+  animation: lanim-glitch 0.45s steps(3, end) both;
+}
+.lanim--orbit .kword,
+.lanim--orbit .fsword {
+  animation: lanim-orbit 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.lanim--orbit .lyric--active {
+  animation: lanim-orbit 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+.lanim--ripple .kword,
+.lanim--ripple .fsword {
+  animation: lanim-ripple 0.45s ease both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.lanim--ripple .lyric--active {
+  animation: lanim-ripple 0.45s ease both;
+}
+.lanim--cascade .kword,
+.lanim--cascade .fsword {
+  animation: lanim-cascade 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.lanim--cascade .lyric--active {
+  animation: lanim-cascade 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--drift .karaoke__line,
+.lanim--drift.fs__lyric,
+.lanim--drift .lyric--active {
+  animation: lanim-drift 0.8s ease both;
+}
+.lanim--mask .karaoke__line,
+.lanim--mask.fs__lyric,
+.lanim--mask .lyric--active {
+  animation: lanim-mask 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lanim--swing .karaoke__line,
+.lanim--swing.fs__lyric,
+.lanim--swing .lyric--active {
+  animation: lanim-swing 0.6s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+.lanim--ink .karaoke__line,
+.lanim--ink.fs__lyric,
+.lanim--ink .lyric--active {
+  animation: lanim-ink 0.6s ease both;
+}
+.lanim--shimmer .karaoke__line,
+.lanim--shimmer.fs__lyric,
+.lanim--shimmer .lyric--active {
+  animation: lanim-shimmer 0.6s ease both;
+}
 .lanim--none .karaoke__line,
 .lanim--none.fs__lyric {
   animation: none;
@@ -1486,7 +1599,17 @@ body {
   .lanim--wave .kword, .lanim--wave .fsword, .lanim--wave .lyric--active, .lanim--wave.fs__lyric,
   .lanim--scatter .kword, .lanim--scatter .fsword, .lanim--scatter .lyric--active, .lanim--scatter.fs__lyric,
   .lanim--focus .kword, .lanim--focus .fsword, .lanim--focus .lyric--active, .lanim--focus.fs__lyric,
-  .lanim--letters .kword, .lanim--letters .fsword, .lanim--letters .lyric--active, .lanim--letters.fs__lyric {
+  .lanim--letters .kword, .lanim--letters .fsword, .lanim--letters .lyric--active, .lanim--letters.fs__lyric,
+  .lanim--split .kword, .lanim--split .fsword, .lanim--split .lyric--active, .lanim--split.fs__lyric,
+  .lanim--glitch .karaoke__line, .lanim--glitch.fs__lyric, .lanim--glitch .lyric--active,
+  .lanim--orbit .kword, .lanim--orbit .fsword, .lanim--orbit .lyric--active, .lanim--orbit.fs__lyric,
+  .lanim--ripple .kword, .lanim--ripple .fsword, .lanim--ripple .lyric--active, .lanim--ripple.fs__lyric,
+  .lanim--cascade .kword, .lanim--cascade .fsword, .lanim--cascade .lyric--active, .lanim--cascade.fs__lyric,
+  .lanim--drift .karaoke__line, .lanim--drift.fs__lyric, .lanim--drift .lyric--active,
+  .lanim--mask .karaoke__line, .lanim--mask.fs__lyric, .lanim--mask .lyric--active,
+  .lanim--swing .karaoke__line, .lanim--swing.fs__lyric, .lanim--swing .lyric--active,
+  .lanim--ink .karaoke__line, .lanim--ink.fs__lyric, .lanim--ink .lyric--active,
+  .lanim--shimmer .karaoke__line, .lanim--shimmer.fs__lyric, .lanim--shimmer .lyric--active {
     animation: none;
   }
 }
