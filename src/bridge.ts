@@ -105,6 +105,11 @@ export interface QueueState {
   items: QueueItem[];
   currentIndex: number | null;
 }
+export interface ImportResult {
+  imported: number;
+  remote: number;
+  missing: number;
+}
 export type LicenseState =
   | { state: "unlicensed" }
   | { state: "valid"; customer_email: string | null; last_validated_ms: number }
@@ -385,6 +390,22 @@ export const bridge = {
     emitMock("settings", settingsStore);
     return Promise.resolve(null);
   },
+  /** Native file picker for a playlist file; null when cancelled or mocked. */
+  pickPlaylist: async (): Promise<string | null> => {
+    if (!isTauri()) return null;
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const sel = await open({
+      filters: [
+        { name: "Playlist", extensions: ["m3u", "m3u8", "pls", "xspf"] },
+        { name: "All files", extensions: ["*"] },
+      ],
+    });
+    return typeof sel === "string" ? sel : null;
+  },
+  importPlaylist: (path: string): Promise<ImportResult> =>
+    isTauri()
+      ? invokeCmd<ImportResult>("import_playlist", { path })
+      : Promise.resolve({ imported: 0, remote: 0, missing: 0 }),
   listDisplays: () =>
     isTauri()
       ? invokeCmd<DisplayInfo[]>("list_displays")

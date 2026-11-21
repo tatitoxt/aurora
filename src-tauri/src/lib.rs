@@ -249,6 +249,65 @@ async fn provider_play(
     Ok(item)
 }
 
+/// Outcome of `import_playlist`: tracks enqueued, http(s) entries left for
+/// the provider layer, and file entries that no longer exist on disk.
+#[derive(serde::Serialize)]
+struct ImportResult {
+    imported: u32,
+    remote: u32,
+    missing: u32,
+}
+
+/// Parse a playlist file (.m3u/.m3u8/.pls/.xspf) and enqueue every local
+/// track it lists. Remote URLs are counted, not dropped silently — the UI
+/// reports them as needing provider support.
+#[tauri::command]
+fn import_playlist(state: State<AppState>, path: String) -> Result<ImportResult, String> {
+    let file = std::path::PathBuf::from(&path);
+    let content = std::fs::read_to_string(&file).map_err(|e| format!("read {path}: {e}"))?;
+    let entries = noctbeat_core::playlists::parse(&file, &content);
+    let mut player = state.player.lock().map_err(|e| e.to_string())?;
+    let mut res = ImportResult {
+        imported: 0,
+        remote: 0,
+        missing: 0,
+    };
+    for entry in entries {
+        match entry {
+            noctbeat_core::playlists::PlaylistEntry::File {
+                path,
+                title,
+                artist,
+                duration_ms,
+            } => {
+                if !path.is_file() {
+                    res.missing += 1;
+                    continue;
+                }
+                let name = path.to_string_lossy().into_owned();
+                player.add(noctbeat_core::player::QueueItem {
+                    track: noctbeat_core::media::Track {
+                        id: name.clone(),
+                        title: title.unwrap_or_else(|| {
+                            path.file_stem()
+                                .map(|s| s.to_string_lossy().into_owned())
+                                .unwrap_or_else(|| name.clone())
+                        }),
+                        artist: artist.unwrap_or_else(|| "Unknown".into()),
+                        album: String::new(),
+                        artwork_url: String::new(),
+                        duration_ms: duration_ms.unwrap_or(0),
+                    },
+                    path: name,
+                });
+                res.imported += 1;
+            }
+            noctbeat_core::playlists::PlaylistEntry::Remote(_) => res.remote += 1,
+        }
+    }
+    Ok(res)
+}
+
 /// Retune the live EQ (dB per band) and persist the choice.
 #[tauri::command]
 fn set_eq(app: tauri::AppHandle, preset: String, bands: Vec<f32>) -> Result<(), String> {
@@ -700,6 +759,7 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             source: Mutex::new(source),
             player: Mutex::new(LocalPlayer::new(audio_out)),
@@ -749,6 +809,7 @@ pub fn run() {
             list_outputs,
             set_output_device,
             set_eq,
+            import_playlist,
         ])
         .setup(move |app| {
             spawn_poller(app.handle());

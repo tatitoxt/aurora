@@ -20,6 +20,7 @@ export default function Library() {
   const [results, setResults] = useState<RemoteTrack[]>([]);
   const [searching, setSearching] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [importNote, setImportNote] = useState("");
 
   const refresh = () => bridge.getQueue().then(setQueue).catch(() => {});
 
@@ -61,6 +62,23 @@ export default function Library() {
       .then(() => refresh())
       .catch((e) => setError(String(e)))
       .finally(() => setDownloading(null));
+  };
+
+  const importPlaylist = () => {
+    setError("");
+    setImportNote("");
+    void bridge
+      .pickPlaylist()
+      .then((path) => (path ? bridge.importPlaylist(path) : null))
+      .then((res) => {
+        if (!res) return;
+        refresh();
+        const parts = [`${res.imported} tracks added`];
+        if (res.remote > 0) parts.push(`${res.remote} online entries skipped`);
+        if (res.missing > 0) parts.push(`${res.missing} files not found`);
+        setImportNote(parts.join(" · "));
+      })
+      .catch((e) => setError(String(e)));
   };
 
   const playing = np?.status === "playing";
@@ -128,9 +146,11 @@ export default function Library() {
           <span>{queue.items.length} tracks</span>
           <div className="seg">
             <button onClick={rescan}>Rescan</button>
+            <button onClick={importPlaylist}>Import</button>
             <button onClick={() => void bridge.clearQueue().then(refresh)}>Clear</button>
           </div>
         </div>
+        {importNote && <span className="field">{importNote}</span>}
         {error && <span className="license-bad">{error}</span>}
         {queue.items.length === 0 && !error && (
           <span className="field">Set a music folder in settings, then press Rescan.</span>
