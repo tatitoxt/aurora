@@ -88,6 +88,8 @@ export interface Settings {
   sleepTimerEndsMs: number | null;
   /** Restore the last queue paused at its position on launch. */
   resumeOnLaunch: boolean;
+  /** Desktop notification when the track changes. */
+  notifyTrackChange: boolean;
 }
 
 /** EQ band center frequencies, Hz — mirrors noctbeat_core::eq::EQ_FREQS. */
@@ -219,6 +221,7 @@ export const DEFAULT_SETTINGS: Settings = {
   deskLyricsPosition: null,
   sleepTimerEndsMs: null,
   resumeOnLaunch: true,
+  notifyTrackChange: true,
   profiles: [],
   activeProfile: null,
 };

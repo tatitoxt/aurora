@@ -1728,6 +1728,7 @@ fn spawn_poller(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut ticks = 0u64;
         let mut last_tick = std::time::Instant::now();
+        let mut last_track_id: Option<String> = None;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(200));
             ticks += 1;
@@ -1754,6 +1755,31 @@ fn spawn_poller(app: &tauri::AppHandle) {
                 }
                 poll_np(&state)
             };
+            // Now Playing notification on track change while playing.
+            {
+                let cur_id = np.track.as_ref().map(|t| t.id.clone());
+                if cur_id != last_track_id {
+                    if np.status == PlaybackStatus::Playing {
+                        if let Some(t) = np.track.as_ref() {
+                            let notify = state
+                                .settings
+                                .lock()
+                                .map(|s| s.notify_track_change)
+                                .unwrap_or(false);
+                            if notify {
+                                use tauri_plugin_notification::NotificationExt;
+                                let _ = app
+                                    .notification()
+                                    .builder()
+                                    .title(&t.title)
+                                    .body(&t.artist)
+                                    .show();
+                            }
+                        }
+                    }
+                    last_track_id = cur_id;
+                }
+            }
             // Persist the local queue + position ~every 5s so the next
             // launch can offer Continue Playing (final flush on Exit).
             if ticks.is_multiple_of(25) {
@@ -1886,6 +1912,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState {
             source: Mutex::new(source),
             player: Mutex::new(local_player),

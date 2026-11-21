@@ -134,6 +134,9 @@ pub struct Settings {
     /// (the "Continue Playing" state).
     #[serde(default = "default_true")]
     pub resume_on_launch: bool,
+    /// Desktop notification when the track changes.
+    #[serde(default = "default_true")]
+    pub notify_track_change: bool,
 }
 
 fn default_eq_preset() -> String {
@@ -181,6 +184,7 @@ impl Default for Settings {
             active_profile: None,
             sleep_timer_ends_ms: None,
             resume_on_launch: true,
+            notify_track_change: true,
         }
     }
 }
