@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { branding } from "../branding";
-import { LANG_NAMES, useT } from "../i18n";
+import { LANG_NAMES, useT, type MsgKey } from "../i18n";
 import { THEMES, presetVar } from "../themes";
 import {
   bridge,
@@ -149,6 +149,22 @@ export default function Settings() {
             </button>
           </div>
         </div>
+
+        {s.lyricsMode === "karaoke" && (
+          <div className="row">
+            <span>{t("set.lyricAnim")}</span>
+            <select
+              value={s.lyricAnim}
+              onChange={(e) => patch({ lyricAnim: e.target.value })}
+            >
+              {["fade", "slide", "pop", "typewriter", "pulse", "none"].map((a) => (
+                <option key={a} value={a}>
+                  {t(`anim.${a}` as MsgKey)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {s.lyricsMode === "karaoke" && (
           <div className="row">

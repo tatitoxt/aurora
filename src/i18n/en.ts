@@ -165,6 +165,13 @@ const en = {
   "stats.recap": "Recap",
   "stats.insights": "Insights",
   "player.stickers": "Stickers",
+  "set.lyricAnim": "Lyric animation",
+  "anim.fade": "Fade",
+  "anim.slide": "Slide",
+  "anim.pop": "Pop",
+  "anim.typewriter": "Typewriter",
+  "anim.pulse": "Pulse",
+  "anim.none": "None",
 } as const;
 
 export default en;
