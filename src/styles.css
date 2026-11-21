@@ -890,3 +890,8 @@ body {
 }
 .fs__vrow:hover { background: rgba(255,255,255,0.07); }
 .fs__vishair { display: flex; align-items: center; gap: 8px; }
+
+/* lyric fit inside the remaining stage for wide text in these styles */
+.fs--pearl .fs__lyric, .fs--arc .fs__lyric, .fs--studio .fs__lyric {
+  font-size: clamp(36px, 7vh, 78px); max-width: 100%;
+}
