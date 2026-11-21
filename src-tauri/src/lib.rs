@@ -979,7 +979,11 @@ fn playlist_path_checked(
             .filter(|p| p.to_string_lossy() == path)
             .collect();
     match matches.as_slice() {
-        [one] => Ok(one.clone()),
+        // Canonicalize so `parse`'s base dir is always absolute: with a
+        // relative music dir (e.g. "Music") a relative playlist path
+        // would make `file_entry` produce `Music/song.mp3`, which a
+        // rewrite then saves back and reimports as `Music/Music/…`.
+        [one] => std::fs::canonicalize(one).map_err(|e| e.to_string()),
         [] => Err("not a playlist in the music folder".into()),
         _ => Err("name isn't representable — rename it in a file manager first".into()),
     }
@@ -1120,8 +1124,13 @@ fn rewrite_playlist(
             }
         })
         .collect();
-    std::fs::write(file, noctbeat_core::playlists::write_m3u(&items))
-        .map_err(|e| format!("write {}: {e}", file.display()))
+    // Write-then-rename: a failed `write` (e.g. full disk) would leave
+    // the original truncated, so stage the new content in a sibling
+    // file and swap it in atomically.
+    let tmp = file.with_extension("noctbeat-tmp");
+    std::fs::write(&tmp, noctbeat_core::playlists::write_m3u(&items))
+        .map_err(|e| format!("write {}: {e}", tmp.display()))?;
+    std::fs::rename(&tmp, file).map_err(|e| format!("write {}: {e}", file.display()))
 }
 
 /// Drop the entry at `index` from a playlist and rewrite it in place.
