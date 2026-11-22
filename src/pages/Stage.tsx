@@ -421,7 +421,7 @@ export default function Stage() {
   /* Inertial scrolling: wheel deltas and drag flings feed `target`/`vel`;
      a rAF loop eases scrollLeft toward target so motion is butter-smooth
      instead of jumping per input event. */
-  const scrollAnim = useRef({ raf: 0, target: -1, vel: 0 });
+  const scrollAnim = useRef({ raf: 0, target: 0, vel: 0, set: false });
   const runCoversAnim = () => {
     const s = scrollAnim.current;
     if (s.raf) return;
@@ -432,7 +432,10 @@ export default function Stage() {
         return;
       }
       const max = Math.max(0, el.scrollWidth - el.clientWidth);
-      if (s.target < 0) s.target = el.scrollLeft;
+      if (!s.set) {
+        s.target = el.scrollLeft;
+        s.set = true;
+      }
       s.target += s.vel;
       s.vel *= 0.93;
       s.target = Math.max(0, Math.min(max, s.target));
@@ -681,7 +684,10 @@ export default function Stage() {
             const el = coversRef.current;
             if (!el) return;
             const s = scrollAnim.current;
-            if (s.target < 0) s.target = el.scrollLeft;
+            if (!s.set) {
+              s.target = el.scrollLeft;
+              s.set = true;
+            }
             const d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
             s.target += d;
             s.vel = 0;
@@ -707,6 +713,7 @@ export default function Stage() {
               lastX = ev.clientX;
               el.scrollLeft = sl - dx;
               s.target = el.scrollLeft;
+              s.set = true;
             };
             const end = () => {
               window.removeEventListener("pointermove", move);
