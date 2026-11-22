@@ -658,7 +658,7 @@ export const bridge = {
   },
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
-      ? invokeCmd<string | null>("ext_video").catch(() => null)
+      ? invokeCmd<string | null>("ext_video", { artist, title }).catch(() => null)
       : /* demo preview only: the real official video as a YouTube embed so
          * the videoclip backdrop plays audio + video outside Tauri; the app
          * embeds the video playing in the user's YouTube tab, muted. */

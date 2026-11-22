@@ -333,12 +333,16 @@ async fn catalog_search(query: String) -> Result<Vec<CatalogSong>, String> {
 /// Official YouTube embed of the video playing in the user's tab, for the
 /// stage backdrop. None for other providers and local files.
 #[tauri::command]
-fn ext_video(state: State<AppState>) -> Result<Option<String>, String> {
+fn ext_video(
+    state: State<AppState>,
+    artist: String,
+    title: String,
+) -> Result<Option<String>, String> {
     let id = state
         .source
         .lock()
         .map_err(|e| e.to_string())?
-        .ext_video_id();
+        .ext_video_id(&artist, &title);
     Ok(id.map(|id| {
         format!(
             "https://www.youtube.com/embed/{id}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&controls=0&iv_load_policy=3&mute=1"

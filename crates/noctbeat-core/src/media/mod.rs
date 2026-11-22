@@ -78,8 +78,9 @@ pub trait NowPlayingSource: Send {
     fn ext_providers(&self) -> Vec<String> {
         Vec::new()
     }
-    /// YouTube video id of the freshest extension tab on a watch page.
-    fn ext_video_id(&self) -> Option<String> {
+    /// YouTube video id of an extension tab on a watch page whose track is
+    /// `artist` / `title` (so local audio never gets an unrelated clip).
+    fn ext_video_id(&self, _artist: &str, _title: &str) -> Option<String> {
         None
     }
     /// Ask a connected `provider` tab ("spotify", "youtube", ...) to search

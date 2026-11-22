@@ -164,11 +164,18 @@ impl NowPlayingSource for BrowserSource {
         v
     }
 
-    fn ext_video_id(&self) -> Option<String> {
+    fn ext_video_id(&self, artist: &str, title: &str) -> Option<String> {
+        let norm = |x: &str| x.trim().to_lowercase();
+        let (artist, title) = (norm(artist), norm(title));
         let s = self.shared.lock().unwrap();
         s.tabs
             .values()
-            .filter(|t| t.received_at.elapsed() < STALE && t.np.track.is_some())
+            .filter(|t| t.received_at.elapsed() < STALE)
+            .filter(|t| {
+                t.np.track
+                    .as_ref()
+                    .is_some_and(|k| norm(&k.title) == title && norm(&k.artist) == artist)
+            })
             .max_by_key(|t| (t.np.status == PlaybackStatus::Playing, t.received_at))
             .and_then(|t| t.video_id.clone())
     }
