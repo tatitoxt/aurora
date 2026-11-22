@@ -33,6 +33,31 @@ struct Shared {
     /// When poll() last ran; drives position extrapolation between reports.
     last_poll: Option<Instant>,
     commands: Vec<Control>,
+    /// Pending "search and play" for a provider's tab: (provider, query, queued at).
+    play: Option<(String, String, Instant)>,
+}
+
+/// A pending tab play expires if no matching tab picks it up in time.
+const PLAY_TTL: Duration = Duration::from_secs(15);
+
+/// Picker id for an extension-reported provider host.
+pub fn provider_id(host: &str) -> &'static str {
+    let h = host.to_ascii_lowercase();
+    if h.contains("spotify") {
+        "spotify"
+    } else if h.contains("youtube") {
+        "youtube"
+    } else if h.contains("soundcloud") {
+        "soundcloud"
+    } else if h.contains("apple") {
+        "apple"
+    } else if h.contains("tidal") {
+        "tidal"
+    } else if h.contains("amazon") {
+        "amazon"
+    } else {
+        "browser"
+    }
 }
 
 impl Shared {
@@ -122,6 +147,31 @@ impl NowPlayingSource for BrowserSource {
             .count();
         let provider = s.active().map(|(_, t)| t.np.source.clone());
         Some((fresh, provider))
+    }
+
+    fn ext_providers(&self) -> Vec<String> {
+        let s = self.shared.lock().unwrap();
+        let mut v: Vec<String> = s
+            .tabs
+            .values()
+            .filter(|t| t.received_at.elapsed() < STALE)
+            .map(|t| t.np.source.clone())
+            .collect();
+        v.sort();
+        v.dedup();
+        v
+    }
+
+    fn play_in_tab(&mut self, provider: &str, query: &str) -> bool {
+        let mut s = self.shared.lock().unwrap();
+        let has_tab = s
+            .tabs
+            .values()
+            .any(|t| t.received_at.elapsed() < STALE && provider_id(&t.np.source) == provider);
+        if has_tab {
+            s.play = Some((provider.to_string(), query.to_string(), Instant::now()));
+        }
+        has_tab
     }
 }
 
@@ -284,14 +334,32 @@ fn handle(mut stream: std::net::TcpStream, shared: &Arc<Mutex<Shared>>) {
             } else {
                 Vec::new()
             };
-            format!(
-                "{{\"commands\":{}}}",
-                serde_json::to_string(&cmds).unwrap_or_else(|_| "[]".into())
-            )
+            let source = s
+                .tabs
+                .get(&key)
+                .map(|t| t.np.source.clone())
+                .unwrap_or_default();
+            let play = take_play(&mut s, &source);
+            serde_json::json!({ "commands": cmds, "play": play.map(|q| serde_json::json!({ "query": q })) })
+                .to_string()
         }
         Err(_) => "{\"commands\":[]}".into(),
     };
     write_response(&mut stream, 200, &resp);
+}
+
+/// Hand the pending tab play to a tab of the requested provider (any tab of
+/// it, playing or idle) and drop it once expired.
+fn take_play(s: &mut Shared, source: &str) -> Option<String> {
+    let (provider, _, at) = s.play.as_ref()?;
+    if at.elapsed() > PLAY_TTL {
+        s.play = None;
+        return None;
+    }
+    if provider_id(source) != provider {
+        return None;
+    }
+    s.play.take().map(|(_, q, _)| q)
 }
 
 fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
@@ -380,5 +448,18 @@ mod tests {
         s.commands.push(Control::Next);
         let cmds: Vec<Control> = std::mem::take(&mut s.commands);
         assert_eq!(cmds, vec![Control::Next]);
+    }
+
+    #[test]
+    fn tab_play_goes_only_to_matching_provider() {
+        let mut s = Shared::default();
+        s.play = Some(("spotify".into(), "juice wrld".into(), Instant::now()));
+        assert_eq!(take_play(&mut s, "music.youtube.com"), None);
+        assert_eq!(
+            take_play(&mut s, "open.spotify.com").as_deref(),
+            Some("juice wrld")
+        );
+        assert_eq!(take_play(&mut s, "open.spotify.com"), None);
+        assert_eq!(provider_id("www.youtube.com"), "youtube");
     }
 }

@@ -464,10 +464,24 @@ export const bridge = {
    * and the live-dot state demo what the desktop app looks like bridged. */
   systemAccent: (): Promise<string | null> =>
     isTauri() ? invokeCmd<string | null>("system_accent") : Promise.resolve(null),
-  getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
+  getExtStatus: (): Promise<{
+    tabs: number;
+    provider: string | null;
+    providers?: string[];
+  } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
-      : Promise.resolve({ tabs: 1, provider: "open.spotify.com" }),
+      : Promise.resolve({
+          tabs: 1,
+          provider: "open.spotify.com",
+          providers: ["open.spotify.com"],
+        }),
+  /** Search and play in the user's open provider tab via Noctbeat Bridge;
+   * false when no tab of that provider is connected. */
+  extPlay: (provider: string, query: string): Promise<boolean> =>
+    isTauri()
+      ? invokeCmd<boolean>("ext_play", { provider, query })
+      : Promise.resolve(provider === "spotify"),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);

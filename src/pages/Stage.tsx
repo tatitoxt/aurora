@@ -177,11 +177,13 @@ export default function Stage() {
   const [ext, setExt] = useState<{
     tabs: number;
     provider: string | null;
+    providers?: string[];
   } | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState("");
+  const [searchNote, setSearchNote] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
   const [provMode, setProvMode] = useState<"prov" | "search">("prov");
@@ -205,7 +207,19 @@ export default function Stage() {
       localStorage.setItem("fs.qpin", v ? "0" : "1");
       return !v;
     });
-  const dragQPanel = (e: React.PointerEvent<HTMLDivElement>) => {
+  const [libPos, setLibPos] = useState<{ x: number; y: number } | null>(
+    () => {
+      try {
+        return JSON.parse(localStorage.getItem("fs.libpos") || "null");
+      } catch {
+        return null;
+      }
+    },
+  );
+  const dragPanel = (
+    setPos: (p: { x: number; y: number }) => void,
+    key: string,
+  ) => (e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("button")) return;
     const panel = e.currentTarget.parentElement as HTMLElement;
     const r = panel.getBoundingClientRect();
@@ -220,12 +234,12 @@ export default function Stage() {
           Math.min(window.innerHeight - r.height, ev.clientY - dy),
         ),
       };
-      setQPos(last);
+      setPos(last);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      if (last) localStorage.setItem("fs.qpos", JSON.stringify(last));
+      if (last) localStorage.setItem(key, JSON.stringify(last));
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -286,6 +300,14 @@ export default function Stage() {
       .catch(() => {});
   }, [provOpen]);
 
+  const connected = new Set(
+    (ext?.providers?.length
+      ? ext.providers
+      : ext?.provider
+        ? [ext.provider]
+        : []
+    ).map(extProviderId),
+  );
   const ProvIcon =
     PROVIDERS.find((p) => p.id === searchSrc)?.icon ?? YoutubeLogo;
   const track = np?.track ?? null;
@@ -739,10 +761,23 @@ export default function Stage() {
       {libOpen && (
         <div
           className="fs__libpop"
+          style={
+            libPos
+              ? {
+                  left: `min(${libPos.x}px, calc(100% - 140px))`,
+                  top: `min(${libPos.y}px, calc(100% - 80px))`,
+                }
+              : undefined
+          }
           onClick={(e) =>
             (e.target as HTMLElement).closest("a") && setLibOpen(false)
           }
         >
+          <div
+            className="fs__libgrip"
+            title={t("fs.dragMove")}
+            onPointerDown={dragPanel(setLibPos, "fs.libpos")}
+          />
           <button
             className="fs__icon fs__libclose"
             aria-label={t("fs.close")}
@@ -766,7 +801,7 @@ export default function Stage() {
               : undefined
           }
         >
-          <div className="fs__qhead" onPointerDown={dragQPanel}>
+          <div className="fs__qhead" onPointerDown={dragPanel(setQPos, "fs.qpos")}>
             <span className="fs__qtitle">{t("fs.upNext")}</span>
             <button
               className={`fs__icon ${qPinned ? "fs__icon--on" : ""}`}
@@ -1088,7 +1123,7 @@ export default function Stage() {
           </div>
           <div className="fs__pill">
             <span className="fs__pgl">
-              <span className="fs__vol">
+              <span className="fs__vol fs__vol--prov">
                 <button
                   className={`fs__icon ${provOpen && provMode === "prov" ? "fs__icon--on" : ""}`}
                   aria-label={t("fs.provider")}
@@ -1100,17 +1135,6 @@ export default function Stage() {
                 >
                   <ProvIcon size={16} weight="fill" />
                 </button>
-                <button
-                  className={`fs__icon ${provOpen && provMode === "search" ? "fs__icon--on" : ""}`}
-                  aria-label={t("fs.searchSongs")}
-                  title={t("fs.searchSongs")}
-                  onClick={() => {
-                    setProvMode("search");
-                    setProvOpen((v) => !v || provMode !== "search");
-                  }}
-                >
-                  <MagnifyingGlass size={16} />
-                </button>
                 {provOpen && (
                   <span
                     className={`fs__volpop fs__morepop fs__provpop fs__provpop--${provMode}`}
@@ -1119,11 +1143,15 @@ export default function Stage() {
                       <>
                         {ext && ext.tabs > 0 ? (
                           <span className="fs__extlive">
-                            Browser bridge ·{" "}
-                            {ext.provider
-                              ? extLabel(ext.provider)
-                              : "connected"}{" "}
-                            ● live
+                            ● {t("fs.connected")} ·{" "}
+                            {(ext.providers?.length
+                              ? ext.providers
+                              : ext.provider
+                                ? [ext.provider]
+                                : []
+                            )
+                              .map(extLabel)
+                              .join(", ")}
                           </span>
                         ) : (
                           <span className="fs__extlive fs__extlive--off">
@@ -1145,25 +1173,23 @@ export default function Stage() {
                           </span>
                         )}
                         {PROVIDERS.map((p) => {
-                          const viaExt =
-                            !p.live && p.id === extProviderId(ext?.provider);
+                          const on = connected.has(p.id);
                           return (
                             <button
                               key={p.id}
                               className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
-                              disabled={!p.live}
                               onClick={() => setSearchSrc(p.id)}
                             >
                               <p.icon size={14} weight="fill" /> {p.label}
-                              {viaExt ? (
-                                <span className="fs__soon fs__soon--live">
-                                  ●
-                                </span>
-                              ) : (
-                                !p.live && (
-                                  <span className="fs__soon">Soon</span>
-                                )
-                              )}
+                              <span
+                                className={`fs__soon ${on ? "fs__soon--live" : ""}`}
+                              >
+                                {on
+                                  ? t("fs.connected")
+                                  : p.live
+                                    ? t("fs.inApp")
+                                    : t("fs.openWeb")}
+                              </span>
                             </button>
                           );
                         })}
@@ -1188,10 +1214,39 @@ export default function Stage() {
                               searching
                             )
                               return;
-                            setSearching(true);
+                            const q = searchQ.trim();
+                            const label =
+                              PROVIDERS.find((p) => p.id === searchSrc)
+                                ?.label ?? searchSrc;
                             setSearchErr("");
+                            setSearchNote("");
+                            // A connected tab plays it with the user's own account.
+                            if (connected.has(searchSrc)) {
+                              setSearching(true);
+                              void bridge
+                                .extPlay(searchSrc, q)
+                                .then((ok) =>
+                                  ok
+                                    ? (setSearchNote(
+                                        t("fs.playingInTab", { src: label }),
+                                      ),
+                                      setSearchQ(""))
+                                    : setSearchErr(
+                                        t("fs.noTab", { src: label }),
+                                      ),
+                                )
+                                .catch((err) => setSearchErr(String(err)))
+                                .finally(() => setSearching(false));
+                              return;
+                            }
+                            const p = PROVIDERS.find((x) => x.id === searchSrc);
+                            if (!p?.live) {
+                              setSearchErr(t("fs.noTab", { src: label }));
+                              return;
+                            }
+                            setSearching(true);
                             void bridge
-                              .providerSearch(searchSrc, searchQ.trim())
+                              .providerSearch(searchSrc, q)
                               .then(setSearchRes)
                               .catch((err) => setSearchErr(String(err)))
                               .finally(() => setSearching(false));
@@ -1199,6 +1254,9 @@ export default function Stage() {
                         />
                         {searchErr && (
                           <span className="fs__proverr">{searchErr}</span>
+                        )}
+                        {searchNote && !searchErr && (
+                          <span className="fs__extlive">● {searchNote}</span>
                         )}
                         {searchRes.length > 0 && (
                           <span className="fs__provres">
@@ -1371,6 +1429,17 @@ export default function Stage() {
                   </span>
                 )}
               </span>
+              <button
+                  className={`fs__icon ${provOpen && provMode === "search" ? "fs__icon--on" : ""}`}
+                  aria-label={t("fs.searchSongs")}
+                  title={t("fs.searchSongs")}
+                  onClick={() => {
+                    setProvMode("search");
+                    setProvOpen((v) => !v || provMode !== "search");
+                  }}
+                >
+                  <MagnifyingGlass size={16} />
+                </button>
               <span className="fs__vol">
                 <button
                   className={`fs__icon ${moreOpen ? "fs__icon--on" : ""}`}

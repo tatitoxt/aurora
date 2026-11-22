@@ -297,6 +297,7 @@ fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
 struct ExtStatus {
     tabs: usize,
     provider: Option<String>,
+    providers: Vec<String>,
 }
 
 #[tauri::command]
@@ -365,8 +366,19 @@ fn read_system_accent() -> Option<String> {
 #[tauri::command]
 fn get_ext_status(state: State<AppState>) -> Result<Option<ExtStatus>, String> {
     let s = state.source.lock().map_err(|e| e.to_string())?;
-    Ok(s.ext_status()
-        .map(|(tabs, provider)| ExtStatus { tabs, provider }))
+    let providers = s.ext_providers();
+    Ok(s.ext_status().map(|(tabs, provider)| ExtStatus {
+        tabs,
+        provider,
+        providers,
+    }))
+}
+
+/// Search `query` in the user's open `provider` tab and play the first hit.
+#[tauri::command]
+fn ext_play(state: State<AppState>, provider: String, query: String) -> Result<bool, String> {
+    let mut s = state.source.lock().map_err(|e| e.to_string())?;
+    Ok(s.play_in_tab(&provider, &query))
 }
 
 #[tauri::command]
@@ -2816,6 +2828,7 @@ pub fn run() {
             get_now_playing,
             get_ext_status,
             system_accent,
+            ext_play,
             media_control,
             get_palette,
             get_lyrics,
