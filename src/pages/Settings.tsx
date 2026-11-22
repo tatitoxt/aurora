@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import {
+  AppWindow,
+  Key,
+  Palette,
+  PlayCircle,
+  PlugsConnected,
+  TextT,
+  Waveform,
+} from "@phosphor-icons/react";
 import { branding } from "../branding";
 import { LANG_NAMES, useT, type MsgKey } from "../i18n";
 import { LYRIC_ANIMS } from "../lyricanim";
@@ -106,6 +115,20 @@ export default function Settings() {
 
   if (!loaded) return <div className="glass" />;
 
+  const groups: Array<{ id: string; label: string; icon: ReactNode }> = [
+    { id: "lyrics", label: t("set.grp.lyrics"), icon: <TextT /> },
+    { id: "look", label: t("set.grp.look"), icon: <Palette /> },
+    { id: "sound", label: t("set.grp.sound"), icon: <Waveform /> },
+    { id: "play", label: t("set.grp.play"), icon: <PlayCircle /> },
+    { id: "sources", label: t("set.grp.sources"), icon: <PlugsConnected /> },
+    { id: "windows", label: t("set.grp.windows"), icon: <AppWindow /> },
+    { id: "license", label: t("set.grp.license"), icon: <Key /> },
+  ];
+  const jump = (id: string) =>
+    document
+      .querySelector(`[data-setgrp="${id}"]`)
+      ?.scrollIntoView({ block: "start", behavior: "smooth" });
+
   return (
     <div className="glass">
       <div className="settings">
@@ -121,8 +144,21 @@ export default function Settings() {
           <h1 className="pagehead__name">{t("set.title")}</h1>
         </div>
 
+        <nav className="setnav" aria-label={t("set.title")}>
+          {groups.map((g) => (
+            <button key={g.id} className="setnav__pill" onClick={() => jump(g.id)}>
+              {g.icon}
+              <span>{g.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <section className="setblock" data-setgrp="lyrics">
+          <span className="setghead">
+            <TextT />
+            {t("set.grp.lyrics")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.lyrics")}</span>
         <div className="row">
           <span>{t("set.lyrics")}</span>
           <div className="seg">
@@ -191,9 +227,14 @@ export default function Settings() {
         </div>
 
         </div>
+        </section>
 
+        <section className="setblock" data-setgrp="look">
+          <span className="setghead">
+            <Palette />
+            {t("set.grp.look")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.look")}</span>
         <div className="field">
           <span>{t("set.theme")}</span>
           <div className="themegal">
@@ -209,7 +250,7 @@ export default function Settings() {
                     background: `linear-gradient(135deg, ${presetVar(th.name, "--bg")} 20%, ${presetVar(th.name, "--accent2")} 55%, ${presetVar(th.name, "--panel")})`,
                   }}
                 />
-                {th.label}
+                <span className="themechip__nm">{th.label}</span>
               </button>
             ))}
           </div>
@@ -271,9 +312,14 @@ export default function Settings() {
         {importErr && <div className="set__err">{importErr}</div>}
 
         </div>
+        </section>
 
+        <section className="setblock" data-setgrp="sound">
+          <span className="setghead">
+            <Waveform />
+            {t("set.grp.sound")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.sound")}</span>
         <div className="field">
           <span>{t("set.eq")}</span>
           <div className="seg">
@@ -363,9 +409,14 @@ export default function Settings() {
         </div>
 
         </div>
+        </section>
 
+        <section className="setblock" data-setgrp="play">
+          <span className="setghead">
+            <PlayCircle />
+            {t("set.grp.play")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.play")}</span>
         {outputs.length > 0 && (
           <div className="field">
             <span>{t("set.audioOutput")}</span>
@@ -449,9 +500,14 @@ export default function Settings() {
         )}
 
         </div>
+        </section>
 
+        <section className="setblock" data-setgrp="sources">
+          <span className="setghead">
+            <PlugsConnected />
+            {t("set.grp.sources")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.sources")}</span>
         <div className="field">
           <span>{t("set.musicFolder")}</span>
           <input
@@ -552,9 +608,14 @@ export default function Settings() {
         </div>
 
         </div>
+        </section>
 
+        <section className="setblock" data-setgrp="windows">
+          <span className="setghead">
+            <AppWindow />
+            {t("set.grp.windows")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.windows")}</span>
         <div className="row">
           <span>{t("set.liveTrayIcon")}</span>
           <button
@@ -601,9 +662,14 @@ export default function Settings() {
         </div>
 
         </div>
+        </section>
 
+        <section className="setblock" data-setgrp="license">
+          <span className="setghead">
+            <Key />
+            {t("set.grp.license")}
+          </span>
         <div className="setgroup">
-          <span className="setghead">{t("set.grp.license")}</span>
         <div className="field">
           <span>{t("set.license")}</span>
           {license.state === "valid" && (
@@ -639,6 +705,7 @@ export default function Settings() {
           )}
         </div>
         </div>
+        </section>
       </div>
     </div>
   );
