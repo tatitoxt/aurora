@@ -1,4 +1,5 @@
 import { type CSSProperties } from "react";
+import { VideoBackdrop } from "../VideoBackdrop";
 import { useT } from "../i18n";
 import { useLyricAnim } from "../lyricanim";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -89,6 +90,8 @@ const extProviderId = (host: string | null | undefined) =>
 
 /** Sharp video backdrop: muted, synced to the track position, faded in
  * once it can play. */
+/** Stage videos go through VideoBackdrop so YouTube embeds (browser preview)
+ * render as driven iframes with audio — desktop still gets the muted stream. */
 function FsVideo({
   url,
   posMs,
@@ -100,35 +103,13 @@ function FsVideo({
   playing: boolean;
   cls?: string;
 }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    if (playing) void v.play().catch(() => {});
-    else v.pause();
-  }, [playing, url]);
-
-  useEffect(() => {
-    const v = ref.current;
-    if (!v || !ready) return;
-    const vt = v.duration;
-    if (!vt) return;
-    // The element loops: a clip shorter than the song wraps with it.
-    const target = posMs / 1000 < vt ? posMs / 1000 : (posMs / 1000) % vt;
-    if (Math.abs(v.currentTime - target) > 0.6) v.currentTime = target;
-  }, [posMs, ready]);
-
   return (
-    <video
-      ref={ref}
-      className={`${cls} ${ready ? "fs__video--ready" : ""}`}
-      src={url}
-      muted
-      playsInline
-      loop
-      onCanPlay={() => setReady(true)}
+    <VideoBackdrop
+      url={url}
+      posMs={posMs}
+      playing={playing}
+      cls={cls}
+      readyCls="fs__video--ready"
     />
   );
 }
