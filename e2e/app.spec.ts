@@ -32,6 +32,24 @@ test.describe("Noctbeat stage", () => {
     await expect(page.locator(".fs__lyrics")).toBeVisible();
   });
 
+  for (const { width, height } of [
+    { width: 300, height: 480 },
+    { width: 340, height: 560 },
+    { width: 600, height: 520 },
+  ]) {
+    test(`track and playback stay readable at ${width}×${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`${APP}/#/`);
+      await expect(page.locator(".fs__meta")).toBeVisible();
+      const transport = page.locator(".fs__pill");
+      for (const name of ["Previous", "Next", "More"]) {
+        await expect(transport.getByRole("button", { name, exact: true })).toBeInViewport({ ratio: 1 });
+      }
+      await expect(transport.getByRole("button", { name: /^(Play|Pause)$/ })).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole("slider", { name: "Seek" })).toBeInViewport({ ratio: 1 });
+    });
+  }
+
   test("seek hairline scrubs the track", async ({ page }) => {
     await page.goto(`${APP}/#/`);
     // wait for the first now-playing event so a seekable track is loaded

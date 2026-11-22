@@ -109,8 +109,30 @@ function EmbedBackdrop({
   const sync = useRef({ pos: 0, at: 0 });
   const unmuted = useRef(false);
   const [loaded, setLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
   const posRef = useRef(posMs);
   posRef.current = posMs;
+
+  useEffect(() => {
+    setReady(false);
+    setLoaded(false);
+    unmuted.current = false;
+    const origin = new URL(url).origin;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== ref.current?.contentWindow || event.origin !== origin) return;
+      let data;
+      try {
+        data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+      } catch {
+        return;
+      }
+      if (data?.event === "onError") setReady(false);
+      const state = data?.event === "onStateChange" ? data.info : data?.info?.playerState;
+      if (state === 1 || state === 2) setReady(true);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [url]);
 
   const cmd = (func: string, args: unknown[] = []) =>
     ref.current?.contentWindow?.postMessage(
@@ -129,6 +151,9 @@ function EmbedBackdrop({
     // times after the iframe loads so the clip actually starts on its own.
     // The initial seek lands it at the track position, not at second zero.
     const kick = () => {
+      ref.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening" }), new URL(url).origin);
+      cmd("addEventListener", ["onStateChange"]);
+      cmd("addEventListener", ["onError"]);
       cmd("seekTo", [posRef.current / 1000, true]);
       if (audible && !unmuted.current) {
         cmd("unMute");
@@ -162,7 +187,7 @@ function EmbedBackdrop({
   return (
     <iframe
       ref={ref}
-      className={`${cls} ${readyCls} kbg__embed`}
+      className={`${cls} ${ready ? readyCls : ""} kbg__embed`}
       /* autoplay muted: always allowed, so the videoclip is moving as soon
        * as it loads; we unMute via the API once the player is up. */
       src={`${url}&autoplay=1&mute=1`}
@@ -171,7 +196,7 @@ function EmbedBackdrop({
       allow="autoplay; encrypted-media; picture-in-picture"
       allowFullScreen={false}
       /* The iframe must not eat the stage's clicks (seek, covers, pill). */
-      style={{ pointerEvents: "none", border: "none" }}
+      style={{ pointerEvents: "none", border: "none", opacity: ready ? undefined : 0 }}
     />
   );
 }
