@@ -2600,3 +2600,8 @@ button, input, select, textarea { font-family: var(--ui); }
 .lib__heart--on { color: var(--accent); }
 /* iOS lock-screen numerals: SF Pro heavy, tight, solid fill. */
 .fs__clock { font-weight: 700; letter-spacing: -0.045em; font-feature-settings: "tnum" 1, "ss01" 1; }
+
+/* Native selects follow the GTK/OS theme (light on Linux) unless told
+   otherwise: keep the closed control and its menu dark and legible. */
+select { color-scheme: dark; }
+.field select, .row select { background-color: #1c1c24; color: #f2f2f5; }

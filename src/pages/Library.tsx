@@ -377,8 +377,8 @@ export default function Library() {
         <div className="libtabs" role="tablist" aria-label={t("lib.title")}>
           {(
             [
-              ["queue", "Queue", queue.items.length],
-              ["search", "Search", 0],
+              ["queue", t("lib.queue"), queue.items.length],
+              ["search", t("lib.searchTab"), 0],
               ["liked", t("lib.liked"), liked.length],
               ["playlists", t("lib.playlists"), playlists.length],
             ] as const
@@ -412,11 +412,11 @@ export default function Library() {
             onKeyDown={(e) => e.key === "Enter" && search()}
           />
           <button onClick={search} disabled={searching}>
-            {searching ? "…" : "Go"}
+            {searching ? "…" : t("lib.go")}
           </button>
         </div>
         <div className="lib__toolbar" data-libsec="stream">
-          <span className="lib__kicker">Stream</span>
+          <span className="lib__kicker">{t("lib.stream")}</span>
           <div className="seg">
             {SOURCES.map((s) => (
               <button
@@ -471,19 +471,17 @@ export default function Library() {
         {tab === "queue" && (
           <>
         <div className="lib__toolbar" data-libsec="queue">
-          <span className="lib__kicker">
-            Up next
-          </span>
+          <span className="lib__kicker">{t("fs.upNext")}</span>
           <div className="seg seg--ghost">
-            <button onClick={rescan}>Rescan</button>
-            <button onClick={importPlaylist}>Import</button>
+            <button onClick={rescan}>{t("lib.rescan")}</button>
+            <button onClick={importPlaylist}>{t("lib.import")}</button>
             <button
               onClick={() => setSaveOpen((v) => !v)}
               disabled={queue.items.length === 0}
             >
-              Save
+              {t("lib.save")}
             </button>
-            <button onClick={() => void bridge.clearQueue().then(refresh)}>Clear</button>
+            <button onClick={() => void bridge.clearQueue().then(refresh)}>{t("lib.clear")}</button>
           </div>
         </div>
         {saveOpen && (
@@ -491,13 +489,13 @@ export default function Library() {
             <Playlist />
             <input
               type="text"
-              placeholder="Playlist name"
+              placeholder={t("lib.playlistName")}
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && savePlaylist()}
             />
             <button onClick={savePlaylist} disabled={saving}>
-              {saving ? "…" : "Save"}
+              {saving ? "…" : t("lib.save")}
             </button>
           </div>
         )}
@@ -506,7 +504,7 @@ export default function Library() {
             <Plus />
             <input
               type="text"
-              placeholder="Playlist URL"
+              placeholder={t("lib.playlistUrl")}
               value={plUrl}
               onChange={(e) => setPlUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && importUrl()}
@@ -517,7 +515,7 @@ export default function Library() {
           </div>
         )}
         {queue.items.length === 0 && !error && (
-          <span className="note">Set a music folder in settings, then press Rescan.</span>
+          <span className="note">{t("lib.setFolder")}</span>
         )}
         <div className="lib">
           {queue.items.map((item, i) => {
@@ -579,7 +577,7 @@ export default function Library() {
           </>
         )}
         {tab === "liked" && liked.length === 0 && (
-          <span className="note">Tap the heart on any track to save it here.</span>
+          <span className="note">{t("lib.likedEmpty")}</span>
         )}
         {tab === "liked" && liked.length > 0 && (
           <>
@@ -635,7 +633,7 @@ export default function Library() {
           </>
         )}
         {tab === "playlists" && playlists.length === 0 && (
-          <span className="note">Save the queue as a playlist, or import one.</span>
+          <span className="note">{t("lib.playlistsEmpty")}</span>
         )}
         {tab === "playlists" && playlists.length > 0 && (
           <>
@@ -680,21 +678,21 @@ export default function Library() {
                     <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="lib__act"
-                        title="Edit tracks"
+                        title={t("lib.editTracks")}
                         onClick={() => openPlaylist(p)}
                       >
                         <ListBullets size={11} />
                       </button>
                       <button
                         className="lib__act"
-                        title="Rename"
+                        title={t("lib.rename")}
                         onClick={() => setRenaming(p.path)}
                       >
                         <PencilSimple size={11} />
                       </button>
                       <button
                         className="lib__act"
-                        title="Delete"
+                        title={t("lib.delete")}
                         onClick={() => deletePlaylist(p)}
                       >
                         <Trash size={11} />
@@ -704,23 +702,23 @@ export default function Library() {
                   </div>
                   {editingPl === p.path && (
                     <div className="lib__tracks">
-                      {plTracks.map((t, i) => (
-                        <div className="lib__trow" key={`${t.path}-${i}`}>
+                      {plTracks.map((pt, i) => (
+                        <div className="lib__trow" key={`${pt.path}-${i}`}>
                           <span className="lib__tidx">{i + 1}</span>
                           <span className="lib__title">
-                            {t.title || t.path.split("/").pop()}
+                            {pt.title || pt.path.split("/").pop()}
                           </span>
                           <span className="lib__tdur">
-                            {t.remote
+                            {pt.remote
                               ? "stream"
-                              : t.durationMs
-                                ? formatTime(t.durationMs)
+                              : pt.durationMs
+                                ? formatTime(pt.durationMs)
                                 : ""}
                           </span>
                           <span className="lib__tact">
                             <button
                               className="lib__act"
-                              title="Remove from playlist"
+                              title={t("lib.removeFromPlaylist")}
                               onClick={() => removePlTrack(p, i)}
                             >
                               <X size={11} />
@@ -729,7 +727,7 @@ export default function Library() {
                         </div>
                       ))}
                       {plTracks.length === 0 && (
-                        <div className="lib__sub">Empty playlist</div>
+                        <div className="lib__sub">{t("lib.emptyPlaylist")}</div>
                       )}
                       <div className="lib__tactions">
                         {playingLocal && (
