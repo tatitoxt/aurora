@@ -380,6 +380,9 @@ export default function Library() {
           ))}
         </div>
 
+        {importNote && <span className="note">{importNote}</span>}
+        {error && <span className="license-bad">{error}</span>}
+
         {tab === "search" && (
           <>
 
@@ -502,8 +505,6 @@ export default function Library() {
             </button>
           </div>
         )}
-        {importNote && <span className="note">{importNote}</span>}
-        {error && <span className="license-bad">{error}</span>}
         {queue.items.length === 0 && !error && (
           <span className="note">Set a music folder in settings, then press Rescan.</span>
         )}
