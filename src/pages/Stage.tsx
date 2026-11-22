@@ -2,7 +2,7 @@ import { type CSSProperties } from "react";
 import { VideoBackdrop } from "../VideoBackdrop";
 import { useT } from "../i18n";
 import { useLyricAnim } from "../lyricanim";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   bridge,
   subscribe,
@@ -13,7 +13,7 @@ import {
   type RemoteTrack,
   type Settings,
 } from "../bridge";
-import { activeLyricIndex, adlibSegments } from "../lib";
+import { activeLyricIndex, adlibMask, adlibSegments } from "../lib";
 import {
   lyricOffsetFor,
   setLyricOffset,
@@ -58,6 +58,9 @@ import {
   AppleLogo,
   AmazonLogo,
   TidalLogo,
+  CaretDown,
+  CaretUp,
+  SquaresFour,
 } from "@phosphor-icons/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
@@ -152,6 +155,12 @@ export default function Stage() {
   const [share, setShare] = useState(false);
   const [speed, setSpeed] = useState(1.0);
   const [lyricsOn, setLyricsOn] = useState(true);
+  const [thumbsOn, setThumbsOn] = useState(() => localStorage.getItem("fs.thumbs") !== "0");
+  const toggleThumbs = () =>
+    setThumbsOn((v) => {
+      localStorage.setItem("fs.thumbs", v ? "0" : "1");
+      return !v;
+    });
   const [timingOpen, setTimingOpen] = useState(false);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
@@ -356,7 +365,27 @@ export default function Stage() {
   }, [timingKey]);
   const playing = np?.status === "playing";
   const line = lyrics && active >= 0 ? lyrics[active].text : null;
-  const lineTokens = line ? adlibSegments(line) : null;
+  /* Karaoke word timing: enhanced-LRC word tags when present, else an even
+     split of the line's duration across its words. */
+  const lineObj = lyrics && active >= 0 ? lyrics[active] : null;
+  const nextObj = lyrics && active + 1 < lyrics.length ? lyrics[active + 1] : null;
+  const timedWords = !!lineObj?.words?.length;
+  const wordSegs = !lineObj
+    ? []
+    : timedWords
+      ? lineObj.words!.map((w) => w.text)
+      : lineObj.text.split(/\s+/).filter(Boolean).map((w) => w + " ");
+  const wordAdlib = adlibMask(wordSegs);
+  const posL = pos + lyroff;
+  const wordNow = !lineObj
+    ? -1
+    : timedWords
+      ? lineObj.words!.reduce((acc, w, i) => (posL >= w.atMs ? i : acc), -1)
+      : Math.floor(
+          (posL - lineObj.atMs) /
+            (Math.max(nextObj ? nextObj.atMs - lineObj.atMs : 5000, 800) /
+              Math.max(wordSegs.length, 1)),
+        );
 
   // "local" files seek via rodio; "demo" (web preview / mock) seeks its own
   // clock. Other sources may not support seeking.
@@ -577,6 +606,14 @@ export default function Stage() {
           <TextT size={15} />
         </button>
         <button
+          className={`fs__icon ${thumbsOn ? "fs__icon--on" : ""}`}
+          aria-label="Thumbnails"
+          title="Thumbnails"
+          onClick={toggleThumbs}
+        >
+          <SquaresFour size={15} />
+        </button>
+        <button
           className="fs__icon"
           aria-label={t("nav.settings")}
           title={t("nav.settings")}
@@ -631,21 +668,32 @@ export default function Stage() {
                 onContextMenu={(e) => { e.preventDefault(); setTimingOpen((v) => !v); }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTimingOpen((v) => !v); } }}
               >
-                {lineTokens!.map((s, i) =>
-                  s.adlib ? (
-                    <span key={i} className="adlib fsword" style={{ "--i": i } as CSSProperties}>
-                      {s.text}
-                    </span>
-                  ) : (
-                    <span key={i} className="fsword" style={{ "--i": i } as CSSProperties}>
-                      {s.text}
-                    </span>
-                  ),
-                )}
+                {wordSegs.map((w, i) => {
+                  // inline-block words drop trailing spaces, so keep them outside
+                  const word = w.trimEnd();
+                  return (
+                    <Fragment key={i}>
+                      <span
+                        className={`fsword ${wordAdlib[i] ? "adlib" : ""} ${
+                          i < wordNow ? "fsword--done" : i === wordNow ? "fsword--now" : ""
+                        }`}
+                        style={{ "--i": i } as CSSProperties}
+                      >
+                        {word}
+                      </span>
+                      {w.slice(word.length)}
+                    </Fragment>
+                  );
+                })}
               </div>
               {lyrics && active + 1 < lyrics.length && (
                 <div className="fs__lyrctx fs__lyrctx--dn" key={`n${active}`}>
                   {adlibSegments(lyrics[active + 1].text).map((s) => s.text).join("")}
+                </div>
+              )}
+              {lyrics && active + 2 < lyrics.length && (
+                <div className="fs__lyrctx fs__lyrctx--dn2" key={`m${active}`}>
+                  {adlibSegments(lyrics[active + 2].text).map((s) => s.text).join("")}
                 </div>
               )}
             </div>
@@ -676,7 +724,7 @@ export default function Stage() {
         )}
       </div>
 
-      {covers.length > 1 && (
+      {covers.length > 1 && thumbsOn && (
         <div
           ref={coversRef}
           className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}
@@ -755,9 +803,7 @@ export default function Stage() {
                 title={`${c.title} — ${c.artist}`}
               >
                 <div className="fs__coverimg">
-                  {c.playing && videoUrl ? (
-                    <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__cvid" />
-                  ) : c.src ? (
+                  {c.src ? (
                     <img src={c.src} alt="" />
                   ) : (
                     <div className="fs__meta-art" style={{ width: "100%", height: "100%" }} />
@@ -788,6 +834,42 @@ export default function Stage() {
       )}
 
       <div className="fs__bottom">
+        <div className="fs__nowrow">
+            <div className="fs__metacol">
+              <div className="fs__meta">
+                {art ? (
+                  <img src={art} alt="" />
+                ) : (
+                  <div className="fs__meta-art" />
+                )}
+                <div className="fs__meta-txt">
+                  <div className="fs__mtitle">{track?.title ?? t("fs.nothingPlaying")}</div>
+                  <div className="fs__msub">
+                    {track ? `${track.artist} · ${track.album}` : t("fs.startMusic")}
+                  </div>
+                </div>
+              </div>
+              <div
+                className={`fs__hair ${canSeek && dur ? "" : "fs__hair--off"}`}
+                {...scrubProps}
+              >
+                <div
+                  className="fs__hairfill"
+                  style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
+                />
+              </div>
+            </div>
+          {covers.length > 1 && (
+            <button
+              className="fs__icon fs__thumbtog"
+              aria-label={thumbsOn ? "Hide thumbnails" : "Show thumbnails"}
+              title={thumbsOn ? "Hide thumbnails" : "Show thumbnails"}
+              onClick={toggleThumbs}
+            >
+              {thumbsOn ? <CaretDown size={14} /> : <CaretUp size={14} />}
+            </button>
+          )}
+        </div>
         <div className="fs__pill">
               <span className="fs__vol">
                 <button
@@ -952,30 +1034,6 @@ export default function Stage() {
           >
             {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
           </button>
-          <div className="fs__metacol">
-            <div className="fs__meta">
-              {art ? (
-                <img src={art} alt="" />
-              ) : (
-                <div className="fs__meta-art" />
-              )}
-              <div className="fs__meta-txt">
-                <div className="fs__mtitle">{track?.title ?? t("fs.nothingPlaying")}</div>
-                <div className="fs__msub">
-                  {track ? `${track.artist} · ${track.album}` : t("fs.startMusic")}
-                </div>
-              </div>
-            </div>
-            <div
-              className={`fs__hair ${canSeek && dur ? "" : "fs__hair--off"}`}
-              {...scrubProps}
-            >
-              <div
-                className="fs__hairfill"
-                style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
-              />
-            </div>
-          </div>
           <button
             className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
             aria-label={fav ? "Unlike" : "Like"}
