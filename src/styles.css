@@ -1076,6 +1076,7 @@ body {
 }
 .fs__covers::-webkit-scrollbar { display: none; }
 .fs__cover {
+  position: relative;
   width: calc(clamp(92px, 10.5vh, 140px) * var(--cscale, 1)); flex: none;
   text-align: center; opacity: 0.55; border: none; background: none;
   padding: 0; cursor: pointer; font: inherit; color: inherit;
@@ -1095,7 +1096,15 @@ body {
   to { opacity: 0.55; }
 }
 .fs__cover img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 20px; box-shadow: 0 14px 40px -10px rgba(0,0,0,0.7); }
-.fs__cover--on { width: calc(clamp(280px, 30vh, 440px) * var(--cscale, 1)); opacity: 1; }
+.fs__cover--on { width: calc(clamp(280px, 30vh, 440px) * var(--cscale, 1)); opacity: 1; text-align: left; }
+/* Playing marker: a small live dot on whatever cover is sounding, even
+   when the strip's highlighted card is a different one. */
+.fs__cover--live::after {
+  content: ""; position: absolute; top: 8px; right: 8px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--acc, #f2f2f5);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.45), 0 0 12px rgba(255,255,255,0.55);
+}
 .fs__cover--on img { border-radius: 22px; }
 /* Media fills the card, meta overlaid on a scrim. */
 .fs__coverimg { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 26px 70px -12px rgba(0,0,0,0.75); background: rgba(255,255,255,0.05); }
