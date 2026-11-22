@@ -35,6 +35,7 @@ import {
 } from "@phosphor-icons/react";
 import { artSrc } from "../bridge";
 import ArtBackdrop from "../ArtBackdrop";
+import BrowserSources from "../BrowserSources";
 
 /** 32px rounded row cover: real artwork when the file has art, else a
  * soft glass disc with an icon. */
@@ -65,7 +66,7 @@ const TAB_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon
 export default function Library() {
   const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
-  const [tab, setTab] = useState<"queue" | "liked" | "playlists">("queue");
+  const [tab, setTab] = useState<"queue" | "liked" | "playlists" | "services">("queue");
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
 
@@ -309,6 +310,7 @@ export default function Library() {
               ["queue", t("lib.queue"), queue.items.length],
               ["liked", t("lib.liked"), liked.length],
               ["playlists", t("lib.playlists"), playlists.length],
+              ["services", t("sources.heading"), 0],
             ] as const
           ).map(([id, label, n]) => (
             <button
@@ -597,6 +599,11 @@ export default function Library() {
               ))}
             </div>
           </>
+        )}
+        {tab === "services" && (
+          <div className="collection__section">
+            <BrowserSources />
+          </div>
         )}
       </div>
     </div>

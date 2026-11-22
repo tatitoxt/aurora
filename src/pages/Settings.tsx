@@ -26,6 +26,7 @@ import {
   type Settings,
 } from "../bridge";
 import ArtBackdrop from "../ArtBackdrop";
+import BrowserSources from "../BrowserSources";
 
 export default function Settings() {
   const t = useT();
@@ -551,6 +552,7 @@ export default function Settings() {
           {!np?.source?.includes(".") && (
             <span className="share__note">{t("set.sourceHint")}</span>
           )}
+          <BrowserSources />
         </div>
 
         <div className="field">

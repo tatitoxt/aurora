@@ -29,6 +29,7 @@ export function VideoBackdrop({
   if (isEmbed)
     return (
       <EmbedBackdrop
+        key={url}
         url={url}
         posMs={posMs}
         playing={playing}
@@ -37,7 +38,7 @@ export function VideoBackdrop({
         audible={audible}
       />
     );
-  return <FileBackdrop url={url} posMs={posMs} playing={playing} cls={cls} readyCls={readyCls} />;
+  return <FileBackdrop key={url} url={url} posMs={posMs} playing={playing} cls={cls} readyCls={readyCls} />;
 }
 
 function FileBackdrop({
@@ -84,6 +85,7 @@ function FileBackdrop({
        * freezing on the last frame (demo clips are a few seconds). */
       loop
       onCanPlay={() => setReady(true)}
+      onError={() => setReady(false)}
     />
   );
 }
@@ -112,21 +114,32 @@ function EmbedBackdrop({
   // Hidden until YouTube reports "playing": its red play button and title
   // card must never flash over the stage.
   const [live, setLive] = useState(false);
-  useEffect(() => setLive(false), [url]);
+  const started = useRef(false);
   useEffect(() => {
+    const origin = new URL(url).origin;
     const on = (e: MessageEvent) => {
-      if (e.source !== ref.current?.contentWindow || typeof e.data !== "string") return;
+      if (
+        e.source !== ref.current?.contentWindow ||
+        e.origin !== origin ||
+        typeof e.data !== "string"
+      )
+        return;
       try {
         const d = JSON.parse(e.data);
+        if (d.event === "onError") setLive(false);
         const st = d.event === "onStateChange" ? d.info : d.info?.playerState;
-        if (st === 1) setLive(true);
+        if (st === 1) {
+          started.current = true;
+          setLive(true);
+        }
       } catch {
         /* not a player message */
       }
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
   const posRef = useRef(posMs);
   posRef.current = posMs;
 
@@ -147,9 +160,14 @@ function EmbedBackdrop({
     // times after the iframe loads so the clip actually starts on its own.
     // The initial seek lands it at the track position, not at second zero.
     const kick = () => {
+      if (started.current) return;
       ref.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
+      cmd("addEventListener", ["onStateChange"]);
+      cmd("addEventListener", ["onError"]);
       cmd("seekTo", [posRef.current / 1000, true]);
-      if (audible && !unmuted.current) {
+      // Unmuting autoplay before a user gesture makes Chromium pause the
+      // video: keep the backdrop moving silently until the page was clicked.
+      if (audible && navigator.userActivation?.hasBeenActive && !unmuted.current) {
         cmd("unMute");
         unmuted.current = true;
       }
@@ -181,7 +199,7 @@ function EmbedBackdrop({
   return (
     <iframe
       ref={ref}
-      className={`${cls} ${readyCls} kbg__embed`}
+      className={`${cls} ${live ? readyCls : ""} kbg__embed`}
       /* autoplay muted: always allowed, so the videoclip is moving as soon
        * as it loads; we unMute via the API once the player is up. */
       src={`${url}&autoplay=1&mute=1`}

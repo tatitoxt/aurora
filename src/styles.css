@@ -2625,3 +2625,38 @@ button, input, select, textarea { font-family: var(--ui); }
    otherwise: keep the closed control and its menu dark and legible. */
 select { color-scheme: dark; }
 .field select, .row select { background-color: #1c1c24; color: #f2f2f5; }
+.sources { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.sources__heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.sources h2, .collection__section h2 {
+  margin: 0; font-size: 19px; font-weight: 500; letter-spacing: -.025em;
+}
+.sources__status { font-size: 11px; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+.sources__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sources__service {
+  display: flex; align-items: center; gap: 12px; padding: 15px;
+  border-radius: 22px; border: 1px solid var(--line); min-width: 0;
+  background: rgba(255,255,255,.04); color: var(--text);
+  box-shadow: inset 0 1px rgba(255,255,255,.10);
+  cursor: pointer; text-align: left; font: inherit; font-size: 12px;
+  transition: background .18s, transform .18s;
+}
+.sources__service:hover { background: rgba(255,255,255,.10); transform: translateY(-1px); }
+.sources__service > svg { flex: none; }
+.sources__service > span { flex: 1; }
+.sources__service--active { border-color: rgba(255,255,255,.5); }
+.sources__setup {
+  border-top: 1px solid var(--line); padding: 15px 0 0;
+  font-size: 12px; line-height: 1.7;
+}
+.sources__setup summary { cursor: pointer; color: var(--text); }
+.sources__setup p { margin: 10px 0; color: var(--dim); }
+.sources--compact { gap: 10px; padding: 6px; }
+.sources--compact h2 { font-size: 13px; }
+.sources--compact .sources__grid { gap: 6px; }
+.sources--compact .sources__service { padding: 10px; border-radius: 16px; gap: 7px; font-size: 11px; }
+.sources--compact .sources__service > svg:first-child { width: 17px; }
+.sources--compact .sources__service > svg:last-child { display: none; }
+.sources--compact .sources__status { font-size: 10px; }
+.collection__section { display: flex; flex-direction: column; gap: 18px; }
+.collection__section .lib__toolbar { margin: 0; padding: 0; gap: 12px; }
+.collection__section .lib__kicker { font-size: 16px; letter-spacing: -.02em; text-transform: none; font-weight: 500; }

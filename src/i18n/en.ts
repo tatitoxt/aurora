@@ -1,4 +1,14 @@
 const en = {
+  "sources.heading": "Music services",
+  "sources.live": "Connected",
+  "sources.waiting": "Waiting for a music tab",
+  "sources.demo": "Browser preview",
+  "sources.open": "Open {name} in your browser",
+  "sources.setup": "Set up the browser extension",
+  "sources.folder": "Open extension folder",
+  "sources.playlists": "Open your playlists in a service above. The extension follows the playing song and lets Noctbeat control playback.",
+  "sources.emptyLikes": "Songs you like with the heart appear here.",
+  "sources.emptyPlaylists": "Import a playlist file or save your queue to start a collection.",
   // nav
   "nav.library": "Library",
   "nav.visualizer": "Visualizer",

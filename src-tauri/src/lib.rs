@@ -2626,6 +2626,7 @@ pub fn run() {
             activate_license,
             deactivate_license,
             open_url,
+            open_extension_folder,
             set_hud_pinned,
             hud_start_drag,
             desk_lyrics_start_drag,
