@@ -421,7 +421,7 @@ export default function Stage() {
   /* Inertial scrolling: wheel deltas and drag flings feed `target`/`vel`;
      a rAF loop eases scrollLeft toward target so motion is butter-smooth
      instead of jumping per input event. */
-  const scrollAnim = useRef({ raf: 0, target: 0, vel: 0, set: false });
+  const scrollAnim = useRef({ raf: 0, target: 0, vel: 0, set: false, snap: false });
   const runCoversAnim = () => {
     const s = scrollAnim.current;
     if (s.raf) return;
@@ -444,14 +444,15 @@ export default function Stage() {
         el.scrollLeft = s.target;
         s.vel = 0;
         s.raf = 0;
+        s.snap = false;
         return;
       }
-      el.scrollLeft += diff * 0.16;
+      el.scrollLeft += diff * (s.snap ? 0.09 : 0.16);
       s.raf = requestAnimationFrame(step);
     };
     s.raf = requestAnimationFrame(step);
   };
-  const centerCover = (idx: number) => {
+  const centerCover = (idx: number, gentle = false) => {
     const el = coversRef.current;
     const n = el?.querySelector<HTMLElement>(`[data-idx="${idx}"]`);
     if (!el || !n) return;
@@ -460,9 +461,11 @@ export default function Stage() {
     const s = scrollAnim.current;
     s.target = el.scrollLeft + (r.left + r.width / 2 - stripMid);
     s.set = true;
+    s.snap = gentle;
     runCoversAnim();
   };
   useEffect(() => {
+    focusIdxRef.current = ci;
     setFocusIdx(ci);
     centerCover(ci);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -479,27 +482,41 @@ export default function Stage() {
     },
     []
   );
+  /* While scrolling, the cover nearest the strip's center highlights
+     immediately — the song never changes until a click. When the strip
+     settles it eases the focused cover to the exact middle (gentle snap). */
+  const focusIdxRef = useRef(focusIdx);
+  const nearestCover = () => {
+    const el = coversRef.current;
+    if (!el) return -1;
+    const mid = el.getBoundingClientRect().left + el.clientWidth / 2;
+    let best = -1;
+    let bd = Infinity;
+    el.querySelectorAll<HTMLElement>("[data-idx]").forEach((n) => {
+      const r = n.getBoundingClientRect();
+      const d = Math.abs(r.left + r.width / 2 - mid);
+      if (d < bd) {
+        bd = d;
+        best = Number(n.dataset.idx);
+      }
+    });
+    return best;
+  };
   const onCoversScroll = () => {
+    const near = nearestCover();
+    if (near >= 0 && near !== focusIdxRef.current) {
+      focusIdxRef.current = near;
+      setFocusIdx(near);
+    }
     window.clearTimeout(focusTimer.current);
     focusTimer.current = window.setTimeout(() => {
-      const el = coversRef.current;
-      if (!el) return;
-      const mid = el.getBoundingClientRect().left + el.clientWidth / 2;
-      let best = -1;
-      let bd = Infinity;
-      el.querySelectorAll<HTMLElement>("[data-idx]").forEach((n) => {
-        const r = n.getBoundingClientRect();
-        const d = Math.abs(r.left + r.width / 2 - mid);
-        if (d < bd) {
-          bd = d;
-          best = Number(n.dataset.idx);
-        }
-      });
+      const best = nearestCover();
       if (best >= 0) {
+        focusIdxRef.current = best;
         setFocusIdx(best);
-        centerCover(best);
+        centerCover(best, true);
       }
-    }, 90);
+    }, 140);
   };
 
   const hh = String(now.getHours() % 12 || 12);
