@@ -700,7 +700,12 @@ export default function Stage() {
       </div>
 
       {qOpen && queue.items.length > 0 && (
-        <div className="fs__qpanel" style={qPos ? { left: qPos.x, top: qPos.y } : undefined}>
+        <div className="fs__qpanel" style={
+            qPos
+              ? // re-clamped on render so a position saved in a bigger window stays reachable
+                { left: `min(${qPos.x}px, calc(100% - 140px))`, top: `min(${qPos.y}px, calc(100% - 80px))` }
+              : undefined
+          }>
           <div className="fs__qhead" onPointerDown={dragQPanel}>
             <span className="fs__qtitle">Up next</span>
             <button
