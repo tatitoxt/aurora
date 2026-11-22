@@ -57,10 +57,14 @@ export default function SearchPanel({
   const artists = useMemo(() => {
     const seen = new Map<string, string>();
     for (const s of songs) {
-      const name = s.artist.split(/,|&| feat\.? | x /i)[0].trim();
-      if (name && !seen.has(name)) seen.set(name, s.artworkUrl);
+      if (s.artist && !seen.has(s.artist)) seen.set(s.artist, s.artworkUrl);
     }
-    return [...seen].slice(0, 8);
+    // Hide collab credits ("A & B") when a credited artist has its own card;
+    // keeps punctuated names like "Earth, Wind & Fire" whole.
+    const names = [...seen.keys()];
+    return [...seen]
+      .filter(([n]) => !names.some((o) => o !== n && n.includes(o)))
+      .slice(0, 8);
   }, [songs]);
 
   // An artist page lists that artist's own catalog, not just this query's hits.
