@@ -351,23 +351,31 @@ export default function Library() {
           <span className="pagehead__meta">
             {queue.items.length} {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")}
             {playlists.length > 0 && ` · ${playlists.length} ${t("lib.playlistsLower")}`}
+            {liked.length > 0 && ` · ${liked.length} ${t("lib.liked").toLowerCase()}`}
           </span>
         </div>
 
-        <div className="sechead">
-          <h2 className="art__h">Stream</h2>
-          <div className="seg">
-            {SOURCES.map((s) => (
-              <button
-                key={s.id}
-                className={source === s.id ? "on" : ""}
-                onClick={() => setSource(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <nav className="setnav" aria-label={t("lib.title")}>
+          {[
+            ["stream", "Stream"],
+            ["queue", "Queue"],
+            ["liked", t("lib.liked")],
+            ["playlists", t("lib.playlists")],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              className="setnav__pill"
+              onClick={() =>
+                document
+                  .querySelector(`[data-libsec="${id}"]`)
+                  ?.scrollIntoView({ block: "start", behavior: "smooth" })
+              }
+            >
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
         <div className="inrow">
           <MagnifyingGlass />
           <input
@@ -380,6 +388,20 @@ export default function Library() {
           <button onClick={search} disabled={searching}>
             {searching ? "…" : "Go"}
           </button>
+        </div>
+        <div className="lib__toolbar" data-libsec="stream">
+          <span className="lib__kicker">Stream</span>
+          <div className="seg">
+            {SOURCES.map((s) => (
+              <button
+                key={s.id}
+                className={source === s.id ? "on" : ""}
+                onClick={() => setSource(s.id)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
         {!ytReady && (
           <span className="note">
@@ -422,8 +444,11 @@ export default function Library() {
           ))}
         </div>
 
-        <div className="sechead">
-          <h2 className="art__h">Queue</h2>
+        <div className="lib__toolbar" data-libsec="queue">
+          <span className="lib__kicker">
+            Queue
+            <em className="lib__count">{queue.items.length}</em>
+          </span>
           <div className="seg">
             <button onClick={rescan}>Rescan</button>
             <button onClick={importPlaylist}>Import</button>
@@ -492,7 +517,15 @@ export default function Library() {
                   </Link>
                 </span>
                 <span className="lib__dur">
-                  {current && playing ? "▸ " : ""}
+                  {current && playing ? (
+                    <span className="lib__eq" aria-hidden>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  ) : (
+                    ""
+                  )}
                   {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
                 </span>
               </button>
@@ -501,7 +534,24 @@ export default function Library() {
         </div>
         {liked.length > 0 && (
           <>
-            <h2 className="art__h">{t("lib.liked")}</h2>
+            <button
+              className="lib__hero"
+              data-libsec="liked"
+              onClick={() => playLiked(liked[0])}
+            >
+              <span className="lib__heroicon">
+                <Heart weight="fill" />
+              </span>
+              <span className="lib__herotxt">
+                <span className="lib__herotitle">{t("lib.liked")}</span>
+                <span className="lib__herosub">
+                  {liked.length} {liked.length === 1 ? t("lib.track") : t("lib.tracks")}
+                </span>
+              </span>
+              <span className="lib__heroplay" aria-hidden>
+                ▶
+              </span>
+            </button>
             <div className="lib">
               {liked.map((e) => {
                 const replay = replayFor(e);
@@ -537,7 +587,12 @@ export default function Library() {
         )}
         {playlists.length > 0 && (
           <>
-            <h2 className="art__h">{t("lib.playlists")}</h2>
+            <div className="lib__toolbar" data-libsec="playlists">
+              <span className="lib__kicker">
+                {t("lib.playlists")}
+                <em className="lib__count">{playlists.length}</em>
+              </span>
+            </div>
             <div className="lib">
               {playlists.map((p) => (
                 <div key={p.path}>
