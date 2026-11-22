@@ -84,10 +84,15 @@ test.describe("Covers carousel", () => {
     await page.goto(`${APP}/#/`);
     const covers = page.locator(".fs__covers");
     await expect(page.locator(".fs__cover--live")).toBeVisible();
-    await page.waitForTimeout(700);
-    const box = await covers.boundingBox();
-    const active = await page.locator(".fs__cover--live").boundingBox();
-    expect(Math.abs(active!.x + active!.width / 2 - (box!.x + box!.width / 2))).toBeLessThan(14);
+    // The easing animation converges asymptotically; wait for it to settle
+    // instead of a fixed delay that flakes on slower runners.
+    await expect
+      .poll(async () => {
+        const box = await covers.boundingBox();
+        const active = await page.locator(".fs__cover--live").boundingBox();
+        return Math.abs(active!.x + active!.width / 2 - (box!.x + box!.width / 2));
+      })
+      .toBeLessThan(14);
     await expect(page.locator(".fs__cover--l").first()).toBeVisible();
     await expect(page.locator(".fs__cover--r").first()).toBeVisible();
   });
