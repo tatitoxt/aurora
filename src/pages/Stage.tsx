@@ -83,7 +83,7 @@ const PROVIDERS = [
 
 /** Provider host reported by the browser extension → friendly label + picker id. */
 const EXT_HOSTS: [RegExp, string, string][] = [
-  [/(music|www)\.youtube\.com/, "YouTube Music", "youtube"],
+  [/(^|\.)youtube\.com/, "YouTube Music", "youtube"],
   [/open\.spotify\.com/, "Spotify", "spotify"],
   [/soundcloud\.com/, "SoundCloud", "soundcloud"],
   [/music\.apple\.com/, "Apple Music", "apple"],
