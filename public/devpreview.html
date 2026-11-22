@@ -5,11 +5,22 @@ iframe{width:340px;height:560px;border:0;display:block;background:transparent}
 </style></head><body>
 <div id="stage"><iframe id="app" src="/#/library"></iframe></div>
 <script>
-// Center + scale the real 340x560 shipping layout to fill the preview window.
+// Preview the shipping layout at its real window size, scaled to fit.
+// Params: ?w=<css px>&h=<css px>&r=<route> (defaults: the 340x560 portrait
+// minimum-ish size, route=library).
+var q = new URLSearchParams(location.search);
+var W = Math.max(280, parseInt(q.get('w') || '340', 10));
+var H = Math.max(400, parseInt(q.get('h') || '560', 10));
+var route = q.get('r') || '/library';
+var stage = document.getElementById('stage');
+var frame = document.getElementById('app');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+frame.style.width = W + 'px'; frame.style.height = H + 'px';
+frame.src = '/#' + route;
 function fit(){
-  var s = Math.min(innerWidth/340, innerHeight/560);
-  document.getElementById('stage').style.transform = 'scale(' + s + ')';
-  document.getElementById('stage').style.left = Math.max(0,(innerWidth - 340*s)/2) + 'px';
+  var s = Math.min(innerWidth/W, innerHeight/H);
+  stage.style.transform = 'scale(' + s + ')';
+  stage.style.left = Math.max(0,(innerWidth - W*s)/2) + 'px';
 }
 addEventListener('resize', fit); fit();
 </script>
