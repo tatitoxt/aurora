@@ -2390,7 +2390,7 @@ input:focus-visible, select:focus-visible {
   .fs__actions .fs__pillopt { display: none; }
   .fs__deck .fs__volvol { display: inline-flex; }
   .fs__deck .fs__volvol .fs__pillopt { display: grid; }
-  .fs__volpop { left: 0; transform: none; }
+  .fs__volpop { left: auto; right: 0; transform: none; }
   .fs__cover--on { width: min(84vw, calc(clamp(168px, 34vh, 320px) * var(--cscale, 1))); }
 }
 @media (max-width: 560px) {
@@ -2400,7 +2400,7 @@ input:focus-visible, select:focus-visible {
   .fs__transport, .fs__actions { gap: 0; }
   .fs__deck .fs__icon { width: 30px; }
   .fs__deck .fs__play { width: 36px; height: 36px; }
-  .fs__volpop { left: 0; bottom: calc(100% + 8px); }
+  .fs__volpop { left: auto; right: 0; bottom: calc(100% + 8px); }
   .fs__provpop { left: 0; bottom: calc(100% + 8px); }
 }
 @media (max-width: 340px) {
