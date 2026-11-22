@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artistCards } from "../lib";
+import { artistCards, rankHits } from "../lib";
 
 const song = (artist: string, art = artist) => ({ artist, artworkUrl: art });
 
@@ -30,5 +30,30 @@ describe("artistCards", () => {
     const cards = artistCards(list);
     expect(cards).toHaveLength(8);
     expect(cards[0]).toEqual(["A0", "first"]);
+  });
+});
+
+describe("rankHits", () => {
+  const hit = (title: string, durationMs: number) => ({ title, durationMs });
+  it("prefers the original over sped-up or remix versions", () => {
+    const hits = [
+      hit("Monkeys Spinning Monkeys - accelerating version", 458000),
+      hit("Monkeys Spinning Monkeys", 125000),
+    ];
+    expect(
+      rankHits(hits, hit("Monkeys Spinning Monkeys", 124000))[0].title,
+    ).toBe("Monkeys Spinning Monkeys");
+  });
+  it("picks the closest duration and keeps order on ties", () => {
+    const hits = [hit("A", 300000), hit("A", 240000), hit("A", 240000)];
+    expect(rankHits(hits, hit("A", 239000))).toEqual([
+      hits[1],
+      hits[2],
+      hits[0],
+    ]);
+  });
+  it("keeps alternates when the catalog asks for one", () => {
+    const hits = [hit("Song", 200000), hit("Song (Remix)", 260000)];
+    expect(rankHits(hits, hit("Song Remix", 260000))[0]).toBe(hits[1]);
   });
 });

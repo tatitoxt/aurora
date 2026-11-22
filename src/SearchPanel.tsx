@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { bridge, type CatalogSong } from "./bridge";
 import { useT } from "./i18n";
-import { artistCards, formatTime } from "./lib";
+import { artistCards, formatTime, rankHits } from "./lib";
 
 /** Tab providers tried, in order, when the picker is on Automatic. */
 const AUTO_ORDER = [
@@ -93,7 +93,10 @@ export default function SearchPanel({
       : src;
 
   const resolve = async (s: CatalogSong, prov = target) => {
-    const hits = await bridge.providerSearch(prov, `${s.artist} ${s.title}`);
+    const hits = rankHits(
+      await bridge.providerSearch(prov, `${s.artist} ${s.title}`),
+      s,
+    );
     if (!hits[0]) throw new Error(t("srch.notFound", { src: label(prov) }));
     return hits[0];
   };
@@ -139,7 +142,10 @@ export default function SearchPanel({
         // few before moving to the next provider.
         let hits: Awaited<ReturnType<typeof bridge.providerSearch>> = [];
         try {
-          hits = await bridge.providerSearch(prov, `${s.artist} ${s.title}`);
+          hits = rankHits(
+            await bridge.providerSearch(prov, `${s.artist} ${s.title}`),
+            s,
+          );
         } catch (e) {
           last = friendly(e, prov);
           continue;

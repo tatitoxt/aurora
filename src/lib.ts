@@ -98,3 +98,25 @@ export function artistCards(
     })
     .slice(0, 8);
 }
+
+const ALT_VERSION =
+  /\b(remix|sped|slowed|reverb|accelerat\w*|nightcore|cover|8d|instrumental|karaoke|live|loop)\b/i;
+
+/** Order provider hits by how well they match a catalog song: alternate
+ *  versions the catalog title doesn't ask for (sped up, remix, cover…) go
+ *  last, then the closest duration wins. */
+export function rankHits<T extends { title: string; durationMs: number }>(
+  hits: T[],
+  want: { title: string; durationMs: number },
+): T[] {
+  const wantsAlt = ALT_VERSION.test(want.title);
+  const score = (h: T) =>
+    (!wantsAlt && ALT_VERSION.test(h.title) ? 1e9 : 0) +
+    (want.durationMs > 0 && h.durationMs > 0
+      ? Math.abs(h.durationMs - want.durationMs)
+      : 0);
+  return hits
+    .map((h, i) => ({ h, i, s: score(h) }))
+    .sort((a, b) => a.s - b.s || a.i - b.i)
+    .map((x) => x.h);
+}

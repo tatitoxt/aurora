@@ -185,6 +185,10 @@ impl YtDlp {
                 template.to_str().ok_or("bad dest path")?,
                 "--no-playlist",
                 "--no-warnings",
+                // SoundCloud/YouTube HLS audio arrives in fragments: fetch
+                // them in parallel so first play starts sooner.
+                "--concurrent-fragments",
+                "4",
                 "--",
                 url,
             ])
