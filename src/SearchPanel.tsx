@@ -63,7 +63,10 @@ export default function SearchPanel({
     // keeps punctuated names like "Earth, Wind & Fire" whole.
     const names = [...seen.keys()];
     return [...seen]
-      .filter(([n]) => !names.some((o) => o !== n && n.includes(o)))
+      .filter(([n]) => {
+        const parts = n.split(/\s*(?:,|&|\bfeat\.?|\bx\b)\s*/i);
+        return !(parts.length > 1 && names.some((o) => o !== n && parts.includes(o)));
+      })
       .slice(0, 8);
   }, [songs]);
 
