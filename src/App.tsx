@@ -12,17 +12,47 @@ import Stats from "./pages/Stats";
 import Wrapped from "./pages/Wrapped";
 import Visualizer from "./pages/Visualizer";
 import Palette from "./Palette";
-import { bridge, onFileDrop, subscribe, type NowPlaying, type Settings as AppSettings } from "./bridge";
+import {
+  bridge,
+  onFileDrop,
+  subscribe,
+  type NowPlaying,
+  type Settings as AppSettings,
+} from "./bridge";
 import { favEntryFor, loadFavs, toggleFav } from "./favs";
 import { useT } from "./i18n";
 import { applyDynAccent, applyGlassOpacity, applyTheme } from "./themes";
 
 export default function App() {
+  // Every icon button explains itself on hover: mirror aria-label into title.
+  useEffect(() => {
+    const fill = () =>
+      document
+        .querySelectorAll<HTMLButtonElement>("button[aria-label]")
+        .forEach((b) => {
+          const label = b.getAttribute("aria-label")!;
+          if (b.title && !b.dataset.autotitle) return;
+          if (b.title !== label) b.title = label;
+          b.dataset.autotitle = "1";
+        });
+    fill();
+    const mo = new MutationObserver(fill);
+    mo.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["aria-label"],
+    });
+    return () => mo.disconnect();
+  }, []);
   // OS accent (macOS Appearance / Windows personalization) tints active controls.
   useEffect(() => {
     void bridge
       .systemAccent()
-      .then((c) => c && document.documentElement.style.setProperty("--sys-accent", c))
+      .then(
+        (c) =>
+          c && document.documentElement.style.setProperty("--sys-accent", c),
+      )
       .catch(() => {});
   }, []);
   useEffect(() => {
@@ -188,7 +218,8 @@ function ShortcutsGate() {
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         if (e.shiftKey) void b.mediaControl("next");
-        else void b.getNowPlaying().then((np) => b.seek(np.positionMs + 10_000));
+        else
+          void b.getNowPlaying().then((np) => b.seek(np.positionMs + 10_000));
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         if (e.shiftKey) void b.mediaControl("previous");
@@ -199,13 +230,17 @@ function ShortcutsGate() {
       } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
         const d = e.key === "ArrowUp" ? 0.05 : -0.05;
-        void b.getVolume().then((v) => b.setVolume(Math.min(1, Math.max(0, v + d))));
+        void b
+          .getVolume()
+          .then((v) => b.setVolume(Math.min(1, Math.max(0, v + d))));
       } else if (e.key === "s" || e.key === "S") {
         void b.getShuffle().then((on) => b.setShuffle(!on));
       } else if (e.key === "r" || e.key === "R") {
-        void b.getRepeat().then((m) =>
-          b.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
-        );
+        void b
+          .getRepeat()
+          .then((m) =>
+            b.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
+          );
       } else if (e.key === "l" || e.key === "L") {
         void b.getNowPlaying().then((np) => {
           const entry = favEntryFor(np);
@@ -237,7 +272,11 @@ function DropGate() {
     const off = onFileDrop((paths) => {
       void bridge.enqueueFiles(paths).then((n) => {
         const tt = tRef.current;
-        setNote(n > 0 ? tt(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n }) : tt("app.noAudioDrop"));
+        setNote(
+          n > 0
+            ? tt(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n })
+            : tt("app.noAudioDrop"),
+        );
         clearTimeout(timer);
         timer = setTimeout(() => setNote(""), 2600);
       });

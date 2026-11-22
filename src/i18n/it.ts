@@ -228,6 +228,16 @@ const it: Record<keyof typeof en, string> = {
   "set.grp.sources": "Sorgenti",
   "set.grp.windows": "Finestre",
   "set.grp.license": "Licenza",
+  "fs.prev": "Previous",
+  "fs.next": "Next",
+  "fs.playBtn": "Play",
+  "fs.pauseBtn": "Pause",
+  "fs.pin": "Pin",
+  "fs.unpin": "Unpin",
+  "fs.close": "Close",
+  "fs.searchSongs": "Search songs",
+  "fs.thumbsShow": "Show thumbnails",
+  "fs.thumbsHide": "Hide thumbnails",
 };
 
 export default it;

@@ -228,6 +228,16 @@ const fr: Record<keyof typeof en, string> = {
   "set.grp.sources": "Sources",
   "set.grp.windows": "Fenêtres",
   "set.grp.license": "Licence",
+  "fs.prev": "Previous",
+  "fs.next": "Next",
+  "fs.playBtn": "Play",
+  "fs.pauseBtn": "Pause",
+  "fs.pin": "Pin",
+  "fs.unpin": "Unpin",
+  "fs.close": "Close",
+  "fs.searchSongs": "Search songs",
+  "fs.thumbsShow": "Show thumbnails",
+  "fs.thumbsHide": "Hide thumbnails",
 };
 
 export default fr;

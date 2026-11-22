@@ -237,6 +237,16 @@ const en = {
   "set.grp.sources": "Sources",
   "set.grp.windows": "Windows",
   "set.grp.license": "License",
+  "fs.prev": "Previous",
+  "fs.next": "Next",
+  "fs.playBtn": "Play",
+  "fs.pauseBtn": "Pause",
+  "fs.pin": "Pin",
+  "fs.unpin": "Unpin",
+  "fs.close": "Close",
+  "fs.searchSongs": "Search songs",
+  "fs.thumbsShow": "Show thumbnails",
+  "fs.thumbsHide": "Hide thumbnails",
 } as const;
 
 export default en;

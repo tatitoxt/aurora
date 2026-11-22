@@ -252,17 +252,17 @@ export default function Hud() {
           >
             <ListBullets size={15} />
           </button>
-          <button className="hctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>
+          <button className="hctl" aria-label={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={15} />
           </button>
           <button
             className="hctl hctl--play"
-            aria-label={playing ? "Pause" : "Play"}
+            aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
             onClick={() => bridge.mediaControl("play-pause")}
           >
             {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
           </button>
-          <button className="hctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>
+          <button className="hctl" aria-label={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={15} />
           </button>
         </div>

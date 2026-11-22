@@ -2497,3 +2497,45 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__qtxt { display: flex; flex-direction: column; min-width: 0; }
 .fs__qname { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fs__qsub { font-size: 11px; color: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- v3.2: neutral glass popovers, anchored pickers, glass HUD play, Library popup ---------- */
+.fs__volpop {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(26px) saturate(1.4); -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.1), 0 18px 44px -16px rgba(0, 0, 0, 0.5);
+}
+@keyframes fsPopIn { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+.fs__provpop {
+  position: absolute; left: 0; bottom: calc(100% + 14px); transform: none;
+  transform-origin: bottom left; animation: fsPopIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fs__provpop--search { min-width: 300px; }
+.fs__morebtn, .fs__extlive { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
+.hud__pill .hctl.hctl--play, .hud__pill .hctl.hctl--play:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06));
+  color: #fff; border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 14px -6px rgba(0, 0, 0, 0.5);
+}
+.hud__pill .hctl.hctl--play:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1)); }
+.fs__hairfill { inset: 0 auto 0 0; transform: none; transition: width 0.25s linear; }
+.fs__libpop {
+  position: absolute; z-index: 9; inset: clamp(44px, 6%, 80px) clamp(12px, 8%, 160px) clamp(90px, 16%, 150px);
+  border-radius: 22px; overflow: hidden; animation: fsPopIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02)), rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(30px) saturate(1.4); -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+}
+.fs__libpop > .glass { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; overflow-y: auto; }
+.fs__libpop > .glass > .artbg { display: none; }
+.fs__libclose { position: absolute; top: 8px; right: 8px; z-index: 2; color: #fff; }
+.fs :has(.fs__provpop) { z-index: 30; }
+.fs__provpop { background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), rgba(10, 10, 10, 0.42); backdrop-filter: blur(34px) saturate(1.4); -webkit-backdrop-filter: blur(34px) saturate(1.4); }
+.fs__libpop .pagehead__links { margin-right: 30px; }
+/* Blur lives on a pseudo-element so the pill isn't a backdrop root: its popovers can blur the page behind them. */
+.fs .fs__pill { position: relative; z-index: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.fs .fs__pill::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  backdrop-filter: blur(8px) saturate(1.5); -webkit-backdrop-filter: blur(8px) saturate(1.5);
+}

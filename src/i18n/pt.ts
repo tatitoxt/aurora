@@ -228,6 +228,16 @@ const pt: Record<keyof typeof en, string> = {
   "set.grp.sources": "Fontes",
   "set.grp.windows": "Janelas",
   "set.grp.license": "Licença",
+  "fs.prev": "Previous",
+  "fs.next": "Next",
+  "fs.playBtn": "Play",
+  "fs.pauseBtn": "Pause",
+  "fs.pin": "Pin",
+  "fs.unpin": "Unpin",
+  "fs.close": "Close",
+  "fs.searchSongs": "Search songs",
+  "fs.thumbsShow": "Show thumbnails",
+  "fs.thumbsHide": "Hide thumbnails",
 };
 
 export default pt;

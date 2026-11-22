@@ -228,6 +228,16 @@ const ja: Record<keyof typeof en, string> = {
   "set.grp.sources": "ソース",
   "set.grp.windows": "ウィンドウ",
   "set.grp.license": "ライセンス",
+  "fs.prev": "Previous",
+  "fs.next": "Next",
+  "fs.playBtn": "Play",
+  "fs.pauseBtn": "Pause",
+  "fs.pin": "Pin",
+  "fs.unpin": "Unpin",
+  "fs.close": "Close",
+  "fs.searchSongs": "Search songs",
+  "fs.thumbsShow": "Show thumbnails",
+  "fs.thumbsHide": "Hide thumbnails",
 };
 
 export default ja;
