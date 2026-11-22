@@ -2686,6 +2686,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "noctbeat-relay"
+version = "0.1.0"
+dependencies = [
+ "noctbeat-core",
+]
+
+[[package]]
 name = "notify-rust"
 version = "4.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

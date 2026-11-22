@@ -856,13 +856,20 @@ export const bridge = {
     isTauri()
       ? invokeCmd<ListenStatus>("listen_status")
       : Promise.resolve(mockListen),
-  /** Host a LAN session; `name` defaults to the OS user on the backend. */
-  listenHostStart: (name?: string): Promise<ListenStatus> => {
-    if (isTauri()) return invokeCmd<ListenStatus>("listen_host_start", { name: name ?? null });
+  /** Host a session; `web` routes through the public relay so friends on
+      other networks can join. `name` defaults to the OS user. */
+  listenHostStart: (name?: string, web?: boolean): Promise<ListenStatus> => {
+    if (isTauri())
+      return invokeCmd<ListenStatus>("listen_host_start", {
+        name: name ?? null,
+        web: web ?? null,
+      });
     mockListen = {
       ...mockListen,
       hosting: true,
-      hostAddr: "http://192.168.1.42:17894",
+      hostAddr: web
+        ? "https://noctbeat-relay--or48g2ya.preview.devinapps.com/a1b2c3d4e5f67890"
+        : "http://192.168.1.42:17894",
       hostName: name || "Fausto",
       following: null,
     };

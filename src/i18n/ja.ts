@@ -145,6 +145,7 @@ const ja: Record<keyof typeof en, string> = {
   "set.sourceHint": "ブラウザ拡張をインストールすると YouTube Music、Spotify、SoundCloud、Apple Music、Tidal、Amazon を追跡できます — README › Browser extension を参照。",
   "set.listen": "いっしょに聴く",
   "set.listenHost": "セッションを作成",
+  "set.listenHostWeb": "Webセッション",
   "set.listenJoin": "参加",
   "set.listenAddrPh": "友達のアドレス — 例: 192.168.1.20",
   "set.listenHosting": "セッション有効 — 友達はこのアドレスで参加",

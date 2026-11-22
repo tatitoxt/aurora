@@ -1,11 +1,12 @@
-//! Listen Along: LAN host/follower sync. A host publishes its Now Playing
-//! snapshot on `GET /state`; followers poll it and mirror transport state
-//! (track, position, play/pause) against their own local library.
+//! Listen Along: host/follower sync. A host publishes its Now Playing
+//! snapshot; followers poll it and mirror transport state (track,
+//! position, play/pause) against their own local library.
 //!
-//! v1 is LAN-only: no accounts, no relay — the host serves on
-//! `0.0.0.0:LISTEN_PORT` and friends on the same network join by address.
-//! Remote listeners need port forwarding or a tailnet today; a real relay
-//! is the roadmap item.
+//! Two transports share the same Broadcast payload:
+//! - LAN: `Host` serves `GET /<key>` on `0.0.0.0:LISTEN_PORT`; followers
+//!   join `ip:port/<key>` (raw TCP, no DNS/TLS needed).
+//! - WAN: `RelayHost` POSTs to `<relay>/<key>` on a `relay::Relay` room
+//!   store; followers join the `https://relay/<key>` URL via ureq.
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -17,6 +18,8 @@ use std::time::{Duration, Instant};
 use crate::media::{now_ms, NowPlaying, PlaybackStatus};
 
 pub const LISTEN_PORT: u16 = 17894;
+/// Default public relay for "Host web" — override with `NOCTBEAT_RELAY`.
+pub const DEFAULT_RELAY: &str = "https://noctbeat-relay--or48g2ya.preview.devinapps.com";
 const MAX_BODY: usize = 256 * 1024;
 /// A peer that fetched /state within this window counts as listening.
 const PEER_FRESH: Duration = Duration::from_secs(15);
@@ -274,13 +277,47 @@ pub struct Follower {
     pub addr: String,
 }
 
+/// Where a follower fetches broadcasts. Full `http(s)` URLs — relay room
+/// links and LAN share links alike — go through ureq (DNS, TLS); bare
+/// `ip:port` keeps the raw-TCP path so URL-free joins still work offline.
+enum Endpoint {
+    Tcp { addr: String, key: Option<String> },
+    Url(String),
+}
+
+impl Endpoint {
+    fn parse(addr: &str) -> Self {
+        let raw = addr.trim().trim_end_matches('/');
+        if raw.starts_with("http://") || raw.starts_with("https://") {
+            Self::Url(raw.to_string())
+        } else {
+            let (a, k) = normalize_addr(raw);
+            Self::Tcp { addr: a, key: k }
+        }
+    }
+    fn fetch(&self) -> Result<Option<Broadcast>, String> {
+        match self {
+            Self::Tcp { addr, key } => fetch_broadcast(addr, key.as_deref()),
+            Self::Url(u) => fetch_broadcast_url(u),
+        }
+    }
+    fn display(&self) -> String {
+        match self {
+            Self::Tcp { addr, .. } => addr.clone(),
+            Self::Url(u) => u.clone(),
+        }
+    }
+}
+
 impl Follower {
-    /// Join `addr` (`ip`, `ip:port` or a `http://ip:port/<key>` share URL).
+    /// Join `addr` (`ip`, `ip:port`, a `http://ip:port/<key>` LAN share
+    /// URL, or a `https://relay/<key>` room URL).
     /// Validates by fetching state once; Err means unreachable or bad key.
     pub fn join(addr: &str) -> Result<Self, String> {
-        let (addr, key) = normalize_addr(addr);
+        let ep = Endpoint::parse(addr);
+        let shown = ep.display();
         // One probe up front so join() can fail fast on a bad address.
-        let b = fetch_broadcast(&addr, key.as_deref()).map_err(|e| format!("{addr}: {e}"))?;
+        let b = ep.fetch().map_err(|e| format!("{shown}: {e}"))?;
         let shared = Arc::new(Mutex::new(FollowShared {
             latest: b.clone().map(|b| (Instant::now(), b)),
             host_name: b.map(|x| x.host),
@@ -289,11 +326,10 @@ impl Follower {
         let alive = Arc::new(AtomicBool::new(true));
         let s = Arc::clone(&shared);
         let a = Arc::clone(&alive);
-        let worker_addr = addr.clone();
         std::thread::spawn(move || {
             while a.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(800));
-                match fetch_broadcast(&worker_addr, key.as_deref()) {
+                match ep.fetch() {
                     Ok(mut b) => {
                         let mut g = s.lock().unwrap();
                         g.last_error = None;
@@ -309,7 +345,7 @@ impl Follower {
         Ok(Self {
             shared,
             alive,
-            addr,
+            addr: shown,
         })
     }
 
@@ -335,6 +371,154 @@ impl Follower {
 }
 
 impl Drop for Follower {
+    fn drop(&mut self) {
+        self.alive.store(false, Ordering::Relaxed);
+    }
+}
+
+/// `GET <url>` through ureq — DNS, TLS and plain HTTP all handled. Used
+/// for relay room URLs and for `http://…` share links alike.
+fn fetch_broadcast_url(url: &str) -> Result<Option<Broadcast>, String> {
+    let resp = ureq::get(url)
+        .timeout(Duration::from_secs(4))
+        .call()
+        .map_err(|e| match e {
+            ureq::Error::Status(403, _) => "bad session link".to_string(),
+            ureq::Error::Status(404, _) => "room not found".to_string(),
+            other => other.to_string(),
+        })?;
+    let text = resp
+        .into_string()
+        .map_err(|_| "bad state payload".to_string())?;
+    let mut b: Option<Broadcast> =
+        serde_json::from_str(&text).map_err(|_| "bad state payload".to_string())?;
+    if let Some(b) = b.as_mut() {
+        b.received_at = Some(Instant::now());
+    }
+    Ok(b)
+}
+
+/// WAN host: pushes each Now Playing snapshot to `<relay>/<key>` on a
+/// `relay::Relay` room store (~1 Hz when dirty). Followers join the
+/// share URL — the same path — so internet listeners work without port
+/// forwarding.
+pub struct RelayHost {
+    shared: Arc<Mutex<HostShared>>,
+    alive: Arc<AtomicBool>,
+    peers: Arc<Mutex<usize>>,
+    /// `http(s)://relay/<key>` — what friends paste to join.
+    pub url: String,
+    pub key: String,
+}
+
+impl RelayHost {
+    /// `relay_base` like `http://localhost:8787` or `https://relay.example`.
+    /// None when the base URL is unusable.
+    pub fn start(relay_base: &str, host_name: impl Into<String>) -> Option<Self> {
+        let base = relay_base.trim().trim_end_matches('/');
+        if !(base.starts_with("http://") || base.starts_with("https://")) {
+            return None;
+        }
+        let key = session_key();
+        let url = format!("{base}/{key}");
+        let shared = Arc::new(Mutex::new(HostShared {
+            np: None,
+            host_name: host_name.into(),
+            key: key.clone(),
+            seq: 0,
+            peers: HashMap::new(),
+        }));
+        let alive = Arc::new(AtomicBool::new(true));
+        let peers = Arc::new(Mutex::new(0usize));
+        {
+            let s = Arc::clone(&shared);
+            let a = Arc::clone(&alive);
+            let p = Arc::clone(&peers);
+            let post = url.clone();
+            std::thread::spawn(move || {
+                let mut posted_seq = 0u64;
+                while a.load(Ordering::Relaxed) {
+                    std::thread::sleep(Duration::from_millis(700));
+                    let (seq, body) = {
+                        let s = s.lock().unwrap();
+                        let body = match &s.np {
+                            Some(np) => serde_json::to_string(&Broadcast {
+                                host: s.host_name.clone(),
+                                np: np.clone(),
+                                sent_at_ms: now_ms(),
+                                seq: s.seq,
+                                received_at: None,
+                            })
+                            .unwrap_or_else(|_| "null".into()),
+                            None => "null".into(),
+                        };
+                        (s.seq, body)
+                    };
+                    if seq == posted_seq {
+                        continue;
+                    }
+                    match ureq::post(&post)
+                        .timeout(Duration::from_secs(4))
+                        .set("Content-Type", "application/json")
+                        .send_string(&body)
+                    {
+                        Ok(resp) => {
+                            posted_seq = seq;
+                            if let Ok(v) =
+                                resp.into_string().map(|s| {
+                                    serde_json::from_str::<serde_json::Value>(&s)
+                                })
+                            {
+                                if let Ok(v) = v {
+                                    if let Some(n) = v.get("peers").and_then(|n| n.as_u64()) {
+                                        *p.lock().unwrap() = n as usize;
+                                    }
+                                }
+                            }
+                        }
+                        Err(_) => { /* relay hiccup: retry next tick */ }
+                    }
+                }
+            });
+        }
+        Some(Self {
+            shared,
+            alive,
+            peers,
+            url,
+            key,
+        })
+    }
+
+    pub fn share_url(&self) -> Option<String> {
+        Some(self.url.clone())
+    }
+
+    /// Same local-path stripping as `Host::publish`.
+    pub fn publish(&self, np: &NowPlaying) {
+        let mut np = np.clone();
+        if let Some(t) = np.track.as_mut() {
+            t.id = format!("{}:{}:{}", np.source, t.artist, t.title);
+            if !t.artwork_url.starts_with("http") {
+                t.artwork_url.clear();
+            }
+        }
+        let mut s = self.shared.lock().unwrap();
+        s.np = Some(np);
+        s.seq += 1;
+    }
+
+    /// Follower count reported by the relay on the last push.
+    pub fn peers(&self) -> usize {
+        *self.peers.lock().unwrap()
+    }
+
+    pub fn name(&self) -> String {
+        self.shared.lock().unwrap().host_name.clone()
+    }
+}
+
+impl Drop for RelayHost {
     fn drop(&mut self) {
         self.alive.store(false, Ordering::Relaxed);
     }
@@ -659,5 +843,37 @@ mod tests {
         let raw = serde_json::to_string(&got).unwrap();
         assert!(!raw.contains("/home/fausto"));
         assert!(!got.np.track.as_ref().unwrap().id.contains('/'));
+    }
+
+    #[test]
+    fn relay_roundtrip() {
+        // In-process WAN path: relay room + RelayHost push + Follower join.
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let relay = crate::relay::Relay::on(listener).unwrap();
+        let base = format!("http://{}", relay.addr);
+
+        let host = RelayHost::start(&base, "wan host").unwrap();
+        host.publish(&np("Relay Song", "Relay Artist", 9_000, PlaybackStatus::Playing));
+        // The room exists only after the host's first push lands.
+        let mut follower = None;
+        for _ in 0..20 {
+            match Follower::join(&host.url) {
+                Ok(f) => {
+                    follower = Some(f);
+                    break;
+                }
+                Err(_) => std::thread::sleep(Duration::from_millis(150)),
+            }
+        }
+        let follower = follower.expect("follower should join the relay room");
+        let b = follower.latest().expect("broadcast should arrive");
+        assert_eq!(b.host, "wan host");
+        assert_eq!(b.np.track.unwrap().title, "Relay Song");
+    }
+
+    #[test]
+    fn relay_host_rejects_bad_base() {
+        assert!(RelayHost::start("not-a-url", "x").is_none());
+        assert!(RelayHost::start("", "x").is_none());
     }
 }

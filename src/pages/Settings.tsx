@@ -586,6 +586,9 @@ export default function Settings() {
                   <button onClick={() => bridge.listenHostStart().then(setLst).catch((e) => setJoinErr(String(e?.message ?? e)))}>
                     {t("set.listenHost")}
                   </button>
+                  <button onClick={() => bridge.listenHostStart(undefined, true).then(setLst).catch((e) => setJoinErr(String(e?.message ?? e)))}>
+                    {t("set.listenHostWeb")}
+                  </button>
                 </div>
               </div>
               {joinErr && (

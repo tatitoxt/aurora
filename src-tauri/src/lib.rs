@@ -64,7 +64,7 @@ struct AppState {
     /// Discord Rich Presence client (idle unless a client id is configured).
     discord: Mutex<discord::DiscordRpc>,
     /// Listen Along host (None unless the user started a session).
-    listen_host: Mutex<Option<listen::Host>>,
+    listen_host: Mutex<Option<AnyHost>>,
     /// Listen Along follower (None unless joined to a host's session).
     listen_follower: Mutex<Option<listen::Follower>>,
     /// Host track we already reported as unmatchable — avoids rescanning
@@ -2161,6 +2161,40 @@ fn synthetic_energy(np: &NowPlaying, prev: &EnergyUpdate) -> EnergyUpdate {
 
 // ---- Listen Along --------------------------------------------------------
 
+/// A hosting session on either transport: LAN (`Host`) or WAN relay
+/// (`RelayHost`). The status and publish paths are identical.
+enum AnyHost {
+    Lan(listen::Host),
+    Wan(listen::RelayHost),
+}
+
+impl AnyHost {
+    fn publish(&self, np: &NowPlaying) {
+        match self {
+            Self::Lan(h) => h.publish(np),
+            Self::Wan(h) => h.publish(np),
+        }
+    }
+    fn share_url(&self) -> Option<String> {
+        match self {
+            Self::Lan(h) => h.share_url(),
+            Self::Wan(h) => h.share_url(),
+        }
+    }
+    fn name(&self) -> String {
+        match self {
+            Self::Lan(h) => h.name(),
+            Self::Wan(h) => h.name(),
+        }
+    }
+    fn peers(&self) -> usize {
+        match self {
+            Self::Lan(h) => h.peers(),
+            Self::Wan(h) => h.peers(),
+        }
+    }
+}
+
 fn listen_status_of(state: &AppState) -> listen::ListenStatus {
     let mut st = listen::ListenStatus::default();
     if let Ok(h) = state.listen_host.lock() {
@@ -2173,7 +2207,11 @@ fn listen_status_of(state: &AppState) -> listen::ListenStatus {
     }
     if let Ok(f) = state.listen_follower.lock() {
         if let Some(f) = f.as_ref() {
-            st.following = Some(format!("http://{}", f.addr));
+            st.following = Some(if f.addr.contains("://") {
+                f.addr.clone()
+            } else {
+                format!("http://{}", f.addr)
+            });
             st.host_name = f.host_name().or(st.host_name);
             st.last_error = f.last_error();
         }
@@ -2196,14 +2234,28 @@ fn listen_status(state: State<AppState>) -> listen::ListenStatus {
 fn listen_host_start(
     state: State<AppState>,
     name: Option<String>,
+    web: Option<bool>,
 ) -> Result<listen::ListenStatus, String> {
     let name = name
         .map(|n| n.trim().to_string())
         .filter(|n| !n.is_empty())
         .or_else(|| std::env::var("USER").ok())
         .unwrap_or_else(|| "Noctbeat".into());
-    let host = listen::Host::start(name, listen::LISTEN_PORT)
-        .ok_or_else(|| "could not start the session (port busy?)".to_string())?;
+    let host = if web.unwrap_or(false) {
+        let relay = std::env::var("NOCTBEAT_RELAY")
+            .ok()
+            .filter(|r| !r.trim().is_empty())
+            .unwrap_or_else(|| listen::DEFAULT_RELAY.to_string());
+        AnyHost::Wan(
+            listen::RelayHost::start(&relay, name)
+                .ok_or_else(|| "could not start the web session (bad relay URL)".to_string())?,
+        )
+    } else {
+        AnyHost::Lan(
+            listen::Host::start(name, listen::LISTEN_PORT)
+                .ok_or_else(|| "could not start the session (port busy?)".to_string())?,
+        )
+    };
     *state.listen_host.lock().map_err(|e| e.to_string())? = Some(host);
     *state.listen_follower.lock().map_err(|e| e.to_string())? = None;
     *state.listen_missing.lock().map_err(|e| e.to_string())? = None;
