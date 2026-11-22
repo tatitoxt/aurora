@@ -60,7 +60,7 @@ pub struct Settings {
     #[serde(default)]
     pub license_key: Option<String>,
     /// Floating HUD mini-player window.
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub hud_enabled: bool,
     /// Pin the HUD above other windows; false lets it sink behind them.
     #[serde(default = "default_true")]
@@ -183,7 +183,7 @@ impl Default for Settings {
             version: CURRENT_VERSION,
             tray_live_icon: true,
             license_key: None,
-            hud_enabled: true,
+            hud_enabled: false,
             hud_always_on_top: true,
             hud_position: None,
             music_dir: None,
@@ -411,7 +411,7 @@ mod tests {
         let p = tmp("v1nohud.json");
         std::fs::write(&p, r##"{"version":1,"licenseKey":null}"##).unwrap();
         let s = Settings::load(&p);
-        assert!(s.hud_enabled);
+        assert!(!s.hud_enabled);
         assert!(s.hud_always_on_top);
         assert_eq!(s.hud_position, None);
         let _ = std::fs::remove_file(&p);

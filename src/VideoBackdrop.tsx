@@ -29,6 +29,7 @@ export function VideoBackdrop({
   if (isEmbed)
     return (
       <EmbedBackdrop
+        key={url}
         url={url}
         posMs={posMs}
         playing={playing}
@@ -37,7 +38,7 @@ export function VideoBackdrop({
         audible={audible}
       />
     );
-  return <FileBackdrop url={url} posMs={posMs} playing={playing} cls={cls} readyCls={readyCls} />;
+  return <FileBackdrop key={url} url={url} posMs={posMs} playing={playing} cls={cls} readyCls={readyCls} />;
 }
 
 function FileBackdrop({
@@ -84,6 +85,7 @@ function FileBackdrop({
        * freezing on the last frame (demo clips are a few seconds). */
       loop
       onCanPlay={() => setReady(true)}
+      onError={() => setReady(false)}
     />
   );
 }
@@ -108,6 +110,7 @@ function EmbedBackdrop({
   // re-seek when it jumps (a real scrub), not on every poll.
   const sync = useRef({ pos: 0, at: 0 });
   const unmuted = useRef(false);
+  const started = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
   const posRef = useRef(posMs);
@@ -117,6 +120,7 @@ function EmbedBackdrop({
     setReady(false);
     setLoaded(false);
     unmuted.current = false;
+    started.current = false;
     const origin = new URL(url).origin;
     const onMessage = (event: MessageEvent) => {
       if (event.source !== ref.current?.contentWindow || event.origin !== origin) return;
@@ -128,6 +132,7 @@ function EmbedBackdrop({
       }
       if (data?.event === "onError") setReady(false);
       const state = data?.event === "onStateChange" ? data.info : data?.info?.playerState;
+      if (state === 1) started.current = true;
       if (state === 1 || state === 2) setReady(true);
     };
     window.addEventListener("message", onMessage);
@@ -142,6 +147,7 @@ function EmbedBackdrop({
 
   useEffect(() => {
     if (!loaded) return;
+    started.current = false;
     sync.current = { pos: posMs, at: Date.now() };
     if (!playing) {
       cmd("pauseVideo");
@@ -151,11 +157,14 @@ function EmbedBackdrop({
     // times after the iframe loads so the clip actually starts on its own.
     // The initial seek lands it at the track position, not at second zero.
     const kick = () => {
+      if (started.current) return;
       ref.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening" }), new URL(url).origin);
       cmd("addEventListener", ["onStateChange"]);
       cmd("addEventListener", ["onError"]);
       cmd("seekTo", [posRef.current / 1000, true]);
-      if (audible && !unmuted.current) {
+      // Unmuting autoplay before a user gesture makes Chromium pause the
+      // video. Keep the backdrop moving silently until playback is clicked.
+      if (audible && navigator.userActivation?.hasBeenActive && !unmuted.current) {
         cmd("unMute");
         unmuted.current = true;
       }

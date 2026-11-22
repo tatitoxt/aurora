@@ -1736,13 +1736,30 @@ fn open_url(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("refusing non-http url".into());
     }
+    open_in_system(&url)
+}
+
+/// Opens only the bundled bridge folder, ready for "Load unpacked".
+#[tauri::command]
+fn open_extension_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let folder = app
+        .path()
+        .resolve("extension", tauri::path::BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+    if !folder.join("manifest.json").is_file() {
+        return Err("The bundled browser extension could not be found.".into());
+    }
+    open_in_system(folder.to_str().ok_or("Invalid extension folder path")?)
+}
+
+fn open_in_system(url: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
+    let r = std::process::Command::new("xdg-open").arg(url).spawn();
     #[cfg(target_os = "macos")]
-    let r = std::process::Command::new("open").arg(&url).spawn();
+    let r = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "windows")]
     let r = std::process::Command::new("rundll32")
-        .args(["url.dll,FileProtocolHandler", &url])
+        .args(["url.dll,FileProtocolHandler", url])
         .spawn();
     match r {
         Ok(mut child) => {
@@ -1844,16 +1861,7 @@ fn sync_desk_lyrics_window(app: &tauri::AppHandle, settings: &Settings) {
     )
     .transparent(true)
     .decorations(false)
-    .effects(
-        tauri::window::EffectsBuilder::new()
-            .effects(vec![
-                tauri::window::Effect::HudWindow,
-                tauri::window::Effect::Acrylic,
-            ])
-            .state(tauri::window::EffectState::Active)
-            .radius(18.0)
-            .build(),
-    )
+    .shadow(false)
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
@@ -2762,6 +2770,7 @@ pub fn run() {
             activate_license,
             deactivate_license,
             open_url,
+            open_extension_folder,
             set_hud_pinned,
             hud_start_drag,
             desk_lyrics_start_drag,

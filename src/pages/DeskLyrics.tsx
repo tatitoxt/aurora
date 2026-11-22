@@ -6,7 +6,7 @@ import { activeLyricIndex } from "../lib";
 import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import { X } from "@phosphor-icons/react";
 
-/** Floating desktop lyrics overlay: the karaoke line on a small glass chip,
+/** Floating desktop lyrics overlay: the karaoke line on a transparent surface,
  * always on top, draggable anywhere like the HUD. */
 export default function DeskLyrics() {
   const t = useT();

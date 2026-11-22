@@ -80,6 +80,18 @@ test.describe("Noctbeat stage", () => {
 });
 
 test.describe("Covers carousel", () => {
+  test("the playing cover starts centered between its queue neighbors", async ({ page }) => {
+    await page.goto(`${APP}/#/`);
+    const covers = page.locator(".fs__covers");
+    await expect(page.locator(".fs__cover--live")).toBeVisible();
+    await page.waitForTimeout(700);
+    const box = await covers.boundingBox();
+    const active = await page.locator(".fs__cover--live").boundingBox();
+    expect(Math.abs(active!.x + active!.width / 2 - (box!.x + box!.width / 2))).toBeLessThan(14);
+    await expect(page.locator(".fs__cover--l").first()).toBeVisible();
+    await expect(page.locator(".fs__cover--r").first()).toBeVisible();
+  });
+
   test("scrolling moves the highlight without changing the track", async ({ page }) => {
     await page.goto(`${APP}/#/`);
     const covers = page.locator(".fs__covers");

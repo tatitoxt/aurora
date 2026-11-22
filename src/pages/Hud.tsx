@@ -105,9 +105,9 @@ export default function Hud() {
   }, [trackKey]);
   useEffect(() => {
     setVideoUrl(null);
+    const req = ++videoReq.current;
     // Only the video mode resolves the clip; art mode never spins yt-dlp.
     if (mediaMode !== "video" || !trackKey || !track) return;
-    const req = ++videoReq.current;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (videoReq.current === req && u) setVideoUrl(u);
     });
@@ -181,12 +181,13 @@ export default function Hud() {
           {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
         <div className="hud__focusart">
-          {mediaMode === "video" && videoUrl ? (
-            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-          ) : art ? (
+          {art ? (
             <img src={art} alt="" />
           ) : (
             <MusicNote size={40} weight="thin" />
+          )}
+          {mediaMode === "video" && videoUrl && (
+            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
           )}
           {lyricsOn ? (
             <div className="hud__lyrover">

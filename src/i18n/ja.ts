@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const ja: Record<keyof typeof en, string> = {
+  "sources.heading": "音楽サービス",
+  "sources.live": "接続済み",
+  "sources.waiting": "音楽タブを待機中",
+  "sources.demo": "ブラウザプレビュー",
+  "sources.open": "ブラウザで{name}を開く",
+  "sources.setup": "ブラウザ拡張を設定",
+  "sources.folder": "拡張機能のフォルダを開く",
+  "sources.playlists": "サービスでプレイリストを開いてください。拡張機能が再生中の曲を追跡し、Noctbeatから再生を操作できます。",
+  "sources.emptyLikes": "ハートを付けた曲がここに表示されます。",
+  "sources.emptyPlaylists": "プレイリストを読み込むか、キューを保存してください。",
   "nav.library": "\u30e9\u30a4\u30d6\u30e9\u30ea",
   "nav.visualizer": "\u30d3\u30b8\u30e5\u30a2\u30e9\u30a4\u30b6\u30fc",
   "nav.stats": "\u7d71\u8a08",

@@ -215,7 +215,7 @@ export const DEFAULT_SETTINGS: Settings = {
   version: 1,
   trayLiveIcon: true,
   licenseKey: null,
-  hudEnabled: true,
+  hudEnabled: false,
   hudAlwaysOnTop: true,
   hudPosition: null,
   musicDir: null,
@@ -454,6 +454,7 @@ function mockQueueState(): QueueState {
 }
 
 export const bridge = {
+  openExtensionFolder: () => invokeCmd<void>("open_extension_folder"),
   artSrc,
   isTauri,
   productName: branding.productName,
@@ -465,7 +466,7 @@ export const bridge = {
   getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
-      : Promise.resolve({ tabs: 1, provider: "open.spotify.com" }),
+    : Promise.resolve(null),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);

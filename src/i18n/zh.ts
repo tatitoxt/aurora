@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const zh: Record<keyof typeof en, string> = {
+  "sources.heading": "音乐服务",
+  "sources.live": "已连接",
+  "sources.waiting": "等待音乐标签页",
+  "sources.demo": "浏览器预览",
+  "sources.open": "在浏览器中打开{name}",
+  "sources.setup": "设置浏览器扩展",
+  "sources.folder": "打开扩展文件夹",
+  "sources.playlists": "在上述服务中打开歌单。扩展会跟踪当前歌曲，并通过 Noctbeat 控制播放。",
+  "sources.emptyLikes": "标记喜欢的歌曲会显示在这里。",
+  "sources.emptyPlaylists": "导入歌单或保存队列以创建收藏。",
   "nav.library": "\u97f3\u4e50\u5e93",
   "nav.visualizer": "\u53ef\u89c6\u5316",
   "nav.stats": "\u7edf\u8ba1",

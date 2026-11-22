@@ -9,6 +9,7 @@ import {
   TextT,
   Waveform,
 } from "@phosphor-icons/react";
+import BrowserSources from "../BrowserSources";
 import { branding } from "../branding";
 import { LANG_NAMES, useT, type MsgKey } from "../i18n";
 import { LYRIC_ANIMS } from "../lyricanim";
@@ -42,6 +43,7 @@ export default function Settings() {
   };
   const [profileName, setProfileName] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [activeGroup, setActiveGroup] = useState("look");
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lst, setLst] = useState<ListenStatus | null>(null);
   const [joinAddr, setJoinAddr] = useState("");
@@ -124,36 +126,40 @@ export default function Settings() {
     { id: "windows", label: t("set.grp.windows"), icon: <AppWindow /> },
     { id: "license", label: t("set.grp.license"), icon: <Key /> },
   ];
-  const jump = (id: string) =>
-    document
-      .querySelector(`[data-setgrp="${id}"]`)
-      ?.scrollIntoView({ block: "start", behavior: "smooth" });
-
   return (
-    <div className="glass">
-      <div className="settings">
+    <div className="glass preferences">
+      <div className="settings settings--categorized">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
-            <span className="art__kicker">Control</span>
+            <h1 className="pagehead__name">{t("set.title")}</h1>
             <span className="pagehead__links">
               <Link to="/" className="pagehead__link">
                 {t("nav.back")}
               </Link>
             </span>
           </div>
-          <h1 className="pagehead__name">{t("set.title")}</h1>
         </div>
 
-        <nav className="setnav" aria-label={t("set.title")}>
+        <nav className="setnav preferences__nav" aria-label={t("set.title")}>
           {groups.map((g) => (
-            <button key={g.id} className="setnav__pill" onClick={() => jump(g.id)}>
+            <button
+              key={g.id}
+              className={`setnav__pill ${activeGroup === g.id ? "on" : ""}`}
+              aria-pressed={activeGroup === g.id}
+              aria-controls={`settings-${g.id}`}
+              onClick={(event) => {
+                setActiveGroup(g.id);
+                event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+              }}
+            >
               {g.icon}
               <span>{g.label}</span>
             </button>
           ))}
         </nav>
 
-        <section className="setblock" data-setgrp="lyrics">
+        <div className="preferences__body" key={activeGroup}>
+        <section className="setblock" id="settings-lyrics" data-setgrp="lyrics" hidden={activeGroup !== "lyrics"}>
           <span className="setghead">
             <TextT />
             {t("set.grp.lyrics")}
@@ -164,12 +170,14 @@ export default function Settings() {
           <div className="seg">
             <button
               className={s.lyricsMode === "lines" ? "on" : ""}
+              aria-pressed={s.lyricsMode === "lines"}
               onClick={() => patch({ lyricsMode: "lines" })}
             >
               {t("set.lines")}
             </button>
             <button
               className={s.lyricsMode === "karaoke" ? "on" : ""}
+              aria-pressed={s.lyricsMode === "karaoke"}
               onClick={() => patch({ lyricsMode: "karaoke" })}
             >
               {t("set.karaoke")}
@@ -193,28 +201,41 @@ export default function Settings() {
           </div>
         )}
 
-        {s.lyricsMode === "karaoke" && (
-          <div className="row">
+        <div className="row">
             <span>{t("set.videoBackdrop")}</span>
             <button
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.videoBackdrop}
               aria-label="Music video backdrop"
               onClick={() => patch({ videoBackdrop: !s.videoBackdrop })}
             />
           </div>
-        )}
 
         <div className="row">
           <span>{t("set.ambientBg")}</span>
           <button
             className={`toggle ${s.ambientBg ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.ambientBg}
             aria-label="Ambient background"
             onClick={() => patch({ ambientBg: !s.ambientBg })}
           />
         </div>
 
+
+
+        </div>
+        </section>
+
+        <section className="setblock" id="settings-look" data-setgrp="look" hidden={activeGroup !== "look"}>
+          <span className="setghead">
+            <Palette />
+            {t("set.grp.look")}
+          </span>
+        <div className="setgroup">
         <div className="field">
-          <span>{t("set.glassOpacity")}</span>
+          <span>{t("set.glassOpacity")} <output>{s.glassOpacity}%</output></span>
           <input
             type="range"
             min={15}
@@ -225,16 +246,6 @@ export default function Settings() {
             onChange={(e) => patch({ glassOpacity: Number(e.target.value) })}
           />
         </div>
-
-        </div>
-        </section>
-
-        <section className="setblock" data-setgrp="look">
-          <span className="setghead">
-            <Palette />
-            {t("set.grp.look")}
-          </span>
-        <div className="setgroup">
         <div className="field">
           <span>{t("set.theme")}</span>
           <div className="themegal">
@@ -242,14 +253,14 @@ export default function Settings() {
               <button
                 key={th.name}
                 className={`themechip ${s.theme.name === th.name ? "on" : ""}`}
+                aria-pressed={s.theme.name === th.name}
                 onClick={() => patch({ theme: { ...s.theme, name: th.name } })}
               >
-                <span
-                  className="themechip__sw"
-                  style={{
-                    background: `linear-gradient(135deg, ${presetVar(th.name, "--bg")} 20%, ${presetVar(th.name, "--accent2")} 55%, ${presetVar(th.name, "--panel")})`,
-                  }}
-                />
+                <span className="themechip__sw" aria-hidden="true">
+                  <i style={{ background: presetVar(th.name, "--bg") }} />
+                  <i style={{ background: presetVar(th.name, "--accent") }} />
+                  <i style={{ background: presetVar(th.name, "--accent2") }} />
+                </span>
                 <span className="themechip__nm">{th.label}</span>
               </button>
             ))}
@@ -277,6 +288,8 @@ export default function Settings() {
           <span>{t("set.dynAccent")}</span>
           <button
             className={`toggle ${s.theme.dynamic ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.theme.dynamic}
             aria-label="Accent follows artwork"
             onClick={() => patch({ theme: { ...s.theme, dynamic: !s.theme.dynamic } })}
           />
@@ -314,7 +327,7 @@ export default function Settings() {
         </div>
         </section>
 
-        <section className="setblock" data-setgrp="sound">
+        <section className="setblock" id="settings-sound" data-setgrp="sound" hidden={activeGroup !== "sound"}>
           <span className="setghead">
             <Waveform />
             {t("set.grp.sound")}
@@ -411,7 +424,7 @@ export default function Settings() {
         </div>
         </section>
 
-        <section className="setblock" data-setgrp="play">
+        <section className="setblock" id="settings-play" data-setgrp="play" hidden={activeGroup !== "play"}>
           <span className="setghead">
             <PlayCircle />
             {t("set.grp.play")}
@@ -476,6 +489,8 @@ export default function Settings() {
           <span>{t("set.resumeOnLaunch")}</span>
           <button
             className={`toggle ${s.resumeOnLaunch ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.resumeOnLaunch}
             aria-label="Resume playback on launch"
             onClick={() => patch({ resumeOnLaunch: !s.resumeOnLaunch })}
           />
@@ -484,6 +499,8 @@ export default function Settings() {
           <span>{t("set.notifyTrack")}</span>
           <button
             className={`toggle ${s.notifyTrackChange ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.notifyTrackChange}
             aria-label="Notify when the track changes"
             onClick={() => patch({ notifyTrackChange: !s.notifyTrackChange })}
           />
@@ -493,6 +510,8 @@ export default function Settings() {
             <span>{t("set.discordRpc")}</span>
             <button
               className={`toggle ${s.discordRpc ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.discordRpc}
               aria-label="Discord Rich Presence"
               onClick={() => patch({ discordRpc: !s.discordRpc })}
             />
@@ -502,7 +521,8 @@ export default function Settings() {
         </div>
         </section>
 
-        <section className="setblock" data-setgrp="sources">
+        <section className="setblock" id="settings-sources" data-setgrp="sources" hidden={activeGroup !== "sources"}>
+          <BrowserSources />
           <span className="setghead">
             <PlugsConnected />
             {t("set.grp.sources")}
@@ -614,7 +634,7 @@ export default function Settings() {
         </div>
         </section>
 
-        <section className="setblock" data-setgrp="windows">
+        <section className="setblock" id="settings-windows" data-setgrp="windows" hidden={activeGroup !== "windows"}>
           <span className="setghead">
             <AppWindow />
             {t("set.grp.windows")}
@@ -624,6 +644,8 @@ export default function Settings() {
           <span>{t("set.liveTrayIcon")}</span>
           <button
             className={`toggle ${s.trayLiveIcon ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.trayLiveIcon}
             aria-label="Live tray icon"
             onClick={() => patch({ trayLiveIcon: !s.trayLiveIcon })}
           />
@@ -632,6 +654,8 @@ export default function Settings() {
           <span>{t("set.floatingHud")}</span>
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.hudEnabled}
             aria-label="Floating HUD"
             onClick={() => patch({ hudEnabled: !s.hudEnabled })}
           />
@@ -640,6 +664,8 @@ export default function Settings() {
           <span>{t("set.hudOnTop")}</span>
           <button
             className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.hudAlwaysOnTop}
             aria-label="Keep HUD on top"
             onClick={() => patch({ hudAlwaysOnTop: !s.hudAlwaysOnTop })}
           />
@@ -648,6 +674,8 @@ export default function Settings() {
           <span>{t("set.desktopLyrics")}</span>
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
+              role="switch"
+              aria-checked={s.deskLyricsEnabled}
             aria-label="Desktop lyrics overlay"
             onClick={() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled })}
           />
@@ -668,7 +696,7 @@ export default function Settings() {
         </div>
         </section>
 
-        <section className="setblock" data-setgrp="license">
+        <section className="setblock" id="settings-license" data-setgrp="license" hidden={activeGroup !== "license"}>
           <span className="setghead">
             <Key />
             {t("set.grp.license")}
@@ -710,6 +738,7 @@ export default function Settings() {
         </div>
         </div>
         </section>
+        </div>
       </div>
     </div>
   );

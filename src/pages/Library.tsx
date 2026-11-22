@@ -1,3 +1,4 @@
+import BrowserSources from "../BrowserSources";
 import { useT } from "../i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -63,6 +64,7 @@ const SOURCES = [
 
 export default function Library() {
   const t = useT();
+  const [activeSection, setActiveSection] = useState("queue");
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
@@ -333,11 +335,11 @@ export default function Library() {
     .filter((p) => !p.startsWith("remote:"));
 
   return (
-    <div className="glass">
-      <div className="settings">
+    <div className="glass collection">
+      <div className="settings settings--categorized">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
-            <span className="art__kicker">{t("lib.collection")}</span>
+            <h1 className="pagehead__name">{t("lib.title")}</h1>
             <span className="pagehead__links">
               <Link to="/albums" className="pagehead__link">
                 {t("lib.albums")}
@@ -347,7 +349,6 @@ export default function Library() {
               </Link>
             </span>
           </div>
-          <h1 className="pagehead__name">{t("lib.title")}</h1>
           <span className="pagehead__meta">
             {queue.items.length} {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")}
             {playlists.length > 0 && ` · ${playlists.length} ${playlists.length === 1 ? t("lib.playlistLower") : t("lib.playlistsLower")}`}
@@ -355,31 +356,39 @@ export default function Library() {
           </span>
         </div>
 
-        <nav className="setnav" aria-label={t("lib.title")}>
+        <nav className="setnav preferences__nav" aria-label={t("lib.title")}>
           {[
-            ["stream", "Stream"],
             ["queue", "Queue"],
+            ["stream", t("sources.heading")],
             ["liked", t("lib.liked")],
             ["playlists", t("lib.playlists")],
           ].map(([id, label]) => (
             <button
               key={id}
-              className="setnav__pill"
-              onClick={() =>
-                document
-                  .querySelector(`[data-libsec="${id}"]`)
-                  ?.scrollIntoView({ block: "start", behavior: "smooth" })
-              }
+              className={`setnav__pill ${activeSection === id ? "on" : ""}`}
+              aria-pressed={activeSection === id}
+              aria-controls={`library-${id}`}
+              onClick={(event) => {
+                setActiveSection(id);
+                event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+              }}
             >
+              {id === "queue" ? <ListBullets /> : id === "liked" ? <Heart /> : id === "playlists" ? <Playlist /> : <MusicNote />}
               <span>{label}</span>
             </button>
           ))}
         </nav>
 
+        <div className="preferences__body" key={activeSection}>
+        {error && <p className="license-bad" role="alert">{error}</p>}
+        {importNote && <p className="note" role="status">{importNote}</p>}
+        <section className="collection__section" id="library-stream" hidden={activeSection !== "stream"}>
+          <BrowserSources />
         <div className="inrow">
           <MagnifyingGlass />
           <input
             type="text"
+            aria-label={t("lib.search")}
             placeholder={t("lib.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -396,6 +405,7 @@ export default function Library() {
               <button
                 key={s.id}
                 className={source === s.id ? "on" : ""}
+                aria-pressed={source === s.id}
                 onClick={() => setSource(s.id)}
               >
                 {s.label}
@@ -444,6 +454,8 @@ export default function Library() {
           ))}
         </div>
 
+        </section>
+        <section className="collection__section" id="library-queue" hidden={activeSection !== "queue"}>
         <div className="lib__toolbar" data-libsec="queue">
           <span className="lib__kicker">
             Queue
@@ -491,8 +503,7 @@ export default function Library() {
             </button>
           </div>
         )}
-        {importNote && <span className="note">{importNote}</span>}
-        {error && <span className="license-bad">{error}</span>}
+
         {queue.items.length === 0 && !error && (
           <span className="note">Set a music folder in settings, then press Rescan.</span>
         )}
@@ -532,6 +543,9 @@ export default function Library() {
             );
           })}
         </div>
+        </section>
+        <section className="collection__section" id="library-liked" hidden={activeSection !== "liked"}>
+        {liked.length === 0 && <div className="collection__empty"><Heart size={32} /><h2>{t("lib.liked")}</h2><p>{t("sources.emptyLikes")}</p></div>}
         {liked.length > 0 && (
           <>
             <button
@@ -585,6 +599,15 @@ export default function Library() {
             </div>
           </>
         )}
+        </section>
+        <section className="collection__section" id="library-playlists" hidden={activeSection !== "playlists"}>
+        <div className="lib__toolbar">
+          <h2>{t("lib.playlists")}</h2>
+          <div className="seg"><button onClick={importPlaylist}>Import</button><button onClick={() => { setActiveSection("queue"); setSaveOpen(true); }}>Save queue</button></div>
+        </div>
+        <p className="note">{t("sources.playlists")}</p>
+        <button className="pagehead__link collection__services" onClick={() => setActiveSection("stream")}>{t("sources.heading")}</button>
+        {playlists.length === 0 && <div className="collection__empty"><Playlist size={32} /><p>{t("sources.emptyPlaylists")}</p></div>}
         {playlists.length > 0 && (
           <>
             <div className="lib__toolbar" data-libsec="playlists">
@@ -704,6 +727,8 @@ export default function Library() {
             </div>
           </>
         )}
+        </section>
+        </div>
       </div>
     </div>
   );

@@ -61,6 +61,7 @@ import {
 } from "@phosphor-icons/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
+import BrowserSources from "../BrowserSources";
 import AmbientBg from "../AmbientBg";
 import { openPalette } from "../Palette";
 import { StickerLayer } from "../Stickers";
@@ -73,20 +74,6 @@ const PROVIDERS = [
   { id: "tidal", label: "Tidal", icon: TidalLogo, live: false },
   { id: "amazon", label: "Amazon Music", icon: AmazonLogo, live: false },
 ] as const;
-
-/** Provider host reported by the browser extension → friendly label + picker id. */
-const EXT_HOSTS: [RegExp, string, string][] = [
-  [/(music|www)\.youtube\.com/, "YouTube Music", "youtube"],
-  [/open\.spotify\.com/, "Spotify", "spotify"],
-  [/soundcloud\.com/, "SoundCloud", "soundcloud"],
-  [/music\.apple\.com/, "Apple Music", "apple"],
-  [/listen\.tidal\.com/, "Tidal", "tidal"],
-  [/music\.amazon\./, "Amazon Music", "amazon"],
-];
-const extLabel = (host: string) =>
-  EXT_HOSTS.find(([re]) => re.test(host))?.[1] ?? host;
-const extProviderId = (host: string | null | undefined) =>
-  (host && EXT_HOSTS.find(([re]) => re.test(host))?.[2]) ?? null;
 
 /** Sharp video backdrop: muted, synced to the track position, faded in
  * once it can play. */
@@ -155,7 +142,6 @@ export default function Stage() {
   const [timingOpen, setTimingOpen] = useState(false);
   const [streamReady, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("youtube");
-  const [ext, setExt] = useState<{ tabs: number; provider: string | null } | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
   const [searching, setSearching] = useState(false);
@@ -207,16 +193,6 @@ export default function Stage() {
       clearInterval(clock);
     };
   }, []);
-
-  /* Refresh the bridge state each time the picker opens — tabs can
-     connect or go quiet while the stage stays mounted. */
-  useEffect(() => {
-    if (!provOpen) return;
-    bridge
-      .getExtStatus()
-      .then(setExt)
-      .catch(() => {});
-  }, [provOpen]);
 
   const track = np?.track ?? null;
   const pos = np?.positionMs ?? 0;
@@ -327,16 +303,16 @@ export default function Stage() {
   const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
-    if (!trackKey || !track) return;
+    if (!trackKey || !track || !settings.videoBackdrop) return;
     let stale = false;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (!stale && u) setVideoUrl(u);
-    });
+    }).catch(() => { if (!stale) setVideoUrl(null); });
     return () => {
       stale = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackKey]);
+  }, [trackKey, settings.videoBackdrop]);
 
   const [lyroffTick, setLyroffTick] = useState(0);
   useEffect(() => subscribeLyroff(() => setLyroffTick((t) => t + 1)), []);
@@ -405,18 +381,24 @@ export default function Stage() {
      highlighted card — scrolling never changes the song, only clicking does. */
   const ci = queue.currentIndex ?? 0;
   const [focusIdx, setFocusIdx] = useState(ci);
-  const covers = queue.items
-    .map((it, i) => ({ it, i }))
-    .map(({ it, i }) => ({
+  const centerPosition = Math.floor(queue.items.length / 2);
+  const orderedCovers = Array.from({ length: queue.items.length }, (_, position) =>
+    (ci - centerPosition + position + queue.items.length) % queue.items.length
+  );
+  const covers = orderedCovers.map((i, position) => {
+    const it = queue.items[i];
+    return {
       key: it.path + i,
       i,
+      position,
       src: artMap[it.track.artworkUrl],
       title: it.track.title,
       artist: it.track.artist,
       on: i === focusIdx,
       playing: i === ci,
-      side: i < focusIdx ? "l" : i > focusIdx ? "r" : "",
-    }));
+      side: position < centerPosition ? "l" : position > centerPosition ? "r" : "",
+    };
+  });
 
   /* Track change: refocus and recenter on the playing cover. */
   const coversRef = useRef<HTMLDivElement>(null);
@@ -424,7 +406,7 @@ export default function Stage() {
   /* Inertial scrolling: wheel deltas and drag flings feed `target`/`vel`;
      a rAF loop eases scrollLeft toward target so motion is butter-smooth
      instead of jumping per input event. */
-  const scrollAnim = useRef({ raf: 0, target: 0, vel: 0, set: false, snap: false });
+  const scrollAnim = useRef({ raf: 0, target: 0, vel: 0, set: false, snap: false, autoCenter: false });
   const runCoversAnim = () => {
     const s = scrollAnim.current;
     if (s.raf) return;
@@ -448,6 +430,7 @@ export default function Stage() {
         s.vel = 0;
         s.raf = 0;
         s.snap = false;
+        s.autoCenter = false;
         return;
       }
       el.scrollLeft += diff * (s.snap ? 0.09 : 0.16);
@@ -465,12 +448,14 @@ export default function Stage() {
     s.target = el.scrollLeft + (r.left + r.width / 2 - stripMid);
     s.set = true;
     s.snap = gentle;
+    s.autoCenter = true;
     runCoversAnim();
   };
   useEffect(() => {
     focusIdxRef.current = ci;
     setFocusIdx(ci);
-    centerCover(ci);
+    const frame = requestAnimationFrame(() => centerCover(ci));
+    return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ci, queue.items.length]);
 
@@ -506,6 +491,7 @@ export default function Stage() {
     return best;
   };
   const onCoversScroll = () => {
+    if (scrollAnim.current.autoCenter) return;
     const near = nearestCover();
     if (near >= 0 && near !== focusIdxRef.current) {
       focusIdxRef.current = near;
@@ -706,6 +692,7 @@ export default function Stage() {
             const el = coversRef.current;
             if (!el) return;
             const s = scrollAnim.current;
+            s.autoCenter = false;
             if (!s.set) {
               s.target = el.scrollLeft;
               s.set = true;
@@ -723,6 +710,7 @@ export default function Stage() {
             cancelAnimationFrame(s.raf);
             s.raf = 0;
             s.vel = 0;
+            s.autoCenter = false;
             const sx = e.clientX,
               sl = el.scrollLeft;
             let moved = false;
@@ -794,7 +782,7 @@ export default function Stage() {
                 key={c.key}
                 data-idx={c.i}
                 className={`fs__cover fs__cover--${c.side} ${c.playing ? "fs__cover--live" : ""}`}
-                style={{ "--i": Math.min(Math.abs(c.i - focusIdx), 4) } as CSSProperties}
+                style={{ "--i": Math.min(Math.abs(c.position - centerPosition), 4) } as CSSProperties}
                 onClick={() => void bridge.playQueueIndex(c.i)}
                 title={`${c.title} — ${c.artist}`}
               >
@@ -809,7 +797,7 @@ export default function Stage() {
 
       <div className="fs__bottom">
         <div className="fs__pill">
-          <div className="fs__deck">
+          <div className="fs__trackline">
             <div className="fs__meta">
               {art ? <img src={art} alt="" /> : <div className="fs__meta-art" />}
               <div className="fs__meta-txt">
@@ -817,7 +805,19 @@ export default function Stage() {
                 <div className="fs__msub" title={track?.artist}>{track?.artist ?? t("fs.startMusic")}</div>
               </div>
             </div>
-            <span className="fs__vol">
+          </div>
+          <div className="fs__timeline">
+            <span aria-hidden="true">{formatTime(pos)}</span>
+            <div className={`fs__hair ${seekable ? "" : "fs__hair--off"}`} {...scrubProps}>
+              <div
+                className="fs__hairfill"
+                style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
+              />
+            </div>
+            <span aria-hidden="true">{formatTime(dur)}</span>
+          </div>
+          <div className="fs__deck">
+            <div className="fs__provider">
               <button
                 className={`fs__icon ${provOpen ? "fs__icon--on" : ""}`}
                 aria-label={t("fs.provider")}
@@ -831,45 +831,17 @@ export default function Stage() {
                 )}
               </button>
               {provOpen && (
-                <span className="fs__volpop fs__morepop fs__provpop">
-                  {ext && ext.tabs > 0 ? (
-                    <span className="fs__extlive">
-                      Browser bridge · {ext.provider ? extLabel(ext.provider) : "connected"} ●
-                      live
-                    </span>
-                  ) : (
-                    <span className="fs__extlive fs__extlive--off">
-                      {t("fs.extHint")}
-                      <br />
-                      {t("fs.extStep1")}
-                      <br />
-                      {bridge.isTauri() ? (
-                        t("fs.extStep2")
-                      ) : (
-                        <a href="noctbeat-bridge.zip" download className="fs__extdl">
-                          ↓ {t("fs.extDownload")}
-                        </a>
-                      )}
-                    </span>
-                  )}
-                  {PROVIDERS.map((p) => {
-                    const viaExt = !p.live && p.id === extProviderId(ext?.provider);
-                    return (
-                      <button
-                        key={p.id}
-                        className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
-                        disabled={!p.live}
-                        onClick={() => setSearchSrc(p.id)}
-                      >
-                        <p.icon size={14} weight="fill" /> {p.label}
-                        {viaExt ? (
-                          <span className="fs__soon fs__soon--live">●</span>
-                        ) : (
-                          !p.live && <span className="fs__soon">Soon</span>
-                        )}
+                <div className="fs__provpop">
+                  <BrowserSources compact />
+                  <span className="seg">
+                    {PROVIDERS.filter((p) => p.live).map((p) => (
+                      <button key={p.id} className={searchSrc === p.id ? "on" : ""}
+                        aria-pressed={searchSrc === p.id}
+                        onClick={() => { setSearchSrc(p.id); setSearchRes([]); setSearchErr(""); }}>
+                        <p.icon size={14} /> {p.label}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </span>
                   <input
                     className="fs__provq"
                     value={searchQ}
@@ -944,131 +916,77 @@ export default function Stage() {
                       ))}
                     </span>
                   )}
-                </span>
+                </div>
               )}
-            </span>
-            <button
-              className={`fs__icon fs__pillopt ${shuffle ? "fs__icon--on" : ""}`}
-              aria-label="Shuffle"
-              title={t("fs.shuffle")}
-              onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
-            >
-              <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
-            </button>
-            <button className="fs__icon" aria-label="Previous" onClick={() => void bridge.mediaControl("previous")}>
-              <SkipBack weight="fill" size={17} />
-            </button>
-            <button
-              className="fs__play"
-              aria-label={playing ? "Pause" : "Play"}
-              onClick={() => void bridge.mediaControl("play-pause")}
-            >
-              {playing ? <Pause weight="fill" size={20} /> : <Play weight="fill" size={20} />}
-            </button>
-            <button className="fs__icon" aria-label="Next" onClick={() => void bridge.mediaControl("next")}>
-              <SkipForward weight="fill" size={17} />
-            </button>
-            <button
-              className={`fs__icon fs__pillopt ${repeat !== "off" ? "fs__icon--on" : ""}`}
-              aria-label={`Repeat: ${repeat}`}
-              title={t("fs.repeat", { mode: repeat })}
-              onClick={() => {
-                const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
-                void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
-              }}
-            >
-              {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
-            </button>
-            <button
-              className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
-              aria-label={fav ? "Unlike" : "Like"}
-              title={fav ? t("fs.unlike") : t("fs.like")}
-              onClick={onToggleFav}
-            >
-              <Heart size={15} weight={fav ? "fill" : "regular"} />
-            </button>
-            <button
-              className={`fs__icon fs__pillopt ${lyricsOn ? "fs__icon--on" : ""}`}
-              aria-label={t("fs.lyricsToggle")}
-              title={t("fs.lyricsToggle")}
-              onClick={() => setLyricsOn((v) => !v)}
-            >
-              <TextT size={15} />
-            </button>
-            <span className="fs__vol fs__volvol">
-              <button
-                className={`fs__icon fs__pillopt ${vol === 0 ? "fs__icon--on" : ""}`}
-                aria-label="Volume"
-                title={t("fs.volume")}
-                onClick={() => setVolOpen((v) => !v)}
+            </div>
+            <div className="fs__transport">
+                <button
+                className={`fs__icon fs__pillopt ${shuffle ? "fs__icon--on" : ""}`}
+                aria-label="Shuffle"
+                title={t("fs.shuffle")}
+                onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
               >
-                {vol === 0 ? <SpeakerX size={15} /> : <SpeakerHigh size={15} />}
+                <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
               </button>
-              {volOpen && (
-                <span className="fs__volpop">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={Math.round(vol * 100)}
-                    aria-label="Volume"
-                    onChange={(e) => {
-                      const v = Number(e.target.value) / 100;
-                      setVol(v);
-                      void bridge.setVolume(v);
-                    }}
-                  />
-                </span>
-              )}
-            </span>
-            <span className="fs__vol">
+              <button className="fs__icon" aria-label="Previous" onClick={() => void bridge.mediaControl("previous")}>
+                <SkipBack weight="fill" size={17} />
+              </button>
               <button
-                className={`fs__icon ${moreOpen ? "fs__icon--on" : ""}`}
-                aria-label={t("fs.more")}
-                title={t("fs.more")}
-                onClick={() => setMoreOpen((v) => !v)}
+                className="fs__play"
+                aria-label={playing ? "Pause" : "Play"}
+                onClick={() => void bridge.mediaControl("play-pause")}
               >
-                <DotsThree size={17} weight="bold" />
+                {playing ? <Pause weight="fill" size={20} /> : <Play weight="fill" size={20} />}
               </button>
-              {moreOpen && (
-                <span className="fs__volpop fs__morepop">
-                  {/* Compact-window controls: the deck hides
-                      shuffle/repeat/fav/volume — reachable here instead. */}
-                  <span className="fs__menuopt">
-                    <button
-                      className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
-                      aria-label="Shuffle"
-                      title={t("fs.shuffle")}
-                      onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
-                    >
-                      <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
-                    </button>
-                    <button
-                      className={`fs__icon ${repeat !== "off" ? "fs__icon--on" : ""}`}
-                      aria-label={`Repeat: ${repeat}`}
-                      title={t("fs.repeat", { mode: repeat })}
-                      onClick={() => {
-                        const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
-                        void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
-                      }}
-                    >
-                      {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
-                    </button>
-                    <button
-                      className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
-                      aria-label={fav ? "Unlike" : "Like"}
-                      title={fav ? t("fs.unlike") : t("fs.like")}
-                      onClick={onToggleFav}
-                    >
-                      <Heart size={15} weight={fav ? "fill" : "regular"} />
-                    </button>
+              <button className="fs__icon" aria-label="Next" onClick={() => void bridge.mediaControl("next")}>
+                <SkipForward weight="fill" size={17} />
+              </button>
+              <button
+                className={`fs__icon fs__pillopt ${repeat !== "off" ? "fs__icon--on" : ""}`}
+                aria-label={`Repeat: ${repeat}`}
+                title={t("fs.repeat", { mode: repeat })}
+                onClick={() => {
+                  const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
+                  void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
+                }}
+              >
+                {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
+              </button>
+            </div>
+            <div className="fs__actions">
+              <button
+                className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+                aria-label={fav ? "Unlike" : "Like"}
+                title={fav ? t("fs.unlike") : t("fs.like")}
+                onClick={onToggleFav}
+              >
+                <Heart size={15} weight={fav ? "fill" : "regular"} />
+              </button>
+              <button
+                className={`fs__icon fs__pillopt ${lyricsOn ? "fs__icon--on" : ""}`}
+                aria-label={t("fs.lyricsToggle")}
+                title={t("fs.lyricsToggle")}
+                onClick={() => setLyricsOn((v) => !v)}
+              >
+                <TextT size={15} />
+              </button>
+              <span className="fs__vol fs__volvol">
+                <button
+                  className={`fs__icon fs__pillopt ${vol === 0 ? "fs__icon--on" : ""}`}
+                  aria-label="Volume"
+                  title={t("fs.volume")}
+                  onClick={() => setVolOpen((v) => !v)}
+                >
+                  {vol === 0 ? <SpeakerX size={15} /> : <SpeakerHigh size={15} />}
+                </button>
+                {volOpen && (
+                  <span className="fs__volpop">
                     <input
                       type="range"
-                      className="fs__slider"
-                      aria-label="Volume"
                       min={0}
                       max={100}
                       value={Math.round(vol * 100)}
+                      aria-label="Volume"
                       onChange={(e) => {
                         const v = Number(e.target.value) / 100;
                         setVol(v);
@@ -1076,130 +994,179 @@ export default function Stage() {
                       }}
                     />
                   </span>
-                  <button className="fs__morebtn" onClick={() => { setShare(true); setMoreOpen(false); }}>
-                    <Export size={13} /> {t("fs.share")}
-                  </button>
-                  <button className="fs__morebtn" onClick={() => { openPalette(); setMoreOpen(false); }}>
-                    <Command size={13} /> {t("nav.commands")}
-                  </button>
-                  <button className="fs__morebtn" onClick={() => { void bridge.setSleepTimer(30); setMoreOpen(false); }}>
-                    <Moon size={13} /> {t("fs.sleep30")}
-                  </button>
-                  <span className="fs__moresep" />
-                  <span className="fs__stylehead">{t("fs.speed")}</span>
-                  {([
-                    ["Slowed", 0.8],
-                    ["Normal", 1.0],
-                    ["Nightcore", 1.25],
-                  ] as Array<[string, number]>).map(([label, v]) => (
-                    <button
-                      key={label}
-                      className={`fs__morebtn ${speed === v ? "fs__morebtn--on" : ""}`}
-                      onClick={() => { setSpeed(v); void bridge.setSpeed(v); }}
-                    >
-                      {label} {v}×
+                )}
+              </span>
+              <span className="fs__vol">
+                <button
+                  className={`fs__icon ${moreOpen ? "fs__icon--on" : ""}`}
+                  aria-label={t("fs.more")}
+                  title={t("fs.more")}
+                  onClick={() => setMoreOpen((v) => !v)}
+                >
+                  <DotsThree size={17} weight="bold" />
+                </button>
+                {moreOpen && (
+                  <span className="fs__volpop fs__morepop">
+                    {/* Compact-window controls: the deck hides
+                        shuffle/repeat/fav/volume — reachable here instead. */}
+                    <span className="fs__menuopt">
+                      <button
+                        className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
+                        aria-label="Shuffle"
+                        title={t("fs.shuffle")}
+                        onClick={() => void bridge.setShuffle(!shuffle).then(setShuffle)}
+                      >
+                        <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
+                      </button>
+                      <button
+                        className={`fs__icon ${repeat !== "off" ? "fs__icon--on" : ""}`}
+                        aria-label={`Repeat: ${repeat}`}
+                        title={t("fs.repeat", { mode: repeat })}
+                        onClick={() => {
+                          const next = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
+                          void bridge.setRepeat(next).then((m) => setRepeat(m as "off" | "all" | "one"));
+                        }}
+                      >
+                        {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
+                      </button>
+                      <button
+                        className={`fs__icon ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+                        aria-label={fav ? "Unlike" : "Like"}
+                        title={fav ? t("fs.unlike") : t("fs.like")}
+                        onClick={onToggleFav}
+                      >
+                        <Heart size={15} weight={fav ? "fill" : "regular"} />
+                      </button>
+                      <input
+                        type="range"
+                        className="fs__slider"
+                        aria-label="Volume"
+                        min={0}
+                        max={100}
+                        value={Math.round(vol * 100)}
+                        onChange={(e) => {
+                          const v = Number(e.target.value) / 100;
+                          setVol(v);
+                          void bridge.setVolume(v);
+                        }}
+                      />
+                    </span>
+                    <button className="fs__morebtn" onClick={() => { setShare(true); setMoreOpen(false); }}>
+                      <Export size={13} /> {t("fs.share")}
                     </button>
-                  ))}
-                  <span className="fs__moresep" />
-                  <button className="fs__morebtn" onClick={() => nav("/library")}>
-                    <Playlist size={13} /> {t("nav.library")}
-                  </button>
-                  <button className="fs__morebtn" onClick={() => nav("/settings")}>
-                    <GearSix size={13} /> {t("fs.settings")}
-                  </button>
-                  <button
-                    className="fs__morebtn"
-                    onClick={() => void bridge.toggleFullscreen()}
-                  >
-                    {nativeFs ? <CornersIn size={13} /> : <ArrowsOut size={13} />} {t("nav.fullscreen")}
-                  </button>
-                  <span className="fs__moresep" />
-                  <span className="fs__stylehead">{t("fs.size")}</span>
-                  <span className="fs__sizerow">
-                    <input
-                      type="range" min={60} max={160} step={5}
-                      className="fs__sizeslider"
-                      value={coverScale}
-                      disabled={scaleLock}
-                      aria-label={t("fs.size")}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setCoverScale(v);
-                        localStorage.setItem("noctbeat.fscss", String(v));
-                      }}
-                    />
-                    <button
-                      className={`fs__icon fs__sizelock ${scaleLock ? "fs__icon--on" : ""}`}
-                      aria-label={scaleLock ? t("fs.unlockSize") : t("fs.lockSize")}
-                      title={scaleLock ? t("fs.unlockSize") : t("fs.lockSize")}
-                      onClick={() => {
-                        setScaleLock((v) => {
-                          localStorage.setItem("noctbeat.fslock", v ? "0" : "1");
-                          return !v;
-                        });
-                      }}
-                    >
-                      {scaleLock ? <LockSimple size={13} /> : <LockSimpleOpen size={13} />}
+                    <button className="fs__morebtn" onClick={() => { openPalette(); setMoreOpen(false); }}>
+                      <Command size={13} /> {t("nav.commands")}
                     </button>
-                  </span>
-                  <span className="fs__sizerow">
-                    <input
-                      type="range" min={60} max={160} step={5}
-                      className="fs__sizeslider"
-                      value={clockScale}
-                      disabled={scaleLock}
-                      aria-label={t("fs.clockSize")}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setClockScale(v);
-                        localStorage.setItem("noctbeat.fsclocksc", String(v));
-                      }}
-                    />
-                  </span>
-                  <span className="fs__sizerow">
-                    <input
-                      type="range" min={60} max={160} step={5}
-                      className="fs__sizeslider"
-                      value={lyricScale}
-                      disabled={scaleLock}
-                      aria-label={t("fs.lyricSize")}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setLyricScale(v);
-                        localStorage.setItem("noctbeat.fslyrsc", String(v));
-                      }}
-                    />
-                  </span>
-                  <span className="fs__moresep" />
-                  <span className="fs__stylehead">{t("fs.soundFx")}</span>
-                  {([
-                    ["Off", "off"],
-                    ["Reverb", "reverb"],
-                    ["8D Audio", "8d"],
-                    ["Echo", "echo"],
-                  ] as Array<[string, string]>).map(([label, m]) => (
-                    <button
-                      key={m}
-                      className={`fs__morebtn ${settings.soundFx === m ? "fs__morebtn--on" : ""}`}
-                      onClick={() => void bridge.setFx(m)}
-                    >
-                      {label}
+                    <button className="fs__morebtn" onClick={() => { void bridge.setSleepTimer(30); setMoreOpen(false); }}>
+                      <Moon size={13} /> {t("fs.sleep30")}
                     </button>
-                  ))}
-                </span>
-              )}
-            </span>
-          </div>
-          <div className="fs__timeline">
-            <span aria-hidden="true">{formatTime(pos)}</span>
-            <div className={`fs__hair ${seekable ? "" : "fs__hair--off"}`} {...scrubProps}>
-              <div
-                className="fs__hairfill"
-                style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
-              />
+                    <span className="fs__moresep" />
+                    <span className="fs__stylehead">{t("fs.speed")}</span>
+                    {([
+                      ["Slowed", 0.8],
+                      ["Normal", 1.0],
+                      ["Nightcore", 1.25],
+                    ] as Array<[string, number]>).map(([label, v]) => (
+                      <button
+                        key={label}
+                        className={`fs__morebtn ${speed === v ? "fs__morebtn--on" : ""}`}
+                        onClick={() => { setSpeed(v); void bridge.setSpeed(v); }}
+                      >
+                        {label} {v}×
+                      </button>
+                    ))}
+                    <span className="fs__moresep" />
+                    <button className="fs__morebtn" onClick={() => nav("/library")}>
+                      <Playlist size={13} /> {t("nav.library")}
+                    </button>
+                    <button className="fs__morebtn" onClick={() => nav("/settings")}>
+                      <GearSix size={13} /> {t("fs.settings")}
+                    </button>
+                    <button
+                      className="fs__morebtn"
+                      onClick={() => void bridge.toggleFullscreen()}
+                    >
+                      {nativeFs ? <CornersIn size={13} /> : <ArrowsOut size={13} />} {t("nav.fullscreen")}
+                    </button>
+                    <span className="fs__moresep" />
+                    <span className="fs__stylehead">{t("fs.size")}</span>
+                    <span className="fs__sizerow">
+                      <input
+                        type="range" min={60} max={160} step={5}
+                        className="fs__sizeslider"
+                        value={coverScale}
+                        disabled={scaleLock}
+                        aria-label={t("fs.size")}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setCoverScale(v);
+                          localStorage.setItem("noctbeat.fscss", String(v));
+                        }}
+                      />
+                      <button
+                        className={`fs__icon fs__sizelock ${scaleLock ? "fs__icon--on" : ""}`}
+                        aria-label={scaleLock ? t("fs.unlockSize") : t("fs.lockSize")}
+                        title={scaleLock ? t("fs.unlockSize") : t("fs.lockSize")}
+                        onClick={() => {
+                          setScaleLock((v) => {
+                            localStorage.setItem("noctbeat.fslock", v ? "0" : "1");
+                            return !v;
+                          });
+                        }}
+                      >
+                        {scaleLock ? <LockSimple size={13} /> : <LockSimpleOpen size={13} />}
+                      </button>
+                    </span>
+                    <span className="fs__sizerow">
+                      <input
+                        type="range" min={60} max={160} step={5}
+                        className="fs__sizeslider"
+                        value={clockScale}
+                        disabled={scaleLock}
+                        aria-label={t("fs.clockSize")}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setClockScale(v);
+                          localStorage.setItem("noctbeat.fsclocksc", String(v));
+                        }}
+                      />
+                    </span>
+                    <span className="fs__sizerow">
+                      <input
+                        type="range" min={60} max={160} step={5}
+                        className="fs__sizeslider"
+                        value={lyricScale}
+                        disabled={scaleLock}
+                        aria-label={t("fs.lyricSize")}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setLyricScale(v);
+                          localStorage.setItem("noctbeat.fslyrsc", String(v));
+                        }}
+                      />
+                    </span>
+                    <span className="fs__moresep" />
+                    <span className="fs__stylehead">{t("fs.soundFx")}</span>
+                    {([
+                      ["Off", "off"],
+                      ["Reverb", "reverb"],
+                      ["8D Audio", "8d"],
+                      ["Echo", "echo"],
+                    ] as Array<[string, string]>).map(([label, m]) => (
+                      <button
+                        key={m}
+                        className={`fs__morebtn ${settings.soundFx === m ? "fs__morebtn--on" : ""}`}
+                        onClick={() => void bridge.setFx(m)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </span>
             </div>
-            <span aria-hidden="true">{formatTime(dur)}</span>
           </div>
+
         </div>
       </div>
       <StickerLayer />

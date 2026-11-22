@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const fr: Record<keyof typeof en, string> = {
+  "sources.heading": "Services de musique",
+  "sources.live": "Connecté",
+  "sources.waiting": "En attente d’un onglet musical",
+  "sources.demo": "Aperçu web",
+  "sources.open": "Ouvrir {name} dans le navigateur",
+  "sources.setup": "Configurer l’extension",
+  "sources.folder": "Ouvrir le dossier de l’extension",
+  "sources.playlists": "Ouvrez vos playlists dans un service ci-dessus. L’extension suit le titre en cours et permet de contrôler la lecture depuis Noctbeat.",
+  "sources.emptyLikes": "Les titres marqués d’un cœur apparaissent ici.",
+  "sources.emptyPlaylists": "Importez une playlist ou enregistrez la file pour créer votre collection.",
   "nav.library": "Bibliothèque",
   "nav.visualizer": "Visualiseur",
   "nav.stats": "Statistiques",

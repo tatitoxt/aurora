@@ -18,6 +18,15 @@ import { useT } from "./i18n";
 import { applyDynAccent, applyGlassOpacity, applyTheme } from "./themes";
 
 export default function App() {
+  const location = useLocation();
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    void bridge.isFullscreen().then(setFullscreen);
+    return subscribe<boolean>("fullscreen", setFullscreen);
+  }, []);
+  const pageBackdrop = !["/", "/fullscreen", "/hud", "/desklyrics", "/visualizer"].includes(location.pathname);
+  const titlebar = bridge.isTauri() && /Mac/.test(navigator.platform) &&
+    !fullscreen && !["/hud", "/desklyrics"].includes(location.pathname);
   useEffect(() => {
     let theme: AppSettings["theme"] | null = null;
     let art: string | undefined;
@@ -72,6 +81,11 @@ export default function App() {
   }, []);
   return (
     <>
+      <div className="app-window">
+        {titlebar && <div className="window-chrome" data-tauri-drag-region
+          onMouseDown={(event) => { if (event.button === 0) void bridge.playerStartDrag(); }} />}
+        <div className={`app-window__content ${pageBackdrop ? "app-window__content--page" : ""}`}>
+          {pageBackdrop && <ArtworkBackdrop />}
       <Routes>
         <Route path="/" element={<Stage />} />
         <Route path="/settings" element={<Settings />} />
@@ -86,6 +100,8 @@ export default function App() {
         <Route path="/visualizer" element={<Visualizer />} />
         <Route path="/fullscreen" element={<Stage />} />
       </Routes>
+        </div>
+      </div>
       <PaletteGate />
       <DropGate />
       <ShortcutsGate />
@@ -93,6 +109,27 @@ export default function App() {
       <UpdateGate />
     </>
   );
+}
+
+function ArtworkBackdrop() {
+  const [artwork, setArtwork] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    let current: string | undefined;
+    const update = (np: NowPlaying | null) => {
+      const url = np?.track?.artworkUrl;
+      if (url === current) return;
+      current = url;
+      setArtwork(null);
+      if (url) void bridge.artSrc(url).then((src) => {
+        if (live && current === url) setArtwork(src);
+      }).catch(() => {});
+    };
+    void bridge.getNowPlaying().then((np) => { if (live) update(np); });
+    const off = subscribe<NowPlaying>("now-playing", update);
+    return () => { live = false; off(); };
+  }, []);
+  return artwork ? <img className="app-window__art" src={artwork} alt="" /> : null;
 }
 
 /** Silent auto-update: check once on launch in the player window,
