@@ -109,6 +109,24 @@ function EmbedBackdrop({
   const sync = useRef({ pos: 0, at: 0 });
   const unmuted = useRef(false);
   const [loaded, setLoaded] = useState(false);
+  // Hidden until YouTube reports "playing": its red play button and title
+  // card must never flash over the stage.
+  const [live, setLive] = useState(false);
+  useEffect(() => setLive(false), [url]);
+  useEffect(() => {
+    const on = (e: MessageEvent) => {
+      if (e.source !== ref.current?.contentWindow || typeof e.data !== "string") return;
+      try {
+        const d = JSON.parse(e.data);
+        const st = d.event === "onStateChange" ? d.info : d.info?.playerState;
+        if (st === 1) setLive(true);
+      } catch {
+        /* not a player message */
+      }
+    };
+    window.addEventListener("message", on);
+    return () => window.removeEventListener("message", on);
+  }, []);
   const posRef = useRef(posMs);
   posRef.current = posMs;
 
@@ -129,6 +147,7 @@ function EmbedBackdrop({
     // times after the iframe loads so the clip actually starts on its own.
     // The initial seek lands it at the track position, not at second zero.
     const kick = () => {
+      ref.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
       cmd("seekTo", [posRef.current / 1000, true]);
       if (audible && !unmuted.current) {
         cmd("unMute");
@@ -171,7 +190,7 @@ function EmbedBackdrop({
       allow="autoplay; encrypted-media; picture-in-picture"
       allowFullScreen={false}
       /* The iframe must not eat the stage's clicks (seek, covers, pill). */
-      style={{ pointerEvents: "none", border: "none" }}
+      style={{ pointerEvents: "none", border: "none", opacity: live ? 1 : 0, transition: "opacity .6s" }}
     />
   );
 }

@@ -2394,25 +2394,42 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__cname { font-size: clamp(9.5px, 0.95 * var(--u), 14px); margin-top: clamp(3px, 0.5 * var(--u), 8px); }
 .fs__cart { font-size: clamp(8.5px, 0.8 * var(--u), 12px); }
 .fs__bottom { padding: 0 6vw clamp(10px, 2.4 * var(--u), 44px); gap: clamp(6px, 0.8 * var(--u), 12px); }
-/* Now playing + timeline: between the thumbnails and the transport. */
-.fs__nowrow { display: flex; align-items: center; gap: 10px; width: clamp(280px, 46 * var(--u), 760px); max-width: 100%; }
-.fs__nowrow .fs__metacol { flex: 1; min-width: 0; }
-.fs__nowrow .fs__meta { margin: 0; max-width: none; }
-.fs__nowrow .fs__mtitle, .fs__nowrow .fs__msub { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.75); }
-.fs__nowrow .fs__msub { color: rgba(244, 245, 250, 0.7); }
-.fs__thumbtog {
-  flex: none; width: 28px; height: 28px; color: var(--text);
-  background: rgba(12, 12, 16, 0.4); border: 1px solid var(--hair);
+/* Dock: title, timeline and transport share the pill's width, all centred. */
+.fs__dock { display: inline-grid; gap: clamp(6px, 0.8 * var(--u), 12px); max-width: 100%; }
+.fs__dock > .fs__nowrow { width: 0; min-width: 100%; display: flex; flex-direction: column; gap: 3px; }
+.fs__nowtxt { position: relative; text-align: center; padding: 0 36px; min-width: 0; }
+.fs__nowtxt .fs__mtitle, .fs__nowtxt .fs__msub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.75); }
+.fs__nowtxt .fs__msub { color: rgba(244, 245, 250, 0.72); }
+.fs__thumbtog { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; color: var(--text); }
+.fs__timerow { display: flex; align-items: center; gap: 10px; }
+.fs__timerow .fs__hair { flex: 1; margin-top: 0; }
+.fs__tm { min-width: 32px; font-size: 11px; font-variant-numeric: tabular-nums; color: rgba(244, 245, 250, 0.82); text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
+.fs__tm--end { text-align: right; }
+/* Transport: play is the exact centre; equal groups either side. */
+.fs .fs__pill { display: grid; grid-template-columns: 1fr auto 1fr; }
+.fs__pgl, .fs__pgr { display: flex; align-items: center; gap: inherit; }
+.fs__pgl { justify-content: flex-end; }
+.fs__pgr { justify-content: flex-start; }
+.fs__pgl > *, .fs__pgr > * { flex: none; }
+
+/* Liquid glass: clear body, reflective rim — never a dark slab. */
+.fs .fs__pill, .hud__pill, .hud__focusrow, .hud__list {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(14px) saturate(1.7); -webkit-backdrop-filter: blur(14px) saturate(1.7);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 20px rgba(255, 255, 255, 0.06),
+    0 10px 30px -14px rgba(0, 0, 0, 0.45);
 }
+.fs .fs__pill .fs__icon, .hud__pill .hctl, .hud__focusrow .hctl { color: #fff; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6)); }
+.hud__focusrow { padding: 2px 8px; border-radius: 999px; }
 
 /* ---------- HUD: no panel, the desktop shows through the window ---------- */
 .hud { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; }
 .hud__clock, .hud__focustitle, .hud__focussub { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.6); }
 .hud__focusart { box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.6); }
-.hud__pill, .hud__list {
-  background: rgba(14, 14, 18, 0.62); border-color: rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-}
 
 /* Settings over artwork: liquid-glass cards that pick up the song's colors. */
 .glass:has(> .artbg) .setgroup {
@@ -2425,4 +2442,3 @@ button, input, select, textarea { font-family: var(--ui); }
   background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
 }
-.hud__focusrow .hctl { filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.8)); }

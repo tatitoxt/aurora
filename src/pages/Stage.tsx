@@ -13,7 +13,7 @@ import {
   type RemoteTrack,
   type Settings,
 } from "../bridge";
-import { activeLyricIndex, adlibMask, adlibSegments } from "../lib";
+import { activeLyricIndex, adlibMask, adlibSegments, formatTime } from "../lib";
 import {
   lyricOffsetFor,
   setLyricOffset,
@@ -61,6 +61,8 @@ import {
   CaretDown,
   CaretUp,
   SquaresFour,
+  Books,
+  Slideshow,
 } from "@phosphor-icons/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
@@ -415,8 +417,14 @@ export default function Stage() {
      highlighted card — scrolling never changes the song, only clicking does. */
   const ci = queue.currentIndex ?? 0;
   const [focusIdx, setFocusIdx] = useState(ci);
-  const covers = queue.items
-    .map((it, i) => ({ it, i }))
+  /* Ring order centred on the playing track, so the strip always has
+     covers on both sides (the playlist wraps around). */
+  const qn = queue.items.length;
+  const half = Math.floor((qn - 1) / 2);
+  const ring = Array.from({ length: qn }, (_, k) => (ci + k - half + qn * 2) % qn);
+  const slot = (i: number) => ring.indexOf(i);
+  const covers = ring
+    .map((i) => ({ it: queue.items[i], i }))
     .map(({ it, i }) => ({
       key: it.path + i,
       i,
@@ -425,7 +433,7 @@ export default function Stage() {
       artist: it.track.artist,
       on: i === focusIdx,
       playing: i === ci,
-      side: i < focusIdx ? "l" : i > focusIdx ? "r" : "",
+      side: slot(i) < slot(focusIdx) ? "l" : slot(i) > slot(focusIdx) ? "r" : "",
     }));
 
   /* Track change: refocus and recenter on the playing cover. */
@@ -595,7 +603,7 @@ export default function Stage() {
           title={t("nav.library")}
           onClick={() => nav("/library")}
         >
-          <Playlist size={15} />
+          <Books size={15} />
         </button>
         <button
           className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
@@ -611,7 +619,7 @@ export default function Stage() {
           title="Thumbnails"
           onClick={toggleThumbs}
         >
-          <SquaresFour size={15} />
+          <Slideshow size={15} />
         </button>
         <button
           className="fs__icon"
@@ -834,43 +842,37 @@ export default function Stage() {
       )}
 
       <div className="fs__bottom">
+        <div className="fs__dock">
         <div className="fs__nowrow">
-            <div className="fs__metacol">
-              <div className="fs__meta">
-                {art ? (
-                  <img src={art} alt="" />
-                ) : (
-                  <div className="fs__meta-art" />
-                )}
-                <div className="fs__meta-txt">
-                  <div className="fs__mtitle">{track?.title ?? t("fs.nothingPlaying")}</div>
-                  <div className="fs__msub">
-                    {track ? `${track.artist} · ${track.album}` : t("fs.startMusic")}
-                  </div>
-                </div>
-              </div>
-              <div
-                className={`fs__hair ${canSeek && dur ? "" : "fs__hair--off"}`}
-                {...scrubProps}
-              >
-                <div
-                  className="fs__hairfill"
-                  style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
-                />
-              </div>
+          <div className="fs__nowtxt">
+            <div className="fs__mtitle">{track?.title ?? t("fs.nothingPlaying")}</div>
+            <div className="fs__msub">
+              {track ? `${track.artist} · ${track.album}` : t("fs.startMusic")}
             </div>
-          {covers.length > 1 && (
-            <button
-              className="fs__icon fs__thumbtog"
-              aria-label={thumbsOn ? "Hide thumbnails" : "Show thumbnails"}
-              title={thumbsOn ? "Hide thumbnails" : "Show thumbnails"}
-              onClick={toggleThumbs}
-            >
-              {thumbsOn ? <CaretDown size={14} /> : <CaretUp size={14} />}
-            </button>
-          )}
+            {covers.length > 1 && (
+              <button
+                className="fs__icon fs__thumbtog"
+                aria-label={thumbsOn ? "Hide thumbnails" : "Show thumbnails"}
+                title={thumbsOn ? "Hide thumbnails" : "Show thumbnails"}
+                onClick={toggleThumbs}
+              >
+                {thumbsOn ? <CaretDown size={14} /> : <CaretUp size={14} />}
+              </button>
+            )}
+          </div>
+          <div className="fs__timerow">
+            <span className="fs__tm">{formatTime(pos)}</span>
+            <div className={`fs__hair ${canSeek && dur ? "" : "fs__hair--off"}`} {...scrubProps}>
+              <div
+                className="fs__hairfill"
+                style={{ transform: `scaleX(${dur ? Math.min(1, pos / dur) : 0})` }}
+              />
+            </div>
+            <span className="fs__tm fs__tm--end">{dur ? formatTime(dur) : "-:--"}</span>
+          </div>
         </div>
         <div className="fs__pill">
+          <span className="fs__pgl">
               <span className="fs__vol">
                 <button
                   className={`fs__icon ${provOpen ? "fs__icon--on" : ""}`}
@@ -1003,6 +1005,14 @@ export default function Stage() {
               </span>
               <span className="fs__srcsep" />
           <button
+            className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
+            aria-label={fav ? "Unlike" : "Like"}
+            title={fav ? t("fs.unlike") : t("fs.like")}
+            onClick={onToggleFav}
+          >
+            <Heart size={15} weight={fav ? "fill" : "regular"} />
+          </button>
+          <button
             className={`fs__icon fs__pillopt ${shuffle ? "fs__icon--on" : ""}`}
             aria-label="Shuffle"
             title={t("fs.shuffle")}
@@ -1013,6 +1023,7 @@ export default function Stage() {
           <button className="fs__icon" aria-label="Previous" onClick={() => void bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={17} />
           </button>
+          </span>
           <button
             className="fs__play"
             aria-label={playing ? "Pause" : "Play"}
@@ -1020,6 +1031,7 @@ export default function Stage() {
           >
             {playing ? <Pause weight="fill" size={20} /> : <Play weight="fill" size={20} />}
           </button>
+          <span className="fs__pgr">
           <button className="fs__icon" aria-label="Next" onClick={() => void bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={17} />
           </button>
@@ -1033,22 +1045,6 @@ export default function Stage() {
             }}
           >
             {repeat === "one" ? <RepeatOnce size={15} weight="fill" /> : <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />}
-          </button>
-          <button
-            className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}
-            aria-label={fav ? "Unlike" : "Like"}
-            title={fav ? t("fs.unlike") : t("fs.like")}
-            onClick={onToggleFav}
-          >
-            <Heart size={15} weight={fav ? "fill" : "regular"} />
-          </button>
-          <button
-            className={`fs__icon fs__pillopt ${lyricsOn ? "fs__icon--on" : ""}`}
-            aria-label={t("fs.lyricsToggle")}
-            title={t("fs.lyricsToggle")}
-            onClick={() => setLyricsOn((v) => !v)}
-          >
-            <TextT size={15} />
           </button>
           <span className="fs__vol fs__volvol">
             <button
@@ -1244,7 +1240,9 @@ export default function Stage() {
               </span>
             )}
           </span>
+          </span>
         </div>
+      </div>
       </div>
       <StickerLayer />
       {share && (
