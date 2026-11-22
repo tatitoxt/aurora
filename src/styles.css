@@ -2136,6 +2136,7 @@ body {
   .fs__bottom { padding-left: 4vw; padding-right: 4vw; }
   .fs__pill { gap: 5px; padding: 7px 10px; }
   .fs__meta { max-width: 190px; }
+  .fs__volpop { left: auto; right: 0; transform: none; }
 }
 @media (max-height: 620px) {
   .fs__clockwrap { padding-top: max(1.5vh, 52px); }
@@ -2152,6 +2153,7 @@ body {
     padding: 2px 6px 6px;
   }
   .fs__menuopt .fs__slider { flex: 1; min-width: 60px; }
+  .fs__volpop { left: auto; right: 0; transform: none; }
 }
 
 /* ==========================================================================
