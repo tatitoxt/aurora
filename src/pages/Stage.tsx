@@ -174,7 +174,6 @@ export default function Stage() {
       return !v;
     });
   const [timingOpen, setTimingOpen] = useState(false);
-  const [, setStreamReady] = useState(false);
   const [searchSrc, setSearchSrc] = useState("auto");
   const [ext, setExt] = useState<{
     tabs: number;
@@ -274,7 +273,6 @@ export default function Stage() {
     bridge.getRepeat().then(setRepeat);
     bridge.getVolume().then(setVol);
     bridge.getSettings().then(setSettings);
-    bridge.providerStatus().then(setStreamReady);
     const off = subscribe<NowPlaying>("now-playing", setNp);
     const offQ = subscribe<QueueState>("queue", setQueue);
     const offS = subscribe<Settings>("settings", setSettings);
@@ -677,7 +675,7 @@ export default function Stage() {
     >
       <div className="fs__bg">
         {videoUrl ? (
-          <FsVideo url={videoUrl} posMs={pos} playing={playing} audible />
+          <FsVideo url={videoUrl} posMs={pos} playing={playing} audible={!bridge.isTauri()} />
         ) : wall.length > 1 ? (
           <div className="fs__wall">
             {(wall.length < 24

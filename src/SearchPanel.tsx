@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "@phosphor-icons/react";
 import { bridge, type CatalogSong } from "./bridge";
 import { useT } from "./i18n";
-import { artistCards, formatTime, rankHits } from "./lib";
+import { artistCards, formatTime } from "./lib";
 
 /** Tab providers tried, in order, when the picker is on Automatic. */
 const AUTO_ORDER = [
@@ -13,12 +12,11 @@ const AUTO_ORDER = [
   "tidal",
   "amazon",
 ];
-const IN_APP = new Set(["youtube", "soundcloud"]);
 
 /**
  * Spotify-style search: catalog metadata (top result, artists, songs)
- * shows instantly; the pick plays in the user's connected provider tab,
- * or in-app through YouTube/SoundCloud.
+ * shows instantly; the pick plays in the user's connected provider tab
+ * through the Noctbeat Bridge extension.
  */
 export default function SearchPanel({
   src,
@@ -92,28 +90,6 @@ export default function SearchPanel({
       ? (AUTO_ORDER.find((p) => connected.has(p)) ?? "youtube")
       : src;
 
-  const resolve = async (s: CatalogSong, prov = target) => {
-    const hits = rankHits(
-      await bridge.providerSearch(prov, `${s.artist} ${s.title}`),
-      s,
-    );
-    if (!hits[0]) throw new Error(t("srch.notFound", { src: label(prov) }));
-    return hits[0];
-  };
-  // Raw yt-dlp output ("Sign in to confirm you're not a bot…") is not for users.
-  const friendly = (e: unknown, prov: string) => {
-    const m = String(e);
-    if (m.includes(t("srch.notFound", { src: label(prov) }))) return m;
-    return /sign in|bot|cookies|drm|403|429/i.test(m)
-      ? t("srch.blocked", { src: label(prov) })
-      : t("srch.playFail");
-  };
-  // Automatic tries every in-app provider before giving up.
-  const inAppOrder =
-    src === "auto"
-      ? [target, ...[...IN_APP].filter((p) => p !== target)]
-      : [target];
-
   const play = (s: CatalogSong) => {
     setErr("");
     setNote("");
@@ -130,51 +106,8 @@ export default function SearchPanel({
         .catch((e) => setErr(String(e)));
       return;
     }
-    if (!IN_APP.has(target)) {
-      setErr(t("fs.noTab", { src: label(target) }));
-      return;
-    }
-    setNote(t("srch.loading"));
-    void (async () => {
-      let last: unknown;
-      for (const prov of inAppOrder) {
-        // The first hit can be DRM/subscriber-only (SoundCloud Go+): try a
-        // few before moving to the next provider.
-        let hits: Awaited<ReturnType<typeof bridge.providerSearch>> = [];
-        try {
-          hits = rankHits(
-            await bridge.providerSearch(prov, `${s.artist} ${s.title}`),
-            s,
-          );
-        } catch (e) {
-          last = friendly(e, prov);
-          continue;
-        }
-        if (!hits.length) last = t("srch.notFound", { src: label(prov) });
-        for (const trk of hits.slice(0, 3)) {
-          try {
-            await bridge.providerPlay(trk);
-            setNote("");
-            onPlayed();
-            return;
-          } catch (e) {
-            last = friendly(e, prov);
-          }
-        }
-      }
-      setNote("");
-      setErr(String(last));
-    })();
+    setErr(t("fs.noTab", { src: label(target) }));
   };
-
-  const enqueue = (s: CatalogSong) => {
-    setErr("");
-    void resolve(s)
-      .then((trk) => bridge.providerEnqueue(trk))
-      .then(() => setNote(t("srch.queued", { title: s.title })))
-      .catch((e) => setErr(friendly(e, target)));
-  };
-  const canQueue = !connected.has(target) && IN_APP.has(target);
 
   return (
     <div className="srch">
@@ -274,20 +207,6 @@ export default function SearchPanel({
                 <span className="srch__dur">
                   {s.durationMs ? formatTime(s.durationMs) : ""}
                 </span>
-                {canQueue && (
-                  <button
-                    className="fs__provadd"
-                    aria-label={t("fs.addToQueue")}
-                    title={t("fs.addToQueue")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      enqueue(s);
-                    }}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <Plus size={12} />
-                  </button>
-                )}
               </div>
             ))}
           </div>

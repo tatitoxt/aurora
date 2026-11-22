@@ -8,7 +8,6 @@ import {
   type PlaylistTrack,
   type QueueItem,
   type QueueState,
-  type RemoteTrack,
 } from "../bridge";
 import { subscribe } from "../bridge";
 import {
@@ -60,27 +59,18 @@ function LibThumb({ url, icon }: { url?: string; icon?: React.ReactNode }) {
   );
 }
 
-const SOURCES = [
-  { id: "youtube", label: "YouTube" },
-  { id: "soundcloud", label: "SoundCloud" },
-];
+/** Provider tabs tried, in order, to replay a liked song. */
+const TAB_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
 
 export default function Library() {
   const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
-  const [tab, setTab] = useState<"queue" | "search" | "liked" | "playlists">("queue");
+  const [tab, setTab] = useState<"queue" | "liked" | "playlists">("queue");
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
 
-  const [ytReady, setYtReady] = useState(false);
-  const [source, setSource] = useState("youtube");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<RemoteTrack[]>([]);
-  const [searching, setSearching] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [importNote, setImportNote] = useState("");
-  const [plUrl, setPlUrl] = useState("");
-  const [importingUrl, setImportingUrl] = useState(false);
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -97,7 +87,6 @@ export default function Library() {
   useEffect(() => {
     refresh();
     refreshPlaylists();
-    void bridge.providerStatus().then(setYtReady);
     const off = subscribe<NowPlaying>("now-playing", () => refresh());
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
@@ -123,33 +112,21 @@ export default function Library() {
       }),
     );
   // Local likes replay as one queue so next/prev flows through the list;
-  // provider likes replay the stream directly (as tapping a search
-  // result); likes of external players replay via a provider search.
+  // everything else plays in the user's connected provider tab.
   const playLiked = (entry: FavEntry) => {
     setError("");
     const replay = replayFor(entry);
     if (!replay) return;
-    if (replay.kind === "provider") {
-      setDownloading(entry.key);
-      bridge
-        .providerPlay(replay.track)
-        .then(() => refresh())
-        .catch((e) => setError(String(e)))
-        .finally(() => setDownloading(null));
-      return;
-    }
     if (replay.kind === "external") {
       setDownloading(entry.key);
       bridge
-        .providerSearch(source, replay.query)
-        .then((rs) => {
-          const top = rs[0];
-          return top
-            ? bridge.providerPlay(top)
-            : Promise.reject("No matches found");
+        .getExtStatus()
+        .then((st) => {
+          const prov = TAB_ORDER.find((p) => st?.providers?.includes(p));
+          return prov ? bridge.extPlay(prov, replay.query) : false;
         })
-        .then(() => refresh())
-        .catch((e) => setError(String(e)))
+        .then((ok) => (ok ? refresh() : Promise.reject()))
+        .catch(() => setError(t("lib.openTab")))
         .finally(() => setDownloading(null));
       return;
     }
@@ -172,38 +149,6 @@ export default function Library() {
       .catch((e) => setError(String(e)));
   };
 
-  const search = () => {
-    if (!query.trim()) return;
-    setSearching(true);
-    setError("");
-    bridge
-      .providerSearch(source, query.trim())
-      .then(setResults)
-      .catch((e) => setError(String(e)))
-      .finally(() => setSearching(false));
-  };
-
-  const playRemote = (t: RemoteTrack) => {
-    setDownloading(t.id);
-    setError("");
-    bridge
-      .providerPlay(t)
-      .then(() => refresh())
-      .catch((e) => setError(String(e)))
-      .finally(() => setDownloading(null));
-  };
-
-  const enqueueRemote = (t: RemoteTrack) => {
-    setError("");
-    bridge
-      .providerEnqueue(t)
-      .then(() => {
-        refresh();
-        setImportNote(`Queued “${t.title}”`);
-      })
-      .catch((e) => setError(String(e)));
-  };
-
   const importPlaylist = () => {
     setError("");
     setImportNote("");
@@ -219,23 +164,6 @@ export default function Library() {
         setImportNote(parts.join(" · "));
       })
       .catch((e) => setError(String(e)));
-  };
-
-  const importUrl = () => {
-    const url = plUrl.trim();
-    if (!url) return;
-    setError("");
-    setImportNote("");
-    setImportingUrl(true);
-    void bridge
-      .importPlaylistUrl(url)
-      .then((res) => {
-        setPlUrl("");
-        setImportNote(`"${res.title}" · ${res.imported} tracks queued`);
-        refresh();
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setImportingUrl(false));
   };
 
   const savePlaylist = () => {
@@ -378,7 +306,6 @@ export default function Library() {
           {(
             [
               ["queue", t("lib.queue"), queue.items.length],
-              ["search", t("lib.searchTab"), 0],
               ["liked", t("lib.liked"), liked.length],
               ["playlists", t("lib.playlists"), playlists.length],
             ] as const
@@ -398,75 +325,6 @@ export default function Library() {
 
         {importNote && <span className="note">{importNote}</span>}
         {error && <span className="license-bad">{error}</span>}
-
-        {tab === "search" && (
-          <>
-
-        <div className="inrow">
-          <MagnifyingGlass />
-          <input
-            type="text"
-            placeholder={t("lib.search")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && search()}
-          />
-          <button onClick={search} disabled={searching}>
-            {searching ? "…" : t("lib.go")}
-          </button>
-        </div>
-        <div className="lib__toolbar" data-libsec="stream">
-          <span className="lib__kicker">{t("lib.stream")}</span>
-          <div className="seg">
-            {SOURCES.map((s) => (
-              <button
-                key={s.id}
-                className={source === s.id ? "on" : ""}
-                onClick={() => setSource(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="lib">
-          {results.map((trk) => (
-            <button
-              key={`${trk.source}:${trk.id}`}
-              className="lib__row"
-              onClick={() => playRemote(trk)}
-              disabled={downloading !== null}
-            >
-              <LibThumb url={trk.artworkUrl} />
-              <span className="lib__title">
-                {downloading === trk.id ? "⤓ " : ""}
-                {trk.title}
-              </span>
-              <span className="lib__sub">{trk.artist}</span>
-              <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="lib__act"
-                  title={t("lib.addToQueue")}
-                  onClick={() => enqueueRemote(trk)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" && e.key !== " ") return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    enqueueRemote(trk);
-                  }}
-                >
-                  <Plus size={11} />
-                </span>
-                {trk.durationMs ? formatTime(trk.durationMs) : ""}
-              </span>
-            </button>
-          ))}
-        </div>
-
-          </>
-        )}
 
         {tab === "queue" && (
           <>
@@ -496,21 +354,6 @@ export default function Library() {
             />
             <button onClick={savePlaylist} disabled={saving}>
               {saving ? "…" : t("lib.save")}
-            </button>
-          </div>
-        )}
-        {ytReady && (
-          <div className="inrow">
-            <Plus />
-            <input
-              type="text"
-              placeholder={t("lib.playlistUrl")}
-              value={plUrl}
-              onChange={(e) => setPlUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && importUrl()}
-            />
-            <button onClick={importUrl} disabled={importingUrl || !plUrl.trim()}>
-              {importingUrl ? "…" : t("lib.add")}
             </button>
           </div>
         )}

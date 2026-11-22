@@ -25,6 +25,8 @@ const MAX_BODY: usize = 64 * 1024;
 struct TabState {
     np: NowPlaying,
     received_at: Instant,
+    /// YouTube video id when the tab is a watch page (official embed backdrop).
+    video_id: Option<String>,
 }
 
 #[derive(Default)]
@@ -162,6 +164,15 @@ impl NowPlayingSource for BrowserSource {
         v
     }
 
+    fn ext_video_id(&self) -> Option<String> {
+        let s = self.shared.lock().unwrap();
+        s.tabs
+            .values()
+            .filter(|t| t.received_at.elapsed() < STALE && t.np.track.is_some())
+            .max_by_key(|t| (t.np.status == PlaybackStatus::Playing, t.received_at))
+            .and_then(|t| t.video_id.clone())
+    }
+
     fn play_in_tab(&mut self, provider: &str, query: &str) -> bool {
         let mut s = self.shared.lock().unwrap();
         let has_tab = s
@@ -199,8 +210,32 @@ fn tab_key(u: &Update) -> String {
         .unwrap_or_else(|| u.provider.clone().unwrap_or_else(|| "browser".into()))
 }
 
+/// Video id of a YouTube / YouTube Music watch URL (`?v=` / `&v=`).
+fn youtube_video_id(url: &str) -> Option<String> {
+    let rest = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))?;
+    let (host, path) = rest.split_once('/')?;
+    if !(host == "youtube.com" || host.ends_with(".youtube.com")) {
+        return None;
+    }
+    let query = path.strip_prefix("watch?")?;
+    let id = query
+        .split('&')
+        .find_map(|kv| kv.strip_prefix("v="))?
+        .split('#')
+        .next()?;
+    let ok = !id.is_empty()
+        && id.len() <= 16
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    ok.then(|| id.to_owned())
+}
+
 fn apply_update(s: &mut Shared, u: Update) {
     let key = tab_key(&u);
+    let video_id = u.url.as_deref().and_then(youtube_video_id);
     let provider = u.provider.clone().unwrap_or_else(|| "browser".into());
     let title = u.title.clone().unwrap_or_default();
     let artist = u.artist.clone().unwrap_or_default();
@@ -237,6 +272,7 @@ fn apply_update(s: &mut Shared, u: Update) {
         TabState {
             np,
             received_at: Instant::now(),
+            video_id,
         },
     );
 }
@@ -386,6 +422,23 @@ fn write_response(stream: &mut std::net::TcpStream, code: u16, body: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn youtube_video_ids() {
+        let id = |u: &str| youtube_video_id(u);
+        assert_eq!(
+            id("https://www.youtube.com/watch?v=mzB1VGEGcSU").as_deref(),
+            Some("mzB1VGEGcSU")
+        );
+        assert_eq!(
+            id("https://music.youtube.com/watch?list=x&v=abc_-1#t").as_deref(),
+            Some("abc_-1")
+        );
+        assert_eq!(id("https://www.youtube.com/results?search_query=a"), None);
+        assert_eq!(id("https://evil.com/watch?v=abc"), None);
+        assert_eq!(id("https://notyoutube.com/watch?v=abc"), None);
+        assert_eq!(id("https://www.youtube.com/watch?v=a\"b"), None);
+    }
 
     fn empty_shared() -> Shared {
         Shared::default()

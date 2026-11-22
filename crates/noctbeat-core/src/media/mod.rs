@@ -78,6 +78,10 @@ pub trait NowPlayingSource: Send {
     fn ext_providers(&self) -> Vec<String> {
         Vec::new()
     }
+    /// YouTube video id of the freshest extension tab on a watch page.
+    fn ext_video_id(&self) -> Option<String> {
+        None
+    }
     /// Ask a connected `provider` tab ("spotify", "youtube", ...) to search
     /// `query` and play the first match. False when no such tab reports.
     fn play_in_tab(&mut self, _provider: &str, _query: &str) -> bool {

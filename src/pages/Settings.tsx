@@ -606,16 +606,6 @@ export default function Settings() {
           )}
         </div>
 
-        <div className="field">
-          <span>{t("set.ytdlpPath")}</span>
-          <input
-            type="text"
-            placeholder="/usr/local/bin/yt-dlp"
-            value={s.ytdlpPath ?? ""}
-            onChange={(e) => patch({ ytdlpPath: e.target.value || null })}
-          />
-        </div>
-
         </div>
         </section>
 

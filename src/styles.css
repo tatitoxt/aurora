@@ -1028,26 +1028,29 @@ body {
    macOS frame cuts, or the opaque stage shows a square corner artifact. */
 .fs--win { border-radius: 14px; }
 /* Liquid ambient wash: artwork-tinted gradient blobs drifting slowly.
+   Stepped (~3 fps) and unblurred: a 60 fps drift kept WebKit repainting
+   full-window layers, ~4 cores without GPU compositing; the soft radial
+   gradients already read as blurred and the motion is too slow to judder.
    Opacity stays low so glass and text keep their contrast over it. */
 .amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .amb__b {
   position: absolute; width: 58vmax; height: 58vmax; border-radius: 50%;
-  filter: blur(70px); opacity: 0.32; will-change: transform;
+  opacity: 0.32; will-change: transform;
 }
 .amb__b1 {
   top: -20%; left: -14%;
   background: radial-gradient(circle, var(--accent) 0%, transparent 66%);
-  animation: ambDrift1 34s ease-in-out infinite alternate;
+  animation: ambDrift1 34s steps(100) infinite alternate;
 }
 .amb__b2 {
   bottom: -24%; right: -16%;
   background: radial-gradient(circle, var(--accent2, var(--accent)) 0%, transparent 66%);
-  animation: ambDrift2 44s ease-in-out infinite alternate;
+  animation: ambDrift2 44s steps(130) infinite alternate;
 }
 .amb__b3 {
   top: 28%; left: 34%; opacity: 0.2;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, var(--accent2, var(--accent))) 0%, transparent 66%);
-  animation: ambDrift3 52s ease-in-out infinite alternate;
+  animation: ambDrift3 52s steps(150) infinite alternate;
 }
 @keyframes ambDrift1 { to { transform: translate(18vw, 12vh) scale(1.18); } }
 @keyframes ambDrift2 { to { transform: translate(-16vw, -14vh) scale(0.82) rotate(40deg); } }
@@ -1085,8 +1088,8 @@ body {
     radial-gradient(34% 30% at 76% 24%, color-mix(in srgb, var(--accent-2, var(--accent)) 36%, transparent), transparent 70%),
     radial-gradient(45% 38% at 60% 78%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%),
     #0c0c11;
-  filter: blur(40px) saturate(1.25);
-  animation: fs-mesh-drift 26s ease-in-out infinite alternate;
+  filter: saturate(1.25);
+  animation: fs-mesh-drift 26s steps(80) infinite alternate;
 }
 @keyframes fs-mesh-drift {
   from { transform: rotate(-4deg) scale(1.02); }

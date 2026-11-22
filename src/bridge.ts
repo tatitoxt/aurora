@@ -42,11 +42,10 @@ export interface Settings {
   hudAlwaysOnTop: boolean;
   hudPosition: [number, number] | null;
   musicDir: string | null;
-  ytdlpPath: string | null;
   theme: ThemeSettings;
   /** "lines" (scrolling list) or "karaoke" (word-by-word). */
   lyricsMode: string;
-  /** Karaoke backdrop plays the music video (yt-dlp) instead of blurred art. */
+  /** Stage backdrop plays the official music video when the Bridge knows it. */
   videoBackdrop: boolean;
   /** Animated "liquid" gradient blobs behind player surfaces. */
   ambientBg: boolean;
@@ -110,16 +109,6 @@ export interface Profile {
   lyricsMode: string;
   videoBackdrop: boolean;
 }
-export interface RemoteTrack {
-  id: string;
-  /** Provider key: "youtube" | "soundcloud". */
-  source: string;
-  title: string;
-  artist: string;
-  durationMs: number;
-  url: string;
-  artworkUrl: string;
-}
 
 /** Catalog search hit: metadata only, played via a provider. */
 export interface CatalogSong {
@@ -136,10 +125,6 @@ export interface QueueItem {
 export interface QueueState {
   items: QueueItem[];
   currentIndex: number | null;
-}
-export interface PlaylistUrlResult {
-  title: string;
-  imported: number;
 }
 
 export interface ImportResult {
@@ -227,7 +212,6 @@ export const DEFAULT_SETTINGS: Settings = {
   hudAlwaysOnTop: true,
   hudPosition: null,
   musicDir: null,
-  ytdlpPath: null,
   theme: { name: "noct", accent: null, accent2: null, dynamic: true },
   lyricsMode: "lines",
   videoBackdrop: true,
@@ -274,7 +258,7 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 // ---- Browser mock (mirrors crates/noctbeat-core/src/media/demo.rs) ---------
 
 /* Real tracks + their official YouTube videos: the browser preview has no
- * yt-dlp, so the videoclip backdrop plays the real embed (audio included)
+ * Bridge tab, so the videoclip backdrop plays the real embed (audio included)
  * instead of a stock sample. 6th field = YouTube video id. */
 const DEMO_PLAYLIST: Array<[string, string, string, number, string, string]> = [
   ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "https://i.ytimg.com/vi/mzB1VGEGcSU/mqdefault.jpg", "mzB1VGEGcSU"],
@@ -672,56 +656,12 @@ export const bridge = {
     emitMock("queue", mockQueueState());
     return Promise.resolve(null);
   },
-  providerStatus: () =>
-    isTauri() ? invokeCmd<boolean>("provider_status") : Promise.resolve(false),
-  providerSearch: (source: string, query: string): Promise<RemoteTrack[]> =>
-    isTauri()
-      ? invokeCmd<RemoteTrack[]>("provider_search", { source, query })
-      : Promise.resolve(
-          DEMO_PLAYLIST.slice(0, 3).map(([title, artist, , durationMs, artworkUrl], i) => ({
-            id: `demo-${i}`,
-            source,
-            title,
-            artist,
-            durationMs,
-            url: "",
-            artworkUrl,
-          })),
-        ),
-  providerPlay: (track: RemoteTrack) =>
-    isTauri()
-      ? invokeCmd<QueueItem>("provider_play", { track })
-      : Promise.resolve({
-          track: {
-            id: track.id,
-            title: track.title,
-            artist: track.artist,
-            album: "",
-            artworkUrl: track.artworkUrl,
-            durationMs: track.durationMs,
-          },
-          path: `/demo/${track.id}.mp3`,
-        }),
-  providerEnqueue: (track: RemoteTrack) =>
-    isTauri()
-      ? invokeCmd<QueueItem>("provider_enqueue", { track })
-      : Promise.resolve({
-          track: {
-            id: track.id,
-            title: track.title,
-            artist: track.artist,
-            album: "",
-            artworkUrl: track.artworkUrl,
-            durationMs: track.durationMs,
-          },
-          path: `/demo/${track.id}.mp3`,
-        }),
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
-      ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
+      ? invokeCmd<string | null>("ext_video").catch(() => null)
       : /* demo preview only: the real official video as a YouTube embed so
-         * the videoclip backdrop plays audio + video outside Tauri; the real
-         * app resolves a stream via yt-dlp. */
+         * the videoclip backdrop plays audio + video outside Tauri; the app
+         * embeds the video playing in the user's YouTube tab, muted. */
         Promise.resolve(
           (() => {
             const hit = DEMO_PLAYLIST.find(([t, a]) => t === title && a === artist);
@@ -853,10 +793,6 @@ export const bridge = {
     isTauri()
       ? invokeCmd<ImportResult>("import_playlist", { path })
       : Promise.resolve({ imported: 0, remote: 0, missing: 0 }),
-  importPlaylistUrl: (url: string): Promise<PlaylistUrlResult> =>
-    isTauri()
-      ? invokeCmd<PlaylistUrlResult>("import_playlist_url", { url })
-      : Promise.resolve({ title: "Demo mix", imported: 0 }),
   /** Write the queue as an .m3u8 in the music folder; returns the path. */
   exportPlaylist: (name: string): Promise<ExportResult> =>
     isTauri()

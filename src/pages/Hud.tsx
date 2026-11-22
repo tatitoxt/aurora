@@ -105,7 +105,7 @@ export default function Hud() {
   }, [trackKey]);
   useEffect(() => {
     setVideoUrl(null);
-    // Only the video mode resolves the clip; art mode never spins yt-dlp.
+    // Only the video mode looks up the clip.
     if (mediaMode !== "video" || !trackKey || !track) return;
     const req = ++videoReq.current;
     bridge.resolveVideo(track.artist, track.title).then((u) => {

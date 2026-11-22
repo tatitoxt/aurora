@@ -71,17 +71,14 @@ pub struct Settings {
     /// Folder the local library scans on demand.
     #[serde(default)]
     pub music_dir: Option<String>,
-    /// Explicit yt-dlp binary path; PATH is searched when unset.
-    #[serde(default)]
-    pub ytdlp_path: Option<String>,
     /// Visual theme preset + accent overrides.
     #[serde(default)]
     pub theme: ThemeSettings,
     /// Lyrics presentation: "lines" (scrolling list) or "karaoke" (word fill).
     #[serde(default = "default_lyrics_mode")]
     pub lyrics_mode: String,
-    /// Karaoke backdrop plays the track's music video behind the lyrics
-    /// (resolved via yt-dlp); false keeps the blurred artwork backdrop.
+    /// Stage backdrop plays the track's official music video when one is
+    /// known (YouTube tab via the Bridge); false keeps the artwork backdrop.
     #[serde(default = "default_true")]
     pub video_backdrop: bool,
     /// Animated "liquid" gradient blobs behind player surfaces, tinted by
@@ -187,7 +184,6 @@ impl Default for Settings {
             hud_always_on_top: true,
             hud_position: None,
             music_dir: None,
-            ytdlp_path: None,
             theme: ThemeSettings::default(),
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
