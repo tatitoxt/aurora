@@ -417,17 +417,63 @@ export default function Stage() {
 
   /* Track change: refocus and recenter on the playing cover. */
   const coversRef = useRef<HTMLDivElement>(null);
+
+  /* Inertial scrolling: wheel deltas and drag flings feed `target`/`vel`;
+     a rAF loop eases scrollLeft toward target so motion is butter-smooth
+     instead of jumping per input event. */
+  const scrollAnim = useRef({ raf: 0, target: -1, vel: 0 });
+  const runCoversAnim = () => {
+    const s = scrollAnim.current;
+    if (s.raf) return;
+    const step = () => {
+      const el = coversRef.current;
+      if (!el) {
+        s.raf = 0;
+        return;
+      }
+      const max = Math.max(0, el.scrollWidth - el.clientWidth);
+      if (s.target < 0) s.target = el.scrollLeft;
+      s.target += s.vel;
+      s.vel *= 0.93;
+      s.target = Math.max(0, Math.min(max, s.target));
+      const diff = s.target - el.scrollLeft;
+      if (Math.abs(diff) < 0.5 && Math.abs(s.vel) < 0.3) {
+        el.scrollLeft = s.target;
+        s.vel = 0;
+        s.raf = 0;
+        return;
+      }
+      el.scrollLeft += diff * 0.16;
+      s.raf = requestAnimationFrame(step);
+    };
+    s.raf = requestAnimationFrame(step);
+  };
+  const centerCover = (idx: number) => {
+    const el = coversRef.current;
+    const n = el?.querySelector<HTMLElement>(`[data-idx="${idx}"]`);
+    if (!el || !n) return;
+    const stripMid = el.getBoundingClientRect().left + el.clientWidth / 2;
+    const r = n.getBoundingClientRect();
+    scrollAnim.current.target = el.scrollLeft + (r.left + r.width / 2 - stripMid);
+    runCoversAnim();
+  };
   useEffect(() => {
     setFocusIdx(ci);
-    coversRef.current
-      ?.querySelector(`[data-idx="${ci}"]`)
-      ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    centerCover(ci);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ci, queue.items.length]);
 
   /* After the strip settles, highlight the cover nearest the center and
-     snap it to the middle so the layout converges. */
+     ease it to the middle so the layout converges. */
   const focusTimer = useRef(0);
-  useEffect(() => () => window.clearTimeout(focusTimer.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(focusTimer.current);
+      cancelAnimationFrame(scrollAnim.current.raf);
+      scrollAnim.current.raf = 0;
+    },
+    []
+  );
   const onCoversScroll = () => {
     window.clearTimeout(focusTimer.current);
     focusTimer.current = window.setTimeout(() => {
@@ -446,8 +492,7 @@ export default function Stage() {
       });
       if (best >= 0) {
         setFocusIdx(best);
-        el.querySelector(`[data-idx="${best}"]`)
-          ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+        centerCover(best);
       }
     }, 90);
   };
@@ -631,28 +676,53 @@ export default function Stage() {
           className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}
           onScroll={onCoversScroll}
           onWheel={(e) => {
-            // horizontal scroll on any wheel axis; pure browsing — no track change
+            // horizontal scroll on any wheel axis, eased through the
+            // inertial target — pure browsing, no track change
             const el = coversRef.current;
-            if (el) el.scrollLeft += Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+            if (!el) return;
+            const s = scrollAnim.current;
+            if (s.target < 0) s.target = el.scrollLeft;
+            const d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+            s.target += d;
+            s.vel = 0;
+            runCoversAnim();
           }}
           onPointerDown={(e) => {
             const el = coversRef.current;
             if (!el) return;
             e.preventDefault(); // stop native image/text dragging
-            const sx = e.clientX, sl = el.scrollLeft;
+            const s = scrollAnim.current;
+            cancelAnimationFrame(s.raf);
+            s.raf = 0;
+            s.vel = 0;
+            const sx = e.clientX,
+              sl = el.scrollLeft;
             let moved = false;
+            let lastX = sx,
+              vel = 0;
             const move = (ev: PointerEvent) => {
               const dx = ev.clientX - sx;
               if (Math.abs(dx) > 6) moved = true;
+              vel = lastX - ev.clientX; // px moved per event, scroll direction
+              lastX = ev.clientX;
               el.scrollLeft = sl - dx;
+              s.target = el.scrollLeft;
             };
             const end = () => {
               window.removeEventListener("pointermove", move);
               window.removeEventListener("pointerup", end);
               window.removeEventListener("pointercancel", end);
+              // Fling: release momentum keeps the strip gliding.
+              if (moved && Math.abs(vel) > 1) {
+                s.vel = vel * 6;
+                runCoversAnim();
+              }
               // A real drag must not count as a click on the cover under it.
               if (moved) {
-                const cap = (ce: Event) => { ce.stopPropagation(); ce.preventDefault(); };
+                const cap = (ce: Event) => {
+                  ce.stopPropagation();
+                  ce.preventDefault();
+                };
                 el.addEventListener("click", cap, { capture: true, once: true });
                 window.setTimeout(() => el.removeEventListener("click", cap, { capture: true }), 400);
               }
