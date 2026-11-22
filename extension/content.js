@@ -154,8 +154,17 @@ const SEARCH = {
     play: ['[data-test="tracklist-row"] [data-test="play-button"]', '[data-test="play-button"]'],
     row: '[data-test="tracklist-row"]',
   },
+  amazon: {
+    url: (q) => `/search/${enc(q)}`,
+    play: [
+      'music-image-row music-button[icon-name="play"]',
+      'music-horizontal-item music-button[icon-name="play"]',
+    ],
+  },
 };
 const PENDING = "noctbeat.play";
+// Amazon Music runs on regional hosts (music.amazon.de, .co.uk, ...).
+const searchCfg = SEARCH[host] || (host.startsWith("music.amazon.") ? SEARCH.amazon : null);
 
 function waitFor(sels, ms) {
   return new Promise((done) => {
@@ -191,7 +200,7 @@ async function clickFirst(cfg) {
 }
 
 async function playQuery(q) {
-  const cfg = SEARCH[host];
+  const cfg = searchCfg;
   if (!cfg) return;
   const path = cfg.url(q);
   if (cfg.spa) {
@@ -204,9 +213,9 @@ async function playQuery(q) {
 }
 
 const pendingQ = sessionStorage.getItem(PENDING);
-if (pendingQ && SEARCH[host]) {
+if (pendingQ && searchCfg) {
   sessionStorage.removeItem(PENDING);
-  void clickFirst(SEARCH[host]);
+  void clickFirst(searchCfg);
 }
 
 function tick() {
