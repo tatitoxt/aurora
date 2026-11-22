@@ -215,6 +215,7 @@ export default function Library() {
         setPlUrl("");
         setImportNote(`"${res.title}" · ${res.imported} tracks queued`);
         refresh();
+        refreshPlaylists();
       })
       .catch((e) => setError(String(e)))
       .finally(() => setImportingUrl(false));
