@@ -233,6 +233,7 @@ export default function SearchPanel({
                       e.stopPropagation();
                       enqueue(s);
                     }}
+                    onKeyDown={(e) => e.stopPropagation()}
                   >
                     <Plus size={12} />
                   </button>
