@@ -186,6 +186,7 @@ const ja: Record<keyof typeof en, string> = {
   "lib.addToQueue": "\u30ad\u30e5\u30fc\u306b\u8ffd\u52a0",
   "lib.albums": "\u30a2\u30eb\u30d0\u30e0",
   "lib.track": "\u66f2",
+  "lib.playlistLower": "\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8",
   "lib.playlistsLower": "\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8",
   "lib.collection": "\u30b3\u30ec\u30af\u30b7\u30e7\u30f3",
   "stats.recap": "\u30ea\u30ad\u30e3\u30c3\u30d7",

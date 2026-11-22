@@ -186,6 +186,7 @@ const zh: Record<keyof typeof en, string> = {
   "lib.addToQueue": "\u6dfb\u52a0\u5230\u961f\u5217",
   "lib.albums": "\u4e13\u8f91",
   "lib.track": "\u9996\u66f2\u76ee",
+  "lib.playlistLower": "\u4e2a\u64ad\u653e\u5217\u8868",
   "lib.playlistsLower": "\u4e2a\u64ad\u653e\u5217\u8868",
   "lib.collection": "\u6536\u85cf",
   "stats.recap": "\u56de\u987e",
