@@ -464,14 +464,12 @@ impl RelayHost {
                     {
                         Ok(resp) => {
                             posted_seq = seq;
-                            if let Ok(v) = resp
+                            if let Ok(Ok(v)) = resp
                                 .into_string()
                                 .map(|s| serde_json::from_str::<serde_json::Value>(&s))
                             {
-                                if let Ok(v) = v {
-                                    if let Some(n) = v.get("peers").and_then(|n| n.as_u64()) {
-                                        *p.lock().unwrap() = n as usize;
-                                    }
+                                if let Some(n) = v.get("peers").and_then(|n| n.as_u64()) {
+                                    *p.lock().unwrap() = n as usize;
                                 }
                             }
                         }
