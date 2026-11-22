@@ -127,6 +127,12 @@ const en = {
   "player.fullscreen": "Fullscreen",
   // library
   "lib.title": "Library",
+  "hud.swapArt": "Swap artwork / videoclip",
+  "hud.lyrics": "Lyrics overlay",
+  "hud.openPlayer": "Open player",
+  "hud.hide": "Hide HUD",
+  "dl.close": "Close lyrics overlay",
+  "stk.hint": "Sticker: drag to move, right-click or Delete to remove",
   "lib.queue": "Queue",
   "lib.searchTab": "Search",
   "lib.go": "Go",

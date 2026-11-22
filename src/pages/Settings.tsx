@@ -200,7 +200,7 @@ export default function Settings() {
             <span>{t("set.videoBackdrop")}</span>
             <button
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
-              aria-label="Music video backdrop"
+              aria-label={t("set.videoBackdrop")}
               onClick={() => patch({ videoBackdrop: !s.videoBackdrop })}
             />
           </div>
@@ -210,7 +210,7 @@ export default function Settings() {
           <span>{t("set.ambientBg")}</span>
           <button
             className={`toggle ${s.ambientBg ? "on" : ""}`}
-            aria-label="Ambient background"
+            aria-label={t("set.ambientBg")}
             onClick={() => patch({ ambientBg: !s.ambientBg })}
           />
         </div>
@@ -282,7 +282,7 @@ export default function Settings() {
           <span>{t("set.dynAccent")}</span>
           <button
             className={`toggle ${s.theme.dynamic ? "on" : ""}`}
-            aria-label="Accent follows artwork"
+            aria-label={t("set.dynAccent")}
             onClick={() => patch({ theme: { ...s.theme, dynamic: !s.theme.dynamic } })}
           />
         </div>
@@ -481,7 +481,7 @@ export default function Settings() {
           <span>{t("set.resumeOnLaunch")}</span>
           <button
             className={`toggle ${s.resumeOnLaunch ? "on" : ""}`}
-            aria-label="Resume playback on launch"
+            aria-label={t("set.resumeOnLaunch")}
             onClick={() => patch({ resumeOnLaunch: !s.resumeOnLaunch })}
           />
         </div>
@@ -489,7 +489,7 @@ export default function Settings() {
           <span>{t("set.notifyTrack")}</span>
           <button
             className={`toggle ${s.notifyTrackChange ? "on" : ""}`}
-            aria-label="Notify when the track changes"
+            aria-label={t("set.notifyTrack")}
             onClick={() => patch({ notifyTrackChange: !s.notifyTrackChange })}
           />
         </div>
@@ -498,7 +498,7 @@ export default function Settings() {
             <span>{t("set.discordRpc")}</span>
             <button
               className={`toggle ${s.discordRpc ? "on" : ""}`}
-              aria-label="Discord Rich Presence"
+              aria-label={t("set.discordRpc")}
               onClick={() => patch({ discordRpc: !s.discordRpc })}
             />
           </div>
@@ -629,7 +629,7 @@ export default function Settings() {
           <span>{t("set.liveTrayIcon")}</span>
           <button
             className={`toggle ${s.trayLiveIcon ? "on" : ""}`}
-            aria-label="Live tray icon"
+            aria-label={t("set.liveTrayIcon")}
             onClick={() => patch({ trayLiveIcon: !s.trayLiveIcon })}
           />
         </div>
@@ -637,7 +637,7 @@ export default function Settings() {
           <span>{t("set.floatingHud")}</span>
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
-            aria-label="Floating HUD"
+            aria-label={t("set.floatingHud")}
             onClick={() => patch({ hudEnabled: !s.hudEnabled })}
           />
         </div>
@@ -645,7 +645,7 @@ export default function Settings() {
           <span>{t("set.hudOnTop")}</span>
           <button
             className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
-            aria-label="Keep HUD on top"
+            aria-label={t("set.hudOnTop")}
             onClick={() => patch({ hudAlwaysOnTop: !s.hudAlwaysOnTop })}
           />
         </div>
@@ -653,7 +653,7 @@ export default function Settings() {
           <span>{t("set.desktopLyrics")}</span>
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
-            aria-label="Desktop lyrics overlay"
+            aria-label={t("set.desktopLyrics")}
             onClick={() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled })}
           />
         </div>

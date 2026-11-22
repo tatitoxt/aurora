@@ -219,16 +219,16 @@ export default function Hud() {
           ) : null}
           <button
             className="hud__artswap"
-            aria-label="Swap art / videoclip"
-            title="Swap art / videoclip"
+            aria-label={t("hud.swapArt")}
+            title={t("hud.swapArt")}
             onClick={swapMedia}
           >
             {mediaMode === "art" ? <Monitor size={13} /> : <Image size={13} />}
           </button>
           <button
             className={`hud__lyrswap ${lyricsOn ? "on" : ""}`}
-            aria-label="Lyrics overlay"
-            title="Lyrics overlay"
+            aria-label={t("hud.lyrics")}
+            title={t("hud.lyrics")}
             onClick={toggleLyrics}
           >
             <Subtitles size={13} weight={lyricsOn ? "fill" : "regular"} />
@@ -246,8 +246,8 @@ export default function Hud() {
         <div className="hud__pill">
           <button
             className={`hctl ${queueOpen ? "hctl--on" : ""}`}
-            aria-label="Queue"
-            title="Queue"
+            aria-label={t("lib.queue")}
+            title={t("lib.queue")}
             onClick={() => setQueueOpen((v) => !v)}
           >
             <ListBullets size={15} />
@@ -284,10 +284,10 @@ export default function Hud() {
           >
             <PushPin weight={pinned ? "fill" : "regular"} size={14} />
           </button>
-          <button className="hctl" aria-label="Open player" title="Open player" onClick={() => void bridge.showPlayer()}>
+          <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />
           </button>
-          <button className="hctl" aria-label="Hide HUD" title="Hide HUD" onClick={close}>
+          <button className="hctl" aria-label={t("hud.hide")} title={t("hud.hide")} onClick={close}>
             <X size={14} />
           </button>
         </div>

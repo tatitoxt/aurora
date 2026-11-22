@@ -1110,12 +1110,14 @@ export default function Stage() {
                 className={`fs__hair ${canSeek && dur ? "" : "fs__hair--off"}`}
                 {...scrubProps}
               >
-                <div
-                  className="fs__hairfill"
-                  style={{
-                    width: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%`,
-                  }}
-                />
+                <div className="fs__hairclip">
+                  <div
+                    className="fs__hairfill"
+                    style={{
+                      transform: `translateX(${(dur ? Math.min(100, (pos / dur) * 100) : 0) - 100}%)`,
+                    }}
+                  />
+                </div>
               </div>
               <span className="fs__tm fs__tm--end">
                 {dur ? formatTime(dur) : "-:--"}
@@ -1222,7 +1224,7 @@ export default function Stage() {
               </button>
               <button
                 className={`fs__icon fs__pillopt ${shuffle ? "fs__icon--on" : ""}`}
-                aria-label="Shuffle"
+                aria-label={t("fs.shuffle")}
                 title={t("fs.shuffle")}
                 onClick={() =>
                   void bridge.setShuffle(!shuffle).then(setShuffle)
@@ -1281,7 +1283,7 @@ export default function Stage() {
               <span className="fs__vol fs__volvol">
                 <button
                   className={`fs__icon fs__pillopt ${vol === 0 ? "fs__icon--on" : ""}`}
-                  aria-label="Volume"
+                  aria-label={t("fs.volume")}
                   title={t("fs.volume")}
                   onClick={() => setVolOpen((v) => !v)}
                 >
@@ -1298,7 +1300,7 @@ export default function Stage() {
                       min={0}
                       max={100}
                       value={Math.round(vol * 100)}
-                      aria-label="Volume"
+                      aria-label={t("fs.volume")}
                       onChange={(e) => {
                         const v = Number(e.target.value) / 100;
                         setVol(v);
@@ -1335,7 +1337,7 @@ export default function Stage() {
                     <span className="fs__menuopt">
                       <button
                         className={`fs__icon ${shuffle ? "fs__icon--on" : ""}`}
-                        aria-label="Shuffle"
+                        aria-label={t("fs.shuffle")}
                         title={t("fs.shuffle")}
                         onClick={() =>
                           void bridge.setShuffle(!shuffle).then(setShuffle)
@@ -1382,7 +1384,7 @@ export default function Stage() {
                       <input
                         type="range"
                         className="fs__slider"
-                        aria-label="Volume"
+                        aria-label={t("fs.volume")}
                         min={0}
                         max={100}
                         value={Math.round(vol * 100)}
