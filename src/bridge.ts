@@ -349,6 +349,20 @@ class MockSource {
 
 const mock = new MockSource();
 const listeners = new Map<string, Set<(p: unknown) => void>>();
+
+/* Browser preview volume: the YouTube-embed backdrop listens here so the
+ * stage slider actually reaches it (there is no native audio path). */
+let previewVolume = 0.8;
+const previewVolSubs = new Set<(v: number) => void>();
+export function previewVolumeNow(): number {
+  return previewVolume;
+}
+export function onPreviewVolume(cb: (v: number) => void): () => void {
+  previewVolSubs.add(cb);
+  return () => {
+    previewVolSubs.delete(cb);
+  };
+}
 let settingsStore: Settings = { ...DEFAULT_SETTINGS };
 
 /** OS drag & drop of files/folders onto the window (Tauri webview
@@ -517,8 +531,12 @@ export const bridge = {
     mock.seek(positionMs);
     return Promise.resolve(null);
   },
-  setVolume: (volume: number) =>
-    isTauri() ? invokeCmd<null>("set_volume", { volume }) : Promise.resolve(null),
+  setVolume: (volume: number) => {
+    if (isTauri()) return invokeCmd<null>("set_volume", { volume });
+    previewVolume = Math.max(0, Math.min(1, volume));
+    previewVolSubs.forEach((cb) => cb(previewVolume));
+    return Promise.resolve(null);
+  },
   setSpeed: (speed: number) =>
     isTauri() ? invokeCmd<null>("set_speed", { speed }) : Promise.resolve(null),
   getQueue: (): Promise<QueueState> =>
@@ -543,7 +561,7 @@ export const bridge = {
   getRepeat: (): Promise<"off" | "all" | "one"> =>
     isTauri() ? invokeCmd<"off" | "all" | "one">("get_repeat") : Promise.resolve("off"),
   getVolume: (): Promise<number> =>
-    isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(1),
+    isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(previewVolume),
   clearQueue: () => {
     if (isTauri()) return invokeCmd<null>("clear_queue");
     mock.playlist = [];

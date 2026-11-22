@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { onPreviewVolume, previewVolumeNow } from "./bridge";
 
 /** Music-video backdrop for karaoke mode: plays the resolved stream muted and
  * blurred behind the lyrics, kept in sync with the track position. When the
@@ -11,6 +12,7 @@ export function VideoBackdrop({
   playing,
   cls = "kbg__video",
   readyCls = "kbg__video--ready",
+  audible = false,
 }: {
   url: string;
   posMs: number;
@@ -19,10 +21,22 @@ export function VideoBackdrop({
    * stage passes its own ("fs__video"/"fs__cvid"). */
   cls?: string;
   readyCls?: string;
+  /** Only ONE mounted embed may own the audio, or overlapping players
+   * double the song (main stage backdrop sets this; covers/HUD stay muted). */
+  audible?: boolean;
 }) {
   const isEmbed = /youtube(-nocookie)?\.com\/embed\//.test(url);
   if (isEmbed)
-    return <EmbedBackdrop url={url} posMs={posMs} playing={playing} cls={cls} readyCls={readyCls} />;
+    return (
+      <EmbedBackdrop
+        url={url}
+        posMs={posMs}
+        playing={playing}
+        cls={cls}
+        readyCls={readyCls}
+        audible={audible}
+      />
+    );
   return <FileBackdrop url={url} posMs={posMs} playing={playing} cls={cls} readyCls={readyCls} />;
 }
 
@@ -80,12 +94,14 @@ function EmbedBackdrop({
   playing,
   cls,
   readyCls,
+  audible,
 }: {
   url: string;
   posMs: number;
   playing: boolean;
   cls: string;
   readyCls: string;
+  audible: boolean;
 }) {
   const ref = useRef<HTMLIFrameElement>(null);
   // Track where the embed should be: posMs ticks with the track, and we only
@@ -93,6 +109,8 @@ function EmbedBackdrop({
   const sync = useRef({ pos: 0, at: 0 });
   const unmuted = useRef(false);
   const [loaded, setLoaded] = useState(false);
+  const posRef = useRef(posMs);
+  posRef.current = posMs;
 
   const cmd = (func: string, args: unknown[] = []) =>
     ref.current?.contentWindow?.postMessage(
@@ -109,19 +127,28 @@ function EmbedBackdrop({
     }
     // The YouTube player ignores commands until its API is up — retry a few
     // times after the iframe loads so the clip actually starts on its own.
+    // The initial seek lands it at the track position, not at second zero.
     const kick = () => {
-      if (!unmuted.current) {
+      cmd("seekTo", [posRef.current / 1000, true]);
+      if (audible && !unmuted.current) {
         cmd("unMute");
-        cmd("setVolume", [80]);
         unmuted.current = true;
       }
+      if (audible) cmd("setVolume", [Math.round(previewVolumeNow() * 100)]);
       cmd("playVideo");
     };
     kick();
     const timers = [600, 1400, 2400, 3600].map((ms) => setTimeout(kick, ms));
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, url, loaded]);
+  }, [playing, url, loaded, audible]);
+
+  // The stage volume slider must reach the embed — follow preview volume.
+  useEffect(() => {
+    if (!loaded || !audible) return;
+    return onPreviewVolume((v) => cmd("setVolume", [Math.round(v * 100)]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, audible]);
 
   useEffect(() => {
     const expected = sync.current.pos + (playing ? Date.now() - sync.current.at : 0);

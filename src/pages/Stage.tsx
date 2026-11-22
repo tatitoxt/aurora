@@ -97,11 +97,13 @@ function FsVideo({
   posMs,
   playing,
   cls = "fs__video",
+  audible = false,
 }: {
   url: string;
   posMs: number;
   playing: boolean;
   cls?: string;
+  audible?: boolean;
 }) {
   return (
     <VideoBackdrop
@@ -110,6 +112,7 @@ function FsVideo({
       playing={playing}
       cls={cls}
       readyCls="fs__video--ready"
+      audible={audible}
     />
   );
 }
@@ -534,7 +537,7 @@ export default function Stage() {
     >
       <div className="fs__bg">
         {videoUrl ? (
-          <FsVideo url={videoUrl} posMs={pos} playing={playing} />
+          <FsVideo url={videoUrl} posMs={pos} playing={playing} audible />
         ) : wall.length > 1 ? (
           <div className="fs__wall">
             {(wall.length < 24
