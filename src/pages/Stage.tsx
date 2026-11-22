@@ -688,7 +688,7 @@ export default function Stage() {
           <div className="fs__mesh" />
         )}
         <div className="fs__veil" />
-        {settings.ambientBg && !videoUrl && <AmbientBg />}
+        {settings.ambientBg && !videoUrl && <AmbientBg playing={playing} />}
       </div>
       <div className="fs__grain" aria-hidden="true" />
 
