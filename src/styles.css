@@ -471,6 +471,7 @@ body {
 .player__progress > .player__progress-fill { pointer-events: none; }
 
 /* ---------- library ---------- */
+[data-libsec] { scroll-margin-top: 44px; }
 .lib__toolbar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; margin-top: 14px; padding: 0 2px;
