@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { bridge, type Stats } from "../bridge";
 import { useT } from "../i18n";
+import ArtBackdrop from "../ArtBackdrop";
 
 function fmtDur(ms: number): string {
   const s = Math.round(ms / 1000);
@@ -33,6 +34,7 @@ export default function Stats() {
 
   return (
     <div className="glass">
+      <ArtBackdrop />
       <div className="settings">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">

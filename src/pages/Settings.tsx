@@ -24,6 +24,7 @@ import {
   type NowPlaying,
   type Settings,
 } from "../bridge";
+import ArtBackdrop from "../ArtBackdrop";
 
 export default function Settings() {
   const t = useT();
@@ -131,6 +132,7 @@ export default function Settings() {
 
   return (
     <div className="glass">
+      <ArtBackdrop />
       <div className="settings">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">

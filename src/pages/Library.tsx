@@ -32,6 +32,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { artSrc } from "../bridge";
+import ArtBackdrop from "../ArtBackdrop";
 
 /** 32px rounded row cover: real artwork when the file has art, else a
  * soft glass disc with an icon. */
@@ -64,6 +65,7 @@ const SOURCES = [
 export default function Library() {
   const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
+  const [tab, setTab] = useState<"queue" | "search" | "liked" | "playlists">("queue");
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
 
@@ -334,10 +336,11 @@ export default function Library() {
 
   return (
     <div className="glass">
-      <div className="settings">
+      <ArtBackdrop />
+      <div className="settings settings--lib">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
-            <span className="art__kicker">{t("lib.collection")}</span>
+            <span />
             <span className="pagehead__links">
               <Link to="/albums" className="pagehead__link">
                 {t("lib.albums")}
@@ -355,26 +358,30 @@ export default function Library() {
           </span>
         </div>
 
-        <nav className="setnav" aria-label={t("lib.title")}>
-          {[
-            ["stream", "Stream"],
-            ["queue", "Queue"],
-            ["liked", t("lib.liked")],
-            ["playlists", t("lib.playlists")],
-          ].map(([id, label]) => (
+        <div className="libtabs" role="tablist" aria-label={t("lib.title")}>
+          {(
+            [
+              ["queue", "Queue", queue.items.length],
+              ["search", "Search", 0],
+              ["liked", t("lib.liked"), liked.length],
+              ["playlists", t("lib.playlists"), playlists.length],
+            ] as const
+          ).map(([id, label, n]) => (
             <button
               key={id}
-              className="setnav__pill"
-              onClick={() =>
-                document
-                  .querySelector(`[data-libsec="${id}"]`)
-                  ?.scrollIntoView({ block: "start", behavior: "smooth" })
-              }
+              role="tab"
+              aria-selected={tab === id}
+              className={tab === id ? "on" : ""}
+              onClick={() => setTab(id)}
             >
-              <span>{label}</span>
+              {label}
+              {n > 0 && <em>{n}</em>}
             </button>
           ))}
-        </nav>
+        </div>
+
+        {tab === "search" && (
+          <>
 
         <div className="inrow">
           <MagnifyingGlass />
@@ -444,12 +451,16 @@ export default function Library() {
           ))}
         </div>
 
+          </>
+        )}
+
+        {tab === "queue" && (
+          <>
         <div className="lib__toolbar" data-libsec="queue">
           <span className="lib__kicker">
-            Queue
-            <em className="lib__count">{queue.items.length}</em>
+            Up next
           </span>
-          <div className="seg">
+          <div className="seg seg--ghost">
             <button onClick={rescan}>Rescan</button>
             <button onClick={importPlaylist}>Import</button>
             <button
@@ -502,9 +513,20 @@ export default function Library() {
             return (
               <button
                 key={item.path}
-                className={`lib__row ${current ? "lib__row--current" : ""}`}
+                className={`lib__row lib__row--num ${current ? "lib__row--current" : ""}`}
                 onClick={() => void bridge.playQueueIndex(i).then(refresh)}
               >
+                <span className="lib__idx">
+                  {current && playing ? (
+                    <span className="lib__eq" aria-hidden>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  ) : (
+                    i + 1
+                  )}
+                </span>
                 <LibThumb url={item.track.artworkUrl} />
                 <span className="lib__title">{item.track.title}</span>
                 <span className="lib__sub">
@@ -517,22 +539,18 @@ export default function Library() {
                   </Link>
                 </span>
                 <span className="lib__dur">
-                  {current && playing ? (
-                    <span className="lib__eq" aria-hidden>
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                  ) : (
-                    ""
-                  )}
                   {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
                 </span>
               </button>
             );
           })}
         </div>
-        {liked.length > 0 && (
+          </>
+        )}
+        {tab === "liked" && liked.length === 0 && (
+          <span className="note">Tap the heart on any track to save it here.</span>
+        )}
+        {tab === "liked" && liked.length > 0 && (
           <>
             <button
               className="lib__hero"
@@ -585,7 +603,10 @@ export default function Library() {
             </div>
           </>
         )}
-        {playlists.length > 0 && (
+        {tab === "playlists" && playlists.length === 0 && (
+          <span className="note">Save the queue as a playlist, or import one.</span>
+        )}
+        {tab === "playlists" && playlists.length > 0 && (
           <>
             <div className="lib__toolbar" data-libsec="playlists">
               <span className="lib__kicker">

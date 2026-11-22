@@ -2288,3 +2288,62 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__npkick { color: var(--muted); letter-spacing: 0.06em; font-weight: 600; }
 .lib__artist:hover { color: var(--text); }
 .setnav__pill:focus-visible, .lib__add:hover, .stats__clear:hover, .profile.on { border-color: rgba(255, 255, 255, 0.5); }
+
+/* ---------- Design system v2.1: tabs, numbered rows, spacing ---------- */
+.settings > .stat-cards, .settings > .panel, .settings > .stats__clear { margin-top: var(--sp-3); }
+.stat-cards { gap: var(--sp-2); }
+
+.libtabs {
+  display: flex; gap: 2px; width: fit-content; max-width: 100%;
+  margin-top: var(--sp-3); padding: 3px;
+  background: var(--surface-1); border: 1px solid var(--hair); border-radius: var(--r-pill);
+}
+.libtabs button {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: none; cursor: pointer; color: var(--dim);
+  font-size: var(--fs-xs); font-weight: 500; padding: 6px 14px; border-radius: var(--r-pill);
+  transition: background .15s, color .15s;
+}
+.libtabs button:hover { color: var(--text); }
+.libtabs button.on { background: #fff; color: var(--ink); }
+.libtabs em { font-style: normal; font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; opacity: .6; }
+.settings--lib > .inrow { margin-top: var(--sp-3); }
+.settings--lib .note { background: none; border: none; padding: 2px 4px; margin: 8px 0 0; color: var(--muted); }
+.settings--lib .lib { margin-top: var(--sp-2); padding: 0; }
+
+.seg--ghost { background: none; border-color: transparent; }
+.seg--ghost button { color: var(--dim); }
+.seg--ghost button:hover:not(:disabled) { color: var(--text); background: var(--surface-1); }
+
+.lib__row--num { grid-template-columns: 20px auto 1fr auto; padding-left: 4px; }
+.lib__row--num .lib__thumb { grid-column: 2; }
+.lib__row--num .lib__title, .lib__row--num .lib__sub { grid-column: 3; }
+.lib__row--num .lib__dur { grid-column: 4; }
+.lib__idx {
+  grid-column: 1; grid-row: 1 / span 2; justify-self: end;
+  font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.lib__row--current .lib__idx { color: var(--text); }
+.lib__row--num .lib__eq { margin-right: 0; }
+
+/* Artwork backdrop for secondary pages */
+.artbg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.artbg img {
+  position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover;
+  filter: blur(56px) saturate(1.25) brightness(0.55);
+}
+.artbg::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(6, 6, 8, 0.28), rgba(6, 6, 8, 0.62));
+}
+.glass:has(> .artbg) { background: rgba(10, 10, 12, 0.55); }
+.glass:has(> .artbg) > :not(.artbg) { position: relative; z-index: 1; }
+.settings > .setblock { margin-top: var(--sp-5); }
+.settings > .setnav + .setblock { margin-top: var(--sp-2); }
+.setnav { mask-image: linear-gradient(90deg, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); }
+.art__hero:not(:has(.art__playAll)) > .art__back { position: absolute; top: 16px; right: 18px; z-index: 2; }
+.glass:has(> .artbg) .art__heroBg, .glass:has(> .artbg) .art__heroScrim { display: none; }
+.glass:has(> .artbg) .art__hero { min-height: 0; padding: 20px 18px 8px; }
+.glass:has(> .artbg) .art__scroll { padding: 8px 18px 16px; }
+.art__albums { margin: 0 -6px; }
+.settings--lib .lib__toolbar { padding: 0; }
