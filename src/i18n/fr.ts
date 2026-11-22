@@ -186,6 +186,7 @@ const fr: Record<keyof typeof en, string> = {
   "lib.addToQueue": "Ajouter \u00e0 la file",
   "lib.albums": "Albums",
   "lib.track": "titre",
+  "lib.playlistLower": "playlist",
   "lib.playlistsLower": "playlists",
   "lib.collection": "Collection",
   "stats.recap": "R\u00e9cap",
