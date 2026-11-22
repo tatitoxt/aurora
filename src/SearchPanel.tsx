@@ -101,7 +101,7 @@ export default function SearchPanel({
   const friendly = (e: unknown, prov: string) => {
     const m = String(e);
     if (m.includes(t("srch.notFound", { src: label(prov) }))) return m;
-    return /sign in|bot|cookies|403|429/i.test(m)
+    return /sign in|bot|cookies|drm|403|429/i.test(m)
       ? t("srch.blocked", { src: label(prov) })
       : t("srch.playFail");
   };
@@ -135,13 +135,25 @@ export default function SearchPanel({
     void (async () => {
       let last: unknown;
       for (const prov of inAppOrder) {
+        // The first hit can be DRM/subscriber-only (SoundCloud Go+): try a
+        // few before moving to the next provider.
+        let hits: Awaited<ReturnType<typeof bridge.providerSearch>> = [];
         try {
-          await bridge.providerPlay(await resolve(s, prov));
-          setNote("");
-          onPlayed();
-          return;
+          hits = await bridge.providerSearch(prov, `${s.artist} ${s.title}`);
         } catch (e) {
           last = friendly(e, prov);
+          continue;
+        }
+        if (!hits.length) last = t("srch.notFound", { src: label(prov) });
+        for (const trk of hits.slice(0, 3)) {
+          try {
+            await bridge.providerPlay(trk);
+            setNote("");
+            onPlayed();
+            return;
+          } catch (e) {
+            last = friendly(e, prov);
+          }
         }
       }
       setNote("");
