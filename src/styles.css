@@ -1114,7 +1114,7 @@ body {
 }
 .fs__center {
   position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 0 8vw; pointer-events: none;
+  padding: 0 8vw 12px; pointer-events: none;
 }
 .fs__lyrics {
   display: flex; flex-direction: column; align-items: center; gap: 1.4vh;
@@ -1216,12 +1216,13 @@ body {
   background: #fff; border-radius: 999px;
 }
 .fs__pill {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; max-width: 100%;
   background: var(--panel-strong); backdrop-filter: blur(56px) saturate(1.3);
   -webkit-backdrop-filter: blur(56px) saturate(1.3);
   border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px;
   box-shadow: 0 18px 50px -14px rgba(0,0,0,0.7);
 }
+.fs__pill > .fs__icon, .fs__pill > .fs__vol, .fs__pill > .fs__srcsep { flex: none; }
 .fs__icon {
   background: none; border: none; color: var(--dim); cursor: pointer;
   width: 32px; height: 32px; display: grid; place-items: center;
@@ -2111,6 +2112,13 @@ body {
   }
   .fs__covers { margin-bottom: 2vh; gap: 10px; }
   .fs__cover--on { width: calc(clamp(168px, 34vh, 320px) * var(--cscale, 1)); }
+}
+/* Mid-size windows: the full pill only fits with tighter side padding and a
+   narrower meta column — below ~700px icons would otherwise clip the edge. */
+@media (max-width: 700px) {
+  .fs__bottom { padding-left: 4vw; padding-right: 4vw; }
+  .fs__pill { gap: 5px; padding: 7px 10px; }
+  .fs__meta { max-width: 190px; }
 }
 @media (max-height: 620px) {
   .fs__clockwrap { padding-top: max(1.5vh, 52px); }
