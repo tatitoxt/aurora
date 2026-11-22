@@ -269,15 +269,15 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
  * yt-dlp, so the videoclip backdrop plays the real embed (audio included)
  * instead of a stock sample. 6th field = YouTube video id. */
 const DEMO_PLAYLIST: Array<[string, string, string, number, string, string]> = [
-  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "https://i.ytimg.com/vi/mzB1VGEGcSU/hqdefault.jpg", "mzB1VGEGcSU"],
-  ["Blinding Lights", "The Weeknd", "After Hours", 200_000, "https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg", "4NRXx6U8ABQ"],
-  ["Starboy", "The Weeknd, Daft Punk", "Starboy", 230_000, "https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg", "34Na4j8AVgA"],
-  ["Levitating", "Dua Lipa", "Future Nostalgia", 203_000, "https://i.ytimg.com/vi/TUVcZfQe-Kw/hqdefault.jpg", "TUVcZfQe-Kw"],
-  ["bad guy", "Billie Eilish", "When We All Fall Asleep, Where Do We Go?", 194_000, "https://i.ytimg.com/vi/DyDfgMOUjCI/hqdefault.jpg", "DyDfgMOUjCI"],
-  ["Sunflower", "Post Malone, Swae Lee", "Spider-Man: Into the Spider-Verse", 158_000, "https://i.ytimg.com/vi/ApXoWvfEYVU/hqdefault.jpg", "ApXoWvfEYVU"],
-  ["Circles", "Post Malone", "Hollywood's Bleeding", 215_000, "https://i.ytimg.com/vi/wXhTHyIgQ_U/hqdefault.jpg", "wXhTHyIgQ_U"],
-  ["As It Was", "Harry Styles", "Harry's House", 167_000, "https://i.ytimg.com/vi/H5v3kku4y6Q/hqdefault.jpg", "H5v3kku4y6Q"],
-  ["Stay", "The Kid LAROI, Justin Bieber", "F*ck Love 3+", 141_000, "https://i.ytimg.com/vi/kTJczUoc26U/hqdefault.jpg", "kTJczUoc26U"],
+  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "https://i.ytimg.com/vi/mzB1VGEGcSU/mqdefault.jpg", "mzB1VGEGcSU"],
+  ["Blinding Lights", "The Weeknd", "After Hours", 200_000, "https://i.ytimg.com/vi/4NRXx6U8ABQ/mqdefault.jpg", "4NRXx6U8ABQ"],
+  ["Starboy", "The Weeknd, Daft Punk", "Starboy", 230_000, "https://i.ytimg.com/vi/34Na4j8AVgA/mqdefault.jpg", "34Na4j8AVgA"],
+  ["Levitating", "Dua Lipa", "Future Nostalgia", 203_000, "https://i.ytimg.com/vi/TUVcZfQe-Kw/mqdefault.jpg", "TUVcZfQe-Kw"],
+  ["bad guy", "Billie Eilish", "When We All Fall Asleep, Where Do We Go?", 194_000, "https://i.ytimg.com/vi/DyDfgMOUjCI/mqdefault.jpg", "DyDfgMOUjCI"],
+  ["Sunflower", "Post Malone, Swae Lee", "Spider-Man: Into the Spider-Verse", 158_000, "https://i.ytimg.com/vi/ApXoWvfEYVU/mqdefault.jpg", "ApXoWvfEYVU"],
+  ["Circles", "Post Malone", "Hollywood's Bleeding", 215_000, "https://i.ytimg.com/vi/wXhTHyIgQ_U/mqdefault.jpg", "wXhTHyIgQ_U"],
+  ["As It Was", "Harry Styles", "Harry's House", 167_000, "https://i.ytimg.com/vi/H5v3kku4y6Q/mqdefault.jpg", "H5v3kku4y6Q"],
+  ["Stay", "The Kid LAROI, Justin Bieber", "F*ck Love 3+", 141_000, "https://i.ytimg.com/vi/kTJczUoc26U/mqdefault.jpg", "kTJczUoc26U"],
 ];
 
 const DEMO_LRC: LrcLine[] = [

@@ -2140,3 +2140,151 @@ body {
   }
   .fs__menuopt .fs__slider { flex: 1; min-width: 60px; }
 }
+
+/* ==========================================================================
+   Design system v2 — one type scale, one spacing scale, one surface model.
+   Reference: Linear / Spotify desktop chrome. Monochrome: the only "accent"
+   is white; colour comes from album art, never from UI chrome.
+   ========================================================================== */
+:root {
+  --ui: "Inter Variable", "Inter", -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --fs-2xs: 10px; --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-lg: 15px; --fs-xl: 20px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-pill: 999px;
+  --surface-1: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --hair: rgba(255, 255, 255, 0.08);
+  --hair-strong: rgba(255, 255, 255, 0.14);
+  --ink: #0b0b0e;
+  --muted: color-mix(in srgb, var(--dim) 72%, transparent);
+  font-family: var(--ui);
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+button, input, select, textarea { font-family: var(--ui); }
+
+/* Headings: UI chrome is sans, tight tracking. Serif stays for lyrics/HUD. */
+.pagehead__name, .art__name, .settings h1 {
+  font-family: var(--ui); font-size: var(--fs-xl); font-weight: 650;
+  letter-spacing: -0.02em; line-height: 1.15; text-shadow: none;
+}
+.pagehead { gap: 2px; }
+.pagehead__meta, .art__meta { font-size: var(--fs-xs); color: var(--muted); }
+
+/* Kickers / section labels: small caps, modest tracking. */
+.art__kicker, .lib__kicker, .setghead, .field > span:first-child, .field > label:first-child {
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.lib__count { font-size: var(--fs-2xs); background: var(--surface-2); border-color: transparent; }
+
+/* Header links: quiet ghost pills. */
+.pagehead__link, .art__back {
+  font-size: var(--fs-xs); font-weight: 500; color: var(--dim);
+  padding: 5px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--hair); background: var(--surface-1);
+}
+.pagehead__link:hover, .art__back:hover { color: var(--text); background: var(--surface-hover); border-color: var(--hair-strong); }
+
+/* Sticky section rail: no tinted band and no nested backdrop blur (a child
+   blur inside the window glass samples only the dark panel tint). The pills
+   carry their own surface so scrolled content stays legible beneath them. */
+.setnav {
+  background: transparent;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  padding: 8px 18px 12px; gap: 4px;
+}
+.setnav__pill {
+  font-size: var(--fs-xs); font-weight: 500; color: var(--dim);
+  padding: 6px 12px; border: 1px solid var(--hair);
+  background: color-mix(in srgb, var(--panel-strong) 92%, #fff 8%);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.setnav__pill:hover { background: var(--surface-hover); border-color: var(--hair); }
+.setnav__pill:focus-visible { border-color: rgba(255, 255, 255, 0.5); }
+
+/* Cards: flat translucent surface + hairline, no diagonal sheen. */
+.setgroup {
+  background: var(--surface-1); border: 1px solid var(--hair);
+  border-radius: var(--r-lg); padding: var(--sp-4) var(--sp-4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  gap: var(--sp-3);
+}
+.setgroup > .row + .row, .setgroup > .row + .field,
+.setgroup > .field + .row, .setgroup > .field + .field { border-top-color: var(--hair); padding-top: var(--sp-3); }
+.panel, .stat-card {
+  background: var(--surface-1); border: 1px solid var(--hair); border-radius: var(--r-lg);
+}
+.panel { padding: var(--sp-3); }
+.panel > span { font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lib__hero {
+  background: var(--surface-1); border-color: var(--hair);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.lib__hero:hover { transform: none; background: var(--surface-hover); border-color: var(--hair-strong); }
+.lib__heroicon { background: var(--surface-2); border-color: var(--hair); box-shadow: none; border-radius: var(--r-md); }
+.lib__thumb--ph { background: var(--surface-2); }
+
+/* Controls: white is the only "on" colour. */
+.toggle { background: var(--surface-2); border-color: var(--hair-strong); box-shadow: none; }
+.toggle.on { background: #fff; border-color: #fff; }
+.toggle.on::after { background: var(--ink); box-shadow: none; }
+.seg { background: var(--surface-1); border-color: var(--hair); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.seg button { font-size: var(--fs-xs); font-weight: 500; padding: 5px 12px; }
+.seg button.on { background: #fff; color: var(--ink); box-shadow: none; }
+.field input[type="text"], .field select, .row select {
+  background: var(--surface-1); border-color: var(--hair-strong); border-radius: var(--r-md);
+  box-shadow: none; font-size: var(--fs-sm);
+}
+.field input[type="text"]:focus, .field select:focus, .row select:focus { outline: none; border-color: rgba(255, 255, 255, 0.45); }
+
+/* Track rows (Spotify list rhythm): 36px art, two-line meta, quiet hover. */
+.lib__row { padding: 6px 10px 6px 6px; border-radius: var(--r-md); gap: 1px 12px; }
+.lib__row:hover { background: var(--surface-1); }
+.lib__row--current { background: var(--surface-2); }
+.lib__thumb { width: 36px; height: 36px; border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--hair); }
+.lib__title { font-size: var(--fs-md); font-weight: 550; letter-spacing: -0.005em; }
+.lib__sub, .lib__dur { font-size: var(--fs-xs); color: var(--muted); }
+.tops__row { padding: 6px 10px; border-radius: var(--r-md); font-size: var(--fs-md); gap: 12px; }
+.tops__row:hover { background: var(--surface-1); }
+.tops__meta b { font-weight: 550; }
+.tops__meta span, .tops__n, .tops__row > em { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Stats: numbers in the UI face, neutral bars, no glow. */
+.stat-card { padding: var(--sp-3); gap: 2px; }
+.stat-card em { font-family: var(--ui); font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stat-card span { font-size: var(--fs-xs); color: var(--muted); }
+.days { border-bottom-color: var(--hair); }
+.days__bar { background: rgba(255, 255, 255, 0.22); box-shadow: none; border-radius: 4px 4px 0 0; }
+.days__bar--max { background: #fff; box-shadow: none; }
+.tops__link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Progress bars: white fill everywhere. */
+.hud__progress-fill { background: #fff; }
+.fs--arc .fs__hairfill { background: #fff; box-shadow: none; }
+
+/* Albums grid: equal columns regardless of title length. */
+.art__albums { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--sp-3); }
+.art__album { min-width: 0; padding: 6px; border-radius: var(--r-md); }
+.art__album:hover { background: var(--surface-1); }
+.art__albumCover { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--hair); }
+.art__albumName { font-size: var(--fs-sm); font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.art__albumSub { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Theme gallery: flat swatch of the theme base with a thin tone bar. */
+.themegal { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--sp-2); }
+.themechip { height: 52px; border-radius: var(--r-md); border-color: var(--hair-strong); font-size: var(--fs-xs); font-weight: 500; }
+.themechip:hover { transform: none; border-color: rgba(255, 255, 255, 0.3); }
+.themechip.on { border-color: #fff; box-shadow: 0 0 0 1px #fff; }
+.themechip::after { display: none; }
+.themechip__sw::after { content: ""; position: absolute; right: 10px; bottom: 10px; width: 18px; height: 3px; border-radius: 2px; background: var(--sw-tone, #fff); }
+.themechip__nm { left: 10px; bottom: 7px; text-shadow: none; }
+
+/* Headers without artwork: no dark scrim band. */
+.art__heroScrim:first-child { display: none; }
+
+/* Active icons / links: white, never the art-tinted accent. */
+.fs__icon--on, .fs__morebtn--on, .hud__lyrswap.on { color: #fff; }
+.fs__npkick { color: var(--muted); letter-spacing: 0.06em; font-weight: 600; }
+.lib__artist:hover { color: var(--text); }
+.setnav__pill:focus-visible, .lib__add:hover, .stats__clear:hover, .profile.on { border-color: rgba(255, 255, 255, 0.5); }

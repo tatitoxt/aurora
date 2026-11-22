@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   AppWindow,
@@ -246,9 +246,12 @@ export default function Settings() {
               >
                 <span
                   className="themechip__sw"
-                  style={{
-                    background: `linear-gradient(135deg, ${presetVar(th.name, "--bg")} 20%, ${presetVar(th.name, "--accent2")} 55%, ${presetVar(th.name, "--panel")})`,
-                  }}
+                  style={
+                    {
+                      background: presetVar(th.name, "--bg"),
+                      "--sw-tone": presetVar(th.name, "--accent2"),
+                    } as CSSProperties
+                  }
                 />
                 <span className="themechip__nm">{th.label}</span>
               </button>
