@@ -250,6 +250,8 @@ const pt: Record<keyof typeof en, string> = {
   "srch.empty": "Sem resultados",
   "srch.loading": "Buscando\u2026",
   "srch.notFound": "N\u00e3o encontrado em {src}",
+  "srch.blocked": "{src} bloqueou esta m\u00fasica. Tente outra fonte ou abra {src} no navegador.",
+  "srch.playFail": "N\u00e3o foi poss\u00edvel tocar esta m\u00fasica.",
   "srch.queued": "{title} adicionada \u00e0 fila",
   "srch.allResults": "Voltar a todos os resultados",
   "fs.dragMove": "Drag to move",

@@ -952,15 +952,17 @@ async fn provider_play(
     track: RemoteTrack,
 ) -> Result<QueueItem, String> {
     detected_ytdlp(&state)?;
-    let (item, idx) = enqueue_remote(&state, track)?;
-    // The queue changed even if playback below fails — announce it now
-    // so a failed track never lands silently in the list.
-    emit_queue(&app, &state);
-    // Resolve before the player lock, the same rule play_queue_index
-    // follows: a UI-initiated play must not hold the lock (and freeze
-    // every control) through a whole yt-dlp download.
-    let key = item.path["remote:".len()..].to_owned();
+    // Resolve before enqueueing (and before the player lock): a track the
+    // provider refuses must not land in the queue as a dead entry, so the
+    // UI can fall back to another provider cleanly.
+    let key = format!("{}:{}", track.source, track.id);
+    state
+        .remote
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(key.clone(), track.clone());
     resolve_remote(&state.remote, &state.settings, &state.stream_cache, &key)?;
+    let (item, idx) = enqueue_remote(&state, track)?;
     state
         .player
         .lock()

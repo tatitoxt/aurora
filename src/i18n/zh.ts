@@ -250,6 +250,8 @@ const zh: Record<keyof typeof en, string> = {
   "srch.empty": "\u65e0\u7ed3\u679c",
   "srch.loading": "\u641c\u7d22\u4e2d\u2026",
   "srch.notFound": "\u5728 {src} \u4e0a\u672a\u627e\u5230",
+  "srch.blocked": "{src} \u963b\u6b62\u4e86\u8fd9\u9996\u6b4c",
+  "srch.playFail": "\u65e0\u6cd5\u64ad\u653e\u8fd9\u9996\u6b4c",
   "srch.queued": "\u5df2\u5c06 {title} \u52a0\u5165\u961f\u5217",
   "srch.allResults": "\u8fd4\u56de\u5168\u90e8\u7ed3\u679c",
   "fs.dragMove": "Drag to move",

@@ -259,6 +259,8 @@ const en = {
   "srch.empty": "No results",
   "srch.loading": "Searching\u2026",
   "srch.notFound": "Not found on {src}",
+  "srch.blocked": "{src} blocked this song. Try another source or open {src} in your browser.",
+  "srch.playFail": "Couldn't play this song. Try another one.",
   "srch.queued": "Added {title} to the queue",
   "srch.allResults": "Back to all results",
   "fs.dragMove": "Drag to move",

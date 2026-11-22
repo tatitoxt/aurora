@@ -250,6 +250,8 @@ const it: Record<keyof typeof en, string> = {
   "srch.empty": "Nessun risultato",
   "srch.loading": "Ricerca\u2026",
   "srch.notFound": "Non trovato su {src}",
+  "srch.blocked": "{src} ha bloccato questo brano. Prova un'altra fonte o apri {src} nel browser.",
+  "srch.playFail": "Impossibile riprodurre questo brano.",
   "srch.queued": "{title} aggiunto alla coda",
   "srch.allResults": "Torna a tutti i risultati",
   "fs.dragMove": "Drag to move",

@@ -250,6 +250,8 @@ const ko: Record<keyof typeof en, string> = {
   "srch.empty": "\uacb0\uacfc \uc5c6\uc74c",
   "srch.loading": "\uac80\uc0c9 \uc911\u2026",
   "srch.notFound": "{src}\uc5d0\uc11c \ucc3e\uc744 \uc218 \uc5c6\uc74c",
+  "srch.blocked": "{src}\uc774(\uac00) \uc774 \uace1\uc744 \ucc28\ub2e8\ud588\uc2b5\ub2c8\ub2e4",
+  "srch.playFail": "\uc774 \uace1\uc744 \uc7ac\uc0dd\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4",
   "srch.queued": "{title}\uc744(\ub97c) \ub300\uae30\uc5f4\uc5d0 \ucd94\uac00\ud568",
   "srch.allResults": "\uc804\uccb4 \uacb0\uacfc\ub85c \ub3cc\uc544\uac00\uae30",
   "fs.dragMove": "Drag to move",

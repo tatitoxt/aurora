@@ -92,11 +92,24 @@ export default function SearchPanel({
       ? (AUTO_ORDER.find((p) => connected.has(p)) ?? "youtube")
       : src;
 
-  const resolve = async (s: CatalogSong) => {
-    const hits = await bridge.providerSearch(target, `${s.artist} ${s.title}`);
-    if (!hits[0]) throw new Error(t("srch.notFound", { src: label(target) }));
+  const resolve = async (s: CatalogSong, prov = target) => {
+    const hits = await bridge.providerSearch(prov, `${s.artist} ${s.title}`);
+    if (!hits[0]) throw new Error(t("srch.notFound", { src: label(prov) }));
     return hits[0];
   };
+  // Raw yt-dlp output ("Sign in to confirm you're not a bot…") is not for users.
+  const friendly = (e: unknown, prov: string) => {
+    const m = String(e);
+    if (m.includes(t("srch.notFound", { src: label(prov) }))) return m;
+    return /sign in|bot|cookies|403|429/i.test(m)
+      ? t("srch.blocked", { src: label(prov) })
+      : t("srch.playFail");
+  };
+  // Automatic tries every in-app provider before giving up.
+  const inAppOrder =
+    src === "auto"
+      ? [target, ...[...IN_APP].filter((p) => p !== target)]
+      : [target];
 
   const play = (s: CatalogSong) => {
     setErr("");
@@ -119,10 +132,21 @@ export default function SearchPanel({
       return;
     }
     setNote(t("srch.loading"));
-    void resolve(s)
-      .then((trk) => bridge.providerPlay(trk))
-      .then(() => (setNote(""), onPlayed()))
-      .catch((e) => (setNote(""), setErr(String(e))));
+    void (async () => {
+      let last: unknown;
+      for (const prov of inAppOrder) {
+        try {
+          await bridge.providerPlay(await resolve(s, prov));
+          setNote("");
+          onPlayed();
+          return;
+        } catch (e) {
+          last = friendly(e, prov);
+        }
+      }
+      setNote("");
+      setErr(String(last));
+    })();
   };
 
   const enqueue = (s: CatalogSong) => {
@@ -130,7 +154,7 @@ export default function SearchPanel({
     void resolve(s)
       .then((trk) => bridge.providerEnqueue(trk))
       .then(() => setNote(t("srch.queued", { title: s.title })))
-      .catch((e) => setErr(String(e)));
+      .catch((e) => setErr(friendly(e, target)));
   };
   const canQueue = !connected.has(target) && IN_APP.has(target);
 

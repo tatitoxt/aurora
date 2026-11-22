@@ -250,6 +250,8 @@ const de: Record<keyof typeof en, string> = {
   "srch.empty": "Keine Ergebnisse",
   "srch.loading": "Suche\u2026",
   "srch.notFound": "Nicht gefunden auf {src}",
+  "srch.blocked": "{src} hat diesen Song blockiert. Andere Quelle w\u00e4hlen oder {src} im Browser \u00f6ffnen.",
+  "srch.playFail": "Dieser Song konnte nicht abgespielt werden.",
   "srch.queued": "{title} zur Warteschlange hinzugef\u00fcgt",
   "srch.allResults": "Zur\u00fcck zu allen Ergebnissen",
   "fs.dragMove": "Drag to move",

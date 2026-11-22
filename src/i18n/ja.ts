@@ -250,6 +250,8 @@ const ja: Record<keyof typeof en, string> = {
   "srch.empty": "\u7d50\u679c\u306a\u3057",
   "srch.loading": "\u691c\u7d22\u4e2d\u2026",
   "srch.notFound": "{src}\u306b\u898b\u3064\u304b\u308a\u307e\u305b\u3093",
+  "srch.blocked": "{src}\u304c\u3053\u306e\u66f2\u3092\u30d6\u30ed\u30c3\u30af\u3057\u307e\u3057\u305f",
+  "srch.playFail": "\u3053\u306e\u66f2\u3092\u518d\u751f\u3067\u304d\u307e\u305b\u3093",
   "srch.queued": "{title}\u3092\u30ad\u30e5\u30fc\u306b\u8ffd\u52a0\u3057\u307e\u3057\u305f",
   "srch.allResults": "\u3059\u3079\u3066\u306e\u7d50\u679c\u306b\u623b\u308b",
   "fs.dragMove": "Drag to move",

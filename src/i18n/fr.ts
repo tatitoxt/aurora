@@ -250,6 +250,8 @@ const fr: Record<keyof typeof en, string> = {
   "srch.empty": "Aucun r\u00e9sultat",
   "srch.loading": "Recherche\u2026",
   "srch.notFound": "Introuvable sur {src}",
+  "srch.blocked": "{src} a bloqu\u00e9 ce titre. Essayez une autre source ou ouvrez {src} dans le navigateur.",
+  "srch.playFail": "Impossible de lire ce titre.",
   "srch.queued": "{title} ajout\u00e9 \u00e0 la file",
   "srch.allResults": "Retour \u00e0 tous les r\u00e9sultats",
   "fs.dragMove": "Drag to move",
