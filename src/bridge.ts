@@ -868,7 +868,7 @@ export const bridge = {
       ...mockListen,
       hosting: true,
       hostAddr: web
-        ? "https://noctbeat-relay--pzxd7n62.preview.devinapps.com/a1b2c3d4e5f67890"
+        ? "https://noctbeat-relay.onrender.com/a1b2c3d4e5f67890"
         : "http://192.168.1.42:17894",
       hostName: name || "Fausto",
       following: null,

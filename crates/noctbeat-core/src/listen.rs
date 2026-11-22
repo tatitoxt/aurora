@@ -19,7 +19,7 @@ use crate::media::{now_ms, NowPlaying, PlaybackStatus};
 
 pub const LISTEN_PORT: u16 = 17894;
 /// Default public relay for "Host web" — override with `NOCTBEAT_RELAY`.
-pub const DEFAULT_RELAY: &str = "https://noctbeat-relay--pzxd7n62.preview.devinapps.com";
+pub const DEFAULT_RELAY: &str = "https://noctbeat-relay.onrender.com";
 const MAX_BODY: usize = 256 * 1024;
 /// A peer that fetched /state within this window counts as listening.
 const PEER_FRESH: Duration = Duration::from_secs(15);
