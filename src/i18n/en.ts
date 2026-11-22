@@ -195,6 +195,7 @@ const en = {
   "lib.addToQueue": "Add to queue",
   "lib.albums": "Albums",
   "lib.track": "track",
+  "lib.playlistLower": "playlist",
   "lib.playlistsLower": "playlists",
   "lib.collection": "Collection",
   "stats.recap": "Recap",

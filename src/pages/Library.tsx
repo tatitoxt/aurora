@@ -350,7 +350,7 @@ export default function Library() {
           <h1 className="pagehead__name">{t("lib.title")}</h1>
           <span className="pagehead__meta">
             {queue.items.length} {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")}
-            {playlists.length > 0 && ` · ${playlists.length} ${t("lib.playlistsLower")}`}
+            {playlists.length > 0 && ` · ${playlists.length} ${playlists.length === 1 ? t("lib.playlistLower") : t("lib.playlistsLower")}`}
             {liked.length > 0 && ` · ${liked.length} ${t("lib.liked").toLowerCase()}`}
           </span>
         </div>

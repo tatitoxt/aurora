@@ -186,6 +186,7 @@ const ko: Record<keyof typeof en, string> = {
   "lib.addToQueue": "\uc885\uc5d0 \ucd94\uac00",
   "lib.albums": "\uc568\ubc94",
   "lib.track": "\uace1",
+  "lib.playlistLower": "\uc7ac\uc0dd\ubaa9\ub85d",
   "lib.playlistsLower": "\uc7ac\uc0dd\ubaa9\ub85d",
   "lib.collection": "\uceec\ub809\uc158",
   "stats.recap": "\ub9ac\ucea1",
