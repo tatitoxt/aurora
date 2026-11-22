@@ -22,6 +22,10 @@ const MAX_BODY: usize = 256 * 1024;
 const MAX_ROOMS: usize = 1024;
 /// A follower that fetched within this window counts as listening.
 const PEER_FRESH: Duration = Duration::from_secs(15);
+/// Cap on tracked listeners per room — X-Forwarded-For is client-supplied
+/// when there's no trusted edge, so unbounded keys would let one client
+/// inflate the count and grow the map forever.
+const MAX_PEERS: usize = 256;
 
 struct Room {
     body: Vec<u8>,
@@ -180,7 +184,9 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
                 return;
             };
             room.peers.retain(|_, t| t.elapsed() < PEER_FRESH);
-            room.peers.insert(peer_key, Instant::now());
+            if room.peers.len() < MAX_PEERS || room.peers.contains_key(&peer_key) {
+                room.peers.insert(peer_key, Instant::now());
+            }
             let body = room.body.clone();
             // Followers use the age to drop sessions whose host went
             // silent — otherwise the cached body looks freshly fetched
