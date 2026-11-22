@@ -644,7 +644,11 @@ export const bridge = {
     return Promise.resolve(null);
   },
   providerStatus: () =>
-    isTauri() ? invokeCmd<boolean>("provider_status") : Promise.resolve(false),
+    isTauri()
+      ? invokeCmd<boolean>("provider_status")
+      : /* preview simulates a connected provider so URL imports and the
+         * live picker state are reachable */
+        Promise.resolve(true),
   providerSearch: (source: string, query: string): Promise<RemoteTrack[]> =>
     isTauri()
       ? invokeCmd<RemoteTrack[]>("provider_search", { source, query })
