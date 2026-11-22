@@ -2,7 +2,7 @@
 # Build context: the repo root (workspace members must all be present).
 FROM rust:1-slim AS build
 WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock branding.json ./
 COPY crates ./crates
 COPY src-tauri/Cargo.toml src-tauri/build.rs src-tauri/tauri.conf.json ./src-tauri/
 COPY src-tauri/src ./src-tauri/src
