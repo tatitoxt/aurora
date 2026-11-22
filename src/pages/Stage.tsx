@@ -457,7 +457,9 @@ export default function Stage() {
     if (!el || !n) return;
     const stripMid = el.getBoundingClientRect().left + el.clientWidth / 2;
     const r = n.getBoundingClientRect();
-    scrollAnim.current.target = el.scrollLeft + (r.left + r.width / 2 - stripMid);
+    const s = scrollAnim.current;
+    s.target = el.scrollLeft + (r.left + r.width / 2 - stripMid);
+    s.set = true;
     runCoversAnim();
   };
   useEffect(() => {
