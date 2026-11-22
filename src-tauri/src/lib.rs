@@ -512,16 +512,15 @@ fn restore_session(state: &AppState) {
     };
     // Older sessions can hold `remote:` stream entries, which no longer
     // play; drop them and keep the cursor on the same local track.
-    let current = s.index.and_then(|i| s.items.get(i)).map(|i| i.path.clone());
-    let items: Vec<QueueItem> = s
-        .items
-        .into_iter()
-        .filter(|i| !i.path.starts_with("remote:"))
-        .collect();
+    let is_remote = |i: &QueueItem| i.path.starts_with("remote:");
+    let index = s
+        .index
+        .filter(|&i| s.items.get(i).is_some_and(|it| !is_remote(it)))
+        .map(|i| i - s.items[..i].iter().filter(|it| is_remote(it)).count());
+    let items: Vec<QueueItem> = s.items.into_iter().filter(|i| !is_remote(i)).collect();
     if items.is_empty() {
         return;
     }
-    let index = current.and_then(|c| items.iter().position(|i| i.path == c));
     let position_ms = if index.is_some() { s.position_ms } else { 0 };
     if let Ok(mut p) = state.player.lock() {
         p.restore(items, index, position_ms, s.repeat, s.shuffle);
