@@ -545,6 +545,7 @@ export default function Settings() {
                 {lst.hostAddr ? ` · ${lst.hostAddr}` : ` · ${t("set.listenNoAddr")}`}
                 {lst.peers > 0 ? ` · ${lst.peers} ${t("set.listenPeers")}` : ""}
               </span>
+              {lst.lastError && <span className="share__note">{lst.lastError}</span>}
               <div className="seg">
                 <button onClick={() => bridge.listenHostStop().then(setLst)}>
                   {t("set.listenStop")}
@@ -585,6 +586,9 @@ export default function Settings() {
                   </button>
                   <button onClick={() => bridge.listenHostStart().then(setLst).catch((e) => setJoinErr(String(e?.message ?? e)))}>
                     {t("set.listenHost")}
+                  </button>
+                  <button onClick={() => bridge.listenHostStart(undefined, true).then(setLst).catch((e) => setJoinErr(String(e?.message ?? e)))}>
+                    {t("set.listenHostWeb")}
                   </button>
                 </div>
               </div>

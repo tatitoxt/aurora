@@ -2674,6 +2674,7 @@ dependencies = [
 name = "noctbeat-core"
 version = "0.1.0"
 dependencies = [
+ "getrandom 0.2.17",
  "image",
  "lofty",
  "roxmltree",
@@ -2683,6 +2684,13 @@ dependencies = [
  "ureq",
  "windows 0.58.0",
  "zbus 4.4.0",
+]
+
+[[package]]
+name = "noctbeat-relay"
+version = "0.1.0"
+dependencies = [
+ "noctbeat-core",
 ]
 
 [[package]]

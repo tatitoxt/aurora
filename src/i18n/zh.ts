@@ -145,6 +145,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.sourceHint": "安装浏览器扩展即可跟随 YouTube Music、Spotify、SoundCloud、Apple Music、Tidal 或 Amazon — 见 README › Browser extension。",
   "set.listen": "一起听",
   "set.listenHost": "创建会话",
+  "set.listenHostWeb": "网络会话",
   "set.listenJoin": "加入",
   "set.listenAddrPh": "好友地址 — 例如 192.168.1.20",
   "set.listenHosting": "会话进行中 — 好友通过此地址加入",

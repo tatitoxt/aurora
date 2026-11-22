@@ -145,6 +145,7 @@ const ko: Record<keyof typeof en, string> = {
   "set.sourceHint": "브라우저 확장을 설치하면 YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon을 따라갈 수 있습니다 — README › Browser extension 참조.",
   "set.listen": "함께 듣기",
   "set.listenHost": "세션 만들기",
+  "set.listenHostWeb": "웹 세션",
   "set.listenJoin": "참여",
   "set.listenAddrPh": "친구 주소 — 예: 192.168.1.20",
   "set.listenHosting": "세션 활성 — 친구가 이 주소로 참여",

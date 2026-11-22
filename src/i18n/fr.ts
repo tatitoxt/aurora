@@ -145,6 +145,7 @@ const fr: Record<keyof typeof en, string> = {
   "set.sourceHint": "Installez l’extension navigateur pour suivre YouTube Music, Spotify, SoundCloud, Apple Music, Tidal ou Amazon — voir README › Browser extension.",
   "set.listen": "Écouter ensemble",
   "set.listenHost": "Créer une session",
+  "set.listenHostWeb": "Session web",
   "set.listenJoin": "Rejoindre",
   "set.listenAddrPh": "Adresse de votre ami — ex. 192.168.1.20",
   "set.listenHosting": "Session active — vos amis rejoignent ici",

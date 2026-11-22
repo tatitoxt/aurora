@@ -11,6 +11,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 ureq = "2"
+getrandom = "0.2"
 lofty = "0.22"
 roxmltree = "0.21.2"
 
