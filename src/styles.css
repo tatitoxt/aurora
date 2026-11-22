@@ -2102,17 +2102,20 @@ body {
   .fs__meta { display: none; }
   .fs__metacol { flex: 1; min-width: 0; }
   .fs__clockwrap { padding-top: max(3vh, 54px); }
+  .fs__date { font-size: 13px; letter-spacing: 0.26em; margin-bottom: 5px; }
+  .fs__clock { font-size: calc(clamp(38px, 12vw, 110px) * var(--clksc, 1)); }
   .fs__topbar { padding: 10px 12px; }
   .fs__morepop {
     position: fixed; left: auto; right: 10px; bottom: 76px;
     transform: none; max-height: calc(100vh - 148px);
   }
   .fs__covers { margin-bottom: 2vh; gap: 10px; }
-  .fs__cover--on { width: calc(clamp(180px, 40vh, 320px) * var(--cscale, 1)); }
+  .fs__cover--on { width: calc(clamp(168px, 34vh, 320px) * var(--cscale, 1)); }
 }
 @media (max-height: 620px) {
   .fs__clockwrap { padding-top: max(1.5vh, 52px); }
   .fs__center { padding: 0 6vw; }
+  .fs__bottom { padding-bottom: 3vh; }
 }
 
 /* Overflow section inside the "…" menu — only rendered below 560px where the
