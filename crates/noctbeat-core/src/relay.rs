@@ -60,11 +60,7 @@ impl Relay {
                 }
             }
         });
-        Some(Self {
-            rooms,
-            alive,
-            addr,
-        })
+        Some(Self { rooms, alive, addr })
     }
 
     /// Live room count (diagnostics/tests).
@@ -97,7 +93,11 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
                     let head = String::from_utf8_lossy(&buf[..end]);
                     let len = head
                         .lines()
-                        .find_map(|l| l.to_ascii_lowercase().strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().unwrap_or(0)))
+                        .find_map(|l| {
+                            l.to_ascii_lowercase()
+                                .strip_prefix("content-length:")
+                                .map(|v| v.trim().parse::<usize>().unwrap_or(0))
+                        })
                         .unwrap_or(0);
                     if buf.len() >= end + 4 + len {
                         break (end, len);

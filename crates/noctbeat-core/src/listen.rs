@@ -464,10 +464,9 @@ impl RelayHost {
                     {
                         Ok(resp) => {
                             posted_seq = seq;
-                            if let Ok(v) =
-                                resp.into_string().map(|s| {
-                                    serde_json::from_str::<serde_json::Value>(&s)
-                                })
+                            if let Ok(v) = resp
+                                .into_string()
+                                .map(|s| serde_json::from_str::<serde_json::Value>(&s))
                             {
                                 if let Ok(v) = v {
                                     if let Some(n) = v.get("peers").and_then(|n| n.as_u64()) {
@@ -853,7 +852,12 @@ mod tests {
         let base = format!("http://{}", relay.addr);
 
         let host = RelayHost::start(&base, "wan host").unwrap();
-        host.publish(&np("Relay Song", "Relay Artist", 9_000, PlaybackStatus::Playing));
+        host.publish(&np(
+            "Relay Song",
+            "Relay Artist",
+            9_000,
+            PlaybackStatus::Playing,
+        ));
         // The room exists only after the host's first push lands.
         let mut follower = None;
         for _ in 0..20 {
