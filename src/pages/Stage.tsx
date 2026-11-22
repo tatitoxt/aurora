@@ -398,8 +398,10 @@ export default function Stage() {
     },
   };
 
-  // Cover carousel: a window of queue items centered on the current one.
+  /* Cover carousel: whichever cover sits nearest the strip's center is the
+     highlighted card — scrolling never changes the song, only clicking does. */
   const ci = queue.currentIndex ?? 0;
+  const [focusIdx, setFocusIdx] = useState(ci);
   const covers = queue.items
     .map((it, i) => ({ it, i }))
     .map(({ it, i }) => ({
@@ -408,18 +410,47 @@ export default function Stage() {
       src: artMap[it.track.artworkUrl],
       title: it.track.title,
       artist: it.track.artist,
-      on: i === ci,
-      side: i < ci ? "l" : i > ci ? "r" : "",
+      on: i === focusIdx,
+      playing: i === ci,
+      side: i < focusIdx ? "l" : i > focusIdx ? "r" : "",
     }));
 
-  /* Scroll the carousel so the playing cover stays centered; clicking a
-     side cover jumps the queue to that index. */
+  /* Track change: refocus and recenter on the playing cover. */
   const coversRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    setFocusIdx(ci);
     coversRef.current
-      ?.querySelector(".fs__cover--on")
+      ?.querySelector(`[data-idx="${ci}"]`)
       ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }, [ci, queue.items.length]);
+
+  /* After the strip settles, highlight the cover nearest the center and
+     snap it to the middle so the layout converges. */
+  const focusTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(focusTimer.current), []);
+  const onCoversScroll = () => {
+    window.clearTimeout(focusTimer.current);
+    focusTimer.current = window.setTimeout(() => {
+      const el = coversRef.current;
+      if (!el) return;
+      const mid = el.getBoundingClientRect().left + el.clientWidth / 2;
+      let best = -1;
+      let bd = Infinity;
+      el.querySelectorAll<HTMLElement>("[data-idx]").forEach((n) => {
+        const r = n.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - mid);
+        if (d < bd) {
+          bd = d;
+          best = Number(n.dataset.idx);
+        }
+      });
+      if (best >= 0) {
+        setFocusIdx(best);
+        el.querySelector(`[data-idx="${best}"]`)
+          ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+      }
+    }, 90);
+  };
 
   const hh = String(now.getHours() % 12 || 12);
   const mm = String(now.getMinutes()).padStart(2, "0");
@@ -598,6 +629,7 @@ export default function Stage() {
         <div
           ref={coversRef}
           className={`fs__covers ${lyricsOn ? "" : "fs__covers--big"}`}
+          onScroll={onCoversScroll}
           onWheel={(e) => {
             // horizontal scroll on any wheel axis; pure browsing — no track change
             const el = coversRef.current;
@@ -632,10 +664,18 @@ export default function Stage() {
         >
           {covers.map((c) =>
             c.on ? (
-              /* Center card: video/art inside, meta overlaid on scrim. */
-              <div key={c.key} className="fs__cover fs__cover--on">
+              /* Center card: video/art inside, meta overlaid on scrim.
+                 Highlighted by position — click plays it if it isn't the
+                 track already playing. */
+              <button
+                key={c.key}
+                data-idx={c.i}
+                className={`fs__cover fs__cover--on ${c.playing ? "fs__cover--live" : ""}`}
+                onClick={c.playing ? undefined : () => void bridge.playQueueIndex(c.i)}
+                title={`${c.title} — ${c.artist}`}
+              >
                 <div className="fs__coverimg">
-                  {videoUrl ? (
+                  {c.playing && videoUrl ? (
                     <FsVideo url={videoUrl} posMs={pos} playing={playing} cls="fs__cvid" />
                   ) : c.src ? (
                     <img src={c.src} alt="" />
@@ -648,12 +688,13 @@ export default function Stage() {
                     <div className="fs__cvart">{c.artist}</div>
                   </div>
                 </div>
-              </div>
+              </button>
             ) : (
               <button
                 key={c.key}
-                className={`fs__cover fs__cover--${c.side}`}
-                style={{ "--i": Math.min(Math.abs(c.i - ci), 4) } as CSSProperties}
+                data-idx={c.i}
+                className={`fs__cover fs__cover--${c.side} ${c.playing ? "fs__cover--live" : ""}`}
+                style={{ "--i": Math.min(Math.abs(c.i - focusIdx), 4) } as CSSProperties}
                 onClick={() => void bridge.playQueueIndex(c.i)}
                 title={`${c.title} — ${c.artist}`}
               >
