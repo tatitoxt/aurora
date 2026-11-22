@@ -647,7 +647,9 @@ body {
 .panel > span { font-size: 11px; color: var(--dim); }
 
 /* ---------- settings ---------- */
-.settings { padding: 20px 18px; gap: 24px; overflow-y: auto; height: 100%; }
+/* Own compositing layer: WebKitGTK without DMA-BUF left stale paint
+   behind when this transparent scroller scrolled or re-rendered. */
+.settings { padding: 20px 18px; gap: 24px; overflow-y: auto; height: 100%; transform: translateZ(0); will-change: transform; }
 .settings > .field, .settings > .row {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -1092,6 +1094,7 @@ body {
   filter: saturate(1.25);
   animation: fs-mesh-drift 26s steps(80) infinite alternate;
 }
+.fs__mesh--still { animation-play-state: paused; }
 @keyframes fs-mesh-drift {
   from { transform: rotate(-4deg) scale(1.02); }
   to { transform: rotate(4deg) scale(1.12); }

@@ -685,7 +685,7 @@ export default function Stage() {
         ) : art ? (
           <img src={art} alt="" />
         ) : (
-          <div className="fs__mesh" />
+          <div className={playing ? "fs__mesh" : "fs__mesh fs__mesh--still"} />
         )}
         <div className="fs__veil" />
         {settings.ambientBg && !videoUrl && <AmbientBg playing={playing} />}
