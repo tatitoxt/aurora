@@ -62,11 +62,11 @@ test.describe("Noctbeat stage", () => {
 });
 
 test.describe("Covers carousel", () => {
-  test("scrolling browses without changing the track", async ({ page }) => {
+  test("scrolling moves the highlight without changing the track", async ({ page }) => {
     await page.goto(`${APP}/#/`);
     const covers = page.locator(".fs__covers");
     await expect(covers).toBeVisible();
-    const before = await page.locator(".fs__cvtitle").textContent();
+    const before = await page.locator(".fs__mtitle").textContent();
 
     const box = await covers.boundingBox();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
@@ -76,9 +76,12 @@ test.describe("Covers carousel", () => {
     await page.mouse.down();
     await page.mouse.move(box!.x + box!.width / 2 - 120, box!.y + box!.height / 2, { steps: 6 });
     await page.mouse.up();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(900); // scroll-settle debounce + center snap
 
-    await expect(page.locator(".fs__cvtitle")).toHaveText(before ?? "");
+    // the song did not change…
+    await expect(page.locator(".fs__mtitle")).toHaveText(before ?? "");
+    // …but the highlighted card followed the strip's center
+    await expect(page.locator(".fs__cover--on:not(.fs__cover--live)")).toBeVisible();
     const scrollLeft = await covers.evaluate((el) => el.scrollLeft);
     expect(scrollLeft).toBeGreaterThan(0);
   });
