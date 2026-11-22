@@ -265,16 +265,19 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 
 // ---- Browser mock (mirrors crates/noctbeat-core/src/media/demo.rs) ---------
 
-const DEMO_PLAYLIST: Array<[string, string, string, number, string]> = [
-  ["Aurora Reversal", "Violet Sector", "Parallax Bloom", 214_000, "/art/aurora.jpg"],
-  ["Slow Meridian", "Violet Sector", "Parallax Bloom", 187_000, "/art/aurora.jpg"],
-  ["Glass Tide", "Ultramar", "Field Lines", 243_000, "/art/glasstide.jpg"],
-  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "/art/lucid.jpg"],
-  ["Midnight Relay", "Chromewave", "Night Grid", 201_000, "/art/nightgrid.jpg"],
-  ["Velvet Static", "Ultramar", "Field Lines", 176_000, "/art/glasstide.jpg"],
-  ["Afterglow Avenue", "Velvet Fields", "Daybreak", 224_000, "/art/moon.jpg"],
-  ["Low Orbit", "Lunar Plain", "Earthrise", 198_000, "/art/orbit.jpg"],
-  ["Paper Satellites", "Violet Sector", "Parallax Bloom", 232_000, "/art/aurora.jpg"],
+/* Real tracks + their official YouTube videos: the browser preview has no
+ * yt-dlp, so the videoclip backdrop plays the real embed (audio included)
+ * instead of a stock sample. 6th field = YouTube video id. */
+const DEMO_PLAYLIST: Array<[string, string, string, number, string, string]> = [
+  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "https://i.ytimg.com/vi/mzB1VGEGcSU/hqdefault.jpg", "mzB1VGEGcSU"],
+  ["Blinding Lights", "The Weeknd", "After Hours", 200_000, "https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg", "4NRXx6U8ABQ"],
+  ["Starboy", "The Weeknd, Daft Punk", "Starboy", 230_000, "https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg", "34Na4j8AVgA"],
+  ["Levitating", "Dua Lipa", "Future Nostalgia", 203_000, "https://i.ytimg.com/vi/TUVcZfQe-Kw/hqdefault.jpg", "TUVcZfQe-Kw"],
+  ["bad guy", "Billie Eilish", "When We All Fall Asleep, Where Do We Go?", 194_000, "https://i.ytimg.com/vi/DyDfgMOUjCI/hqdefault.jpg", "DyDfgMOUjCI"],
+  ["Sunflower", "Post Malone, Swae Lee", "Spider-Man: Into the Spider-Verse", 158_000, "https://i.ytimg.com/vi/ApXoWvfEYVU/hqdefault.jpg", "ApXoWvfEYVU"],
+  ["Circles", "Post Malone", "Hollywood's Bleeding", 215_000, "https://i.ytimg.com/vi/wXhTHyIgQ_U/hqdefault.jpg", "wXhTHyIgQ_U"],
+  ["As It Was", "Harry Styles", "Harry's House", 167_000, "https://i.ytimg.com/vi/H5v3kku4y6Q/hqdefault.jpg", "H5v3kku4y6Q"],
+  ["Stay", "The Kid LAROI, Justin Bieber", "F*ck Love 3+", 141_000, "https://i.ytimg.com/vi/kTJczUoc26U/hqdefault.jpg", "kTJczUoc26U"],
 ];
 
 const DEMO_LRC: LrcLine[] = [
@@ -346,6 +349,20 @@ class MockSource {
 
 const mock = new MockSource();
 const listeners = new Map<string, Set<(p: unknown) => void>>();
+
+/* Browser preview volume: the YouTube-embed backdrop listens here so the
+ * stage slider actually reaches it (there is no native audio path). */
+let previewVolume = 0.8;
+const previewVolSubs = new Set<(v: number) => void>();
+export function previewVolumeNow(): number {
+  return previewVolume;
+}
+export function onPreviewVolume(cb: (v: number) => void): () => void {
+  previewVolSubs.add(cb);
+  return () => {
+    previewVolSubs.delete(cb);
+  };
+}
 let settingsStore: Settings = { ...DEFAULT_SETTINGS };
 
 /** OS drag & drop of files/folders onto the window (Tauri webview
@@ -514,8 +531,12 @@ export const bridge = {
     mock.seek(positionMs);
     return Promise.resolve(null);
   },
-  setVolume: (volume: number) =>
-    isTauri() ? invokeCmd<null>("set_volume", { volume }) : Promise.resolve(null),
+  setVolume: (volume: number) => {
+    if (isTauri()) return invokeCmd<null>("set_volume", { volume });
+    previewVolume = Math.max(0, Math.min(1, volume));
+    previewVolSubs.forEach((cb) => cb(previewVolume));
+    return Promise.resolve(null);
+  },
   setSpeed: (speed: number) =>
     isTauri() ? invokeCmd<null>("set_speed", { speed }) : Promise.resolve(null),
   getQueue: (): Promise<QueueState> =>
@@ -540,7 +561,7 @@ export const bridge = {
   getRepeat: (): Promise<"off" | "all" | "one"> =>
     isTauri() ? invokeCmd<"off" | "all" | "one">("get_repeat") : Promise.resolve("off"),
   getVolume: (): Promise<number> =>
-    isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(1),
+    isTauri() ? invokeCmd<number>("get_volume") : Promise.resolve(previewVolume),
   clearQueue: () => {
     if (isTauri()) return invokeCmd<null>("clear_queue");
     mock.playlist = [];
@@ -585,7 +606,15 @@ export const bridge = {
   playItems: (items: QueueItem[], index: number): Promise<null> => {
     if (isTauri()) return invokeCmd<null>("play_items", { items, index });
     mock.playlist = items.map(
-      (i) => [i.track.title, i.track.artist, i.track.album, i.track.durationMs, i.track.artworkUrl] as [string, string, string, number, string],
+      (i) =>
+        [
+          i.track.title,
+          i.track.artist,
+          i.track.album,
+          i.track.durationMs,
+          i.track.artworkUrl,
+          DEMO_PLAYLIST.find(([t, a]) => t === i.track.title && a === i.track.artist)?.[5] ?? "",
+        ] as [string, string, string, number, string, string],
     );
     mock.index = index;
     mock.positionMs = 0;
@@ -641,10 +670,16 @@ export const bridge = {
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
       ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
-      : /* demo preview only: public CC0 sample so the videoclip backdrop is
-         * testable outside Tauri; the real app resolves via yt-dlp. */
+      : /* demo preview only: the real official video as a YouTube embed so
+         * the videoclip backdrop plays audio + video outside Tauri; the real
+         * app resolves a stream via yt-dlp. */
         Promise.resolve(
-          "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+          (() => {
+            const hit = DEMO_PLAYLIST.find(([t, a]) => t === title && a === artist);
+            return hit
+              ? `https://www.youtube.com/embed/${hit[5]}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&controls=0&iv_load_policy=3`
+              : null;
+          })(),
         ),
   listOutputs: (): Promise<string[]> =>
     isTauri() ? invokeCmd<string[]>("list_outputs") : Promise.resolve([]),
