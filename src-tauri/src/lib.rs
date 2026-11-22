@@ -377,8 +377,21 @@ fn get_ext_status(state: State<AppState>) -> Result<Option<ExtStatus>, String> {
 /// Search `query` in the user's open `provider` tab and play the first hit.
 #[tauri::command]
 fn ext_play(state: State<AppState>, provider: String, query: String) -> Result<bool, String> {
-    let mut s = state.source.lock().map_err(|e| e.to_string())?;
-    Ok(s.play_in_tab(&provider, &query))
+    let sent = state
+        .source
+        .lock()
+        .map_err(|e| e.to_string())?
+        .play_in_tab(&provider, &query);
+    // The tab takes over: silence the local player so audio and transport
+    // don't stay attached to the local queue.
+    if sent {
+        if let Ok(mut p) = state.player.lock() {
+            if p.status() != PlaybackStatus::Stopped {
+                p.stop();
+            }
+        }
+    }
+    Ok(sent)
 }
 
 #[tauri::command]
