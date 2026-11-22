@@ -2,10 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { bridge, type CatalogSong } from "./bridge";
 import { useT } from "./i18n";
-import { formatTime } from "./lib";
+import { artistCards, formatTime } from "./lib";
 
 /** Tab providers tried, in order, when the picker is on Automatic. */
-const AUTO_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
+const AUTO_ORDER = [
+  "spotify",
+  "youtube",
+  "soundcloud",
+  "apple",
+  "tidal",
+  "amazon",
+];
 const IN_APP = new Set(["youtube", "soundcloud"]);
 
 /**
@@ -54,21 +61,7 @@ export default function SearchPanel({
     };
   }, [q]);
 
-  const artists = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const s of songs) {
-      if (s.artist && !seen.has(s.artist)) seen.set(s.artist, s.artworkUrl);
-    }
-    // Hide collab credits ("A & B") when a credited artist has its own card;
-    // keeps punctuated names like "Earth, Wind & Fire" whole.
-    const names = [...seen.keys()];
-    return [...seen]
-      .filter(([n]) => {
-        const parts = n.split(/\s*(?:,|&|\bfeat\.?|\bx\b)\s*/i);
-        return !(parts.length > 1 && names.some((o) => o !== n && parts.includes(o)));
-      })
-      .slice(0, 8);
-  }, [songs]);
+  const artists = useMemo(() => artistCards(songs), [songs]);
 
   // An artist page lists that artist's own catalog, not just this query's hits.
   const openArtist = (name: string) => {
@@ -78,7 +71,10 @@ export default function SearchPanel({
       .then((r) =>
         setSongs((prev) => {
           const seen = new Set(prev.map((s) => `${s.title}:${s.artist}`));
-          return [...prev, ...r.filter((s) => !seen.has(`${s.title}:${s.artist}`))];
+          return [
+            ...prev,
+            ...r.filter((s) => !seen.has(`${s.title}:${s.artist}`)),
+          ];
         }),
       )
       .catch(() => {});
@@ -111,7 +107,8 @@ export default function SearchPanel({
         .extPlay(target, query)
         .then((ok) =>
           ok
-            ? (setNote(t("fs.playingInTab", { src: label(target) })), onPlayed())
+            ? (setNote(t("fs.playingInTab", { src: label(target) })),
+              onPlayed())
             : setErr(t("fs.noTab", { src: label(target) })),
         )
         .catch((e) => setErr(String(e)));
@@ -164,7 +161,11 @@ export default function SearchPanel({
               title={topArtist[0]}
               onClick={() => openArtist(topArtist[0])}
             >
-              <img className="srch__topart srch__topart--round" src={topArtist[1]} alt="" />
+              <img
+                className="srch__topart srch__topart--round"
+                src={topArtist[1]}
+                alt=""
+              />
               <span className="srch__toptitle">{topArtist[0]}</span>
               <span className="srch__tag">{t("srch.artist")}</span>
             </button>
