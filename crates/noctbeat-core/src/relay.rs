@@ -17,12 +17,18 @@ use std::time::{Duration, Instant};
 /// minute and a half of silence means the session ended.
 const ROOM_TTL: Duration = Duration::from_secs(90);
 const MAX_BODY: usize = 256 * 1024;
+/// Hard cap on live rooms — the relay is unauthenticated, so without a
+/// bound an uploader could allocate memory until the process dies.
+const MAX_ROOMS: usize = 1024;
 /// A follower that fetched within this window counts as listening.
 const PEER_FRESH: Duration = Duration::from_secs(15);
 
 struct Room {
     body: Vec<u8>,
     touched: Instant,
+    /// Secret the first POST bound to this room; later POSTs must repeat
+    /// it via `X-Host-Secret` — followers only know the room key.
+    host_secret: Option<String>,
     /// Follower IPs that fetched recently — reported back to the host.
     peers: HashMap<String, Instant>,
 }
@@ -99,6 +105,11 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
                                 .map(|v| v.trim().parse::<usize>().unwrap_or(0))
                         })
                         .unwrap_or(0);
+                    // Reject oversized declarations up front — otherwise
+                    // `end + 4 + len` can wrap usize and panic on the slice.
+                    if len > MAX_BODY {
+                        return;
+                    }
                     if buf.len() >= end + 4 + len {
                         break (end, len);
                     }
@@ -114,6 +125,20 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
     let method = parts.next().unwrap_or("");
     let path = parts.next().unwrap_or("").trim_matches('/');
     let body = buf[head_end + 4..head_end + 4 + content_len].to_vec();
+    let header = |name: &str| -> Option<String> {
+        head.lines().find_map(|l| {
+            l.to_ascii_lowercase()
+                .strip_prefix(&format!("{name}:"))
+                .map(|v| v.trim().to_string())
+        })
+    };
+    // Behind a TLS edge every follower arrives from the proxy's IP, so the
+    // forwarded-for chain is the only way to tell listeners apart.
+    let peer_key = header("x-forwarded-for")
+        .and_then(|v| v.split(',').next().map(|s| s.trim().to_string()))
+        .filter(|s| !s.is_empty())
+        .unwrap_or(ip);
+    let host_secret = header("x-host-secret");
 
     let mut g = rooms.lock().unwrap();
     g.retain(|_, r| r.touched.elapsed() < ROOM_TTL);
@@ -123,9 +148,24 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
                 let _ = reply(&mut stream, 400, b"{}");
                 return;
             }
+            if let Some(existing) = g.get(path) {
+                // A room with a bound secret only accepts uploads that
+                // repeat it — anyone holding the share link could else
+                // forge broadcasts for the room's followers.
+                if let Some(sec) = &existing.host_secret {
+                    if host_secret.as_deref() != Some(sec.as_str()) {
+                        let _ = reply(&mut stream, 403, b"{}");
+                        return;
+                    }
+                }
+            } else if g.len() >= MAX_ROOMS {
+                let _ = reply(&mut stream, 429, b"{}");
+                return;
+            }
             let room = g.entry(path.to_string()).or_insert_with(|| Room {
                 body: Vec::new(),
                 touched: Instant::now(),
+                host_secret: host_secret.clone(),
                 peers: HashMap::new(),
             });
             room.body = body;
@@ -140,10 +180,19 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
                 return;
             };
             room.peers.retain(|_, t| t.elapsed() < PEER_FRESH);
-            room.peers.insert(ip, Instant::now());
+            room.peers.insert(peer_key, Instant::now());
             let body = room.body.clone();
+            // Followers use the age to drop sessions whose host went
+            // silent — otherwise the cached body looks freshly fetched
+            // until the TTL expires and playback keeps rewinding.
+            let age_ms = room.touched.elapsed().as_millis() as u64;
             drop(g);
-            let _ = reply(&mut stream, 200, &body);
+            let _ = reply_with_headers(
+                &mut stream,
+                200,
+                &body,
+                &[format!("X-Room-Age-Ms: {age_ms}")],
+            );
         }
         _ => {
             let _ = reply(&mut stream, 405, b"{}");
@@ -152,17 +201,29 @@ fn serve(mut stream: TcpStream, ip: String, rooms: &Arc<Mutex<HashMap<String, Ro
 }
 
 fn reply(stream: &mut TcpStream, code: u16, body: &[u8]) -> std::io::Result<()> {
+    reply_with_headers(stream, code, body, &[])
+}
+
+fn reply_with_headers(
+    stream: &mut TcpStream,
+    code: u16,
+    body: &[u8],
+    extra: &[String],
+) -> std::io::Result<()> {
     let status = match code {
         200 => "200 OK",
         400 => "400 Bad Request",
+        403 => "403 Forbidden",
         404 => "404 Not Found",
         405 => "405 Method Not Allowed",
+        429 => "429 Too Many Requests",
         _ => "500",
     };
     stream.write_all(
         format!(
-            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-            body.len()
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n",
+            body.len(),
+            extra.join("\r\n") + if extra.is_empty() { "" } else { "\r\n" },
         )
         .as_bytes(),
     )?;

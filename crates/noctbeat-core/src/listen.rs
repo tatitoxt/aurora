@@ -89,10 +89,14 @@ struct HostShared {
 /// state endpoint (an active on-path MITM still needs TLS: roadmap).
 fn session_key() -> String {
     let mut b = [0u8; 8];
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        if f.read_exact(&mut b).is_ok() {
-            return b.iter().map(|x| format!("{x:02x}")).collect();
-        }
+    // CSPRNG on every desktop platform — guessing a web session link must
+    // not reduce to timestamp+pid arithmetic.
+    if getrandom::getrandom(&mut b).is_ok()
+        || std::fs::File::open("/dev/urandom")
+            .and_then(|mut f| f.read_exact(&mut b))
+            .is_ok()
+    {
+        return b.iter().map(|x| format!("{x:02x}")).collect();
     }
     format!("{:016x}", now_ms() ^ ((std::process::id() as u64) << 32))
 }
@@ -387,6 +391,17 @@ fn fetch_broadcast_url(url: &str) -> Result<Option<Broadcast>, String> {
             ureq::Error::Status(404, _) => "room not found".to_string(),
             other => other.to_string(),
         })?;
+    // Relays report how long ago the host last pushed; past the freshness
+    // window the cached body is a dead session's leftover — treat it as no
+    // broadcast so followers release instead of rewinding into stale data.
+    if resp
+        .header("x-room-age-ms")
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|age| age > ROOM_PUSH_STALE_MS)
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
     let text = resp
         .into_string()
         .map_err(|_| "bad state payload".to_string())?;
@@ -398,6 +413,10 @@ fn fetch_broadcast_url(url: &str) -> Result<Option<Broadcast>, String> {
     Ok(b)
 }
 
+/// A relay room untouched for longer than this is a dead host's cache —
+/// live hosts push every ~700ms (heartbeat at least every few seconds).
+const ROOM_PUSH_STALE_MS: u64 = 8_000;
+
 /// WAN host: pushes each Now Playing snapshot to `<relay>/<key>` on a
 /// `relay::Relay` room store (~1 Hz when dirty). Followers join the
 /// share URL — the same path — so internet listeners work without port
@@ -406,6 +425,7 @@ pub struct RelayHost {
     shared: Arc<Mutex<HostShared>>,
     alive: Arc<AtomicBool>,
     peers: Arc<Mutex<usize>>,
+    last_error: Arc<Mutex<Option<String>>>,
     /// `http(s)://relay/<key>` — what friends paste to join.
     pub url: String,
     pub key: String,
@@ -420,6 +440,9 @@ impl RelayHost {
             return None;
         }
         let key = session_key();
+        // Second token, never in the share URL — the relay binds it to the
+        // room on first POST so link-holders can't overwrite broadcasts.
+        let host_secret = session_key();
         let url = format!("{base}/{key}");
         let shared = Arc::new(Mutex::new(HostShared {
             np: None,
@@ -430,13 +453,16 @@ impl RelayHost {
         }));
         let alive = Arc::new(AtomicBool::new(true));
         let peers = Arc::new(Mutex::new(0usize));
+        let last_error = Arc::new(Mutex::new(None::<String>));
         {
             let s = Arc::clone(&shared);
             let a = Arc::clone(&alive);
             let p = Arc::clone(&peers);
+            let e = Arc::clone(&last_error);
             let post = url.clone();
             std::thread::spawn(move || {
                 let mut posted_seq = 0u64;
+                let mut last_push = Instant::now() - Duration::from_secs(60);
                 while a.load(Ordering::Relaxed) {
                     std::thread::sleep(Duration::from_millis(700));
                     let (seq, body) = {
@@ -454,16 +480,21 @@ impl RelayHost {
                         };
                         (s.seq, body)
                     };
-                    if seq == posted_seq {
+                    // Heartbeat: a paused host's seq never changes, but the
+                    // room must stay warm or followers drop after the TTL.
+                    if seq == posted_seq && last_push.elapsed() < Duration::from_secs(3) {
                         continue;
                     }
                     match ureq::post(&post)
                         .timeout(Duration::from_secs(4))
                         .set("Content-Type", "application/json")
+                        .set("X-Host-Secret", &host_secret)
                         .send_string(&body)
                     {
                         Ok(resp) => {
                             posted_seq = seq;
+                            last_push = Instant::now();
+                            *e.lock().unwrap() = None;
                             if let Ok(Ok(v)) = resp
                                 .into_string()
                                 .map(|s| serde_json::from_str::<serde_json::Value>(&s))
@@ -473,7 +504,9 @@ impl RelayHost {
                                 }
                             }
                         }
-                        Err(_) => { /* relay hiccup: retry next tick */ }
+                        Err(err) => {
+                            *e.lock().unwrap() = Some(format!("relay unreachable: {err}"));
+                        }
                     }
                 }
             });
@@ -482,6 +515,7 @@ impl RelayHost {
             shared,
             alive,
             peers,
+            last_error,
             url,
             key,
         })
@@ -512,6 +546,12 @@ impl RelayHost {
 
     pub fn name(&self) -> String {
         self.shared.lock().unwrap().host_name.clone()
+    }
+
+    /// Why the last push failed — surfaced so a dead relay doesn't look
+    /// like an active session in the UI.
+    pub fn last_error(&self) -> Option<String> {
+        self.last_error.lock().unwrap().clone()
     }
 }
 

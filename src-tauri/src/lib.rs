@@ -2193,6 +2193,12 @@ impl AnyHost {
             Self::Wan(h) => h.peers(),
         }
     }
+    fn last_error(&self) -> Option<String> {
+        match self {
+            Self::Lan(_) => None,
+            Self::Wan(h) => h.last_error(),
+        }
+    }
 }
 
 fn listen_status_of(state: &AppState) -> listen::ListenStatus {
@@ -2203,6 +2209,7 @@ fn listen_status_of(state: &AppState) -> listen::ListenStatus {
             st.host_addr = h.share_url();
             st.host_name = Some(h.name());
             st.peers = h.peers();
+            st.last_error = h.last_error();
         }
     }
     if let Ok(f) = state.listen_follower.lock() {
