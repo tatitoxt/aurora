@@ -248,7 +248,7 @@ const en = {
   "fs.connected": "Connected",
   "fs.inApp": "In app",
   "fs.openWeb": "Open web",
-  "fs.playingInTab": "Playing in your {src} tab",
+  "fs.playingInTab": "Opening in your {src} tab",
   "fs.noTab": "Open {src} in your browser with Noctbeat Bridge to play it there",
   "fs.auto": "Automatic",
   "srch.top": "Top result",

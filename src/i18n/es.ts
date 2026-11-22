@@ -239,7 +239,7 @@ const es: Record<keyof typeof en, string> = {
   "fs.connected": "Conectado",
   "fs.inApp": "En la app",
   "fs.openWeb": "Abrí la web",
-  "fs.playingInTab": "Sonando en tu pestaña de {src}",
+  "fs.playingInTab": "Abriendo en tu pestaña de {src}",
   "fs.noTab": "Abrí {src} en el navegador con Noctbeat Bridge para que suene ahí",
   "fs.auto": "Autom\u00e1tico",
   "srch.top": "Resultado principal",

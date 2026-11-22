@@ -140,6 +140,12 @@ const SEARCH = {
     url: (q) => `/search/sounds?q=${enc(q)}`,
     spa: true,
     play: [".searchList__item .sc-button-play", ".soundList__item .sc-button-play"],
+    // Signed-out tabs get an optional sign-in wall that holds playback.
+    dismiss: [
+      ".modal__closeButton",
+      '.modal button[aria-label="Close"]',
+      '.modal button[title="Close"]',
+    ],
   },
   "music.apple.com": {
     url: (q) => `/${location.pathname.split("/")[1] || "us"}/search?term=${enc(q)}`,
@@ -189,6 +195,7 @@ async function clickFirst(cfg) {
   const el = await waitFor(cfg.play, 12000);
   if (el) {
     el.click();
+    if (cfg.dismiss) void waitFor(cfg.dismiss, 5000).then((x) => x?.click());
     return true;
   }
   const row = cfg.row && document.querySelector(cfg.row);
