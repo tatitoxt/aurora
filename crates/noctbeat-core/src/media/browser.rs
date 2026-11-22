@@ -452,8 +452,10 @@ mod tests {
 
     #[test]
     fn tab_play_goes_only_to_matching_provider() {
-        let mut s = Shared::default();
-        s.play = Some(("spotify".into(), "juice wrld".into(), Instant::now()));
+        let mut s = Shared {
+            play: Some(("spotify".into(), "juice wrld".into(), Instant::now())),
+            ..Default::default()
+        };
         assert_eq!(take_play(&mut s, "music.youtube.com"), None);
         assert_eq!(
             take_play(&mut s, "open.spotify.com").as_deref(),
