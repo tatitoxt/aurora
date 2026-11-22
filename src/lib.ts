@@ -98,3 +98,17 @@ export function artistCards(
     })
     .slice(0, 8);
 }
+
+/** Provider host reported by the browser extension → friendly label + picker id. */
+export const EXT_HOSTS: [RegExp, string, string][] = [
+  [/(^|\.)youtube\.com/, "YouTube Music", "youtube"],
+  [/open\.spotify\.com/, "Spotify", "spotify"],
+  [/soundcloud\.com/, "SoundCloud", "soundcloud"],
+  [/music\.apple\.com/, "Apple Music", "apple"],
+  [/listen\.tidal\.com/, "Tidal", "tidal"],
+  [/music\.amazon\./, "Amazon Music", "amazon"],
+];
+export const extLabel = (host: string) =>
+  EXT_HOSTS.find(([re]) => re.test(host))?.[1] ?? host;
+export const extProviderId = (host: string | null | undefined) =>
+  (host && EXT_HOSTS.find(([re]) => re.test(host))?.[2]) ?? null;

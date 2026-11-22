@@ -21,7 +21,7 @@ import {
   toQueueItem,
   type FavEntry,
 } from "../favs";
-import { formatTime } from "../lib";
+import { extProviderId, formatTime } from "../lib";
 import {
   Heart,
   ListBullets,
@@ -122,7 +122,8 @@ export default function Library() {
       bridge
         .getExtStatus()
         .then((st) => {
-          const prov = TAB_ORDER.find((p) => st?.providers?.includes(p));
+          const ids = new Set((st?.providers ?? []).map(extProviderId));
+          const prov = TAB_ORDER.find((p) => ids.has(p));
           return prov ? bridge.extPlay(prov, replay.query) : false;
         })
         .then((ok) => (ok ? refresh() : Promise.reject()))
