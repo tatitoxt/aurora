@@ -300,6 +300,69 @@ struct ExtStatus {
 }
 
 #[tauri::command]
+fn system_accent() -> Option<String> {
+    read_system_accent()
+}
+
+#[cfg(target_os = "windows")]
+fn read_system_accent() -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\DWM",
+            "/v",
+            "AccentColor",
+        ])
+        .creation_flags(0x0800_0000)
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let hex = text.split_whitespace().find(|w| w.starts_with("0x"))?;
+    let v = u32::from_str_radix(&hex[2..], 16).ok()?;
+    // DWORD is 0xAABBGGRR
+    Some(format!(
+        "#{:02x}{:02x}{:02x}",
+        v & 0xff,
+        (v >> 8) & 0xff,
+        (v >> 16) & 0xff
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn read_system_accent() -> Option<String> {
+    let out = std::process::Command::new("defaults")
+        .args(["read", "-g", "AppleAccentColor"])
+        .output()
+        .ok()?;
+    // Key absent = "Multicolor", which renders as blue.
+    let code = if out.status.success() {
+        String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse::<i32>()
+            .unwrap_or(4)
+    } else {
+        4
+    };
+    let hex = match code {
+        -1 => "#8e8e93",
+        0 => "#ff453a",
+        1 => "#ff9f0a",
+        2 => "#ffd60a",
+        3 => "#32d74b",
+        5 => "#bf5af2",
+        6 => "#ff375f",
+        _ => "#0a84ff",
+    };
+    Some(hex.to_string())
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn read_system_accent() -> Option<String> {
+    None
+}
+
+#[tauri::command]
 fn get_ext_status(state: State<AppState>) -> Result<Option<ExtStatus>, String> {
     let s = state.source.lock().map_err(|e| e.to_string())?;
     Ok(s.ext_status()
@@ -2752,6 +2815,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_now_playing,
             get_ext_status,
+            system_accent,
             media_control,
             get_palette,
             get_lyrics,

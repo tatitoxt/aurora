@@ -18,6 +18,13 @@ import { useT } from "./i18n";
 import { applyDynAccent, applyGlassOpacity, applyTheme } from "./themes";
 
 export default function App() {
+  // OS accent (macOS Appearance / Windows personalization) tints active controls.
+  useEffect(() => {
+    void bridge
+      .systemAccent()
+      .then((c) => c && document.documentElement.style.setProperty("--sys-accent", c))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     let theme: AppSettings["theme"] | null = null;
     let art: string | undefined;

@@ -63,6 +63,10 @@ import {
   SquaresFour,
   Books,
   Slideshow,
+  ListBullets,
+  MagnifyingGlass,
+  PushPin,
+  X,
 } from "@phosphor-icons/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ShareCard, { SHARE_EVENT } from "../ShareCard";
@@ -173,6 +177,43 @@ export default function Stage() {
   const [searchErr, setSearchErr] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
+  /* Floating "Up next" panel: glass over the video, pinnable and movable. */
+  const [qPinned, setQPinned] = useState(() => localStorage.getItem("fs.qpin") === "1");
+  const [qOpen, setQOpen] = useState(qPinned);
+  const [qPos, setQPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fs.qpos") || "null");
+    } catch {
+      return null;
+    }
+  });
+  const toggleQPin = () =>
+    setQPinned((v) => {
+      localStorage.setItem("fs.qpin", v ? "0" : "1");
+      return !v;
+    });
+  const dragQPanel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const panel = e.currentTarget.parentElement as HTMLElement;
+    const r = panel.getBoundingClientRect();
+    const dx = e.clientX - r.left;
+    const dy = e.clientY - r.top;
+    let last: { x: number; y: number } | null = null;
+    const move = (ev: PointerEvent) => {
+      last = {
+        x: Math.max(0, Math.min(window.innerWidth - r.width, ev.clientX - dx)),
+        y: Math.max(0, Math.min(window.innerHeight - r.height, ev.clientY - dy)),
+      };
+      setQPos(last);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (last) localStorage.setItem("fs.qpos", JSON.stringify(last));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const [coverScale, setCoverScale] = useState(() => {
     const v = parseFloat(localStorage.getItem("noctbeat.fscss") ?? "100");
     return Number.isFinite(v) ? Math.min(160, Math.max(60, v)) : 100;
@@ -553,7 +594,7 @@ export default function Stage() {
     if (e.button !== 0) return;
     if (
       (e.target as HTMLElement).closest(
-        "button, input, a, select, [role='slider'], [role='button'], .fs__covers, .stkr"
+        "button, input, a, select, [role='slider'], [role='button'], .fs__covers, .fs__qpanel, .stkr"
       )
     )
       return;
@@ -658,6 +699,46 @@ export default function Stage() {
         </div>
       </div>
 
+      {qOpen && queue.items.length > 0 && (
+        <div className="fs__qpanel" style={qPos ? { left: qPos.x, top: qPos.y } : undefined}>
+          <div className="fs__qhead" onPointerDown={dragQPanel}>
+            <span className="fs__qtitle">Up next</span>
+            <button
+              className={`fs__icon ${qPinned ? "fs__icon--on" : ""}`}
+              aria-label={qPinned ? "Unpin" : "Pin"}
+              title={qPinned ? "Unpin" : "Pin"}
+              onClick={toggleQPin}
+            >
+              <PushPin size={13} weight={qPinned ? "fill" : "regular"} />
+            </button>
+            <button className="fs__icon" aria-label="Close" title="Close" onClick={() => setQOpen(false)}>
+              <X size={13} />
+            </button>
+          </div>
+          <div className="fs__qlist">
+            {queue.items.map((it, i) => (
+              <button
+                key={it.path + i}
+                className={`fs__qrow ${i === ci ? "fs__qrow--on" : ""}`}
+                onClick={() => {
+                  void bridge.playQueueIndex(i);
+                  if (!qPinned) setQOpen(false);
+                }}
+              >
+                {artMap[it.track.artworkUrl] ? (
+                  <img src={artMap[it.track.artworkUrl]} alt="" />
+                ) : (
+                  <span className="fs__qimg" />
+                )}
+                <span className="fs__qtxt">
+                  <span className="fs__qname">{it.track.title}</span>
+                  <span className="fs__qsub">{it.track.artist}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="fs__center">
         {lyricsOn ? (
           line ? (
@@ -877,14 +958,10 @@ export default function Stage() {
                 <button
                   className={`fs__icon ${provOpen ? "fs__icon--on" : ""}`}
                   aria-label={t("fs.provider")}
-                  title={t("fs.provider")}
+                  title="Search"
                   onClick={() => setProvOpen((v) => !v)}
                 >
-                  {searchSrc === "youtube" ? (
-                    <YoutubeLogo size={16} weight="fill" />
-                  ) : (
-                    <SoundcloudLogo size={16} weight="fill" />
-                  )}
+                  <MagnifyingGlass size={16} />
                 </button>
                 {provOpen && (
                   <span className="fs__volpop fs__morepop fs__provpop">
@@ -1003,6 +1080,14 @@ export default function Stage() {
                   </span>
                 )}
               </span>
+              <button
+                className={`fs__icon ${qOpen ? "fs__icon--on" : ""}`}
+                aria-label="Queue"
+                title="Up next"
+                onClick={() => setQOpen((v) => !v)}
+              >
+                <ListBullets size={15} />
+              </button>
               <span className="fs__srcsep" />
           <button
             className={`fs__icon fs__pillopt ${fav ? "fs__icon--on fs__icon--fav" : ""}`}

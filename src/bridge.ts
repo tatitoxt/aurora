@@ -462,6 +462,8 @@ export const bridge = {
   /** Browser-extension bridge: { tabs, provider host } — null without a bridge.
    * The web preview simulates a connected Spotify tab so the provider picker
    * and the live-dot state demo what the desktop app looks like bridged. */
+  systemAccent: (): Promise<string | null> =>
+    isTauri() ? invokeCmd<string | null>("system_accent") : Promise.resolve(null),
   getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
