@@ -238,6 +238,7 @@ const es: Record<keyof typeof en, string> = {
   "fs.searchSongs": "Buscar canciones",
   "fs.thumbsShow": "Mostrar miniaturas",
   "fs.thumbsHide": "Ocultar miniaturas",
+  "fs.lyricsBtn": "Letras",
 };
 
 export default es;

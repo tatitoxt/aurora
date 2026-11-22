@@ -186,6 +186,8 @@ export default function Stage() {
   const [provOpen, setProvOpen] = useState(false);
   const [provMode, setProvMode] = useState<"prov" | "search">("prov");
   const [libOpen, setLibOpen] = useState(false);
+  const libOpenRef = useRef(false);
+  libOpenRef.current = libOpen;
   /* Floating "Up next" panel: glass over the video, pinnable and movable. */
   const [qPinned, setQPinned] = useState(
     () => localStorage.getItem("fs.qpin") === "1",
@@ -326,6 +328,11 @@ export default function Stage() {
   // Keyboard: space toggles play, arrows seek/volume, S/R/L/F, Esc exits fs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // The Library popup owns the keyboard while open; Escape only dismisses it.
+      if (libOpenRef.current) {
+        if (e.key === "Escape") setLibOpen(false);
+        return;
+      }
       // Palette overlay or any editable owns the keys.
       const t = e.target as HTMLElement | null;
       if (
@@ -683,8 +690,8 @@ export default function Stage() {
         </button>
         <button
           className={`fs__icon ${lyricsOn ? "fs__icon--on" : ""}`}
-          aria-label={t("fs.lyricsToggle")}
-          title={t("fs.lyricsToggle")}
+          aria-label={t("fs.lyricsBtn")}
+          title={t("fs.lyricsBtn")}
           onClick={() => setLyricsOn((v) => !v)}
         >
           <TextT size={15} />
@@ -732,7 +739,9 @@ export default function Stage() {
       {libOpen && (
         <div
           className="fs__libpop"
-          onKeyDown={(e) => e.key === "Escape" && setLibOpen(false)}
+          onClick={(e) =>
+            (e.target as HTMLElement).closest("a") && setLibOpen(false)
+          }
         >
           <button
             className="fs__icon fs__libclose"

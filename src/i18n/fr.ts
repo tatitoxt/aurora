@@ -238,6 +238,7 @@ const fr: Record<keyof typeof en, string> = {
   "fs.searchSongs": "Search songs",
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
+  "fs.lyricsBtn": "Lyrics",
 };
 
 export default fr;

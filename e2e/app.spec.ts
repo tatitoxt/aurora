@@ -45,8 +45,8 @@ test.describe("Noctbeat stage", () => {
       .poll(
         async () => {
           const style = (await fill.getAttribute("style")) ?? "";
-          const m = style.match(/scaleX\((\d*\.?\d+)\)/);
-          return m ? parseFloat(m[1]) : -1;
+          const m = style.match(/width:\s*(\d*\.?\d+)%/);
+          return m ? parseFloat(m[1]) / 100 : -1;
         },
         { timeout: 5000 }
       )

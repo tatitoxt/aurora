@@ -247,6 +247,7 @@ const en = {
   "fs.searchSongs": "Search songs",
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
+  "fs.lyricsBtn": "Lyrics",
 } as const;
 
 export default en;
