@@ -1596,6 +1596,27 @@ fn open_url(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("refusing non-http url".into());
     }
+    open_in_system(&url)
+}
+
+/// Opens only the bundled bridge folder, ready for "Load unpacked".
+#[tauri::command]
+fn open_extension_folder(app: tauri::AppHandle) -> Result<(), String> {
+    // Resources declared as "../extension" bundle under "_up_/extension" in
+    // packaged apps; dev and side-by-side layouts keep plain "extension".
+    let folder = ["extension", "_up_/extension"]
+        .iter()
+        .filter_map(|dir| {
+            app.path()
+                .resolve(dir, tauri::path::BaseDirectory::Resource)
+                .ok()
+        })
+        .find(|folder| folder.join("manifest.json").is_file())
+        .ok_or("The bundled browser extension could not be found.".to_string())?;
+    open_in_system(folder.to_str().ok_or("Invalid extension folder path")?)
+}
+
+fn open_in_system(url: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     let r = std::process::Command::new("xdg-open").arg(&url).spawn();
     #[cfg(target_os = "macos")]
