@@ -6,16 +6,19 @@ import {
   type NowPlaying,
   type PlaylistFile,
   type PlaylistTrack,
+  type QueueItem,
   type QueueState,
   type RemoteTrack,
 } from "../bridge";
 import { subscribe } from "../bridge";
 import {
+  favKeys,
   listable,
   loadFavs,
   remoteParts,
   replayFor,
   subscribeFavs,
+  toggleFav,
   toQueueItem,
   type FavEntry,
 } from "../favs";
@@ -106,6 +109,19 @@ export default function Library() {
   }, []);
 
   const liked = listable(favs);
+  const favSet = favKeys(favs);
+  const likeQueued = (item: QueueItem) =>
+    setFavs((prev) =>
+      toggleFav(prev, {
+        key: `local:${item.track.id}`,
+        trackId: item.track.id,
+        playerSource: "local",
+        title: item.track.title,
+        artist: item.track.artist,
+        artworkUrl: item.track.artworkUrl ?? "",
+        durationMs: item.track.durationMs,
+      }),
+    );
   // Local likes replay as one queue so next/prev flows through the list;
   // provider likes replay the stream directly (as tapping a search
   // result); likes of external players replay via a provider search.
@@ -413,11 +429,6 @@ export default function Library() {
             ))}
           </div>
         </div>
-        {!ytReady && (
-          <span className="note">
-            Streaming needs <code style={{whiteSpace:"nowrap"}}>yt-dlp</code> installed (brew or pip).
-          </span>
-        )}
         <div className="lib">
           {results.map((trk) => (
             <button
@@ -540,6 +551,25 @@ export default function Library() {
                   </Link>
                 </span>
                 <span className="lib__dur">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={`lib__act lib__heart ${favSet.has(`local:${item.track.id}`) ? "lib__heart--on" : ""}`}
+                    aria-label={favSet.has(`local:${item.track.id}`) ? t("fs.unlike") : t("fs.like")}
+                    title={favSet.has(`local:${item.track.id}`) ? t("fs.unlike") : t("fs.like")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      likeQueued(item);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      likeQueued(item);
+                    }}
+                  >
+                    <Heart size={12} weight={favSet.has(`local:${item.track.id}`) ? "fill" : "regular"} />
+                  </span>
                   {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
                 </span>
               </button>

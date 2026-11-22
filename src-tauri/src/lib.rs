@@ -375,6 +375,53 @@ fn get_ext_status(state: State<AppState>) -> Result<Option<ExtStatus>, String> {
 }
 
 /// Search `query` in the user's open `provider` tab and play the first hit.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CatalogSong {
+    title: String,
+    artist: String,
+    album: String,
+    duration_ms: u64,
+    artwork_url: String,
+}
+
+/// Song metadata for the Spotify-style search results (Apple's public
+/// iTunes Search API: free, keyless). Playback is resolved separately
+/// through the chosen provider.
+#[tauri::command]
+async fn catalog_search(query: String) -> Result<Vec<CatalogSong>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let v: serde_json::Value = ureq::get("https://itunes.apple.com/search")
+            .query("term", &query)
+            .query("media", "music")
+            .query("entity", "song")
+            .query("limit", "30")
+            .timeout(std::time::Duration::from_secs(8))
+            .call()
+            .map_err(|e| e.to_string())?
+            .into_string()
+            .map_err(|e| e.to_string())
+            .and_then(|b| serde_json::from_str(&b).map_err(|e| e.to_string()))?;
+        let s = |r: &serde_json::Value, k: &str| r[k].as_str().unwrap_or_default().to_string();
+        Ok(v["results"]
+            .as_array()
+            .map(|a| a.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .map(|r| CatalogSong {
+                title: s(r, "trackName"),
+                artist: s(r, "artistName"),
+                album: s(r, "collectionName"),
+                duration_ms: r["trackTimeMillis"].as_u64().unwrap_or(0),
+                artwork_url: s(r, "artworkUrl100").replace("100x100bb", "300x300bb"),
+            })
+            .filter(|c| !c.title.is_empty())
+            .collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 fn ext_play(state: State<AppState>, provider: String, query: String) -> Result<bool, String> {
     let sent = state
@@ -2842,6 +2889,7 @@ pub fn run() {
             get_ext_status,
             system_accent,
             ext_play,
+            catalog_search,
             media_control,
             get_palette,
             get_lyrics,

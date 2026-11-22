@@ -121,6 +121,14 @@ export interface RemoteTrack {
   artworkUrl: string;
 }
 
+/** Catalog search hit: metadata only, played via a provider. */
+export interface CatalogSong {
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number;
+  artworkUrl: string;
+}
 export interface QueueItem {
   track: Track;
   path: string;
@@ -478,6 +486,31 @@ export const bridge = {
         }),
   /** Search and play in the user's open provider tab via Noctbeat Bridge;
    * false when no tab of that provider is connected. */
+  catalogSearch: (query: string): Promise<CatalogSong[]> =>
+    isTauri()
+      ? invokeCmd<CatalogSong[]>("catalog_search", { query })
+      : fetch(
+          `https://itunes.apple.com/search?media=music&entity=song&limit=30&term=${encodeURIComponent(query)}`,
+        )
+          .then((r) => r.json())
+          .then((j: { results: Record<string, string & number>[] }) =>
+            j.results.map((r) => ({
+              title: r.trackName,
+              artist: r.artistName,
+              album: r.collectionName,
+              durationMs: r.trackTimeMillis,
+              artworkUrl: String(r.artworkUrl100).replace("100x100bb", "300x300bb"),
+            })),
+          )
+          .catch(() =>
+            DEMO_PLAYLIST.map(([title, artist, album, durationMs, artworkUrl]) => ({
+              title,
+              artist,
+              album,
+              durationMs,
+              artworkUrl,
+            })),
+          ),
   extPlay: (provider: string, query: string): Promise<boolean> =>
     isTauri()
       ? invokeCmd<boolean>("ext_play", { provider, query })

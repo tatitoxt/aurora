@@ -11,11 +11,11 @@ import {
   type NowPlaying,
   type LrcLine,
   type QueueState,
-  type RemoteTrack,
   type Settings,
 } from "../bridge";
 import { activeLyricIndex, adlibMask, adlibSegments, formatTime } from "../lib";
 import { lyricOffsetFor, setLyricOffset, subscribeLyroff } from "../lyroff";
+import SearchPanel from "../SearchPanel";
 import {
   favEntryFor,
   favKeyFor,
@@ -61,6 +61,7 @@ import {
   Books,
   ListBullets,
   MagnifyingGlass,
+  Sparkle,
   PushPin,
   X,
 } from "@phosphor-icons/react";
@@ -71,6 +72,7 @@ import { openPalette } from "../Palette";
 import { StickerLayer } from "../Stickers";
 
 const PROVIDERS = [
+  { id: "auto", label: "Automatic", icon: Sparkle, live: true },
   { id: "youtube", label: "YouTube Music", icon: YoutubeLogo, live: true },
   { id: "soundcloud", label: "SoundCloud", icon: SoundcloudLogo, live: true },
   { id: "spotify", label: "Spotify", icon: SpotifyLogo, live: false },
@@ -173,17 +175,12 @@ export default function Stage() {
     });
   const [timingOpen, setTimingOpen] = useState(false);
   const [, setStreamReady] = useState(false);
-  const [searchSrc, setSearchSrc] = useState("youtube");
+  const [searchSrc, setSearchSrc] = useState("auto");
   const [ext, setExt] = useState<{
     tabs: number;
     provider: string | null;
     providers?: string[];
   } | null>(null);
-  const [searchQ, setSearchQ] = useState("");
-  const [searchRes, setSearchRes] = useState<RemoteTrack[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchErr, setSearchErr] = useState("");
-  const [searchNote, setSearchNote] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [provOpen, setProvOpen] = useState(false);
   const [provMode, setProvMode] = useState<"prov" | "search">("prov");
@@ -308,6 +305,10 @@ export default function Stage() {
         : []
     ).map(extProviderId),
   );
+  const provLabel = (id: string) =>
+    id === "auto"
+      ? t("fs.auto")
+      : (PROVIDERS.find((p) => p.id === id)?.label ?? id);
   const ProvIcon =
     PROVIDERS.find((p) => p.id === searchSrc)?.icon ?? YoutubeLogo;
   const track = np?.track ?? null;
@@ -1180,146 +1181,24 @@ export default function Stage() {
                               className={`fs__morebtn ${searchSrc === p.id ? "fs__morebtn--on" : ""}`}
                               onClick={() => setSearchSrc(p.id)}
                             >
-                              <p.icon size={14} weight="fill" /> {p.label}
-                              <span
-                                className={`fs__soon ${on ? "fs__soon--live" : ""}`}
-                              >
-                                {on
-                                  ? t("fs.connected")
-                                  : p.live
-                                    ? t("fs.inApp")
-                                    : t("fs.openWeb")}
-                              </span>
+                              <p.icon size={14} weight="fill" /> {provLabel(p.id)}
+                              {on && (
+                                <span className="fs__soon fs__soon--live">
+                                  {t("fs.connected")}
+                                </span>
+                              )}
                             </button>
                           );
                         })}
                       </>
                     )}
                     {provMode === "search" && (
-                      <>
-                        <input
-                          className="fs__provq"
-                          autoFocus
-                          value={searchQ}
-                          placeholder={t("fs.search", {
-                            src:
-                              PROVIDERS.find((p) => p.id === searchSrc)
-                                ?.label ?? "",
-                          })}
-                          onChange={(e) => setSearchQ(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (
-                              e.key !== "Enter" ||
-                              !searchQ.trim() ||
-                              searching
-                            )
-                              return;
-                            const q = searchQ.trim();
-                            const label =
-                              PROVIDERS.find((p) => p.id === searchSrc)
-                                ?.label ?? searchSrc;
-                            setSearchErr("");
-                            setSearchNote("");
-                            // A connected tab plays it with the user's own account.
-                            if (connected.has(searchSrc)) {
-                              setSearching(true);
-                              void bridge
-                                .extPlay(searchSrc, q)
-                                .then((ok) =>
-                                  ok
-                                    ? (setSearchNote(
-                                        t("fs.playingInTab", { src: label }),
-                                      ),
-                                      setSearchQ(""))
-                                    : setSearchErr(
-                                        t("fs.noTab", { src: label }),
-                                      ),
-                                )
-                                .catch((err) => setSearchErr(String(err)))
-                                .finally(() => setSearching(false));
-                              return;
-                            }
-                            const p = PROVIDERS.find((x) => x.id === searchSrc);
-                            if (!p?.live) {
-                              setSearchErr(t("fs.noTab", { src: label }));
-                              return;
-                            }
-                            setSearching(true);
-                            void bridge
-                              .providerSearch(searchSrc, q)
-                              .then(setSearchRes)
-                              .catch((err) => setSearchErr(String(err)))
-                              .finally(() => setSearching(false));
-                          }}
-                        />
-                        {searchErr && (
-                          <span className="fs__proverr">{searchErr}</span>
-                        )}
-                        {searchNote && !searchErr && (
-                          <span className="fs__extlive">● {searchNote}</span>
-                        )}
-                        {searchRes.length > 0 && (
-                          <span className="fs__provres">
-                            {searchRes.map((trk) => (
-                              <button
-                                key={`${trk.source}:${trk.id}`}
-                                className="fs__morebtn"
-                                onClick={() => {
-                                  setSearchErr("");
-                                  void bridge
-                                    .providerPlay(trk)
-                                    .then(() => {
-                                      setProvOpen(false);
-                                      setSearchRes([]);
-                                      setSearchQ("");
-                                    })
-                                    .catch((err) => setSearchErr(String(err)));
-                                }}
-                              >
-                                <span className="fs__provrow">
-                                  <span className="fs__provtitle">
-                                    {trk.title}
-                                  </span>
-                                  <span className="fs__provsub">
-                                    {trk.artist}
-                                  </span>
-                                </span>
-                                <span
-                                  role="button"
-                                  tabIndex={0}
-                                  className="fs__provadd"
-                                  title={t("fs.addToQueue")}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSearchErr("");
-                                    void bridge
-                                      .providerEnqueue(trk)
-                                      .then(() => setSearchRes([]))
-                                      .catch((err) =>
-                                        setSearchErr(String(err)),
-                                      );
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key !== "Enter" && e.key !== " ")
-                                      return;
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setSearchErr("");
-                                    void bridge
-                                      .providerEnqueue(trk)
-                                      .then(() => setSearchRes([]))
-                                      .catch((err) =>
-                                        setSearchErr(String(err)),
-                                      );
-                                  }}
-                                >
-                                  <Plus size={13} />
-                                </span>
-                              </button>
-                            ))}
-                          </span>
-                        )}
-                      </>
+                      <SearchPanel
+                        src={searchSrc}
+                        label={provLabel}
+                        connected={connected}
+                        onPlayed={() => {}}
+                      />
                     )}
                   </span>
                 )}

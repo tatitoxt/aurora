@@ -2560,3 +2560,43 @@ button, input, select, textarea { font-family: var(--ui); }
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18), 0 6px 30px rgba(0, 0, 0, 0.35);
 }
 .fs__date { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", "Inter", system-ui, sans-serif; font-weight: 600; letter-spacing: 0.02em; text-transform: none; font-variant-caps: normal; margin-bottom: 2px; }
+/* Spotify-style search panel inside the right-anchored glass popover. */
+.fs__provpop--search { width: min(400px, calc(100vw - 32px)); min-width: 0; max-width: none; max-height: min(64vh, 560px); display: flex; flex-direction: column; overflow: hidden; }
+.srch { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
+.srch__body { overflow-y: auto; scrollbar-width: thin; padding: 2px 4px 6px; min-height: 0; }
+.srch__note { font-size: 11px; color: var(--dim); padding: 8px 10px; }
+.srch__h { display: block; font-size: 13px; font-weight: 700; color: #fff; padding: 10px 4px 6px; letter-spacing: -0.01em; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.srch__top {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%;
+  padding: 14px; border-radius: 12px; text-align: left; color: #fff; cursor: pointer;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.15s;
+}
+.srch__top:hover { background: rgba(255, 255, 255, 0.13); }
+.srch__topart { width: 76px; height: 76px; border-radius: 6px; object-fit: cover; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.srch__topart--round { border-radius: 50%; }
+.srch__toptitle { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); color: #fff; }
+.srch__artists { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; }
+.srch__artist { flex: 0 0 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 2px; border-radius: 10px; color: #fff; cursor: pointer; background: none; border: 0; }
+.srch__artist:hover { background: rgba(255, 255, 255, 0.08); }
+.srch__artist img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+.srch__artist span { font-size: 11px; font-weight: 600; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__back { background: none; border: 0; color: #fff; font: inherit; cursor: pointer; padding: 0; }
+.srch__back:hover { text-decoration: underline; }
+.srch__songs { display: flex; flex-direction: column; }
+.srch__row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; cursor: pointer; color: #fff; }
+.srch__row:hover, .srch__row:focus-visible { background: rgba(255, 255, 255, 0.10); outline: none; }
+.srch__row img { width: 38px; height: 38px; border-radius: 4px; object-fit: cover; flex: none; }
+.srch__meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.srch__title { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__sub { font-size: 11px; color: rgba(255, 255, 255, 0.66); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__dur { font-size: 11px; color: rgba(255, 255, 255, 0.66); font-variant-numeric: tabular-nums; flex: none; }
+.srch__row .fs__provadd { opacity: 0; transition: opacity 0.15s; }
+.srch__row:hover .fs__provadd, .srch__row .fs__provadd:focus-visible { opacity: 1; }
+/* Queue like heart beside the duration, Spotify-style. */
+.lib__heart { opacity: 0; margin-right: 6px; transition: opacity 0.15s, color 0.15s; }
+.lib__row:hover .lib__heart, .lib__heart:focus-visible, .lib__heart--on { opacity: 1; }
+.lib__heart--on { color: var(--accent); }
+/* iOS lock-screen numerals: SF Pro heavy, tight, solid fill. */
+.fs__clock { font-weight: 700; letter-spacing: -0.045em; font-feature-settings: "tnum" 1, "ss01" 1; }
