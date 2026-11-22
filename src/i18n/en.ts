@@ -76,6 +76,7 @@ const en = {
   "set.sourceHint": "Install the browser extension to follow YouTube Music, Spotify, SoundCloud, Apple Music, Tidal or Amazon — see README › Browser extension.",
   "set.listen": "Listen along",
   "set.listenHost": "Host session",
+  "set.listenHostWeb": "Host on web",
   "set.listenJoin": "Join",
   "set.listenAddrPh": "Friend's address — e.g. 192.168.1.20",
   "set.listenHosting": "Hosting — friends join this address",
