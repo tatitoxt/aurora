@@ -131,6 +131,11 @@ function EmbedBackdrop({
         if (st === 1) {
           started.current = true;
           setLive(true);
+          if (audible && !unmuted.current && navigator.userActivation?.hasBeenActive) {
+            unmuted.current = true;
+            cmd("unMute");
+            cmd("setVolume", [Math.round(previewVolumeNow() * 100)]);
+          }
         }
       } catch {
         /* not a player message */
@@ -166,9 +171,9 @@ function EmbedBackdrop({
       cmd("seekTo", [posRef.current / 1000, true]);
       // Unmuting autoplay before a user gesture makes Chromium pause the
       // video: keep the backdrop moving silently until the page was clicked.
-      if (audible && navigator.userActivation?.hasBeenActive && !unmuted.current) {
+      if (audible && navigator.userActivation?.hasBeenActive) {
         cmd("unMute");
-        unmuted.current = true;
+        if (started.current) unmuted.current = true;
       }
       if (audible) cmd("setVolume", [Math.round(previewVolumeNow() * 100)]);
       cmd("playVideo");
@@ -198,9 +203,12 @@ function EmbedBackdrop({
     if (!audible || unmuted.current) return;
     const unmute = () => {
       if (unmuted.current) return;
-      unmuted.current = true;
       cmd("unMute");
       cmd("setVolume", [Math.round(previewVolumeNow() * 100)]);
+      // Only spent when the player already reports playing — an early
+      // gesture's unMute can be dropped by a not-ready API, so gestures
+      // keep retrying until the embed is live.
+      if (started.current) unmuted.current = true;
     };
     window.addEventListener("pointerdown", unmute);
     window.addEventListener("keydown", unmute);
