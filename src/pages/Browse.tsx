@@ -118,6 +118,12 @@ export default function Browse() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   const [addToKey, setAddToKey] = useState<string | null>(null);
+  const [ctx, setCtx] = useState<{
+    x: number;
+    y: number;
+    kind: "pl" | "queue";
+    index: number;
+  } | null>(null);
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
@@ -331,6 +337,16 @@ export default function Browse() {
     void bridge.recentPlays(50).then(setRecent).catch(() => {});
   }, [view]);
 
+  /* Right-click menu: closes on any press outside it. */
+  useEffect(() => {
+    if (!ctx) return;
+    const h = (e: MouseEvent) => {
+      if (!(e.target as Element | null)?.closest?.(".brw__ctx")) setCtx(null);
+    };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [ctx]);
+
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
     if (saved.items.length > 0)
@@ -468,6 +484,22 @@ export default function Browse() {
         });
       })
       .catch(fail);
+  };
+
+  /** Remove row i of the open playlist — serialized so a second press
+      can't hand the backend an index that already shifted. */
+  const removePlTrack = (i: number) => {
+    if (plRemoving.current) return;
+    const p = playlists.find((x) => `pl:${x.path}` === view);
+    if (!p) return;
+    plRemoving.current = true;
+    void bridge
+      .playlistRemoveTrack(p.path, i)
+      .then(() => setPlTracks((ts) => ts.filter((_, j) => j !== i)))
+      .catch(fail)
+      .finally(() => {
+        plRemoving.current = false;
+      });
   };
 
   /* Spotify-style greeting follows the clock, not a fixed string. */
@@ -1167,6 +1199,10 @@ export default function Browse() {
                       setDropIdx(null);
                     }}
                     onClick={() => void bridge.playQueueIndex(i)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setCtx({ x: e.clientX, y: e.clientY, kind: "queue", index: i });
+                    }}
                   >
                     <span className="lib__idx">
                       {current && playing ? (
@@ -1336,6 +1372,10 @@ export default function Browse() {
                     setDropIdx(null);
                   }}
                   onClick={() => playPlTrack(i)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setCtx({ x: e.clientX, y: e.clientY, kind: "pl", index: i });
+                  }}
                   onKeyDown={(e) => {
                     if (
                       (e.key === "Enter" || e.key === " ") &&
@@ -1358,19 +1398,7 @@ export default function Browse() {
                     aria-label={t("lib.removeFromPlaylist")}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (plRemoving.current) return;
-                      const p = playlists.find((x) => `pl:${x.path}` === view);
-                      if (!p) return;
-                      plRemoving.current = true;
-                      void bridge
-                        .playlistRemoveTrack(p.path, i)
-                        .then(() =>
-                          setPlTracks((ts) => ts.filter((_, j) => j !== i)),
-                        )
-                        .catch(fail)
-                        .finally(() => {
-                          plRemoving.current = false;
-                        });
+                      removePlTrack(i);
                     }}
                   >
                     <X />
@@ -1381,6 +1409,40 @@ export default function Browse() {
           </>
         )}
       </main>
+
+      {ctx && (
+        <span className="brw__ctx" style={{ left: ctx.x, top: ctx.y }}>
+          <button
+            onClick={() => {
+              setCtx(null);
+              if (ctx.kind === "pl") playPlTrack(ctx.index);
+              else void bridge.playQueueIndex(ctx.index);
+            }}
+          >
+            {t("brw.play")}
+          </button>
+          {ctx.kind === "pl" && (
+            <button
+              onClick={() => {
+                setCtx(null);
+                removePlTrack(ctx.index);
+              }}
+            >
+              {t("lib.removeFromPlaylist")}
+            </button>
+          )}
+          {ctx.kind === "queue" && queue.currentIndex !== ctx.index && (
+            <button
+              onClick={() => {
+                setCtx(null);
+                void bridge.queueRemove(ctx.index).catch(fail);
+              }}
+            >
+              {t("fs.removeFromQueue")}
+            </button>
+          )}
+        </span>
+      )}
 
       <footer className="brw__bar">
         {track ? (
