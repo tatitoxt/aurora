@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const ja: Record<keyof typeof en, string> = {
+  "sources.heading": "音楽サービス",
+  "sources.live": "接続済み",
+  "sources.waiting": "音楽タブを待機中",
+  "sources.demo": "ブラウザプレビュー",
+  "sources.open": "ブラウザで{name}を開く",
+  "sources.setup": "ブラウザ拡張を設定",
+  "sources.folder": "拡張機能のフォルダを開く",
+  "sources.playlists": "サービスでプレイリストを開いてください。拡張機能が再生中の曲を追跡し、Noctbeatから再生を操作できます。",
+  "sources.emptyLikes": "ハートを付けた曲がここに表示されます。",
+  "sources.emptyPlaylists": "プレイリストを読み込むか、キューを保存してください。",
   "nav.library": "\u30e9\u30a4\u30d6\u30e9\u30ea",
   "nav.visualizer": "\u30d3\u30b8\u30e5\u30a2\u30e9\u30a4\u30b6\u30fc",
   "nav.stats": "\u7d71\u8a08",
@@ -95,6 +105,7 @@ const ja: Record<keyof typeof en, string> = {
   "dl.close": "\u6b4c\u8a5e\u30aa\u30fc\u30d0\u30fc\u30ec\u30a4\u3092\u9589\u3058\u308b",
   "stk.hint": "\u30b9\u30c6\u30c3\u30ab\u30fc\uff1a\u30c9\u30e9\u30c3\u30b0\u3067\u79fb\u52d5\u3001\u53f3\u30af\u30ea\u30c3\u30af\u307e\u305f\u306fDelete\u3067\u524a\u9664",
   "lib.queue": "\u30ad\u30e5\u30fc",
+  "lib.queueEmpty": "キューは空です — 曲を再生するとここに表示されます。",
   "lib.save": "\u4fdd\u5b58",
   "lib.playlistName": "\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8\u540d",
   "lib.likedEmpty": "\u66f2\u306e\u30cf\u30fc\u30c8\u3092\u30bf\u30c3\u30d7\u3059\u308b\u3068\u3053\u3053\u306b\u4fdd\u5b58\u3055\u308c\u307e\u3059\u3002",

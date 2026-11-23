@@ -26,6 +26,7 @@ import {
   type Settings,
 } from "../bridge";
 import ArtBackdrop from "../ArtBackdrop";
+import BrowserSources from "../BrowserSources";
 
 export default function Settings() {
   const t = useT();
@@ -551,6 +552,7 @@ export default function Settings() {
           {!np?.source?.includes(".") && (
             <span className="share__note">{t("set.sourceHint")}</span>
           )}
+          <BrowserSources />
         </div>
 
         <div className="field">
@@ -641,14 +643,6 @@ export default function Settings() {
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
             aria-label={t("set.floatingHud")}
             onClick={() => patch({ hudEnabled: !s.hudEnabled })}
-          />
-        </div>
-        <div className="row">
-          <span>{t("set.hudOnTop")}</span>
-          <button
-            className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
-            aria-label={t("set.hudOnTop")}
-            onClick={() => patch({ hudAlwaysOnTop: !s.hudAlwaysOnTop })}
           />
         </div>
         <div className="row">

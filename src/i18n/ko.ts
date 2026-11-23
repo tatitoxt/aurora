@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const ko: Record<keyof typeof en, string> = {
+  "sources.heading": "음악 서비스",
+  "sources.live": "연결됨",
+  "sources.waiting": "음악 탭 대기 중",
+  "sources.demo": "브라우저 미리보기",
+  "sources.open": "브라우저에서 {name} 열기",
+  "sources.setup": "브라우저 확장 설정",
+  "sources.folder": "확장 프로그램 폴더 열기",
+  "sources.playlists": "위 서비스에서 재생목록을 여세요. 확장 프로그램이 현재 곡을 추적하고 Noctbeat에서 재생을 제어할 수 있게 합니다.",
+  "sources.emptyLikes": "하트를 누른 곡이 여기에 표시됩니다.",
+  "sources.emptyPlaylists": "재생목록을 가져오거나 대기열을 저장해 컬렉션을 만드세요.",
   "nav.library": "\ub77c\uc774\ube0c\ub7ec\ub9ac",
   "nav.visualizer": "\ube44\uc8fc\uc5bc\ub77c\uc774\uc800",
   "nav.stats": "\ud1b5\uacc4",
@@ -95,6 +105,7 @@ const ko: Record<keyof typeof en, string> = {
   "dl.close": "\uac00\uc0ac \uc624\ubc84\ub808\uc774 \ub2eb\uae30",
   "stk.hint": "\uc2a4\ud2f0\ucee4: \ub4dc\ub798\uadf8\ub85c \uc774\ub3d9, \uc6b0\ud074\ub9ad \ub610\ub294 Delete\ub85c \uc0ad\uc81c",
   "lib.queue": "\ub300\uae30\uc5f4",
+  "lib.queueEmpty": "대기열이 비어 있습니다 — 곡을 재생하면 여기에 표시됩니다.",
   "lib.save": "\uc800\uc7a5",
   "lib.playlistName": "\ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8 \uc774\ub984",
   "lib.likedEmpty": "\uace1\uc758 \ud558\ud2b8\ub97c \ub204\ub974\uba74 \uc5ec\uae30\uc5d0 \uc800\uc7a5\ub429\ub2c8\ub2e4.",
