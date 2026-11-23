@@ -115,7 +115,7 @@ export default function SearchPanel({
         className="fs__provq"
         autoFocus
         value={q}
-        placeholder={t("fs.search", { src: label(src) })}
+        placeholder={t("fs.searchSongs")}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && top && play(top)}
       />
