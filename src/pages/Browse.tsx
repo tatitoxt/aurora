@@ -255,6 +255,23 @@ export default function Browse() {
     void bridge.playItems(locals, index).catch(fail);
   };
 
+  /* Liked header Shuffle: queue every playable fav and let the
+     engine shuffle — remote favs still open per-row. */
+  const shuffleLiked = () => {
+    const locals = liked
+      .filter((x) => replayFor(x)?.kind === "local")
+      .map(toQueueItem);
+    if (locals.length === 0) return;
+    setErr("");
+    void bridge
+      .setShuffle(true)
+      .then(() =>
+        bridge.playItems(locals, Math.floor(Math.random() * locals.length)),
+      )
+      .then(() => setShuffle(true))
+      .catch(fail);
+  };
+
   const openPlaylist = (p: PlaylistFile) => go(`pl:${p.path}`);
 
   /* Track loading keys off the view so Back/Forward re-fetches the
@@ -939,6 +956,18 @@ export default function Browse() {
                 ▶
               </span>
             </button>
+            {liked.length > 0 && (
+              <div className="brw__qtools">
+                <span className="seg seg--ghost">
+                  <button
+                    onClick={shuffleLiked}
+                    title={t("fs.shuffle")}
+                  >
+                    <Shuffle /> {t("fs.shuffle")}
+                  </button>
+                </span>
+              </div>
+            )}
             {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
             <div className="lib">
               {liked.map((e) => (
