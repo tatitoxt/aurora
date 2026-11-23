@@ -250,20 +250,37 @@ export default function Browse() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
+  /* Put the saved queue back when a playlist swap fails to start. */
+  const restoreQueue = (saved: QueueState) => {
+    if (saved.items.length > 0)
+      void bridge.playItems(saved.items, saved.currentIndex ?? 0).catch(() => {});
+  };
+
   /* Play All / Shuffle replace the queue with the playlist — importing
-     onto the existing queue would let shuffle leak into older items. */
+     onto the existing queue would let shuffle leak into older items.
+     On failure the previous queue is restored. */
   const playPlaylist = (p: PlaylistFile, shuffled = false) => {
     setErr("");
+    const saved = queue;
     void bridge
       .clearQueue()
       .then(() => bridge.importPlaylist(p.path))
       .then((res) => {
-        if (res.imported === 0) return;
+        if (res.imported === 0) {
+          restoreQueue(saved);
+          return;
+        }
         return bridge.getQueue().then((q) => {
           setQueue(q);
-          if (q.items.length === 0) return;
+          if (q.items.length === 0) {
+            restoreQueue(saved);
+            return;
+          }
           const idx = shuffled ? Math.floor(Math.random() * q.items.length) : 0;
-          return bridge.playQueueIndex(idx);
+          return bridge.playQueueIndex(idx).catch((e) => {
+            restoreQueue(saved);
+            throw e;
+          });
         });
       })
       .catch(fail);
@@ -326,11 +343,15 @@ export default function Browse() {
       playExternal(`${pt.title} ${pt.artist}`.trim() || pt.path);
       return;
     }
+    const saved = queue;
     void bridge
       .clearQueue()
       .then(() => bridge.importPlaylist(p.path))
       .then((res) => {
-        if (res.imported === 0) return;
+        if (res.imported === 0) {
+          restoreQueue(saved);
+          return;
+        }
         return bridge.getQueue().then((q2) => {
           setQueue(q2);
           const added = q2.items;
@@ -342,7 +363,12 @@ export default function Browse() {
               (it) =>
                 it.track.title === pt.title && it.track.artist === pt.artist,
             );
-          if (idx >= 0) return bridge.playQueueIndex(idx);
+          if (idx >= 0)
+            return bridge.playQueueIndex(idx).catch((e) => {
+              restoreQueue(saved);
+              throw e;
+            });
+          restoreQueue(saved);
           setErr(t("brw.trackMissing"));
         });
       })
