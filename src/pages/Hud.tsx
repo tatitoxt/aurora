@@ -245,23 +245,9 @@ export default function Hud() {
         >
           <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
         </div>
+        {/* One symmetric pill: play stays dead-center under the clock and
+            no control row can clip off the bottom in short windows. */}
         <div className="hud__pill">
-          <button className="hctl" aria-label={t("fs.prev")} title={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
-            <SkipBack weight="fill" size={15} />
-          </button>
-          <button
-            className="hctl hctl--play"
-            aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
-            title={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
-            onClick={() => bridge.mediaControl("play-pause")}
-          >
-            {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
-          </button>
-          <button className="hctl" aria-label={t("fs.next")} title={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
-            <SkipForward weight="fill" size={15} />
-          </button>
-        </div>
-        <div className="hud__focusrow">
           <button
             className={`hctl ${fav ? "hctl--on" : ""}`}
             aria-label={fav ? "Unlike" : "Like"}
@@ -278,6 +264,20 @@ export default function Hud() {
             onClick={() => setQueueOpen((v) => !v)}
           >
             <ListBullets size={15} />
+          </button>
+          <button className="hctl" aria-label={t("fs.prev")} title={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
+            <SkipBack weight="fill" size={15} />
+          </button>
+          <button
+            className="hctl hctl--play"
+            aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
+            title={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
+            onClick={() => bridge.mediaControl("play-pause")}
+          >
+            {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
+          </button>
+          <button className="hctl" aria-label={t("fs.next")} title={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
+            <SkipForward weight="fill" size={15} />
           </button>
           <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />
