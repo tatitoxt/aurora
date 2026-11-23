@@ -1180,11 +1180,22 @@ export default function Browse() {
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             <div className="lib">
               {plTracks.map((pt, i) => (
-                <button
+                <div
                   className="lib__row"
+                  role="button"
+                  tabIndex={0}
                   key={`${pt.path}-${i}`}
                   title={pt.title || pt.path.split("/").pop()}
                   onClick={() => playPlTrack(i)}
+                  onKeyDown={(e) => {
+                    if (
+                      (e.key === "Enter" || e.key === " ") &&
+                      e.target === e.currentTarget
+                    ) {
+                      e.preventDefault();
+                      playPlTrack(i);
+                    }
+                  }}
                 >
                   <span className="lib__idx">{i + 1}</span>
                   <span className="lib__title">{pt.title || pt.path.split("/").pop()}</span>
@@ -1192,7 +1203,25 @@ export default function Browse() {
                   <span className="lib__dur">
                     {pt.remote ? "stream" : pt.durationMs ? formatTime(pt.durationMs) : ""}
                   </span>
-                </button>
+                  <button
+                    className="lib__rm"
+                    title={t("lib.removeFromPlaylist")}
+                    aria-label={t("lib.removeFromPlaylist")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const p = playlists.find((x) => `pl:${x.path}` === view);
+                      if (!p) return;
+                      void bridge
+                        .playlistRemoveTrack(p.path, i)
+                        .then(() =>
+                          setPlTracks((ts) => ts.filter((_, j) => j !== i)),
+                        )
+                        .catch(fail);
+                    }}
+                  >
+                    <X />
+                  </button>
+                </div>
               ))}
             </div>
           </>
