@@ -82,6 +82,8 @@ const es: Record<keyof typeof en, string> = {
   "fs.unlike": "Quitar me gusta",
   "fs.lyricsThumbs": "Letras / portadas",
   "fs.volume": "Volumen",
+  "fs.mute": "Silenciar",
+  "fs.unmute": "Activar sonido",
   "fs.more": "Más",
   "fs.addToQueue": "Agregar a la cola",
   "fs.removeFromQueue": "Quitar de la cola",

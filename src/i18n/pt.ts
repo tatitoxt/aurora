@@ -81,6 +81,8 @@ const pt: Record<keyof typeof en, string> = {
   "fs.unlike": "Descurtir",
   "fs.lyricsThumbs": "Letras / capas",
   "fs.volume": "Volume",
+  "fs.mute": "Silenciar",
+  "fs.unmute": "Ativar som",
   "fs.more": "Mais",
   "fs.addToQueue": "Adicionar à fila",
   "fs.removeFromQueue": "Remover da fila",

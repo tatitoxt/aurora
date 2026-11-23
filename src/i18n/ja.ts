@@ -81,6 +81,8 @@ const ja: Record<keyof typeof en, string> = {
   "fs.unlike": "\u3044\u3044\u306d\u3092\u89e3\u9664",
   "fs.lyricsThumbs": "\u6b4c\u8a5e / \u30b5\u30e0\u30cd\u30a4\u30eb",
   "fs.volume": "\u97f3\u91cf",
+  "fs.mute": "\u30df\u30e5\u30fc\u30c8",
+  "fs.unmute": "\u30df\u30e5\u30fc\u30c8\u89e3\u9664",
   "fs.more": "\u305d\u306e\u4ed6",
   "fs.addToQueue": "\u30ad\u30e5\u30fc\u306b\u8ffd\u52a0",
   "fs.removeFromQueue": "\u30ad\u30e5\u30fc\u304b\u3089\u524a\u9664",

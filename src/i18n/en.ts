@@ -120,6 +120,8 @@ const en = {
   "fs.unlike": "Unlike",
   "fs.lyricsThumbs": "Lyrics / thumbnails",
   "fs.volume": "Volume",
+  "fs.mute": "Mute",
+  "fs.unmute": "Unmute",
   "fs.more": "More",
   "fs.addToQueue": "Add to queue",
   "fs.removeFromQueue": "Remove from queue",

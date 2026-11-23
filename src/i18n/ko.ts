@@ -81,6 +81,8 @@ const ko: Record<keyof typeof en, string> = {
   "fs.unlike": "\uc88b\uc544\uc694 \ucde8\uc18c",
   "fs.lyricsThumbs": "\uac00\uc0ac / \uc12c\ub124\uc77c",
   "fs.volume": "\ubcfc\ub968",
+  "fs.mute": "\uc74c\uc18c\uac70",
+  "fs.unmute": "\uc74c\uc18c\uac70 \ud574\uc81c",
   "fs.more": "\ub354 \ubcf4\uae30",
   "fs.addToQueue": "\ub4f1\ub85d\uc5d0 \ucd94\uac00",
   "fs.removeFromQueue": "\ub4f1\ub85d\uc5d0\uc11c \uc0ad\uc81c",

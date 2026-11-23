@@ -50,6 +50,7 @@ import {
   SkipBack,
   SkipForward,
   SpeakerHigh,
+  SpeakerSlash,
   Gear,
   SquaresFour,
   Trash,
@@ -127,6 +128,7 @@ export default function Browse() {
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
+  const preMuteVol = useRef(0.8);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
@@ -228,6 +230,12 @@ export default function Browse() {
   const isFav = favKey !== "" && favSet.has(favKey);
   const track = np?.track ?? null;
   const playing = np?.status === "playing";
+  /* Row highlight: playlist/liked rows key off title+artist (queue
+     rows use currentIndex already). */
+  const isNow = (title: string, artist: string) =>
+    !!track &&
+    track.title.trim().toLowerCase() === title.trim().toLowerCase() &&
+    track.artist.trim().toLowerCase() === artist.trim().toLowerCase();
   const progress = track?.durationMs
     ? Math.min(1, (np?.positionMs ?? 0) / track.durationMs)
     : 0;
@@ -565,9 +573,8 @@ export default function Browse() {
         />
       )}
       <aside className="brw__rail">
-        <span className="brw__brand">
-          <img className="brw__logo" src="/noctbeat-mark.svg" alt="" />
-          {bridge.productName}
+        <span className="brw__brand" title={bridge.productName}>
+          <img className="brw__logo" src="/noctbeat-mark.svg" alt={bridge.productName} />
         </span>
         <label
           className={`brw__railsearch ${view === "search" ? "on" : ""}`}
@@ -829,7 +836,10 @@ export default function Browse() {
 
         {view === "home" && (
           <>
-            <h2 className="brw__greet">{greet}</h2>
+            <h2 className="brw__greet">
+              {greet}
+              <em className="brw__wordmark">{bridge.productName}</em>
+            </h2>
             {jumpTiles.length > 0 && (
               <div className="brw__jump">
                 {jumpTiles.map((j) => (
@@ -1256,6 +1266,14 @@ export default function Browse() {
                 <span className="brw__plt">{plName}</span>
                 <span className="brw__pls">
                   {plTracks.length} {plTracks.length === 1 ? t("lib.track") : t("lib.tracks")}
+                  {plTracks.some((pt) => pt.durationMs > 0) && (
+                    <>
+                      {" · "}
+                      {formatTime(
+                        plTracks.reduce((ms, pt) => ms + pt.durationMs, 0),
+                      )}
+                    </>
+                  )}
                 </span>
               </span>
               <span className="seg seg--ghost">
@@ -1327,10 +1345,13 @@ export default function Browse() {
             </div>
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             <div className="lib">
-              {plTracks.map((pt, i) => (
+              {plTracks.map((pt, i) => {
+                const current = isNow(pt.title, pt.artist);
+                return (
                 <div
                   className={[
                     "lib__row",
+                    current ? "lib__row--current" : "",
                     dragIdx === i ? "lib__row--dragging" : "",
                     dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
                   ]
@@ -1390,7 +1411,17 @@ export default function Browse() {
                     }
                   }}
                 >
-                  <span className="lib__idx">{i + 1}</span>
+                  <span className="lib__idx">
+                    {current && playing ? (
+                      <span className="lib__eq" aria-hidden>
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    ) : (
+                      i + 1
+                    )}
+                  </span>
                   <span className="lib__title">{pt.title || pt.path.split("/").pop()}</span>
                   <span className="lib__sub">{pt.artist}</span>
                   <span className="lib__dur">
@@ -1408,7 +1439,8 @@ export default function Browse() {
                     <X />
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -1562,8 +1594,20 @@ export default function Browse() {
             {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
           </span>
         </span>
-        <span className="brw__volwrap" title={t("fs.volume")}>
-          <SpeakerHigh size={15} />
+        <span className="brw__volwrap">
+          <button
+            className={`brw__icon ${vol === 0 ? "" : "on"}`}
+            aria-label={vol === 0 ? t("fs.unmute") : t("fs.mute")}
+            title={vol === 0 ? t("fs.unmute") : t("fs.mute")}
+            onClick={() => {
+              const next = vol === 0 ? preMuteVol.current : 0;
+              if (vol !== 0) preMuteVol.current = vol;
+              setVol(next);
+              void bridge.setVolume(next);
+            }}
+          >
+            {vol === 0 ? <SpeakerSlash size={15} /> : <SpeakerHigh size={15} />}
+          </button>
           <input
             className="brw__vol"
             type="range"

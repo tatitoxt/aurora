@@ -81,6 +81,8 @@ const zh: Record<keyof typeof en, string> = {
   "fs.unlike": "\u53d6\u6d88\u559c\u6b22",
   "fs.lyricsThumbs": "\u6b4c\u8bcd / \u7f29\u7565\u56fe",
   "fs.volume": "\u97f3\u91cf",
+  "fs.mute": "\u9759\u97f3",
+  "fs.unmute": "\u53d6\u6d88\u9759\u97f3",
   "fs.more": "\u66f4\u591a",
   "fs.addToQueue": "\u52a0\u5165\u961f\u5217",
   "fs.removeFromQueue": "\u4ece\u961f\u5217\u5220\u9664",

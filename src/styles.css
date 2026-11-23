@@ -2715,12 +2715,11 @@ select { color-scheme: dark; }
   border-right: 1px solid var(--hair);
 }
 .brw__brand {
-  display: flex; align-items: center; gap: 9px;
-  font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em;
-  padding: 2px 8px 12px;
+  display: flex; align-items: center;
+  padding: 2px 8px 14px;
 }
 .brw__logo {
-  width: 74px; height: auto; flex: none;
+  width: 92px; height: auto; flex: none;
 }
 .brw__railsearch {
   display: flex; align-items: center; gap: 8px;
@@ -2818,6 +2817,10 @@ select { color-scheme: dark; }
 .brw__greet {
   font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
   margin: 2px 0 14px;
+}
+.brw__wordmark {
+  margin-left: 12px; font-style: normal; font-size: 15px; font-weight: 600;
+  letter-spacing: 0.02em; color: var(--muted); vertical-align: 3px;
 }
 .brw__jump {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
