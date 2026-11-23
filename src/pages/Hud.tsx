@@ -246,14 +246,6 @@ export default function Hud() {
           <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
         </div>
         <div className="hud__pill">
-          <button
-            className={`hctl ${queueOpen ? "hctl--on" : ""}`}
-            aria-label={t("lib.queue")}
-            title={t("lib.queue")}
-            onClick={() => setQueueOpen((v) => !v)}
-          >
-            <ListBullets size={15} />
-          </button>
           <button className="hctl" aria-label={t("fs.prev")} title={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={15} />
           </button>
@@ -278,6 +270,14 @@ export default function Hud() {
             disabled={!track}
           >
             <Heart weight={fav ? "fill" : "regular"} size={14} />
+          </button>
+          <button
+            className={`hctl ${queueOpen ? "hctl--on" : ""}`}
+            aria-label={t("lib.queue")}
+            title={t("lib.queue")}
+            onClick={() => setQueueOpen((v) => !v)}
+          >
+            <ListBullets size={15} />
           </button>
           <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />
