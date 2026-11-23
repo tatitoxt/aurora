@@ -154,7 +154,7 @@ export default function Stage() {
   const [shuffle, setShuffle] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const clearBg = settings.transparentBg && !isLinux();
+  const clearBg = settings.transparentBg && bridge.isTauri() && !isLinux();
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(1);
   const [volOpen, setVolOpen] = useState(false);
