@@ -345,6 +345,25 @@ class MockSource {
 const mock = new MockSource();
 const listeners = new Map<string, Set<(p: unknown) => void>>();
 
+/* Browser preview playlist store: backs listPlaylists/playlistTracks/…
+ * so imports (incl. simulated Spotify URLs) behave like the real app. */
+interface MockPlaylistFile {
+  file: PlaylistFile;
+  tracks: PlaylistTrack[];
+}
+const demoTracks = (remote: boolean, base: string): PlaylistTrack[] =>
+  DEMO_PLAYLIST.map(([title, artist, , durationMs], i) => ({
+    title,
+    artist,
+    durationMs,
+    path: `${base}/${i}.mp3`,
+    remote,
+  }));
+const mockPlaylistStore: MockPlaylistFile[] = [
+  { file: { name: "Favorites", path: "/demo/favorites.m3u8" }, tracks: demoTracks(false, "/demo") },
+];
+const findPl = (path: string) => mockPlaylistStore.find((m) => m.file.path === path);
+
 /* Browser preview volume: the YouTube-embed backdrop listens here so the
  * stage slider actually reaches it (there is no native audio path). */
 let previewVolume = 0.8;
@@ -805,37 +824,47 @@ export const bridge = {
   listPlaylists: (): Promise<PlaylistFile[]> =>
     isTauri()
       ? invokeCmd<PlaylistFile[]>("list_playlists")
-      : Promise.resolve([{ name: "Favorites", path: "/demo/favorites.m3u8" }]),
+      : Promise.resolve(mockPlaylistStore.map((m) => m.file)),
   /** Rename a playlist file in place, keeping its extension. */
-  renamePlaylist: (path: string, name: string): Promise<PlaylistFile> =>
-    isTauri()
-      ? invokeCmd<PlaylistFile>("rename_playlist", { path, name })
-      : Promise.resolve({ name, path }),
-  deletePlaylist: (path: string): Promise<void> =>
-    isTauri() ? invokeCmd("delete_playlist", { path }) : Promise.resolve(),
+  renamePlaylist: (path: string, name: string): Promise<PlaylistFile> => {
+    if (isTauri()) return invokeCmd<PlaylistFile>("rename_playlist", { path, name });
+    const pl = findPl(path);
+    if (pl) pl.file = { ...pl.file, name };
+    return Promise.resolve({ name, path });
+  },
+  deletePlaylist: (path: string): Promise<void> => {
+    if (isTauri()) return invokeCmd("delete_playlist", { path });
+    const i = mockPlaylistStore.findIndex((m) => m.file.path === path);
+    if (i >= 0) mockPlaylistStore.splice(i, 1);
+    return Promise.resolve();
+  },
   /** Every entry of a playlist file, in order — files and remote rows. */
   playlistTracks: (path: string): Promise<PlaylistTrack[]> =>
     isTauri()
       ? invokeCmd<PlaylistTrack[]>("playlist_tracks", { path })
-      : Promise.resolve(
-          mock.playlist.map(([title, artist, , durationMs], i) => ({
-            title,
-            artist,
-            durationMs,
-            path: `/demo/${i}.mp3`,
-            remote: false,
-          })),
-        ),
+      : Promise.resolve(findPl(path)?.tracks ?? []),
   /** Drop the entry at `index` from an .m3u/.m3u8 playlist. */
-  playlistRemoveTrack: (path: string, index: number): Promise<void> =>
-    isTauri()
-      ? invokeCmd("playlist_remove_track", { path, index })
-      : Promise.resolve(),
+  playlistRemoveTrack: (path: string, index: number): Promise<void> => {
+    if (isTauri()) return invokeCmd("playlist_remove_track", { path, index });
+    findPl(path)?.tracks.splice(index, 1);
+    return Promise.resolve();
+  },
   /** Append local files to an .m3u/.m3u8 playlist; returns added count. */
-  playlistAddTracks: (path: string, paths: string[]): Promise<number> =>
-    isTauri()
-      ? invokeCmd<number>("playlist_add_tracks", { path, paths })
-      : Promise.resolve(paths.length),
+  playlistAddTracks: (path: string, paths: string[]): Promise<number> => {
+    if (isTauri()) return invokeCmd<number>("playlist_add_tracks", { path, paths });
+    const pl = findPl(path);
+    if (pl)
+      paths.forEach((p) =>
+        pl.tracks.push({
+          title: p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? p,
+          artist: "",
+          durationMs: 0,
+          path: p,
+          remote: false,
+        }),
+      );
+    return Promise.resolve(paths.length);
+  },
   getArtistStats: (artist: string): Promise<ArtistStats> =>
     isTauri()
       ? invokeCmd<ArtistStats>("get_artist_stats", { artist })
