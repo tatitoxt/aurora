@@ -259,8 +259,10 @@ export default function Browse() {
     );
   };
   /* Volume controls only reach the local player — provider tabs keep
-     their own audio, so mute/slider would lie during external playback. */
-  const volLocal = !track || np?.source === "local";
+     their own audio, so mute/slider would lie during external playback.
+     "demo" stays enabled: the preview mock routes it to the audible
+     YouTube-embed backdrop. */
+  const volLocal = !track || np?.source === "local" || np?.source === "demo";
   const progress = track?.durationMs
     ? Math.min(1, (np?.positionMs ?? 0) / track.durationMs)
     : 0;
