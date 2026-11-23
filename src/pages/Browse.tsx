@@ -42,6 +42,7 @@ import {
   Pause,
   PencilSimple,
   Play,
+  Plus,
   Playlist,
   Repeat,
   RepeatOnce,
@@ -116,6 +117,7 @@ export default function Browse() {
   const [vol, setVol] = useState(0.8);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
+  const [addToKey, setAddToKey] = useState<string | null>(null);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLoading, setArLoading] = useState(false);
@@ -973,14 +975,68 @@ export default function Browse() {
             {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
             <div className="lib">
               {liked.map((e) => (
-                <button key={e.key} className="lib__row" onClick={() => playLiked(e)}>
+                <div
+                  key={e.key}
+                  className="lib__row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => playLiked(e)}
+                  onKeyDown={(ev) => {
+                    if (
+                      (ev.key === "Enter" || ev.key === " ") &&
+                      ev.target === ev.currentTarget
+                    ) {
+                      ev.preventDefault();
+                      playLiked(e);
+                    }
+                  }}
+                >
                   <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
                   <span className="lib__title">{e.title}</span>
                   <span className="lib__sub">{e.artist}</span>
                   <span className="lib__dur">
                     {e.durationMs ? formatTime(e.durationMs) : ""}
                   </span>
-                </button>
+                  {playlists.length > 0 && (
+                    <span className="lib__pluswrap">
+                      <button
+                        className="lib__rm"
+                        title={t("lib.addToPlaylist")}
+                        aria-label={t("lib.addToPlaylist")}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setAddToKey(addToKey === e.key ? null : e.key);
+                        }}
+                      >
+                        <Plus />
+                      </button>
+                      {addToKey === e.key && (
+                        <span
+                          className="brw__plmenu"
+                          onClick={(ev) => ev.stopPropagation()}
+                        >
+                          {playlists.map((p) => (
+                            <button
+                              key={p.path}
+                              title={p.name}
+                              onClick={() => {
+                                setAddToKey(null);
+                                void bridge
+                                  .playlistAddTracks(p.path, [e.trackId])
+                                  .then((n) => {
+                                    if (n > 0) setNote(p.name);
+                                  })
+                                  .catch(fail);
+                              }}
+                            >
+                              {p.name}
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
           </>
