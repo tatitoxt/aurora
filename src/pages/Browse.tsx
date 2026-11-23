@@ -118,8 +118,12 @@ export default function Browse() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   const [addToKey, setAddToKey] = useState<string | null>(null);
+  /* Serialized: a second remove before the first lands would hand
+     playlist_remove_track an index that no longer exists in the file. */
+  const plRemoving = useRef(false);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
+  const [arLocal, setArLocal] = useState<QueueItem[]>([]);
   const [arLoading, setArLoading] = useState(false);
   /* Spotify-style back/forward inside the Browse tab. */
   const [past, setPast] = useState<View[]>([]);
@@ -299,6 +303,18 @@ export default function Browse() {
     const name = decodeURIComponent(view.slice(3));
     setArLoading(true);
     setArSongs([]);
+    setArLocal([]);
+    /* Local library rows first: they play without a provider tab. */
+    void bridge
+      .libraryTracks()
+      .then((ts) =>
+        setArLocal(
+          ts.filter(
+            (t) => t.track.artist.toLowerCase() === name.toLowerCase(),
+          ),
+        ),
+      )
+      .catch(() => {});
     void bridge
       .catalogSearch(name)
       .then(setArSongs)
@@ -689,8 +705,29 @@ export default function Browse() {
         {view.startsWith("ar:") && (
           <div className="brw__section">
             {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
-            {!arLoading && arSongs.length === 0 && (
+            {!arLoading && arLocal.length === 0 && arSongs.length === 0 && (
               <span className="brw__empty">{t("brw.noTracks")}</span>
+            )}
+            {arLocal.length > 0 && (
+              <div className="lib">
+                {arLocal.map((it, i) => (
+                  <button
+                    className="lib__row"
+                    key={`${it.path}-${i}`}
+                    title={it.track.title}
+                    onClick={() => void bridge.playItems(arLocal, i).catch(fail)}
+                  >
+                    <span className="lib__idx">{i + 1}</span>
+                    <span className="lib__title">{it.track.title}</span>
+                    <span className="lib__sub">
+                      {it.track.album || it.track.artist}
+                    </span>
+                    <span className="lib__dur">
+                      {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
             {arSongs.length > 0 && (
               <div className="lib">
@@ -1306,14 +1343,19 @@ export default function Browse() {
                     aria-label={t("lib.removeFromPlaylist")}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (plRemoving.current) return;
                       const p = playlists.find((x) => `pl:${x.path}` === view);
                       if (!p) return;
+                      plRemoving.current = true;
                       void bridge
                         .playlistRemoveTrack(p.path, i)
                         .then(() =>
                           setPlTracks((ts) => ts.filter((_, j) => j !== i)),
                         )
-                        .catch(fail);
+                        .catch(fail)
+                        .finally(() => {
+                          plRemoving.current = false;
+                        });
                     }}
                   >
                     <X />
