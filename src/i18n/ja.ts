@@ -275,7 +275,7 @@ const ja: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "","brw.topTracks": "よくく","brw.topArtists": "トップアーティスト","brw.plays": "","brw.playAll": "すべて","brw.liveView": "ライブビュー","brw.seek": "","brw.trackMissing": "","brw.greetMorning": "おはようございます","brw.greetAfternoon": "こんにちは","brw.greetEvening": "こんばんは","brw.jumpBackIn": "きを","brw.showAll": "すべて",
+  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "","brw.topTracks": "よくく","brw.topArtists": "トップアーティスト","brw.plays": "","brw.playAll": "すべて","brw.liveView": "ライブビュー","brw.forward": "む","brw.recentlyPlayed": "した","brw.seek": "","brw.trackMissing": "","brw.greetMorning": "おはようございます","brw.greetAfternoon": "こんにちは","brw.greetEvening": "こんばんは","brw.jumpBackIn": "きを","brw.showAll": "すべて",
 };
 
 export default ja;

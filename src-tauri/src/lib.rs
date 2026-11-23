@@ -399,6 +399,20 @@ fn clear_history(state: State<AppState>) -> Result<(), String> {
     h.save(&state.history_path).map_err(|e| e.to_string())
 }
 
+/// Newest-first unique plays (deduped by track) for "recently played".
+#[tauri::command]
+fn recent_plays(state: State<AppState>, limit: usize) -> Result<Vec<PlayRecord>, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    let mut seen = std::collections::HashSet::new();
+    Ok(h.records
+        .iter()
+        .rev()
+        .filter(|r| seen.insert(r.track_id.clone()))
+        .take(limit.min(200))
+        .cloned()
+        .collect())
+}
+
 /// Transport routing shared by the IPC command, the tray menu and
 /// global hotkeys: the local player when it holds the queue, the
 /// external source otherwise.
@@ -2698,6 +2712,7 @@ pub fn run() {
             delete_playlist,
             playlist_tracks,
             playlist_remove_track,
+            recent_plays,
             playlist_add_tracks,
             get_stats,
             get_artist_stats,

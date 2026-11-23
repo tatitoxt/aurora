@@ -2761,6 +2761,9 @@ select { color-scheme: dark; }
 .brw__railempty { font-size: var(--fs-xs); color: var(--muted); padding: 6px 10px; }
 
 .brw__main { min-width: 0; overflow-y: auto; padding: 18px 22px 90px; }
+.brw__navbtns { display: flex; gap: 4px; }
+.brw__icon:disabled { opacity: 0.35; cursor: default; }
+.brw__icon:disabled:hover { color: var(--dim); background: none; }
 .brw__head { display: flex; align-items: baseline; gap: 12px; }
 .brw__head h1 {
   font-size: var(--fs-xl); font-weight: 650; letter-spacing: -0.02em;

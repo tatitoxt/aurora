@@ -7,6 +7,8 @@ import {
   type NowPlaying,
   type PlaylistFile,
   type PlaylistTrack,
+  type PlayRecord,
+  type QueueItem,
   type QueueState,
   type Stats,
 } from "../bridge";
@@ -29,6 +31,8 @@ import { VideoBackdrop } from "../VideoBackdrop";
 import {
   ArrowsOut,
   Broadcast,
+  CaretLeft,
+  CaretRight,
   Heart,
   House,
   ListBullets,
@@ -99,6 +103,28 @@ export default function Browse() {
   const [vol, setVol] = useState(0.8);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
+  const [recent, setRecent] = useState<PlayRecord[]>([]);
+  /* Spotify-style back/forward inside the Browse tab. */
+  const [past, setPast] = useState<View[]>([]);
+  const [future, setFuture] = useState<View[]>([]);
+  const go = (v: View) => {
+    if (v === view) return;
+    setPast((p) => [...p, view].slice(-50));
+    setFuture([]);
+    setView(v);
+  };
+  const goBack = () => {
+    if (past.length === 0) return;
+    setFuture((f) => [view, ...f]);
+    setView(past[past.length - 1]);
+    setPast((p) => p.slice(0, -1));
+  };
+  const goFwd = () => {
+    if (future.length === 0) return;
+    setPast((p) => [...p, view]);
+    setView(future[0]);
+    setFuture((f) => f.slice(1));
+  };
 
   const refresh = () => {
     void bridge.getQueue().then(setQueue).catch(() => {});
@@ -110,6 +136,7 @@ export default function Browse() {
     refresh();
     void bridge.listPlaylists().then(setPlaylists).catch(() => {});
     void bridge.getStats().then(setStats).catch(() => {});
+    void bridge.recentPlays(12).then(setRecent).catch(() => {});
     const offQ = subscribe<QueueState>("queue", setQueue);
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
       setNp(n);
@@ -207,7 +234,7 @@ export default function Browse() {
   };
 
   const openPlaylist = (p: PlaylistFile) => {
-    setView(`pl:${p.path}`);
+    go(`pl:${p.path}`);
     setPlLoading(true);
     setPlTracks([]);
     void bridge
@@ -237,6 +264,42 @@ export default function Browse() {
     view.startsWith("pl:")
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
+
+  /** A history row maps onto the fav replay rules: local trackIds are
+      file paths, everything else becomes a provider query. */
+  const recReplay = (r: PlayRecord) =>
+    replayFor({
+      key: "",
+      trackId: r.trackId,
+      playerSource: r.source,
+      title: r.title,
+      artist: r.artist,
+      artworkUrl: "",
+      durationMs: r.durationMs,
+    });
+  const recArt = (r: PlayRecord) =>
+    queue.items.find(
+      (i) => i.track.title === r.title && i.track.artist === r.artist,
+    )?.track.artworkUrl ??
+    liked.find((e) => e.title === r.title && e.artist === r.artist)
+      ?.artworkUrl ??
+    "";
+  const playRecent = (r: PlayRecord) => {
+    setErr("");
+    const replay = recReplay(r);
+    if (!replay) return;
+    if (replay.kind === "external") {
+      playExternal(replay.query);
+      return;
+    }
+    /* Local recents form the context, like Spotify replaying the row. */
+    const locals = recent
+      .map(recReplay)
+      .flatMap((x) => (x?.kind === "local" ? [x.item as QueueItem] : []));
+    const index = locals.findIndex((i) => i.path === r.trackId);
+    if (index < 0) return;
+    void bridge.playItems(locals, index).catch(fail);
+  };
 
   /** Playlist detail rows play the clicked track: remote rows can't be
       queued (import skips them) so they go through the provider bridge;
@@ -292,14 +355,14 @@ export default function Browse() {
       key: "liked",
       name: t("lib.liked"),
       icon: <Heart weight="fill" />,
-      onClick: () => setView("liked"),
+      onClick: () => go("liked"),
     },
     queue.items.length > 0 && {
       key: "queue",
       name: t("fs.upNext"),
       art: queue.items[queue.currentIndex ?? 0]?.track.artworkUrl,
       icon: <ListBullets />,
-      onClick: () => setView("queue"),
+      onClick: () => go("queue"),
     },
     ...playlists.slice(0, 4).map((p) => ({
       key: `pl:${p.path}`,
@@ -347,7 +410,7 @@ export default function Browse() {
              the user into SearchPanel's autofocused input. The
              same click also opens Search when the input is
              collapsed to just an icon in narrow windows. */
-          onClick={() => setView("search")}
+          onClick={() => go("search")}
         >
           <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
           <input
@@ -359,27 +422,27 @@ export default function Browse() {
               /* During IME composition the interim events would yank
                  focus to SearchPanel mid-composition — only switch
                  once the text is committed. */
-              if (!(e.nativeEvent as InputEvent).isComposing) setView("search");
+              if (!(e.nativeEvent as InputEvent).isComposing) go("search");
             }}
             /* Committing the same interim text fires no onChange —
                open Search when the composition ends instead. A
                canceled composition ends with empty data and must
                not switch the view. */
             onCompositionEnd={(e) => {
-              if (e.data !== "") setView("search");
+              if (e.data !== "") go("search");
             }}
           />
         </label>
         <button
           className={`brw__nav ${view === "home" ? "on" : ""}`}
-          onClick={() => setView("home")}
+          onClick={() => go("home")}
         >
           <House weight={view === "home" ? "fill" : "regular"} />
           <span>{t("brw.home")}</span>
         </button>
         <button
           className={`brw__nav ${view === "liked" ? "on" : ""}`}
-          onClick={() => setView("liked")}
+          onClick={() => go("liked")}
         >
           <Heart weight={view === "liked" ? "fill" : "regular"} />
           <span>{t("lib.liked")}</span>
@@ -387,7 +450,7 @@ export default function Browse() {
         </button>
         <button
           className={`brw__nav ${view === "queue" ? "on" : ""}`}
-          onClick={() => setView("queue")}
+          onClick={() => go("queue")}
         >
           <ListBullets weight={view === "queue" ? "fill" : "regular"} />
           <span>{t("fs.upNext")}</span>
@@ -395,7 +458,7 @@ export default function Browse() {
         </button>
         <button
           className={`brw__nav ${view === "services" ? "on" : ""}`}
-          onClick={() => setView("services")}
+          onClick={() => go("services")}
         >
           <Broadcast weight={view === "services" ? "fill" : "regular"} />
           <span>{t("sources.heading")}</span>
@@ -421,6 +484,26 @@ export default function Browse() {
 
       <main className="brw__main">
         <header className="brw__head">
+          <span className="brw__navbtns">
+            <button
+              className="brw__icon"
+              onClick={goBack}
+              disabled={past.length === 0}
+              aria-label={t("nav.back")}
+              title={t("nav.back")}
+            >
+              <CaretLeft />
+            </button>
+            <button
+              className="brw__icon"
+              onClick={goFwd}
+              disabled={future.length === 0}
+              aria-label={t("brw.forward")}
+              title={t("brw.forward")}
+            >
+              <CaretRight />
+            </button>
+          </span>
           <h1>
             {view === "home" && t("brw.home")}
             {view === "search" && t("brw.search")}
@@ -493,11 +576,36 @@ export default function Browse() {
               </div>
             )}
 
+            {recent.length > 0 && (
+              <section className="brw__section">
+                <span className="brw__sechead">
+                  <span className="brw__kick">{t("brw.recentlyPlayed")}</span>
+                </span>
+                <div className="brw__grid">
+                  {recent.slice(0, 12).map((r) => (
+                    <button
+                      key={`${r.trackId}-${r.playedAtMs}`}
+                      className="brw__card"
+                      title={`${r.title} — ${r.artist}`}
+                      onClick={() => playRecent(r)}
+                    >
+                      <Art url={recArt(r)} />
+                      <span className="brw__cardplay" aria-hidden>
+                        <Play weight="fill" />
+                      </span>
+                      <span className="brw__cardt">{r.title}</span>
+                      <span className="brw__cards">{r.artist}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section className="brw__section">
               <span className="brw__sechead">
                 <span className="brw__kick">{t("fs.upNext")}</span>
                 {queue.items.length > 0 && (
-                  <button className="brw__showall" onClick={() => setView("queue")}>
+                  <button className="brw__showall" onClick={() => go("queue")}>
                     {t("brw.showAll")}
                   </button>
                 )}
@@ -528,7 +636,7 @@ export default function Browse() {
               <section className="brw__section">
                 <span className="brw__sechead">
                   <span className="brw__kick">{t("lib.liked")}</span>
-                  <button className="brw__showall" onClick={() => setView("liked")}>
+                  <button className="brw__showall" onClick={() => go("liked")}>
                     {t("brw.showAll")}
                   </button>
                 </span>
@@ -790,6 +898,22 @@ export default function Browse() {
                 </span>
               </span>
               <span className="seg seg--ghost">
+                <button
+                  title={t("fs.shuffle")}
+                  onClick={() => {
+                    const p = playlists.find((x) => `pl:${x.path}` === view);
+                    if (!p) return;
+                    void bridge
+                      .setShuffle(true)
+                      .then(() => {
+                        setShuffle(true);
+                        playPlaylist(p);
+                      })
+                      .catch(fail);
+                  }}
+                >
+                  <Shuffle /> {t("fs.shuffle")}
+                </button>
                 <button
                   onClick={() => {
                     const p = playlists.find((x) => `pl:${x.path}` === view);

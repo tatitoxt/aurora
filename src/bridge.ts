@@ -150,6 +150,16 @@ export interface PlaylistTrack {
   path: string;
   remote: boolean;
 }
+export interface PlayRecord {
+  trackId: string;
+  title: string;
+  artist: string;
+  /** "local", "mpris", "demo", ... — where playback came from. */
+  source: string;
+  durationMs: number;
+  msListened: number;
+  playedAtMs: number;
+}
 export interface TopEntry {
   name: string;
   /** Track artist; empty for artist entries. */
@@ -924,6 +934,21 @@ export const bridge = {
   },
   clearHistory: () =>
     isTauri() ? invokeCmd<null>("clear_history") : Promise.resolve(null),
+  /** Newest-first unique plays (trackId is the file path for locals). */
+  recentPlays: (limit = 12): Promise<PlayRecord[]> =>
+    isTauri()
+      ? invokeCmd<PlayRecord[]>("recent_plays", { limit })
+      : Promise.resolve(
+          mock.playlist.slice(0, limit).map(([title, artist], i) => ({
+            trackId: `demo-${i}`,
+            title,
+            artist,
+            source: "demo",
+            durationMs: 200_000,
+            msListened: 60_000,
+            playedAtMs: Date.now() - (i + 1) * 3_600_000,
+          })),
+        ),
   listenStatus: (): Promise<ListenStatus> =>
     isTauri()
       ? invokeCmd<ListenStatus>("listen_status")
