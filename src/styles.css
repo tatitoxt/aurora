@@ -920,6 +920,15 @@ body {
 }
 .hud__pill .hctl { width: 32px; height: 32px; }
 .hud__pill .hctl--play { width: 40px; height: 40px; }
+/* Very short HUDs: shed secondary rows so the transport pill can never be
+   pushed below the window (min HUD height is 140px). */
+@media (max-height: 200px) {
+  .hud__focus { gap: 2px; padding: 8px; }
+  .hud__focussub { display: none; }
+}
+@media (max-height: 160px) {
+  .hud__focustitle, .hud__focus .hud__progress { display: none; }
+}
 .hud__focus {
   flex: 1; display: grid; justify-items: center; align-content: center;
   grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
@@ -1156,7 +1165,7 @@ body {
   animation: fs-lyric-in 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 .fs__lyrctx {
-  font-family: var(--serif); font-style: italic; font-weight: 500;
+  font-family: var(--serif); font-style: italic; font-weight: 600;
   font-size: clamp(17px, 2.4vh, 26px); text-align: center; line-height: 1.15;
   color: rgba(244, 245, 250, 0.42); max-width: 70vw;
   text-shadow: 0 1px 14px rgba(0,0,0,0.8);
@@ -2386,7 +2395,8 @@ button, input, select, textarea { font-family: var(--ui); }
   --con: calc(clamp(88px, 11 * var(--u), 230px) * var(--cscale, 1));
   --cside: calc(clamp(52px, 7 * var(--u), 150px) * var(--cscale, 1));
 }
-.fs__clockwrap { padding-top: clamp(34px, 5.5 * var(--u), 96px); }
+/* Clock hugs the header: just below the top-bar buttons, never higher. */
+.fs__clockwrap { padding-top: clamp(30px, 2.9 * var(--u), 58px); }
 .fs__date { font-size: clamp(9px, 1.05 * var(--u), 20px); margin-bottom: clamp(2px, 0.4 * var(--u), 8px); letter-spacing: 0.24em; }
 .fs__clock { font-size: calc(clamp(40px, 7 * var(--u), 140px) * var(--clksc, 1)); }
 .fs__center { min-height: 0; padding: clamp(6px, 1 * var(--u), 20px) 6vw; }
@@ -2592,7 +2602,7 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__searchpop {
   position: absolute; left: 50%; top: 100%; margin-top: 10px;
   transform: translateX(-50%); transform-origin: top center; z-index: 40;
-  width: min(400px, calc(100vw - 48px));
+  width: min(490px, calc(100vw - 48px));
   max-height: min(46vh, 460px);
   display: flex; flex-direction: column; overflow: hidden;
   background: rgba(14, 14, 17, 0.55);
@@ -2612,7 +2622,7 @@ button, input, select, textarea { font-family: var(--ui); }
 /* Spotify-style search: the bar is the bubble — flat input inside it,
    results scroll below. Height reserves the seek row + pill zone. */
 .srch { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; padding: 6px; }
-.srch .fs__provq { background: rgba(255, 255, 255, 0.07); }
+.srch .fs__provq { background: rgba(255, 255, 255, 0.07); padding: 9px 15px; font-size: 13px; }
 .srch__body { overflow-y: auto; scrollbar-width: thin; padding: 2px 4px 6px; min-height: 0; }
 .srch__note { font-size: 11px; color: var(--dim); padding: 8px 10px; }
 .srch__h { display: block; font-size: 13px; font-weight: 700; color: #fff; padding: 10px 4px 6px; letter-spacing: -0.01em; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
