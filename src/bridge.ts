@@ -42,14 +42,15 @@ export interface Settings {
   hudAlwaysOnTop: boolean;
   hudPosition: [number, number] | null;
   musicDir: string | null;
-  ytdlpPath: string | null;
   theme: ThemeSettings;
   /** "lines" (scrolling list) or "karaoke" (word-by-word). */
   lyricsMode: string;
-  /** Karaoke backdrop plays the music video (yt-dlp) instead of blurred art. */
+  /** Stage backdrop plays the official music video when the Bridge knows it. */
   videoBackdrop: boolean;
   /** Animated "liquid" gradient blobs behind player surfaces. */
   ambientBg: boolean;
+  /** Stage draws no backdrop: the desktop wallpaper shows through. */
+  transparentBg: boolean;
   /** Glass panel opacity 0-100: lower shows more of the desktop through. */
   glassOpacity: number;
   /** Audio output device name; null = OS default. */
@@ -110,17 +111,15 @@ export interface Profile {
   lyricsMode: string;
   videoBackdrop: boolean;
 }
-export interface RemoteTrack {
-  id: string;
-  /** Provider key: "youtube" | "soundcloud". */
-  source: string;
+
+/** Catalog search hit: metadata only, played via a provider. */
+export interface CatalogSong {
   title: string;
   artist: string;
+  album: string;
   durationMs: number;
-  url: string;
   artworkUrl: string;
 }
-
 export interface QueueItem {
   track: Track;
   path: string;
@@ -128,10 +127,6 @@ export interface QueueItem {
 export interface QueueState {
   items: QueueItem[];
   currentIndex: number | null;
-}
-export interface PlaylistUrlResult {
-  title: string;
-  imported: number;
 }
 
 export interface ImportResult {
@@ -219,11 +214,11 @@ export const DEFAULT_SETTINGS: Settings = {
   hudAlwaysOnTop: true,
   hudPosition: null,
   musicDir: null,
-  ytdlpPath: null,
   theme: { name: "noct", accent: null, accent2: null, dynamic: true },
   lyricsMode: "lines",
   videoBackdrop: true,
   ambientBg: true,
+  transparentBg: false,
   glassOpacity: 68,
   audioOutput: null,
   eqPreset: "flat",
@@ -266,18 +261,18 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 // ---- Browser mock (mirrors crates/noctbeat-core/src/media/demo.rs) ---------
 
 /* Real tracks + their official YouTube videos: the browser preview has no
- * yt-dlp, so the videoclip backdrop plays the real embed (audio included)
+ * Bridge tab, so the videoclip backdrop plays the real embed (audio included)
  * instead of a stock sample. 6th field = YouTube video id. */
 const DEMO_PLAYLIST: Array<[string, string, string, number, string, string]> = [
-  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "https://i.ytimg.com/vi/mzB1VGEGcSU/hqdefault.jpg", "mzB1VGEGcSU"],
-  ["Blinding Lights", "The Weeknd", "After Hours", 200_000, "https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg", "4NRXx6U8ABQ"],
-  ["Starboy", "The Weeknd, Daft Punk", "Starboy", 230_000, "https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg", "34Na4j8AVgA"],
-  ["Levitating", "Dua Lipa", "Future Nostalgia", 203_000, "https://i.ytimg.com/vi/TUVcZfQe-Kw/hqdefault.jpg", "TUVcZfQe-Kw"],
-  ["bad guy", "Billie Eilish", "When We All Fall Asleep, Where Do We Go?", 194_000, "https://i.ytimg.com/vi/DyDfgMOUjCI/hqdefault.jpg", "DyDfgMOUjCI"],
-  ["Sunflower", "Post Malone, Swae Lee", "Spider-Man: Into the Spider-Verse", 158_000, "https://i.ytimg.com/vi/ApXoWvfEYVU/hqdefault.jpg", "ApXoWvfEYVU"],
-  ["Circles", "Post Malone", "Hollywood's Bleeding", 215_000, "https://i.ytimg.com/vi/wXhTHyIgQ_U/hqdefault.jpg", "wXhTHyIgQ_U"],
-  ["As It Was", "Harry Styles", "Harry's House", 167_000, "https://i.ytimg.com/vi/H5v3kku4y6Q/hqdefault.jpg", "H5v3kku4y6Q"],
-  ["Stay", "The Kid LAROI, Justin Bieber", "F*ck Love 3+", 141_000, "https://i.ytimg.com/vi/kTJczUoc26U/hqdefault.jpg", "kTJczUoc26U"],
+  ["Lucid Dreams", "Juice WRLD", "Goodbye & Good Riddance", 239_000, "https://i.ytimg.com/vi/mzB1VGEGcSU/mqdefault.jpg", "mzB1VGEGcSU"],
+  ["Blinding Lights", "The Weeknd", "After Hours", 200_000, "https://i.ytimg.com/vi/4NRXx6U8ABQ/mqdefault.jpg", "4NRXx6U8ABQ"],
+  ["Starboy", "The Weeknd, Daft Punk", "Starboy", 230_000, "https://i.ytimg.com/vi/34Na4j8AVgA/mqdefault.jpg", "34Na4j8AVgA"],
+  ["Levitating", "Dua Lipa", "Future Nostalgia", 203_000, "https://i.ytimg.com/vi/TUVcZfQe-Kw/mqdefault.jpg", "TUVcZfQe-Kw"],
+  ["bad guy", "Billie Eilish", "When We All Fall Asleep, Where Do We Go?", 194_000, "https://i.ytimg.com/vi/DyDfgMOUjCI/mqdefault.jpg", "DyDfgMOUjCI"],
+  ["Sunflower", "Post Malone, Swae Lee", "Spider-Man: Into the Spider-Verse", 158_000, "https://i.ytimg.com/vi/ApXoWvfEYVU/mqdefault.jpg", "ApXoWvfEYVU"],
+  ["Circles", "Post Malone", "Hollywood's Bleeding", 215_000, "https://i.ytimg.com/vi/wXhTHyIgQ_U/mqdefault.jpg", "wXhTHyIgQ_U"],
+  ["As It Was", "Harry Styles", "Harry's House", 167_000, "https://i.ytimg.com/vi/H5v3kku4y6Q/mqdefault.jpg", "H5v3kku4y6Q"],
+  ["Stay", "The Kid LAROI, Justin Bieber", "F*ck Love 3+", 141_000, "https://i.ytimg.com/vi/kTJczUoc26U/mqdefault.jpg", "kTJczUoc26U"],
 ];
 
 const DEMO_LRC: LrcLine[] = [
@@ -367,7 +362,6 @@ const demoTracks = (remote: boolean, base: string): PlaylistTrack[] =>
 const mockPlaylistStore: MockPlaylistFile[] = [
   { file: { name: "Favorites", path: "/demo/favorites.m3u8" }, tracks: demoTracks(false, "/demo") },
 ];
-let mockImportSeq = 0;
 const findPl = (path: string) => mockPlaylistStore.find((m) => m.file.path === path);
 
 /* Browser preview volume: the YouTube-embed backdrop listens here so the
@@ -482,10 +476,51 @@ export const bridge = {
   /** Browser-extension bridge: { tabs, provider host } — null without a bridge.
    * The web preview simulates a connected Spotify tab so the provider picker
    * and the live-dot state demo what the desktop app looks like bridged. */
-  getExtStatus: (): Promise<{ tabs: number; provider: string | null } | null> =>
+  systemAccent: (): Promise<string | null> =>
+    isTauri() ? invokeCmd<string | null>("system_accent") : Promise.resolve(null),
+  getExtStatus: (): Promise<{
+    tabs: number;
+    provider: string | null;
+    providers?: string[];
+  } | null> =>
     isTauri()
       ? invokeCmd("get_ext_status")
-      : Promise.resolve({ tabs: 1, provider: "open.spotify.com" }),
+      : Promise.resolve({
+          tabs: 1,
+          provider: "open.spotify.com",
+          providers: ["open.spotify.com"],
+        }),
+  /** Search and play in the user's open provider tab via Noctbeat Bridge;
+   * false when no tab of that provider is connected. */
+  catalogSearch: (query: string): Promise<CatalogSong[]> =>
+    isTauri()
+      ? invokeCmd<CatalogSong[]>("catalog_search", { query })
+      : fetch(
+          `https://itunes.apple.com/search?media=music&entity=song&limit=30&term=${encodeURIComponent(query)}`,
+        )
+          .then((r) => r.json())
+          .then((j: { results: Record<string, string & number>[] }) =>
+            j.results.map((r) => ({
+              title: r.trackName,
+              artist: r.artistName,
+              album: r.collectionName,
+              durationMs: r.trackTimeMillis,
+              artworkUrl: String(r.artworkUrl100).replace("100x100bb", "300x300bb"),
+            })),
+          )
+          .catch(() =>
+            DEMO_PLAYLIST.map(([title, artist, album, durationMs, artworkUrl]) => ({
+              title,
+              artist,
+              album,
+              durationMs,
+              artworkUrl,
+            })),
+          ),
+  extPlay: (provider: string, query: string): Promise<boolean> =>
+    isTauri()
+      ? invokeCmd<boolean>("ext_play", { provider, query })
+      : Promise.resolve(provider === "spotify"),
   mediaControl: (cmd: Control) => {
     if (isTauri()) return invokeCmd<null>("media_control", { cmd });
     mock.control(cmd);
@@ -643,60 +678,12 @@ export const bridge = {
     emitMock("queue", mockQueueState());
     return Promise.resolve(null);
   },
-  providerStatus: () =>
-    isTauri()
-      ? invokeCmd<boolean>("provider_status")
-      : /* preview simulates a connected provider so URL imports and the
-         * live picker state are reachable */
-        Promise.resolve(true),
-  providerSearch: (source: string, query: string): Promise<RemoteTrack[]> =>
-    isTauri()
-      ? invokeCmd<RemoteTrack[]>("provider_search", { source, query })
-      : Promise.resolve(
-          DEMO_PLAYLIST.slice(0, 3).map(([title, artist, , durationMs, artworkUrl], i) => ({
-            id: `demo-${i}`,
-            source,
-            title,
-            artist,
-            durationMs,
-            url: "",
-            artworkUrl,
-          })),
-        ),
-  providerPlay: (track: RemoteTrack) =>
-    isTauri()
-      ? invokeCmd<QueueItem>("provider_play", { track })
-      : Promise.resolve({
-          track: {
-            id: track.id,
-            title: track.title,
-            artist: track.artist,
-            album: "",
-            artworkUrl: track.artworkUrl,
-            durationMs: track.durationMs,
-          },
-          path: `/demo/${track.id}.mp3`,
-        }),
-  providerEnqueue: (track: RemoteTrack) =>
-    isTauri()
-      ? invokeCmd<QueueItem>("provider_enqueue", { track })
-      : Promise.resolve({
-          track: {
-            id: track.id,
-            title: track.title,
-            artist: track.artist,
-            album: "",
-            artworkUrl: track.artworkUrl,
-            durationMs: track.durationMs,
-          },
-          path: `/demo/${track.id}.mp3`,
-        }),
   resolveVideo: (artist: string, title: string): Promise<string | null> =>
     isTauri()
-      ? invokeCmd<string | null>("resolve_video", { artist, title }).catch(() => null)
+      ? invokeCmd<string | null>("ext_video", { artist, title }).catch(() => null)
       : /* demo preview only: the real official video as a YouTube embed so
-         * the videoclip backdrop plays audio + video outside Tauri; the real
-         * app resolves a stream via yt-dlp. */
+         * the videoclip backdrop plays audio + video outside Tauri; the app
+         * embeds the video playing in the user's YouTube tab, muted. */
         Promise.resolve(
           (() => {
             const hit = DEMO_PLAYLIST.find(([t, a]) => t === title && a === artist);
@@ -828,25 +815,6 @@ export const bridge = {
     isTauri()
       ? invokeCmd<ImportResult>("import_playlist", { path })
       : Promise.resolve({ imported: 0, remote: 0, missing: 0 }),
-  importPlaylistUrl: (url: string): Promise<PlaylistUrlResult> => {
-    if (isTauri()) return invokeCmd<PlaylistUrlResult>("import_playlist_url", { url });
-    /* Web preview: accept the URL and simulate a connected provider — a
-     * Spotify link imports a playlist whose tracks join the queue and
-     * appear under Playlists, each flagged remote. */
-    const isSpotify = /open\.spotify\.com|spotify:/i.test(url);
-    const slug = url.split("/").pop()?.split("?")[0] ?? "";
-    const title = isSpotify
-      ? "Spotify — Liked mix"
-      : slug && /^[\w-]{3,}$/.test(slug) && !/^\d+$/.test(slug)
-        ? decodeURIComponent(slug).replace(/[-_]+/g, " ")
-        : "Imported mix";
-    const path = `/demo/import-${++mockImportSeq}.m3u8`;
-    const tracks = demoTracks(true, path.replace(/\.m3u8$/, ""));
-    mockPlaylistStore.push({ file: { name: title, path }, tracks });
-    mock.playlist = [...mock.playlist, ...DEMO_PLAYLIST];
-    emitMock("queue", mockQueueState());
-    return Promise.resolve({ title, imported: tracks.length });
-  },
   /** Write the queue as an .m3u8 in the music folder; returns the path. */
   exportPlaylist: (name: string): Promise<ExportResult> =>
     isTauri()

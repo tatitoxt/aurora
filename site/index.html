@@ -26,9 +26,9 @@
       </p>
       <div class="hero__cta">
         <a class="btn btn--primary" id="buy-link" href="#" data-i18n="buy">Buy once</a>
-        <a class="btn" href="#features" data-i18n="features">See what it does</a>
+        <a class="btn" href="#download" data-i18n="dlNav">Download</a>
       </div>
-      <p class="hero__note" data-i18n="heroNote">macOS · Windows · Linux — one-time license, yours forever.</p>
+      <p class="hero__note" data-i18n="heroNote">macOS · Windows — one-time license, yours forever.</p>
     </header>
 
     <section id="features" class="grid">
@@ -46,7 +46,7 @@
       </article>
       <article class="card">
         <h2 data-i18n="f4t">Your library, all sources</h2>
-        <p data-i18n="f4b">Local files, YouTube and SoundCloud search, plus whatever plays in your browser via a tiny extension — one queue for everything.</p>
+        <p data-i18n="f4b">Local files, plus Spotify-style search that plays in your own YouTube, Spotify or SoundCloud tab through a tiny extension.</p>
       </article>
       <article class="card">
         <h2 data-i18n="f5t">Artists, albums, likes</h2>
@@ -54,7 +54,7 @@
       </article>
       <article class="card">
         <h2 data-i18n="f6t">Playlists &amp; queue</h2>
-        <p data-i18n="f6b">Save the queue as .m3u8, rename and delete playlists, reorder or drop tracks mid-play — remote tracks resolve only when they play.</p>
+        <p data-i18n="f6b">Save the queue as .m3u8, rename and delete playlists, reorder or drop tracks mid-play.</p>
       </article>
       <article class="card">
         <h2 data-i18n="f7t">Keys, tray, desktop</h2>
@@ -82,10 +82,22 @@
       </article>
     </section>
 
+    <section id="download" class="ext dl">
+      <h2 data-i18n="dlTitle">Download</h2>
+      <div class="hero__cta">
+        <a class="btn btn--primary" id="dl-win" href="#" data-i18n="dlWin">Download for Windows</a>
+        <a class="btn btn--primary" id="dl-mac" href="#" data-i18n="dlMac">Download for Mac</a>
+      </div>
+      <p data-i18n="dlWhy">Noctbeat isn't signed with an Apple or Microsoft developer certificate yet, so your system may warn that the app is from an unidentified developer. The app is the same; only the certificate is missing.</p>
+      <ol class="ext__steps">
+        <li data-i18n="dlMacS">Mac: open the .dmg, drag Noctbeat to Applications, then right-click the app → Open → Open.</li>
+        <li data-i18n="dlWinS">Windows: run the installer; if SmartScreen appears, click More info → Run anyway.</li>
+      </ol>
+    </section>
     <section id="extension" class="ext">
       <h2 data-i18n="extTitle">One extension, every service</h2>
       <p data-i18n="extBody">
-        No accounts to connect, no API keys: install the tiny browser extension once and Noctbeat sees whatever plays in a tab — YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music.
+        Your account, your service: install the tiny browser extension once and Noctbeat follows and controls whatever plays in a tab — YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music.
       </p>
       <ol class="ext__steps">
         <li data-i18n="extS1">Open chrome://extensions and enable Developer mode.</li>
@@ -109,7 +121,15 @@
             "A glass HUD pinned above every app, synced karaoke lyrics and a fullscreen stage with nine looks.",
           buy: "Buy once",
           features: "See what it does",
-          heroNote: "macOS · Windows · Linux — one-time license, yours forever.",
+          dlNav: "Download",
+          dlTitle: "Download",
+          dlWin: "Download for Windows",
+          dlMac: "Download for Mac",
+          dlWhy:
+            "Noctbeat isn't signed with an Apple or Microsoft developer certificate yet, so your system may warn that the app is from an unidentified developer. The app is the same; only the certificate is missing.",
+          dlMacS: "Mac: open the .dmg, drag Noctbeat to Applications, then right-click the app → Open → Open.",
+          dlWinS: "Windows: run the installer; if SmartScreen appears, click More info → Run anyway.",
+          heroNote: "macOS · Windows — one-time license, yours forever.",
           f1t: "Floating HUD, always on top",
           f1b: "A draggable, resizable glass panel above every window: your queue, transport and artwork — one click from a big now-playing view.",
           f2t: "Fullscreen stage",
@@ -117,11 +137,11 @@
           f3t: "Karaoke lyrics + video",
           f3b: "Scrolling lines or word-by-word karaoke, with the music video playing sharp behind the lyrics.",
           f4t: "Your library, all sources",
-          f4b: "Local files, YouTube and SoundCloud search, plus whatever plays in your browser via a tiny extension — one queue for everything.",
+          f4b: "Local files, plus Spotify-style search that plays in your own YouTube, Spotify or SoundCloud tab through a tiny extension.",
           f5t: "Artists, albums, likes",
           f5b: "A hero page per artist with popular tracks and albums, a full album grid, and a persistent Liked list for your hearts.",
           f6t: "Playlists & queue",
-          f6b: "Save the queue as .m3u8, rename and delete playlists, reorder or drop tracks mid-play — remote tracks resolve only when they play.",
+          f6b: "Save the queue as .m3u8, rename and delete playlists, reorder or drop tracks mid-play.",
           f7t: "Keys, tray, desktop",
           f7b: "Global media keys on Windows/macOS and MPRIS on Linux, tray transport controls with a live cover icon, now-playing notifications.",
           f8t: "Sound shaping",
@@ -136,7 +156,7 @@
           f12b: "Built on Tauri with a small Rust core — low CPU, low memory, no Electron weight.",
           extTitle: "One extension, every service",
           extBody:
-            "No accounts to connect, no API keys: install the tiny browser extension once and Noctbeat sees whatever plays in a tab — YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music.",
+            "Your account, your service: install the tiny browser extension once and Noctbeat follows and controls whatever plays in a tab — YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music.",
           extS1: "Open chrome://extensions and enable Developer mode.",
           extS2: "Load unpacked → choose the extension/ folder.",
           extS3: "Play music in any tab — it appears in Noctbeat instantly.",
@@ -149,7 +169,15 @@
             "Un HUD de vidrio anclado sobre cada app, letras karaoke sincronizadas y un escenario a pantalla completa con nueve looks.",
           buy: "Comprá una vez",
           features: "Mirá qué hace",
-          heroNote: "macOS · Windows · Linux — licencia única, tuya para siempre.",
+          dlNav: "Descargar",
+          dlTitle: "Descargar",
+          dlWin: "Descargar para Windows",
+          dlMac: "Descargar para Mac",
+          dlWhy:
+            "Noctbeat todavía no está firmada con un certificado de desarrollador de Apple o Microsoft, así que tu sistema puede avisar que la app es de un desarrollador no identificado. La app es la misma; solo falta el certificado.",
+          dlMacS: "Mac: abrí el .dmg, arrastrá Noctbeat a Aplicaciones y después hacé clic derecho en la app → Abrir → Abrir.",
+          dlWinS: "Windows: ejecutá el instalador; si aparece SmartScreen, tocá Más información → Ejecutar de todas formas.",
+          heroNote: "macOS · Windows — licencia única, tuya para siempre.",
           f1t: "HUD flotante, siempre arriba",
           f1b: "Un panel de vidrio movible y redimensionable sobre cada ventana: tu cola, transporte y carátula — a un clic de la vista grande de reproducción.",
           f2t: "Escenario fullscreen",
@@ -157,11 +185,11 @@
           f3t: "Letras karaoke + video",
           f3b: "Líneas que se desplazan o karaoke palabra por palabra, con el videoclip nítido de fondo.",
           f4t: "Tu biblioteca, todas las fuentes",
-          f4b: "Archivos locales, búsqueda en YouTube y SoundCloud, más lo que suene en tu navegador con una extensión mínima — una sola cola para todo.",
+          f4b: "Archivos locales, más un buscador estilo Spotify que reproduce en tu propia pestaña de YouTube, Spotify o SoundCloud con una extensión mínima.",
           f5t: "Artistas, álbumes, likes",
           f5b: "Una página por artista con temas populares y álbumes, una grilla completa de álbumes y tu lista de Likes persistente.",
           f6t: "Playlists y cola",
-          f6b: "Guardá la cola como .m3u8, renombrá y borrá playlists, reordená o sacá temas en vivo — los remotos se resuelven recién al sonar.",
+          f6b: "Guardá la cola como .m3u8, renombrá y borrá playlists, reordená o sacá temas en vivo.",
           f7t: "Teclas, tray, escritorio",
           f7b: "Teclas multimedia globales en Windows/macOS y MPRIS en Linux, controles en el tray con ícono vivo de la carátula, notificaciones.",
           f8t: "Moldeá el sonido",
@@ -176,7 +204,7 @@
           f12b: "Hecho con Tauri y un núcleo Rust pequeño — bajo CPU, baja memoria, sin peso de Electron.",
           extTitle: "Una extensión, todos los servicios",
           extBody:
-            "Sin cuentas que conectar, sin claves: instalás la extensión una vez y Noctbeat ve lo que suene en cualquier pestaña — YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music.",
+            "Tu cuenta, tu servicio: instalás la extensión una vez y Noctbeat sigue y controla lo que suene en cualquier pestaña — YouTube Music, Spotify, SoundCloud, Apple Music, Tidal, Amazon Music.",
           extS1: "Abrí chrome://extensions y activá el modo Desarrollador.",
           extS2: "Load unpacked → elegí la carpeta extension/.",
           extS3: "Reproducí música en cualquier pestaña — aparece al instante en Noctbeat.",
@@ -192,6 +220,8 @@
           .forEach((el) => (el.textContent = I18N[lang][el.dataset.i18n] ?? el.textContent));
         document.getElementById("lang-toggle").textContent = lang === "en" ? "ES" : "EN";
         document.getElementById("buy-link").href = BRANDING.checkoutUrl;
+        document.getElementById("dl-win").href = `${BRANDING.downloadBase}/Noctbeat-Windows-Setup.exe`;
+        document.getElementById("dl-mac").href = `${BRANDING.downloadBase}/Noctbeat-macOS.dmg`;
         document.title =
           lang === "en"
             ? `${BRANDING.productName} — your music, everywhere you look`

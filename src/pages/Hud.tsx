@@ -105,7 +105,7 @@ export default function Hud() {
   }, [trackKey]);
   useEffect(() => {
     setVideoUrl(null);
-    // Only the video mode resolves the clip; art mode never spins yt-dlp.
+    // Only the video mode looks up the clip.
     if (mediaMode !== "video" || !trackKey || !track) return;
     const req = ++videoReq.current;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
@@ -219,16 +219,16 @@ export default function Hud() {
           ) : null}
           <button
             className="hud__artswap"
-            aria-label="Swap art / videoclip"
-            title="Swap art / videoclip"
+            aria-label={t("hud.swapArt")}
+            title={t("hud.swapArt")}
             onClick={swapMedia}
           >
             {mediaMode === "art" ? <Monitor size={13} /> : <Image size={13} />}
           </button>
           <button
             className={`hud__lyrswap ${lyricsOn ? "on" : ""}`}
-            aria-label="Lyrics overlay"
-            title="Lyrics overlay"
+            aria-label={t("hud.lyrics")}
+            title={t("hud.lyrics")}
             onClick={toggleLyrics}
           >
             <Subtitles size={13} weight={lyricsOn ? "fill" : "regular"} />
@@ -246,23 +246,23 @@ export default function Hud() {
         <div className="hud__pill">
           <button
             className={`hctl ${queueOpen ? "hctl--on" : ""}`}
-            aria-label="Queue"
-            title="Queue"
+            aria-label={t("lib.queue")}
+            title={t("lib.queue")}
             onClick={() => setQueueOpen((v) => !v)}
           >
             <ListBullets size={15} />
           </button>
-          <button className="hctl" aria-label="Previous" onClick={() => bridge.mediaControl("previous")}>
+          <button className="hctl" aria-label={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={15} />
           </button>
           <button
             className="hctl hctl--play"
-            aria-label={playing ? "Pause" : "Play"}
+            aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
             onClick={() => bridge.mediaControl("play-pause")}
           >
             {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
           </button>
-          <button className="hctl" aria-label="Next" onClick={() => bridge.mediaControl("next")}>
+          <button className="hctl" aria-label={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={15} />
           </button>
         </div>
@@ -284,10 +284,10 @@ export default function Hud() {
           >
             <PushPin weight={pinned ? "fill" : "regular"} size={14} />
           </button>
-          <button className="hctl" aria-label="Open player" title="Open player" onClick={() => void bridge.showPlayer()}>
+          <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />
           </button>
-          <button className="hctl" aria-label="Hide HUD" title="Hide HUD" onClick={close}>
+          <button className="hctl" aria-label={t("hud.hide")} title={t("hud.hide")} onClick={close}>
             <X size={14} />
           </button>
         </div>

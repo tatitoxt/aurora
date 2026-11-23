@@ -2,6 +2,7 @@ import { useT } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { artSrc, bridge, type QueueItem } from "../bridge";
+import ArtBackdrop from "../ArtBackdrop";
 
 interface AlbumGroup {
   artist: string;
@@ -63,13 +64,13 @@ export default function Albums() {
 
   return (
     <div className="glass art">
+      <ArtBackdrop />
       <div className="art__hero">
         <div className="art__heroScrim" />
         <Link to="/library" className="art__back">
           ← Library
         </Link>
         <div className="art__heroBody">
-          <span className="art__kicker">Collection</span>
           <h1 className="art__name">{t("lib.albums")}</h1>
           <span className="art__meta">
             {stats.albums} {stats.albums === 1 ? "album" : "albums"} · {stats.tracks}{" "}

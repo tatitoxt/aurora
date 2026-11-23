@@ -54,6 +54,21 @@ jobs:
           releaseName: 'Noctbeat ${{ github.ref_name }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Stable asset names so the landing page can link
+      # releases/latest/download/<name> directly.
+      - name: Upload stable-named installers
+        if: github.ref_type == 'tag' && matrix.target != 'linux'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ matrix.target }}" = windows ]; then
+            src=$(find . -path '*/bundle/nsis/*-setup.exe' | head -1); dst=Noctbeat-Windows-Setup.exe
+          else
+            src=$(find . -path '*/bundle/dmg/*.dmg' | head -1); dst=Noctbeat-macOS.dmg
+          fi
+          cp "$src" "$dst"
+          gh release upload "${{ github.ref_name }}" "$dst" --clobber
       # Non-tag builds (workflow_dispatch, PRs): keep the raw bundles as
       # workflow artifacts since no release is created for them.
       - uses: actions/upload-artifact@v4

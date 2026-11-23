@@ -15,5 +15,6 @@ window.BRANDING = {
   "licenseVendor": "lemonsqueezy",
   "licenseProductId": 0,
   "copyright": "Copyright (c) 2026 Fausto Pastura",
-  "discordClientId": ""
+  "discordClientId": "",
+  "downloadBase": "https://github.com/tatitoxt/aurora/releases/latest/download"
 };

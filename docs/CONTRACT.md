@@ -94,7 +94,6 @@ pub struct Settings {
     pub hud_always_on_top: bool,   // pin HUD above other windows, default true
     pub hud_position: Option<(i32, i32)>,  // persisted drag position
     pub music_dir: Option<String>,
-    pub ytdlp_path: Option<String>,
     pub theme: ThemeSettings,              // preset name + accent overrides
     pub lyrics_mode: String,               // "lines" (default) | "karaoke"
     pub video_backdrop: bool,              // karaoke plays the music video, default true
@@ -172,9 +171,6 @@ All via `invoke`, camelCase names:
 | `playQueueIndex`       | `{ index: number }`                    | `null`                        |
 | `clearQueue`           | —                                      | `null`                        |
 | `scanLibrary`          | `{ dir?: string }`                     | `QueueItem[]`                 |
-| `providerStatus`       | —                                      | `boolean` (yt-dlp detected)   |
-| `providerSearch`       | `{ source, query }`                    | `RemoteTrack[]`               |
-| `providerPlay`         | `{ track: RemoteTrack }`               | `QueueItem`                   |
 | `listOutputs`          | —                                      | `string[]` (sink names)       |
 | `setOutputDevice`      | `{ name: string \| null }`              | `null` (swaps sink live)      |
 | `setEq`                | `{ preset, bands: number[] }`          | `null` (retunes live)         |
@@ -224,20 +220,14 @@ pnpm exec playwright test        # site e2e (serves site/ statically)
 cargo tauri build                # desktop bundle (needs webkit2gtk on Linux)
 ```
 
-## providers module (noctbeat-core)
+## Provider playback
 
-`providers` wraps an external `yt-dlp` binary: `search` maps
-`<source>search<N>:` result JSON to `RemoteTrack`, `download` fetches the
-best decodable audio (m4a/AAC preferred — rodio has no opus codec) into the
-app cache, and `provider_play` enqueues the file like a local track. The
-binary is optional (`settings.ytdlp_path` or PATH); commands error cleanly
-when it is absent.
-
-`resolve_video(artist, title)` additionally maps a track to a direct video
-stream URL (`ytsearch1:` + `-g`, progressive mp4 <=480p preferred) for the
-karaoke backdrop; the player `<video>` renders it muted and blurred in sync
-with the track position, and falls back to blurred artwork when yt-dlp is
-missing or no video resolves.
+Noctbeat never downloads or extracts provider streams. Search results play
+in the user's own provider tab (Spotify, YouTube, YouTube Music, SoundCloud,
+Apple Music, Tidal, Amazon Music) through the Noctbeat Bridge extension
+(`ext_play`). `ext_video` returns the official YouTube embed (muted) of the
+video playing in a YouTube tab for the stage backdrop; otherwise the stage
+falls back to artwork.
 
 Audio output devices are enumerated via cpal (`list_outputs`); `set_output_device`
 swaps the rodio sink live and `LocalPlayer::reopen_current` re-opens the track

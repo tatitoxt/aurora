@@ -1,4 +1,4 @@
-import type { NowPlaying, QueueItem, RemoteTrack } from "./bridge";
+import type { NowPlaying, QueueItem } from "./bridge";
 
 /** A liked track, with enough metadata to list it and replay it later. */
 export interface FavEntry {
@@ -129,28 +129,6 @@ export function remoteParts(trackId: string): { source: string; id: string } | n
   return m ? { source: m[1], id: m[2] } : null;
 }
 
-/** Rebuild a RemoteTrack for replaying a liked stream (id → provider URL). */
-export function toRemoteTrack(e: FavEntry): RemoteTrack | null {
-  const p = remoteParts(e.trackId);
-  if (!p) return null;
-  const url =
-    p.source === "soundcloud"
-      ? // Numeric ids aren't permalink paths; yt-dlp resolves the API form.
-        /^\d+$/.test(p.id)
-        ? `https://api.soundcloud.com/tracks/${p.id}`
-        : `https://soundcloud.com/${p.id}`
-      : `https://www.youtube.com/watch?v=${p.id}`;
-  return {
-    id: p.id,
-    source: p.source,
-    title: e.title,
-    artist: e.artist,
-    durationMs: e.durationMs,
-    url,
-    artworkUrl: e.artworkUrl,
-  };
-}
-
 /** True when `trackId` is a filesystem path (local files store it as id). */
 export function isLocalPath(trackId: string): boolean {
   return (
@@ -162,12 +140,11 @@ export function isLocalPath(trackId: string): boolean {
 
 /** How a liked entry can be replayed, by the kind of id it carries. */
 export type FavReplay =
-  | { kind: "provider"; track: RemoteTrack }
   | { kind: "local"; item: QueueItem }
   | { kind: "external"; query: string };
 
 /**
- * - `provider:id` → replay the stream through `providerPlay`.
+ * - `provider:id` (older in-app streams) → a provider search query.
  * - liked under the in-app player (`playerSource` "local"), or any
  *   absolute path → replay through the local queue (paths can be
  *   relative when the music folder is).
@@ -175,9 +152,7 @@ export type FavReplay =
  *   → a provider search query, since the file/stream isn't ours.
  */
 export function replayFor(e: FavEntry): FavReplay | null {
-  const remote = toRemoteTrack(e);
-  if (remote) return { kind: "provider", track: remote };
-  if (e.playerSource === "local" || isLocalPath(e.trackId)) {
+  if (!remoteParts(e.trackId) && (e.playerSource === "local" || isLocalPath(e.trackId))) {
     return { kind: "local", item: toQueueItem(e) };
   }
   const query = [e.artist, e.title].filter((s) => s !== "").join(" ");

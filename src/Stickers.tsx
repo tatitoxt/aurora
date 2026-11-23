@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useT } from "./i18n";
 import {
   AirplaneTilt,
   Butterfly,
@@ -42,6 +43,7 @@ const GLYPHS: Record<string, React.ReactNode> = {
 /** The absolute layer of placed stickers inside the player card. Drag to
  * move, right-click to remove. Positions are fractions of the card. */
 export function StickerLayer() {
+  const t = useT();
   const [list, setList] = useState<Sticker[]>(loadStickers);
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => subscribeStickers(() => setList(loadStickers())), []);
@@ -82,7 +84,7 @@ export function StickerLayer() {
           className="sticker"
           role="button"
           tabIndex={0}
-          aria-label="Sticker — drag to move, right-click or Delete to remove"
+          aria-label={t("stk.hint")}
           style={{
             left: `${s.x * 100}%`,
             top: `${s.y * 100}%`,

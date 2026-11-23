@@ -9,7 +9,6 @@ import {
   replayFor,
   toggleFav,
   toQueueItem,
-  toRemoteTrack,
   type FavEntry,
 } from "../favs";
 import type { NowPlaying } from "../bridge";
@@ -94,26 +93,8 @@ describe("favs", () => {
     expect(remoteParts("/music/a.mp3")).toBeNull();
   });
 
-  it("rebuilds a playable RemoteTrack from a liked stream", () => {
-    const rt = toRemoteTrack({ ...entry, trackId: "youtube:abc123" });
-    expect(rt).toMatchObject({
-      id: "abc123",
-      source: "youtube",
-      url: "https://www.youtube.com/watch?v=abc123",
-      title: "Song",
-    });
-    expect(toRemoteTrack(entry)).toBeNull();
-  });
-
-  it("routes SoundCloud numeric ids through the API endpoint", () => {
-    const rt = toRemoteTrack({ ...entry, trackId: "soundcloud:62986583" });
-    expect(rt?.url).toBe("https://api.soundcloud.com/tracks/62986583");
-    const slug = toRemoteTrack({ ...entry, trackId: "soundcloud:user/song" });
-    expect(slug?.url).toBe("https://soundcloud.com/user/song");
-  });
-
   it("classifies replay by id kind and like-time source", () => {
-    expect(replayFor({ ...entry, trackId: "youtube:abc" })?.kind).toBe("provider");
+    expect(replayFor({ ...entry, trackId: "youtube:abc" })?.kind).toBe("external");
     expect(replayFor(entry)?.kind).toBe("local");
     expect(replayFor({ ...entry, trackId: "C:\\music\\a.mp3" })?.kind).toBe("local");
     // Relative ids under the local player stay local (relative music dir).

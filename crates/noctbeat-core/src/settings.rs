@@ -71,23 +71,24 @@ pub struct Settings {
     /// Folder the local library scans on demand.
     #[serde(default)]
     pub music_dir: Option<String>,
-    /// Explicit yt-dlp binary path; PATH is searched when unset.
-    #[serde(default)]
-    pub ytdlp_path: Option<String>,
     /// Visual theme preset + accent overrides.
     #[serde(default)]
     pub theme: ThemeSettings,
     /// Lyrics presentation: "lines" (scrolling list) or "karaoke" (word fill).
     #[serde(default = "default_lyrics_mode")]
     pub lyrics_mode: String,
-    /// Karaoke backdrop plays the track's music video behind the lyrics
-    /// (resolved via yt-dlp); false keeps the blurred artwork backdrop.
+    /// Stage backdrop plays the track's official music video when one is
+    /// known (YouTube tab via the Bridge); false keeps the artwork backdrop.
     #[serde(default = "default_true")]
     pub video_backdrop: bool,
     /// Animated "liquid" gradient blobs behind player surfaces, tinted by
     /// the artwork palette; false keeps the static backdrop.
     #[serde(default = "default_true")]
     pub ambient_bg: bool,
+    /// Stage draws no backdrop of its own, so the desktop wallpaper shows
+    /// through the transparent window (macOS/Windows; Linux stays opaque).
+    #[serde(default)]
+    pub transparent_bg: bool,
     /// Glass panel opacity 0-100; lower lets more of the desktop show through.
     #[serde(default = "default_glass_opacity")]
     pub glass_opacity: u32,
@@ -187,11 +188,11 @@ impl Default for Settings {
             hud_always_on_top: true,
             hud_position: None,
             music_dir: None,
-            ytdlp_path: None,
             theme: ThemeSettings::default(),
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
             ambient_bg: true,
+            transparent_bg: false,
             glass_opacity: default_glass_opacity(),
             audio_output: None,
             crossfade_ms: default_crossfade(),

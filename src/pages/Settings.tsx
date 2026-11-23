@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   AppWindow,
@@ -10,6 +10,7 @@ import {
   Waveform,
 } from "@phosphor-icons/react";
 import { branding } from "../branding";
+import { isLinux } from "../lib";
 import { LANG_NAMES, useT, type MsgKey } from "../i18n";
 import { LYRIC_ANIMS } from "../lyricanim";
 import { THEMES, presetVar } from "../themes";
@@ -24,6 +25,7 @@ import {
   type NowPlaying,
   type Settings,
 } from "../bridge";
+import ArtBackdrop from "../ArtBackdrop";
 
 export default function Settings() {
   const t = useT();
@@ -131,6 +133,7 @@ export default function Settings() {
 
   return (
     <div className="glass">
+      <ArtBackdrop />
       <div className="settings">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
@@ -198,7 +201,7 @@ export default function Settings() {
             <span>{t("set.videoBackdrop")}</span>
             <button
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
-              aria-label="Music video backdrop"
+              aria-label={t("set.videoBackdrop")}
               onClick={() => patch({ videoBackdrop: !s.videoBackdrop })}
             />
           </div>
@@ -208,10 +211,21 @@ export default function Settings() {
           <span>{t("set.ambientBg")}</span>
           <button
             className={`toggle ${s.ambientBg ? "on" : ""}`}
-            aria-label="Ambient background"
+            aria-label={t("set.ambientBg")}
             onClick={() => patch({ ambientBg: !s.ambientBg })}
           />
         </div>
+
+        {!isLinux() && (
+          <div className="row">
+            <span>{t("set.transparentBg")}</span>
+            <button
+              className={`toggle ${s.transparentBg ? "on" : ""}`}
+              aria-label={t("set.transparentBg")}
+              onClick={() => patch({ transparentBg: !s.transparentBg })}
+            />
+          </div>
+        )}
 
         <div className="field">
           <span>{t("set.glassOpacity")}</span>
@@ -246,9 +260,12 @@ export default function Settings() {
               >
                 <span
                   className="themechip__sw"
-                  style={{
-                    background: `linear-gradient(135deg, ${presetVar(th.name, "--bg")} 20%, ${presetVar(th.name, "--accent2")} 55%, ${presetVar(th.name, "--panel")})`,
-                  }}
+                  style={
+                    {
+                      background: presetVar(th.name, "--bg"),
+                      "--sw-tone": presetVar(th.name, "--accent2"),
+                    } as CSSProperties
+                  }
                 />
                 <span className="themechip__nm">{th.label}</span>
               </button>
@@ -277,7 +294,7 @@ export default function Settings() {
           <span>{t("set.dynAccent")}</span>
           <button
             className={`toggle ${s.theme.dynamic ? "on" : ""}`}
-            aria-label="Accent follows artwork"
+            aria-label={t("set.dynAccent")}
             onClick={() => patch({ theme: { ...s.theme, dynamic: !s.theme.dynamic } })}
           />
         </div>
@@ -476,7 +493,7 @@ export default function Settings() {
           <span>{t("set.resumeOnLaunch")}</span>
           <button
             className={`toggle ${s.resumeOnLaunch ? "on" : ""}`}
-            aria-label="Resume playback on launch"
+            aria-label={t("set.resumeOnLaunch")}
             onClick={() => patch({ resumeOnLaunch: !s.resumeOnLaunch })}
           />
         </div>
@@ -484,7 +501,7 @@ export default function Settings() {
           <span>{t("set.notifyTrack")}</span>
           <button
             className={`toggle ${s.notifyTrackChange ? "on" : ""}`}
-            aria-label="Notify when the track changes"
+            aria-label={t("set.notifyTrack")}
             onClick={() => patch({ notifyTrackChange: !s.notifyTrackChange })}
           />
         </div>
@@ -493,7 +510,7 @@ export default function Settings() {
             <span>{t("set.discordRpc")}</span>
             <button
               className={`toggle ${s.discordRpc ? "on" : ""}`}
-              aria-label="Discord Rich Presence"
+              aria-label={t("set.discordRpc")}
               onClick={() => patch({ discordRpc: !s.discordRpc })}
             />
           </div>
@@ -601,16 +618,6 @@ export default function Settings() {
           )}
         </div>
 
-        <div className="field">
-          <span>{t("set.ytdlpPath")}</span>
-          <input
-            type="text"
-            placeholder="/usr/local/bin/yt-dlp"
-            value={s.ytdlpPath ?? ""}
-            onChange={(e) => patch({ ytdlpPath: e.target.value || null })}
-          />
-        </div>
-
         </div>
         </section>
 
@@ -624,7 +631,7 @@ export default function Settings() {
           <span>{t("set.liveTrayIcon")}</span>
           <button
             className={`toggle ${s.trayLiveIcon ? "on" : ""}`}
-            aria-label="Live tray icon"
+            aria-label={t("set.liveTrayIcon")}
             onClick={() => patch({ trayLiveIcon: !s.trayLiveIcon })}
           />
         </div>
@@ -632,7 +639,7 @@ export default function Settings() {
           <span>{t("set.floatingHud")}</span>
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
-            aria-label="Floating HUD"
+            aria-label={t("set.floatingHud")}
             onClick={() => patch({ hudEnabled: !s.hudEnabled })}
           />
         </div>
@@ -640,7 +647,7 @@ export default function Settings() {
           <span>{t("set.hudOnTop")}</span>
           <button
             className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
-            aria-label="Keep HUD on top"
+            aria-label={t("set.hudOnTop")}
             onClick={() => patch({ hudAlwaysOnTop: !s.hudAlwaysOnTop })}
           />
         </div>
@@ -648,7 +655,7 @@ export default function Settings() {
           <span>{t("set.desktopLyrics")}</span>
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
-            aria-label="Desktop lyrics overlay"
+            aria-label={t("set.desktopLyrics")}
             onClick={() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled })}
           />
         </div>

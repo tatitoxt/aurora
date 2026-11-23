@@ -6,20 +6,22 @@ import {
   type NowPlaying,
   type PlaylistFile,
   type PlaylistTrack,
+  type QueueItem,
   type QueueState,
-  type RemoteTrack,
 } from "../bridge";
 import { subscribe } from "../bridge";
 import {
+  favKeys,
   listable,
   loadFavs,
   remoteParts,
   replayFor,
   subscribeFavs,
+  toggleFav,
   toQueueItem,
   type FavEntry,
 } from "../favs";
-import { formatTime } from "../lib";
+import { extProviderId, formatTime } from "../lib";
 import {
   Heart,
   ListBullets,
@@ -32,6 +34,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { artSrc } from "../bridge";
+import ArtBackdrop from "../ArtBackdrop";
 
 /** 32px rounded row cover: real artwork when the file has art, else a
  * soft glass disc with an icon. */
@@ -56,26 +59,18 @@ function LibThumb({ url, icon }: { url?: string; icon?: React.ReactNode }) {
   );
 }
 
-const SOURCES = [
-  { id: "youtube", label: "YouTube" },
-  { id: "soundcloud", label: "SoundCloud" },
-];
+/** Provider tabs tried, in order, to replay a liked song. */
+const TAB_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
 
 export default function Library() {
   const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
+  const [tab, setTab] = useState<"queue" | "liked" | "playlists">("queue");
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
 
-  const [ytReady, setYtReady] = useState(false);
-  const [source, setSource] = useState("youtube");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<RemoteTrack[]>([]);
-  const [searching, setSearching] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [importNote, setImportNote] = useState("");
-  const [plUrl, setPlUrl] = useState("");
-  const [importingUrl, setImportingUrl] = useState(false);
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -92,7 +87,6 @@ export default function Library() {
   useEffect(() => {
     refresh();
     refreshPlaylists();
-    void bridge.providerStatus().then(setYtReady);
     const off = subscribe<NowPlaying>("now-playing", () => refresh());
     const offNp = subscribe<NowPlaying>("now-playing", setNp);
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
@@ -104,34 +98,36 @@ export default function Library() {
   }, []);
 
   const liked = listable(favs);
+  const favSet = favKeys(favs);
+  const likeQueued = (item: QueueItem) =>
+    setFavs((prev) =>
+      toggleFav(prev, {
+        key: `local:${item.track.id}`,
+        trackId: item.track.id,
+        playerSource: "local",
+        title: item.track.title,
+        artist: item.track.artist,
+        artworkUrl: item.track.artworkUrl ?? "",
+        durationMs: item.track.durationMs,
+      }),
+    );
   // Local likes replay as one queue so next/prev flows through the list;
-  // provider likes replay the stream directly (as tapping a search
-  // result); likes of external players replay via a provider search.
+  // everything else plays in the user's connected provider tab.
   const playLiked = (entry: FavEntry) => {
     setError("");
     const replay = replayFor(entry);
     if (!replay) return;
-    if (replay.kind === "provider") {
-      setDownloading(entry.key);
-      bridge
-        .providerPlay(replay.track)
-        .then(() => refresh())
-        .catch((e) => setError(String(e)))
-        .finally(() => setDownloading(null));
-      return;
-    }
     if (replay.kind === "external") {
       setDownloading(entry.key);
       bridge
-        .providerSearch(source, replay.query)
-        .then((rs) => {
-          const top = rs[0];
-          return top
-            ? bridge.providerPlay(top)
-            : Promise.reject("No matches found");
+        .getExtStatus()
+        .then((st) => {
+          const ids = new Set((st?.providers ?? []).map(extProviderId));
+          const prov = TAB_ORDER.find((p) => ids.has(p));
+          return prov ? bridge.extPlay(prov, replay.query) : false;
         })
-        .then(() => refresh())
-        .catch((e) => setError(String(e)))
+        .then((ok) => (ok ? refresh() : Promise.reject()))
+        .catch(() => setError(t("lib.openTab")))
         .finally(() => setDownloading(null));
       return;
     }
@@ -154,38 +150,6 @@ export default function Library() {
       .catch((e) => setError(String(e)));
   };
 
-  const search = () => {
-    if (!query.trim()) return;
-    setSearching(true);
-    setError("");
-    bridge
-      .providerSearch(source, query.trim())
-      .then(setResults)
-      .catch((e) => setError(String(e)))
-      .finally(() => setSearching(false));
-  };
-
-  const playRemote = (t: RemoteTrack) => {
-    setDownloading(t.id);
-    setError("");
-    bridge
-      .providerPlay(t)
-      .then(() => refresh())
-      .catch((e) => setError(String(e)))
-      .finally(() => setDownloading(null));
-  };
-
-  const enqueueRemote = (t: RemoteTrack) => {
-    setError("");
-    bridge
-      .providerEnqueue(t)
-      .then(() => {
-        refresh();
-        setImportNote(`Queued “${t.title}”`);
-      })
-      .catch((e) => setError(String(e)));
-  };
-
   const importPlaylist = () => {
     setError("");
     setImportNote("");
@@ -201,24 +165,6 @@ export default function Library() {
         setImportNote(parts.join(" · "));
       })
       .catch((e) => setError(String(e)));
-  };
-
-  const importUrl = () => {
-    const url = plUrl.trim();
-    if (!url) return;
-    setError("");
-    setImportNote("");
-    setImportingUrl(true);
-    void bridge
-      .importPlaylistUrl(url)
-      .then((res) => {
-        setPlUrl("");
-        setImportNote(`"${res.title}" · ${res.imported} tracks queued`);
-        refresh();
-        refreshPlaylists();
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setImportingUrl(false));
   };
 
   const savePlaylist = () => {
@@ -335,10 +281,11 @@ export default function Library() {
 
   return (
     <div className="glass">
-      <div className="settings">
+      <ArtBackdrop />
+      <div className="settings settings--lib">
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
-            <span className="art__kicker">{t("lib.collection")}</span>
+            <span />
             <span className="pagehead__links">
               <Link to="/albums" className="pagehead__link">
                 {t("lib.albums")}
@@ -356,110 +303,44 @@ export default function Library() {
           </span>
         </div>
 
-        <nav className="setnav" aria-label={t("lib.title")}>
-          {[
-            ["stream", "Stream"],
-            ["queue", "Queue"],
-            ["liked", t("lib.liked")],
-            ["playlists", t("lib.playlists")],
-          ].map(([id, label]) => (
+        <div className="libtabs" role="tablist" aria-label={t("lib.title")}>
+          {(
+            [
+              ["queue", t("lib.queue"), queue.items.length],
+              ["liked", t("lib.liked"), liked.length],
+              ["playlists", t("lib.playlists"), playlists.length],
+            ] as const
+          ).map(([id, label, n]) => (
             <button
               key={id}
-              className="setnav__pill"
-              onClick={() =>
-                document
-                  .querySelector(`[data-libsec="${id}"]`)
-                  ?.scrollIntoView({ block: "start", behavior: "smooth" })
-              }
+              role="tab"
+              aria-selected={tab === id}
+              className={tab === id ? "on" : ""}
+              onClick={() => setTab(id)}
             >
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="inrow">
-          <MagnifyingGlass />
-          <input
-            type="text"
-            placeholder={t("lib.search")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && search()}
-          />
-          <button onClick={search} disabled={searching}>
-            {searching ? "…" : "Go"}
-          </button>
-        </div>
-        <div className="lib__toolbar" data-libsec="stream">
-          <span className="lib__kicker">Stream</span>
-          <div className="seg">
-            {SOURCES.map((s) => (
-              <button
-                key={s.id}
-                className={source === s.id ? "on" : ""}
-                onClick={() => setSource(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {!ytReady && (
-          <span className="note">
-            Streaming needs <code style={{whiteSpace:"nowrap"}}>yt-dlp</code> installed (brew or pip).
-          </span>
-        )}
-        <div className="lib">
-          {results.map((trk) => (
-            <button
-              key={`${trk.source}:${trk.id}`}
-              className="lib__row"
-              onClick={() => playRemote(trk)}
-              disabled={downloading !== null}
-            >
-              <LibThumb url={trk.artworkUrl} />
-              <span className="lib__title">
-                {downloading === trk.id ? "⤓ " : ""}
-                {trk.title}
-              </span>
-              <span className="lib__sub">{trk.artist}</span>
-              <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="lib__act"
-                  title={t("lib.addToQueue")}
-                  onClick={() => enqueueRemote(trk)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" && e.key !== " ") return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    enqueueRemote(trk);
-                  }}
-                >
-                  <Plus size={11} />
-                </span>
-                {trk.durationMs ? formatTime(trk.durationMs) : ""}
-              </span>
+              {label}
+              {n > 0 && <em>{n}</em>}
             </button>
           ))}
         </div>
 
+        {importNote && <span className="note">{importNote}</span>}
+        {error && <span className="license-bad">{error}</span>}
+
+        {tab === "queue" && (
+          <>
         <div className="lib__toolbar" data-libsec="queue">
-          <span className="lib__kicker">
-            Queue
-            <em className="lib__count">{queue.items.length}</em>
-          </span>
-          <div className="seg">
-            <button onClick={rescan}>Rescan</button>
-            <button onClick={importPlaylist}>Import</button>
+          <span className="lib__kicker">{t("fs.upNext")}</span>
+          <div className="seg seg--ghost">
+            <button onClick={rescan}>{t("lib.rescan")}</button>
+            <button onClick={importPlaylist}>{t("lib.import")}</button>
             <button
               onClick={() => setSaveOpen((v) => !v)}
               disabled={queue.items.length === 0}
             >
-              Save
+              {t("lib.save")}
             </button>
-            <button onClick={() => void bridge.clearQueue().then(refresh)}>Clear</button>
+            <button onClick={() => void bridge.clearQueue().then(refresh)}>{t("lib.clear")}</button>
           </div>
         </div>
         {saveOpen && (
@@ -467,35 +348,18 @@ export default function Library() {
             <Playlist />
             <input
               type="text"
-              placeholder="Playlist name"
+              placeholder={t("lib.playlistName")}
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && savePlaylist()}
             />
             <button onClick={savePlaylist} disabled={saving}>
-              {saving ? "…" : "Save"}
+              {saving ? "…" : t("lib.save")}
             </button>
           </div>
         )}
-        {ytReady && (
-          <div className="inrow">
-            <Plus />
-            <input
-              type="text"
-              placeholder="Playlist URL"
-              value={plUrl}
-              onChange={(e) => setPlUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && importUrl()}
-            />
-            <button onClick={importUrl} disabled={importingUrl || !plUrl.trim()}>
-              {importingUrl ? "…" : t("lib.add")}
-            </button>
-          </div>
-        )}
-        {importNote && <span className="note">{importNote}</span>}
-        {error && <span className="license-bad">{error}</span>}
         {queue.items.length === 0 && !error && (
-          <span className="note">Set a music folder in settings, then press Rescan.</span>
+          <span className="note">{t("lib.setFolder")}</span>
         )}
         <div className="lib">
           {queue.items.map((item, i) => {
@@ -503,9 +367,20 @@ export default function Library() {
             return (
               <button
                 key={item.path}
-                className={`lib__row ${current ? "lib__row--current" : ""}`}
+                className={`lib__row lib__row--num ${current ? "lib__row--current" : ""}`}
                 onClick={() => void bridge.playQueueIndex(i).then(refresh)}
               >
+                <span className="lib__idx">
+                  {current && playing ? (
+                    <span className="lib__eq" aria-hidden>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  ) : (
+                    i + 1
+                  )}
+                </span>
                 <LibThumb url={item.track.artworkUrl} />
                 <span className="lib__title">{item.track.title}</span>
                 <span className="lib__sub">
@@ -518,22 +393,37 @@ export default function Library() {
                   </Link>
                 </span>
                 <span className="lib__dur">
-                  {current && playing ? (
-                    <span className="lib__eq" aria-hidden>
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                  ) : (
-                    ""
-                  )}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={`lib__act lib__heart ${favSet.has(`local:${item.track.id}`) ? "lib__heart--on" : ""}`}
+                    aria-label={favSet.has(`local:${item.track.id}`) ? t("fs.unlike") : t("fs.like")}
+                    title={favSet.has(`local:${item.track.id}`) ? t("fs.unlike") : t("fs.like")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      likeQueued(item);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      likeQueued(item);
+                    }}
+                  >
+                    <Heart size={12} weight={favSet.has(`local:${item.track.id}`) ? "fill" : "regular"} />
+                  </span>
                   {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
                 </span>
               </button>
             );
           })}
         </div>
-        {liked.length > 0 && (
+          </>
+        )}
+        {tab === "liked" && liked.length === 0 && (
+          <span className="note">{t("lib.likedEmpty")}</span>
+        )}
+        {tab === "liked" && liked.length > 0 && (
           <>
             <button
               className="lib__hero"
@@ -586,7 +476,10 @@ export default function Library() {
             </div>
           </>
         )}
-        {playlists.length > 0 && (
+        {tab === "playlists" && playlists.length === 0 && (
+          <span className="note">{t("lib.playlistsEmpty")}</span>
+        )}
+        {tab === "playlists" && playlists.length > 0 && (
           <>
             <div className="lib__toolbar" data-libsec="playlists">
               <span className="lib__kicker">
@@ -629,21 +522,21 @@ export default function Library() {
                     <span className="lib__dur" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="lib__act"
-                        title="Edit tracks"
+                        title={t("lib.editTracks")}
                         onClick={() => openPlaylist(p)}
                       >
                         <ListBullets size={11} />
                       </button>
                       <button
                         className="lib__act"
-                        title="Rename"
+                        title={t("lib.rename")}
                         onClick={() => setRenaming(p.path)}
                       >
                         <PencilSimple size={11} />
                       </button>
                       <button
                         className="lib__act"
-                        title="Delete"
+                        title={t("lib.delete")}
                         onClick={() => deletePlaylist(p)}
                       >
                         <Trash size={11} />
@@ -653,23 +546,23 @@ export default function Library() {
                   </div>
                   {editingPl === p.path && (
                     <div className="lib__tracks">
-                      {plTracks.map((t, i) => (
-                        <div className="lib__trow" key={`${t.path}-${i}`}>
+                      {plTracks.map((pt, i) => (
+                        <div className="lib__trow" key={`${pt.path}-${i}`}>
                           <span className="lib__tidx">{i + 1}</span>
                           <span className="lib__title">
-                            {t.title || t.path.split("/").pop()}
+                            {pt.title || pt.path.split("/").pop()}
                           </span>
                           <span className="lib__tdur">
-                            {t.remote
+                            {pt.remote
                               ? "stream"
-                              : t.durationMs
-                                ? formatTime(t.durationMs)
+                              : pt.durationMs
+                                ? formatTime(pt.durationMs)
                                 : ""}
                           </span>
                           <span className="lib__tact">
                             <button
                               className="lib__act"
-                              title="Remove from playlist"
+                              title={t("lib.removeFromPlaylist")}
                               onClick={() => removePlTrack(p, i)}
                             >
                               <X size={11} />
@@ -678,7 +571,7 @@ export default function Library() {
                         </div>
                       ))}
                       {plTracks.length === 0 && (
-                        <div className="lib__sub">Empty playlist</div>
+                        <div className="lib__sub">{t("lib.emptyPlaylist")}</div>
                       )}
                       <div className="lib__tactions">
                         {playingLocal && (

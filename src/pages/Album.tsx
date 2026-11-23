@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { artSrc, bridge, subscribe, type NowPlaying, type QueueItem } from "../bridge";
 import { formatTime } from "../lib";
+import ArtBackdrop from "../ArtBackdrop";
 
 function fmtLong(ms: number): string {
   const m = Math.floor(ms / 60000);
@@ -60,6 +61,7 @@ export default function Album() {
 
   return (
     <div className="glass art">
+      <ArtBackdrop src={heroArt ? arts[heroArt] : undefined} />
       <div className="art__hero">
         {heroArt && arts[heroArt] && (
           <img className="art__heroBg" src={arts[heroArt]} alt="" aria-hidden />

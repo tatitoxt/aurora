@@ -2,7 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import App from "./App";
+import "@fontsource-variable/inter";
 import "./styles.css";
+import { isLinux } from "./lib";
+
+if (isLinux() && !/^#\/(hud|desklyrics)/.test(location.hash))
+  document.documentElement.classList.add("opaque");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

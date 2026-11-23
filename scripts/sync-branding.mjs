@@ -40,8 +40,8 @@ const conf = {
       {
         label: "player",
         title: brand.productName,
-        width: 340,
-        height: 560,
+        width: 600,
+        height: 520,
         resizable: true,
         minWidth: 300,
         minHeight: 480,
