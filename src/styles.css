@@ -922,7 +922,7 @@ body {
 .hud__pill .hctl--play { width: 40px; height: 40px; }
 .hud__focus {
   flex: 1; display: grid; justify-items: center; align-content: center;
-  grid-template-rows: auto minmax(120px, 1fr) auto auto auto auto auto;
+  grid-template-rows: auto minmax(120px, 1fr) auto auto auto auto;
   gap: 3px; padding: 10px; min-height: 0;
 }
 .hud__clock {
@@ -976,11 +976,13 @@ body {
 .hud__focussub { font-size: 12px; color: var(--dim); text-align: center; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9); }
 .hud__focus .hud__progress { width: min(100%, 300px); margin-top: 4px; }
 .hud__focus .hud__pill { margin-top: 8px; }
-.hud__focusrow { margin-top: 4px; }
-.hud__focusrow { display: flex; gap: 2px; }
-/* Controls float over the desktop: give each a subtle chip + shadow so
-   icons read on any wallpaper. */
-.hud__focusrow .hctl { background: rgba(18, 18, 24, 0.55); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
+/* Seven hctls (~288px) just fit the HUD's min width — shrink them rather
+   than overflow on narrower overlays. */
+@media (max-width: 320px) {
+  .hud__pill { gap: 4px; padding: 6px 10px; }
+  .hud__pill .hctl { width: 27px; height: 27px; }
+  .hud__pill .hctl--play { width: 34px; height: 34px; }
+}
 .hud__art {
   flex: none; width: 52px; height: 52px; border-radius: 50%;
   background: #1b1b21;
@@ -2441,7 +2443,7 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__pgl > *, .fs__pgr > * { flex: none; }
 
 /* Liquid glass: clear body, reflective rim — never a dark slab. */
-.fs .fs__pill, .hud__pill, .hud__focusrow, .hud__list {
+.fs .fs__pill, .hud__pill, .hud__list {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
   backdrop-filter: blur(14px) saturate(1.7); -webkit-backdrop-filter: blur(14px) saturate(1.7);
   border: 1px solid rgba(255, 255, 255, 0.24);
@@ -2451,8 +2453,7 @@ button, input, select, textarea { font-family: var(--ui); }
     inset 0 0 20px rgba(255, 255, 255, 0.06),
     0 10px 30px -14px rgba(0, 0, 0, 0.45);
 }
-.fs .fs__pill .fs__icon, .hud__pill .hctl, .hud__focusrow .hctl { color: #fff; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6)); }
-.hud__focusrow { padding: 2px 8px; border-radius: 999px; }
+.fs .fs__pill .fs__icon, .hud__pill .hctl { color: #fff; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6)); }
 
 /* ---------- HUD: no panel, the desktop shows through the window ---------- */
 .hud { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; }
@@ -2472,7 +2473,7 @@ button, input, select, textarea { font-family: var(--ui); }
 }
 
 /* ---------- v3.1: clearer glass, OS accent, outlined text ---------- */
-.fs .fs__pill, .hud__pill, .hud__focusrow, .hud__list, .fs__qpanel {
+.fs .fs__pill, .hud__pill, .hud__list, .fs__qpanel {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
   backdrop-filter: blur(8px) saturate(1.5); -webkit-backdrop-filter: blur(8px) saturate(1.5);
   border: 1px solid rgba(255, 255, 255, 0.24);
@@ -2483,7 +2484,7 @@ button, input, select, textarea { font-family: var(--ui); }
     0 10px 30px -14px rgba(0, 0, 0, 0.4);
 }
 .fs__icon--on, .hctl--on,
-.fs .fs__pill .fs__icon.fs__icon--on, .hud__pill .hctl.hctl--on, .hud__focusrow .hctl.hctl--on { color: var(--sys-accent, var(--accent)); }
+.fs .fs__pill .fs__icon.fs__icon--on, .hud__pill .hctl.hctl--on { color: var(--sys-accent, var(--accent)); }
 .fs__hairfill, .hud__progress-fill { background: var(--sys-accent, #fff); }
 .fs__nowtxt .fs__mtitle, .fs__nowtxt .fs__msub, .fs__tm, .fs__clock, .fs__date,
 .hud__clock, .hud__focustitle, .hud__focussub, .fs__qname, .fs__qsub, .fs__qtitle {
@@ -2587,7 +2588,7 @@ button, input, select, textarea { font-family: var(--ui); }
 /* Search floats as a centered Spotlight-style panel under the top bar —
    anchored to the pill it covered the transport controls. */
 .fs__provpop--search {
-  position: fixed; left: 50%; right: auto; top: clamp(72px, 14vh, 110px); bottom: auto;
+  position: fixed; left: 50%; right: auto; top: clamp(110px, 22vh, 170px); bottom: auto;
   transform: translateX(-50%); transform-origin: top center;
 }
 /* Apple lock-screen style clock: solid, heavy, tight tracking. */
