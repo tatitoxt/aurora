@@ -758,7 +758,7 @@ fn scan_library(
 
 /// Read-only scan: returns the library without replacing the queue
 /// (artist/album views browse without clobbering playback).
-#[tauri::command]
+#[tauri::command(async)]
 fn library_tracks(state: State<AppState>, dir: Option<String>) -> Result<Vec<QueueItem>, String> {
     Ok(noctbeat_core::library::scan(std::path::Path::new(
         &resolve_music_dir(&state, dir)?,

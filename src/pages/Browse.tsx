@@ -310,7 +310,9 @@ export default function Browse() {
       .then((ts) =>
         setArLocal(
           ts.filter(
-            (t) => t.track.artist.toLowerCase() === name.toLowerCase(),
+            (t) =>
+              t.track.artist.trim().toLowerCase() ===
+              name.trim().toLowerCase(),
           ),
         ),
       )
