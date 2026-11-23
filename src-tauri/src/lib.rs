@@ -1483,9 +1483,11 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     // rendered before the timer was armed would otherwise resurrect or
     // erase the live deadline on every unrelated save.
     let mut incoming = settings;
+    let bg_changed;
     {
         let mut guard = state.settings.lock().map_err(|e| e.to_string())?;
         incoming.sleep_timer_ends_ms = guard.sleep_timer_ends_ms;
+        bg_changed = guard.transparent_bg != incoming.transparent_bg;
         incoming
             .save(&state.settings_path)
             .map_err(|e| e.to_string())?;
@@ -1493,7 +1495,11 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     }
     sync_hud_window(&app, &incoming);
     sync_desk_lyrics_window(&app, &incoming);
-    sync_vibrancy(&app, incoming.transparent_bg);
+    // apply_vibrancy stacks an NSVisualEffectView per call — only touch the
+    // window when the flag actually flipped.
+    if bg_changed {
+        sync_vibrancy(&app, incoming.transparent_bg);
+    }
     state
         .player
         .lock()
