@@ -26,6 +26,7 @@ export default function SearchPanel({
   query,
   onQuery,
   aside,
+  songLimit,
 }: {
   src: string;
   label: (id: string) => string;
@@ -36,6 +37,8 @@ export default function SearchPanel({
   onQuery?: (q: string) => void;
   /** Extra content for the right column on wide layouts (e.g. playlists). */
   aside?: ReactNode;
+  /** Cap the songs block (Spotify's short "Songs" list); artist pages show all. */
+  songLimit?: number;
 }) {
   const t = useT();
   const [qLocal, setQLocal] = useState("");
@@ -96,6 +99,7 @@ export default function SearchPanel({
     ? songs.filter((s) => s.artist.toLowerCase().includes(artist.toLowerCase()))
     : songs;
   const top = shown[0];
+  const listed = !artist && songLimit ? shown.slice(0, songLimit) : shown;
 
   const target =
     src === "auto"
@@ -201,7 +205,7 @@ export default function SearchPanel({
             )}
           </span>
           <div className="srch__songs">
-            {shown.map((s, i) => (
+            {listed.map((s, i) => (
               <div
                 key={`${s.title}:${s.artist}:${i}`}
                 className="srch__row"

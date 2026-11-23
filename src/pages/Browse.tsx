@@ -344,6 +344,7 @@ export default function Browse() {
               onPlayed={refresh}
               query={q}
               onQuery={setQ}
+              songLimit={6}
               aside={
                 playlists.length > 0 ? (
                   <>

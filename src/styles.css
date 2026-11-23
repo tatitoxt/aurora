@@ -2706,7 +2706,7 @@ select { color-scheme: dark; }
 .brw {
   position: fixed; inset: 0; z-index: 1;
   display: grid; grid-template-columns: 216px 1fr; grid-template-rows: 1fr auto;
-  background: rgba(10, 11, 15, 0.97);
+  background: #000;
   font-family: var(--ui); color: var(--text);
 }
 .brw__rail {
@@ -2731,7 +2731,7 @@ select { color-scheme: dark; }
 .brw__railsearch svg { width: 15px; height: 15px; flex: none; }
 .brw__railsearch input {
   flex: 1; min-width: 0; border: none; background: none; outline: none;
-  color: var(--text); font: inherit; font-size: var(--fs-sm);
+  color: var(--text); font: inherit; font-size: var(--fs-md);
 }
 .brw__railsearch input::placeholder { color: var(--muted); }
 .brw__railsearch:focus-within { border-color: var(--hair-strong); color: var(--text); }
@@ -2739,7 +2739,7 @@ select { color-scheme: dark; }
 .brw__nav {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px; border: none; border-radius: var(--r-md);
-  background: none; color: var(--dim); font: inherit; font-size: var(--fs-sm);
+  background: none; color: var(--dim); font: inherit; font-size: var(--fs-md);
   font-weight: 550; cursor: pointer; text-align: left; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
@@ -2791,7 +2791,7 @@ select { color-scheme: dark; }
 .brw__art svg { width: 30%; height: 30%; }
 .brw__art--round { border-radius: 50%; }
 .brw__cardt {
-  font-size: var(--fs-sm); font-weight: 550; white-space: nowrap;
+  font-size: var(--fs-md); font-weight: 550; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .brw__cards {
@@ -2823,32 +2823,50 @@ select { color-scheme: dark; }
 .brw__empty { font-size: var(--fs-sm); color: var(--muted); padding: 8px 4px; }
 .brw__search { width: 100%; max-width: none; }
 .brw__search .fs__provq { width: 100%; max-width: 640px; }
-/* Two-column results on wide layouts: songs left, artists + playlists right. */
+/* Spotify-style results: "Top result" card left, "Songs" right on the same
+   row, then Artists and Playlists as full-width rows underneath. Grid rows
+   are explicit so the column pairing holds regardless of DOM order. */
 .brw__search .srch__body {
-  display: grid; grid-template-columns: minmax(0, 1fr) 300px;
-  column-gap: 28px; align-items: start;
+  display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  column-gap: 28px;
 }
-.brw__search .srch__body > * { grid-column: 1; min-width: 0; }
-.brw__search .srch__body > .srch__h:has(+ .srch__artists),
-.brw__search .srch__body > .srch__artists,
-.brw__search .srch__body > .srch__aside { grid-column: 2; }
-.brw__search .srch__artists { flex-wrap: wrap; overflow: visible; }
+.brw__search .srch__body > * { min-width: 0; }
+.brw__search .srch__body > .srch__h:has(+ .srch__top) { grid-column: 1; grid-row: 1; }
+.brw__search .srch__body > .srch__top { grid-column: 1; grid-row: 2; }
+.brw__search .srch__body > .srch__h:has(+ .srch__songs) { grid-column: 2; grid-row: 1; }
+.brw__search .srch__body > .srch__songs { grid-column: 2; grid-row: 2; }
+.brw__search .srch__body > .srch__h:has(+ .srch__artists) { grid-column: 1 / -1; grid-row: 3; }
+.brw__search .srch__body > .srch__artists { grid-column: 1 / -1; grid-row: 4; flex-wrap: wrap; overflow: visible; }
+.brw__search .srch__body > .srch__aside { grid-column: 1 / -1; grid-row: 5; }
+/* Artist drill-down: the songs list takes the whole width. */
+.brw__search .srch__body > .srch__h:has(.srch__back) { grid-column: 1 / -1; grid-row: 1; }
+.brw__search .srch__body > .srch__h:has(.srch__back) + .srch__songs { grid-column: 1 / -1; grid-row: 2; }
+.brw__search .srch__body > .srch__h:has(.srch__back) ~ .srch__aside { grid-row: 3; }
+/* Top result gets the big Spotify card treatment. */
+.brw__search .srch__top {
+  flex-direction: column; align-items: flex-start; gap: 12px;
+  padding: 18px; height: 100%; min-height: 210px; box-sizing: border-box;
+}
+.brw__search .srch__top .srch__topart { width: 92px; height: 92px; }
+.brw__search .srch__top .srch__toptitle { font-size: var(--fs-xl); white-space: normal; }
+.brw__search .srch__artist img { width: 88px; height: 88px; }
+.brw__search .srch__artist { flex-basis: 96px; }
 .srch__aside { display: flex; flex-direction: column; min-width: 0; }
-.srch__pllist { display: flex; flex-direction: column; }
+.srch__pllist { display: flex; flex-wrap: wrap; gap: 10px; }
 .srch__pl {
-  display: flex; align-items: center; gap: 10px; padding: 7px 6px;
-  border: 0; border-radius: 8px; background: none; color: #fff;
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07); color: #fff;
   font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  text-align: left; min-width: 0;
+  text-align: left; min-width: 0; max-width: 260px;
 }
-.srch__pl:hover, .srch__pl:focus-visible { background: rgba(255, 255, 255, 0.10); outline: none; }
+.srch__pl:hover, .srch__pl:focus-visible { background: rgba(255, 255, 255, 0.13); outline: none; }
 .srch__pl svg { width: 15px; height: 15px; flex: none; color: rgba(255, 255, 255, 0.66); }
 .srch__pl span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) {
   .brw__search .srch__body { grid-template-columns: minmax(0, 1fr); }
-  .brw__search .srch__body > .srch__h:has(+ .srch__artists),
-  .brw__search .srch__body > .srch__artists,
-  .brw__search .srch__body > .srch__aside { grid-column: 1; }
+  .brw__search .srch__body > * { grid-column: 1 !important; grid-row: auto !important; }
+  .brw__search .srch__top { min-height: 0; }
 }
 .brw__plhead { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .brw__plhead .brw__art { width: 56px; flex: none; }
