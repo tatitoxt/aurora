@@ -751,18 +751,18 @@ export default function Stage() {
           </span>
           {mm}
         </div>
-      </div>
 
-      {provOpen && provMode === "search" && (
-        <div className="fs__searchpop">
-          <SearchPanel
-            src={searchSrc}
-            label={provLabel}
-            connected={connected}
-            onPlayed={() => {}}
-          />
-        </div>
-      )}
+        {provOpen && provMode === "search" && (
+          <div className="fs__searchpop">
+            <SearchPanel
+              src={searchSrc}
+              label={provLabel}
+              connected={connected}
+              onPlayed={() => {}}
+            />
+          </div>
+        )}
+      </div>
 
       {libOpen && (
         <div

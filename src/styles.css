@@ -922,7 +922,7 @@ body {
 .hud__pill .hctl--play { width: 40px; height: 40px; }
 .hud__focus {
   flex: 1; display: grid; justify-items: center; align-content: center;
-  grid-template-rows: auto minmax(120px, 1fr) auto auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
   gap: 3px; padding: 10px; min-height: 0;
 }
 .hud__clock {
@@ -2587,11 +2587,13 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs .fs__vol--prov { position: static; }
 /* Search is a single floating bar in the dead space between the clock and
    the lyrics — one bubble, no backdrop panel, nothing covered. */
+/* Anchored to the clock block's bottom edge, so it always sits just below
+   the clock at every viewport — it can never overlap the digits. */
 .fs__searchpop {
-  position: fixed; left: 50%; top: clamp(96px, 19vh, 150px);
+  position: absolute; left: 50%; top: 100%; margin-top: 10px;
   transform: translateX(-50%); transform-origin: top center; z-index: 40;
   width: min(400px, calc(100vw - 48px));
-  max-height: min(56vh, calc(100vh - 250px), 460px);
+  max-height: min(46vh, 460px);
   display: flex; flex-direction: column; overflow: hidden;
   background: rgba(14, 14, 17, 0.55);
   backdrop-filter: blur(34px) saturate(1.5); -webkit-backdrop-filter: blur(34px) saturate(1.5);
