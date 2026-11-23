@@ -25,6 +25,7 @@ import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
 import SearchPanel from "../SearchPanel";
 import BrowserSources from "../BrowserSources";
+import { VideoBackdrop } from "../VideoBackdrop";
 import {
   ArrowsOut,
   Broadcast,
@@ -88,24 +89,48 @@ export default function Browse() {
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
 
-  const refresh = () => bridge.getQueue().then(setQueue).catch(() => {});
+  const refresh = () => {
+    void bridge.getQueue().then(setQueue).catch(() => {});
+    /* Tabs can connect while Browse is mounted — keep the provider set
+       live or playback still reports no tab. */
+    void bridge.getExtStatus().then(setExt).catch(() => {});
+  };
   useEffect(() => {
     refresh();
     void bridge.listPlaylists().then(setPlaylists).catch(() => {});
     void bridge.getStats().then(setStats).catch(() => {});
-    void bridge.getExtStatus().then(setExt).catch(() => {});
     const offQ = subscribe<QueueState>("queue", setQueue);
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
       setNp(n);
       refresh();
     });
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
+    const poll = setInterval(refresh, 4000);
     return () => {
       offQ();
       offNp();
       offFavs();
+      clearInterval(poll);
     };
   }, []);
+
+  /* Browser preview only: the demo soundtrack lives in the YouTube embed,
+     which unmounts with Stage — keep an audible (hidden) embed here so
+     Browse isn't silent. On desktop the real audio never enters React. */
+  const trackId = np?.track?.id ?? null;
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setVideoUrl(null);
+    if (!trackId || !np?.track || bridge.isTauri()) return;
+    let stale = false;
+    bridge.resolveVideo(np.track.artist, np.track.title).then((u) => {
+      if (!stale) setVideoUrl(u);
+    });
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackId]);
 
   const connected = useMemo(
     () =>
@@ -201,6 +226,16 @@ export default function Browse() {
 
   return (
     <div className="brw">
+      {videoUrl && !bridge.isTauri() && (
+        <VideoBackdrop
+          url={videoUrl}
+          posMs={np?.positionMs ?? 0}
+          playing={playing}
+          cls="brw__bgvid"
+          readyCls="brw__bgvid--ready"
+          audible
+        />
+      )}
       <aside className="brw__rail">
         <span className="brw__brand">{bridge.productName}</span>
         <button
@@ -546,7 +581,7 @@ export default function Browse() {
               if (!track?.durationMs) return;
               const r = e.currentTarget.getBoundingClientRect();
               void bridge.seek(
-                ((e.clientX - r.left) / r.width) * track.durationMs,
+                Math.round(((e.clientX - r.left) / r.width) * track.durationMs),
               );
             }}
           >

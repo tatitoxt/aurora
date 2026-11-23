@@ -2862,3 +2862,7 @@ select { color-scheme: dark; }
   .brw__np { width: 110px; }
   .brw__seek { max-width: 120px; }
 }
+
+/* Hidden audible demo embed: browser preview only — keeps the song
+   playing while Browse has the stage unmounted. */
+.brw__bgvid { position: fixed; width: 2px; height: 2px; left: -10px; top: -10px; opacity: 0.01; pointer-events: none; }

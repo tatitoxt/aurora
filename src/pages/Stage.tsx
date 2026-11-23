@@ -395,7 +395,7 @@ export default function Stage() {
       } else if (e.key === "f" || e.key === "F") {
         void bridge.toggleFullscreen();
       } else if (e.key === "Escape") {
-        if (volOpen || moreOpen || provOpen || qOpen) {
+        if (volOpen || moreOpen || provOpen || (qOpen && !qPinned)) {
           setVolOpen(false);
           setMoreOpen(false);
           setProvOpen(false);
@@ -408,7 +408,7 @@ export default function Stage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav, pos, loc.pathname, volOpen, moreOpen, provOpen, qOpen]);
+  }, [nav, pos, loc.pathname, volOpen, moreOpen, provOpen, qOpen, qPinned]);
 
   // Outside click dismisses the transient pill popovers (volume, ··· menu,
   // provider/search panels). Clicks on buttons are left to the buttons
