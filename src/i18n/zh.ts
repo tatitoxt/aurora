@@ -275,7 +275,7 @@ const zh: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "","brw.home": "","brw.search": "","brw.topTracks": "","brw.topArtists": "","brw.plays": "","brw.playAll": "","brw.liveView": "","brw.forward": "","brw.recentlyPlayed": "","brw.seek": "","brw.trackMissing": "","brw.greetMorning": "","brw.greetAfternoon": "","brw.greetEvening": "","brw.jumpBackIn": "","brw.showAll": "",
+  "nav.browse": "","brw.home": "","brw.search": "","brw.topTracks": "","brw.topArtists": "","brw.plays": "","brw.playAll": "","brw.liveView": "","brw.forward": "","brw.recentlyPlayed": "","brw.settings": "设置","brw.account": "帐户","brw.appSettings": "应用设置","brw.noTracks": "还没有曲目","brw.seek": "","brw.trackMissing": "","brw.greetMorning": "","brw.greetAfternoon": "","brw.greetEvening": "","brw.jumpBackIn": "","brw.showAll": "",
 };
 
 export default zh;

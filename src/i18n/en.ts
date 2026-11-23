@@ -291,7 +291,7 @@ const en = {
   "brw.plays": "plays",
   "brw.playAll": "Play all",
   "brw.liveView": "Live view",
-  "brw.forward": "Forward","brw.recentlyPlayed": "Recently played","brw.seek": "Seek","brw.trackMissing": "That track's file is missing",
+  "brw.forward": "Forward","brw.recentlyPlayed": "Recently played","brw.settings": "Settings","brw.account": "Account","brw.appSettings": "App settings","brw.noTracks": "No tracks yet","brw.seek": "Seek","brw.trackMissing": "That track's file is missing",
   "brw.greetMorning": "Good morning",
   "brw.greetAfternoon": "Good afternoon",
   "brw.greetEvening": "Good evening",

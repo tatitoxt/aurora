@@ -2765,6 +2765,16 @@ select { color-scheme: dark; }
 .brw__icon:disabled { opacity: 0.35; cursor: default; }
 .brw__icon:disabled:hover { color: var(--dim); background: none; }
 .brw__head { display: flex; align-items: baseline; gap: 12px; }
+.brw__headspace { flex: 1; }
+.brw__settings { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.brw__setrow {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card); color: var(--fg); cursor: pointer;
+}
+.brw__setrow:hover { background: var(--card-2); }
+.brw__setrow-t { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.brw__setrow-t small { color: var(--muted); }
 .brw__head h1 {
   font-size: var(--fs-xl); font-weight: 650; letter-spacing: -0.02em;
   margin: 0 0 14px;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   artSrc,
   bridge,
@@ -7,6 +7,7 @@ import {
   type NowPlaying,
   type PlaylistFile,
   type PlaylistTrack,
+  type CatalogSong,
   type PlayRecord,
   type QueueItem,
   type QueueState,
@@ -47,6 +48,7 @@ import {
   SkipBack,
   SkipForward,
   SpeakerHigh,
+  Gear,
   SquaresFour,
   User,
   X,
@@ -55,7 +57,15 @@ import {
 /** Providers tried, in order, when playing a catalog/stats entry. */
 const AUTO_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
 
-type View = "home" | "search" | "liked" | "queue" | "services" | `pl:${string}`;
+type View =
+  | "home"
+  | "search"
+  | "liked"
+  | "queue"
+  | "services"
+  | "settings"
+  | `pl:${string}`
+  | `ar:${string}`;
 
 /** Artwork tile that resolves file:// refs to loadable URLs. */
 function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
@@ -104,6 +114,8 @@ export default function Browse() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
+  const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
+  const [arLoading, setArLoading] = useState(false);
   /* Spotify-style back/forward inside the Browse tab. */
   const [past, setPast] = useState<View[]>([]);
   const [future, setFuture] = useState<View[]>([]);
@@ -250,6 +262,21 @@ export default function Browse() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
+  /* In-Browse artist page: staying inside the view stack keeps
+     Back/Forward and the playbar — the router page had neither. */
+  useEffect(() => {
+    if (!view.startsWith("ar:")) return;
+    const name = decodeURIComponent(view.slice(3));
+    setArLoading(true);
+    setArSongs([]);
+    void bridge
+      .catalogSearch(name)
+      .then(setArSongs)
+      .catch(fail)
+      .finally(() => setArLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
     if (saved.items.length > 0)
@@ -290,6 +317,7 @@ export default function Browse() {
     view.startsWith("pl:")
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
+  const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
 
   /** A history row maps onto the fav replay rules: local trackIds are
       file paths, everything else becomes a provider query. */
@@ -409,7 +437,7 @@ export default function Browse() {
       key: `ar:${a.name}`,
       name: a.name,
       icon: <User />,
-      onClick: () => nav(`/artist/${encodeURIComponent(a.name)}`),
+      onClick: () => go(`ar:${encodeURIComponent(a.name)}`),
     })),
   ]
     .filter(Boolean)
@@ -545,8 +573,19 @@ export default function Browse() {
             {view === "liked" && t("lib.liked")}
             {view === "queue" && t("fs.upNext")}
             {view === "services" && t("sources.heading")}
+            {view === "settings" && t("brw.settings")}
             {view.startsWith("pl:") && plName}
+            {view.startsWith("ar:") && arName}
           </h1>
+          <span className="brw__headspace" />
+          <button
+            className="brw__icon"
+            aria-label={t("brw.settings")}
+            title={t("brw.settings")}
+            onClick={() => go("settings")}
+          >
+            <Gear />
+          </button>
         </header>
         {err && <span className="license-bad">{err}</span>}
         {note && <span className="note">● {note}</span>}
@@ -588,6 +627,53 @@ export default function Browse() {
         {view === "services" && (
           <div className="brw__section">
             <BrowserSources />
+          </div>
+        )}
+
+        {view === "settings" && (
+          <div className="brw__section brw__settings">
+            <button
+              className="brw__setrow"
+              onClick={() => nav("/settings")}
+              title={t("brw.appSettings")}
+            >
+              <User />
+              <span className="brw__setrow-t">
+                <b>{t("brw.account")}</b>
+                <small>{t("brw.appSettings")}</small>
+              </span>
+              <CaretRight />
+            </button>
+            <span className="brw__kick">{t("sources.heading")}</span>
+            <BrowserSources />
+          </div>
+        )}
+
+        {view.startsWith("ar:") && (
+          <div className="brw__section">
+            {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
+            {!arLoading && arSongs.length === 0 && (
+              <span className="brw__empty">{t("brw.noTracks")}</span>
+            )}
+            {arSongs.length > 0 && (
+              <div className="lib">
+                {arSongs.map((s, i) => (
+                  <button
+                    className="lib__row"
+                    key={`${s.title}-${i}`}
+                    title={s.title}
+                    onClick={() => playExternal(`${s.title} ${s.artist}`)}
+                  >
+                    <span className="lib__idx">{i + 1}</span>
+                    <span className="lib__title">{s.title}</span>
+                    <span className="lib__sub">{s.album || s.artist}</span>
+                    <span className="lib__dur">
+                      {s.durationMs ? formatTime(s.durationMs) : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -724,10 +810,11 @@ export default function Browse() {
                 <span className="brw__kick">{t("brw.topArtists")}</span>
                 <div className="brw__grid brw__grid--round">
                   {stats.topArtists.slice(0, 8).map((a) => (
-                    <Link
+                    <button
                       key={a.name}
                       className="brw__card brw__card--round"
-                      to={`/artist/${encodeURIComponent(a.name)}`}
+                      title={a.name}
+                      onClick={() => go(`ar:${encodeURIComponent(a.name)}`)}
                     >
                       <span className="brw__art brw__art--round brw__art--ph" aria-hidden>
                         <User />
@@ -749,7 +836,7 @@ export default function Browse() {
                       <span className="brw__cards">
                         {a.plays} {t("brw.plays")}
                       </span>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </section>
@@ -1119,7 +1206,11 @@ export default function Browse() {
           className="brw__icon"
           aria-label={t("nav.fullscreen")}
           title={t("nav.fullscreen")}
-          onClick={() => void bridge.toggleFullscreen()}
+          /* Browser preview can't go fullscreen — take them to the
+             live stage instead so the button is never dead. */
+          onClick={() =>
+            bridge.isTauri() ? void bridge.toggleFullscreen() : nav("/")
+          }
         >
           <ArrowsOut size={15} />
         </button>
