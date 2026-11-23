@@ -160,7 +160,6 @@ function EmbedBackdrop({
     // times after the iframe loads so the clip actually starts on its own.
     // The initial seek lands it at the track position, not at second zero.
     const kick = () => {
-      if (started.current) return;
       ref.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
       cmd("addEventListener", ["onStateChange"]);
       cmd("addEventListener", ["onError"]);
@@ -174,8 +173,14 @@ function EmbedBackdrop({
       if (audible) cmd("setVolume", [Math.round(previewVolumeNow() * 100)]);
       cmd("playVideo");
     };
+    // The first kick runs even on resume (pause → play); the retries exist
+    // only to land autoplay, so they stop once the player reports playing.
     kick();
-    const timers = [600, 1400, 2400, 3600].map((ms) => setTimeout(kick, ms));
+    const timers = [600, 1400, 2400, 3600].map((ms) =>
+      setTimeout(() => {
+        if (!started.current) kick();
+      }, ms),
+    );
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, url, loaded, audible]);
@@ -186,6 +191,25 @@ function EmbedBackdrop({
     return onPreviewVolume((v) => cmd("setVolume", [Math.round(v * 100)]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, audible]);
+
+  // If autoplay landed before any interaction the embed stays muted; the
+  // first gesture anywhere on the page finally arms the audio.
+  useEffect(() => {
+    if (!audible || unmuted.current) return;
+    const unmute = () => {
+      if (unmuted.current) return;
+      unmuted.current = true;
+      cmd("unMute");
+      cmd("setVolume", [Math.round(previewVolumeNow() * 100)]);
+    };
+    window.addEventListener("pointerdown", unmute);
+    window.addEventListener("keydown", unmute);
+    return () => {
+      window.removeEventListener("pointerdown", unmute);
+      window.removeEventListener("keydown", unmute);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audible, loaded, playing]);
 
   useEffect(() => {
     const expected = sync.current.pos + (playing ? Date.now() - sync.current.at : 0);
