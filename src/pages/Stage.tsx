@@ -753,6 +753,17 @@ export default function Stage() {
         </div>
       </div>
 
+      {provOpen && provMode === "search" && (
+        <div className="fs__searchpop">
+          <SearchPanel
+            src={searchSrc}
+            label={provLabel}
+            connected={connected}
+            onPlayed={() => {}}
+          />
+        </div>
+      )}
+
       {libOpen && (
         <div
           className="fs__libpop"
@@ -1132,12 +1143,11 @@ export default function Stage() {
                 >
                   <ProvIcon size={16} weight="fill" />
                 </button>
-                {provOpen && (
+                {provOpen && provMode === "prov" && (
                   <span
                     className={`fs__volpop fs__morepop fs__provpop fs__provpop--${provMode}`}
                   >
-                    {provMode === "prov" && (
-                      <>
+                    <>
                         {ext && ext.tabs > 0 ? (
                           <span className="fs__extlive">
                             ● {t("fs.connected")} ·{" "}
@@ -1187,15 +1197,6 @@ export default function Stage() {
                           );
                         })}
                       </>
-                    )}
-                    {provMode === "search" && (
-                      <SearchPanel
-                        src={searchSrc}
-                        label={provLabel}
-                        connected={connected}
-                        onPlayed={() => {}}
-                      />
-                    )}
                   </span>
                 )}
               </span>
