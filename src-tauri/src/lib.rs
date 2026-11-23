@@ -11,7 +11,6 @@ use noctbeat_core::media::{
 };
 use noctbeat_core::palette::{extract_palette_bytes, Palette, Rgb};
 use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
-use noctbeat_core::providers::{self, RemoteTrack, YtDlp};
 
 mod audio;
 mod discord;
@@ -53,14 +52,6 @@ struct AppState {
     session_path: PathBuf,
     /// Wall-clock time accumulated on the track currently playing.
     listen: Mutex<ListenTracker>,
-    /// Metadata for queue items whose `path` is a `remote:<source>:<id>`
-    /// pseudo-path; the player's resolver downloads them on demand.
-    remote: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>>,
-    /// Streams cache dir shared by the resolver and prefetch.
-    stream_cache: PathBuf,
-    /// Remote keys with a prefetch download already running, so the
-    /// per-tick poller does not stack duplicate yt-dlp workers.
-    prefetching: std::sync::Arc<Mutex<std::collections::HashSet<String>>>,
     /// Discord Rich Presence client (idle unless a client id is configured).
     discord: Mutex<discord::DiscordRpc>,
     /// Listen Along host (None unless the user started a session).
@@ -154,84 +145,6 @@ fn config_dir() -> PathBuf {
     base.join(&noctbeat_core::branding::branding().short_name)
 }
 
-/// Cache file name a downloaded stream lands under.
-fn remote_cache_name(rt: &RemoteTrack) -> String {
-    format!(
-        "{}-{}",
-        rt.source,
-        rt.id.replace(|c: char| !c.is_alphanumeric(), "_")
-    )
-}
-
-/// Map a `remote:` queue key to an on-disk file: reuse the cache hit or
-/// download with yt-dlp. Lock order is always player → remote: callers
-/// inside play paths already hold the player lock, so this never takes
-/// it.
-fn resolve_remote(
-    map: &Mutex<std::collections::HashMap<String, RemoteTrack>>,
-    settings: &Mutex<Settings>,
-    cache: &std::path::Path,
-    key: &str,
-) -> Result<PathBuf, String> {
-    let rt = map.lock().map_err(|e| e.to_string())?.get(key).cloned();
-    let Some(rt) = rt else {
-        // A restored queue can reference a remote track whose metadata
-        // is gone; the cache name derives from the key alone, so a
-        // downloaded file still plays.
-        let (source, id) = key
-            .split_once(':')
-            .ok_or_else(|| format!("unknown remote track {key}"))?;
-        let name = format!(
-            "{source}-{}",
-            id.replace(|c: char| !c.is_alphanumeric(), "_")
-        );
-        return providers::cached_file(cache, &name)
-            .ok_or_else(|| format!("unknown remote track {key}"));
-    };
-    let name = remote_cache_name(&rt);
-    if let Some(f) = providers::cached_file(cache, &name) {
-        return Ok(f);
-    }
-    let ytdlp = {
-        let s = settings.lock().map_err(|e| e.to_string())?;
-        YtDlp::detect(s.ytdlp_path.as_deref())
-    }
-    .ok_or("yt-dlp not installed")?;
-    ytdlp.download(&rt.url, cache, &name)
-}
-
-/// Kick a background download for the queue item right after `index` when
-/// it is a remote track, so auto-advance almost never waits on yt-dlp.
-fn prefetch_next(state: &AppState, index: usize) {
-    let Ok(p) = state.player.lock() else {
-        return;
-    };
-    let key = p
-        .queue()
-        .get(index + 1)
-        .and_then(|i| i.path.strip_prefix("remote:"))
-        .map(str::to_owned);
-    drop(p);
-    let Some(key) = key else { return };
-    let Ok(mut in_flight) = state.prefetching.lock() else {
-        return;
-    };
-    if !in_flight.insert(key.clone()) {
-        return;
-    }
-    drop(in_flight);
-    let map = state.remote.clone();
-    let settings = state.settings.clone();
-    let cache = state.stream_cache.clone();
-    let done = state.prefetching.clone();
-    std::thread::spawn(move || {
-        let _ = resolve_remote(&map, &settings, &cache, &key);
-        if let Ok(mut f) = done.lock() {
-            f.remove(&key);
-        }
-    });
-}
-
 /// The local player claims the transport while it is playing or paused;
 /// otherwise whatever the OS reports (Spotify, browser, …) wins.
 fn local_active(state: &AppState) -> bool {
@@ -261,12 +174,7 @@ fn local_active(state: &AppState) -> bool {
 fn poll_np(state: &AppState) -> NowPlaying {
     if local_active(state) {
         if let Ok(mut p) = state.player.lock() {
-            let idx = p.current_index();
             if let Ok(np) = p.poll() {
-                drop(p);
-                if let Some(i) = idx {
-                    prefetch_next(state, i);
-                }
                 return np;
             }
         }
@@ -297,13 +205,168 @@ fn get_now_playing(state: State<AppState>) -> Result<NowPlaying, String> {
 struct ExtStatus {
     tabs: usize,
     provider: Option<String>,
+    providers: Vec<String>,
+}
+
+#[tauri::command]
+fn system_accent() -> Option<String> {
+    read_system_accent()
+}
+
+#[cfg(target_os = "windows")]
+fn read_system_accent() -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\DWM",
+            "/v",
+            "AccentColor",
+        ])
+        .creation_flags(0x0800_0000)
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let hex = text.split_whitespace().find(|w| w.starts_with("0x"))?;
+    let v = u32::from_str_radix(&hex[2..], 16).ok()?;
+    // DWORD is 0xAABBGGRR
+    Some(format!(
+        "#{:02x}{:02x}{:02x}",
+        v & 0xff,
+        (v >> 8) & 0xff,
+        (v >> 16) & 0xff
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn read_system_accent() -> Option<String> {
+    let out = std::process::Command::new("defaults")
+        .args(["read", "-g", "AppleAccentColor"])
+        .output()
+        .ok()?;
+    // Key absent = "Multicolor", which renders as blue.
+    let code = if out.status.success() {
+        String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse::<i32>()
+            .unwrap_or(4)
+    } else {
+        4
+    };
+    let hex = match code {
+        -1 => "#8e8e93",
+        0 => "#ff453a",
+        1 => "#ff9f0a",
+        2 => "#ffd60a",
+        3 => "#32d74b",
+        5 => "#bf5af2",
+        6 => "#ff375f",
+        _ => "#0a84ff",
+    };
+    Some(hex.to_string())
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn read_system_accent() -> Option<String> {
+    None
 }
 
 #[tauri::command]
 fn get_ext_status(state: State<AppState>) -> Result<Option<ExtStatus>, String> {
     let s = state.source.lock().map_err(|e| e.to_string())?;
-    Ok(s.ext_status()
-        .map(|(tabs, provider)| ExtStatus { tabs, provider }))
+    let providers = s.ext_providers();
+    Ok(s.ext_status().map(|(tabs, provider)| ExtStatus {
+        tabs,
+        provider,
+        providers,
+    }))
+}
+
+/// Search `query` in the user's open `provider` tab and play the first hit.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CatalogSong {
+    title: String,
+    artist: String,
+    album: String,
+    duration_ms: u64,
+    artwork_url: String,
+}
+
+/// Song metadata for the Spotify-style search results (Apple's public
+/// iTunes Search API: free, keyless). Playback is resolved separately
+/// through the chosen provider.
+#[tauri::command]
+async fn catalog_search(query: String) -> Result<Vec<CatalogSong>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let v: serde_json::Value = ureq::get("https://itunes.apple.com/search")
+            .query("term", &query)
+            .query("media", "music")
+            .query("entity", "song")
+            .query("limit", "30")
+            .timeout(std::time::Duration::from_secs(8))
+            .call()
+            .map_err(|e| e.to_string())?
+            .into_string()
+            .map_err(|e| e.to_string())
+            .and_then(|b| serde_json::from_str(&b).map_err(|e| e.to_string()))?;
+        let s = |r: &serde_json::Value, k: &str| r[k].as_str().unwrap_or_default().to_string();
+        Ok(v["results"]
+            .as_array()
+            .map(|a| a.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .map(|r| CatalogSong {
+                title: s(r, "trackName"),
+                artist: s(r, "artistName"),
+                album: s(r, "collectionName"),
+                duration_ms: r["trackTimeMillis"].as_u64().unwrap_or(0),
+                artwork_url: s(r, "artworkUrl100").replace("100x100bb", "300x300bb"),
+            })
+            .filter(|c| !c.title.is_empty())
+            .collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Official YouTube embed of the video playing in the user's tab, for the
+/// stage backdrop. None for other providers and local files.
+#[tauri::command]
+fn ext_video(
+    state: State<AppState>,
+    artist: String,
+    title: String,
+) -> Result<Option<String>, String> {
+    let id = state
+        .source
+        .lock()
+        .map_err(|e| e.to_string())?
+        .ext_video_id(&artist, &title);
+    Ok(id.map(|id| {
+        format!(
+            "https://www.youtube.com/embed/{id}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&controls=0&iv_load_policy=3&mute=1"
+        )
+    }))
+}
+
+#[tauri::command]
+fn ext_play(state: State<AppState>, provider: String, query: String) -> Result<bool, String> {
+    let sent = state
+        .source
+        .lock()
+        .map_err(|e| e.to_string())?
+        .play_in_tab(&provider, &query);
+    // The tab takes over: silence the local player so audio and transport
+    // don't stay attached to the local queue.
+    if sent {
+        if let Ok(mut p) = state.player.lock() {
+            if p.status() != PlaybackStatus::Stopped {
+                p.stop();
+            }
+        }
+    }
+    Ok(sent)
 }
 
 #[tauri::command]
@@ -356,9 +419,7 @@ fn media_control_inner(state: &AppState, cmd: Control) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-/// Async: a play/pause/next that lands on an uncached remote track can
-/// block for a yt-dlp download — that must happen on the runtime pool,
-/// not the IPC thread.
+/// Async: opening/decoding the next file must not run on the IPC thread.
 #[tauri::command]
 async fn media_control(state: State<'_, AppState>, cmd: Control) -> Result<(), String> {
     media_control_inner(&state, cmd)
@@ -413,10 +474,6 @@ struct SessionState {
     position_ms: u64,
     repeat: RepeatMode,
     shuffle: bool,
-    /// Remote metadata for `remote:` queue paths, so a relaunched app
-    /// can resolve them even if they were never cached.
-    #[serde(default)]
-    remote: std::collections::HashMap<String, RemoteTrack>,
 }
 
 /// Write the player's queue + cursor + position to session.json; an
@@ -434,7 +491,6 @@ fn write_session(state: &AppState) {
         position_ms,
         repeat,
         shuffle,
-        remote: state.remote.lock().map(|m| m.clone()).unwrap_or_default(),
     };
     if let Ok(json) = serde_json::to_string(&session) {
         let _ = std::fs::write(&state.session_path, json);
@@ -458,16 +514,20 @@ fn restore_session(state: &AppState) {
     let Ok(s) = serde_json::from_str::<SessionState>(&text) else {
         return;
     };
-    if s.items.is_empty() {
+    // Older sessions can hold `remote:` stream entries, which no longer
+    // play; drop them and keep the cursor on the same local track.
+    let is_remote = |i: &QueueItem| i.path.starts_with("remote:");
+    let index = s
+        .index
+        .filter(|&i| s.items.get(i).is_some_and(|it| !is_remote(it)))
+        .map(|i| i - s.items[..i].iter().filter(|it| is_remote(it)).count());
+    let items: Vec<QueueItem> = s.items.into_iter().filter(|i| !is_remote(i)).collect();
+    if items.is_empty() {
         return;
     }
-    // Repopulate resolver metadata first — the resolver rejects remote
-    // keys it doesn't know, even for files already in the cache.
-    if let Ok(mut m) = state.remote.lock() {
-        m.extend(s.remote);
-    }
+    let position_ms = if index.is_some() { s.position_ms } else { 0 };
     if let Ok(mut p) = state.player.lock() {
-        p.restore(s.items, s.index, s.position_ms, s.repeat, s.shuffle);
+        p.restore(items, index, position_ms, s.repeat, s.shuffle);
     }
 }
 
@@ -500,28 +560,11 @@ async fn play_queue_index(
     state: State<'_, AppState>,
     index: usize,
 ) -> Result<(), String> {
-    // Pre-resolve on the runtime pool: the resolver also runs under the
-    // player lock (auto-advance), but a UI-initiated first play must not
-    // hold it through a whole download.
-    let path = state
-        .player
-        .lock()
-        .map_err(|e| e.to_string())?
-        .queue()
-        .get(index)
-        .map(|i| i.path.clone());
-    if let Some(key) = path.and_then(|p| p.strip_prefix("remote:").map(str::to_owned)) {
-        let map = state.remote.clone();
-        let settings = state.settings.clone();
-        let cache = state.stream_cache.clone();
-        resolve_remote(&map, &settings, &cache, &key)?;
-    }
     state
         .player
         .lock()
         .map_err(|e| e.to_string())?
         .play_index(index)?;
-    prefetch_next(&state, index);
     emit_queue(&app, &state);
     Ok(())
 }
@@ -720,134 +763,13 @@ async fn play_items(
     if index >= items.len() {
         return Err(format!("no item at index {index}"));
     }
-    // Resolve a remote item before taking the player lock (same rule as
-    // play_queue_index).
-    if let Some(key) = items[index].path.strip_prefix("remote:").map(str::to_owned) {
-        resolve_remote(&state.remote, &state.settings, &state.stream_cache, &key)?;
-    }
     {
         let mut p = state.player.lock().map_err(|e| e.to_string())?;
         p.set_queue(items);
         p.play_index(index)?;
     }
-    prefetch_next(&state, index);
     emit_queue(&app, &state);
     Ok(())
-}
-
-// ---------- remote providers (yt-dlp-backed) ----------
-
-fn detected_ytdlp(state: &State<AppState>) -> Result<YtDlp, String> {
-    let explicit = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .ytdlp_path
-        .clone();
-    YtDlp::detect(explicit.as_deref())
-        .ok_or_else(|| "yt-dlp not found — install it or set its path in Settings".into())
-}
-
-#[tauri::command]
-fn provider_status(state: State<AppState>) -> bool {
-    detected_ytdlp(&state).is_ok()
-}
-
-/// Async so the synchronous yt-dlp extraction runs on the runtime pool, not
-/// the UI thread.
-#[tauri::command]
-async fn provider_search(
-    state: State<'_, AppState>,
-    source: String,
-    query: String,
-) -> Result<Vec<RemoteTrack>, String> {
-    detected_ytdlp(&state)?.search(&source, &query, 8)
-}
-
-/// Queue identity of a remote track: a `remote:<source>:<id>`
-/// pseudo-path resolved (downloaded) lazily by the player's path
-/// resolver when playback reaches it.
-fn queue_item_for_remote(track: &RemoteTrack) -> QueueItem {
-    let key = format!("{}:{}", track.source, track.id);
-    QueueItem {
-        track: Track {
-            id: key.clone(),
-            title: track.title.clone(),
-            artist: track.artist.clone(),
-            album: String::new(),
-            artwork_url: track.artwork_url.clone(),
-            duration_ms: track.duration_ms,
-        },
-        path: format!("remote:{key}"),
-    }
-}
-
-/// Seed the remote resolver map for `track`, then return its index in
-/// the queue — existing slot when already queued, appended otherwise.
-fn enqueue_remote(
-    state: &State<AppState>,
-    track: RemoteTrack,
-) -> Result<(QueueItem, usize), String> {
-    let item = queue_item_for_remote(&track);
-    let key = format!("{}:{}", track.source, track.id);
-    state
-        .remote
-        .lock()
-        .map_err(|e| e.to_string())?
-        .insert(key, track);
-    let mut p = state.player.lock().map_err(|e| e.to_string())?;
-    let idx = match p.queue().iter().position(|i| i.path == item.path) {
-        Some(i) => i,
-        None => {
-            p.add(item.clone());
-            p.queue().len() - 1
-        }
-    };
-    Ok((item, idx))
-}
-
-/// Play a remote track inside the user's queue: it joins the tail (or
-/// jumps to its existing slot) instead of replacing everything. The
-/// audio resolves lazily as a `remote:` path inside `play_index`, so
-/// seek/queue/energy behave identically to local files.
-#[tauri::command]
-async fn provider_play(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    track: RemoteTrack,
-) -> Result<QueueItem, String> {
-    detected_ytdlp(&state)?;
-    let (item, idx) = enqueue_remote(&state, track)?;
-    // The queue changed even if playback below fails — announce it now
-    // so a failed track never lands silently in the list.
-    emit_queue(&app, &state);
-    // Resolve before the player lock, the same rule play_queue_index
-    // follows: a UI-initiated play must not hold the lock (and freeze
-    // every control) through a whole yt-dlp download.
-    let key = item.path["remote:".len()..].to_owned();
-    resolve_remote(&state.remote, &state.settings, &state.stream_cache, &key)?;
-    state
-        .player
-        .lock()
-        .map_err(|e| e.to_string())?
-        .play_index(idx)?;
-    prefetch_next(&state, idx);
-    emit_queue(&app, &state);
-    Ok(item)
-}
-
-/// Enqueue a remote track without touching playback or downloading —
-/// it resolves lazily when the queue reaches it. Returns the appended
-/// (or already-queued) item.
-#[tauri::command]
-fn provider_enqueue(
-    app: tauri::AppHandle,
-    state: State<AppState>,
-    track: RemoteTrack,
-) -> Result<QueueItem, String> {
-    let (item, _) = enqueue_remote(&state, track)?;
-    emit_queue(&app, &state);
-    Ok(item)
 }
 
 /// Outcome of `import_playlist`: tracks enqueued, http(s) entries left for
@@ -1294,53 +1216,6 @@ fn playlist_add_tracks(
     Ok(added)
 }
 
-/// Outcome of `import_playlist_url`: the playlist's own title and how
-/// many tracks were queued for lazy download.
-#[derive(serde::Serialize)]
-struct PlaylistUrlResult {
-    title: String,
-    imported: u32,
-}
-
-/// Enqueue every entry of a remote playlist/mix URL. Tracks carry a
-/// `remote:` pseudo-path and download one by one as playback reaches
-/// them — a 200-track list must not trigger 200 downloads up front.
-#[tauri::command]
-async fn import_playlist_url(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    url: String,
-) -> Result<PlaylistUrlResult, String> {
-    let ytdlp = detected_ytdlp(&state)?;
-    let pl = ytdlp.playlist(&url, 200)?;
-    // Lock order player → remote matches the resolver inside play_index;
-    // taking remote first here deadlocks against auto-advance.
-    let mut player = state.player.lock().map_err(|e| e.to_string())?;
-    let mut map = state.remote.lock().map_err(|e| e.to_string())?;
-    for t in &pl.tracks {
-        let key = format!("{}:{}", t.source, t.id);
-        map.insert(key.clone(), t.clone());
-        player.add(QueueItem {
-            track: Track {
-                id: key.clone(),
-                title: t.title.clone(),
-                artist: t.artist.clone(),
-                album: pl.title.clone(),
-                artwork_url: t.artwork_url.clone(),
-                duration_ms: t.duration_ms,
-            },
-            path: format!("remote:{key}"),
-        });
-    }
-    drop(map);
-    drop(player);
-    emit_queue(&app, &state);
-    Ok(PlaylistUrlResult {
-        title: pl.title,
-        imported: pl.tracks.len() as u32,
-    })
-}
-
 /// Retune the live EQ (dB per band) and persist the choice.
 #[tauri::command]
 fn set_eq(app: tauri::AppHandle, preset: String, bands: Vec<f32>) -> Result<(), String> {
@@ -1493,21 +1368,6 @@ fn set_output_device(app: tauri::AppHandle, name: Option<String>) -> Result<(), 
     s.save(&state.settings_path).map_err(|e| e.to_string())?;
     let _ = app.emit("settings", s.clone());
     Ok(())
-}
-
-/// Resolve the track's music video to a direct stream URL for the karaoke
-/// backdrop. `Ok(None)` when yt-dlp is missing or no video resolves — the
-/// player falls back to the blurred artwork.
-#[tauri::command]
-async fn resolve_video(
-    state: State<'_, AppState>,
-    artist: String,
-    title: String,
-) -> Result<Option<String>, String> {
-    match detected_ytdlp(&state) {
-        Ok(ytdlp) => ytdlp.resolve_video(&artist, &title),
-        Err(_) => Ok(None),
-    }
 }
 
 #[derive(Serialize)]
@@ -2653,25 +2513,8 @@ pub fn run() {
         None => std::sync::Arc::new(noctbeat_core::player::NullAudio::new()),
     };
     let settings_arc = std::sync::Arc::new(Mutex::new(settings.clone()));
-    let remote_map: std::sync::Arc<Mutex<std::collections::HashMap<String, RemoteTrack>>> =
-        std::sync::Arc::new(Mutex::new(std::collections::HashMap::new()));
-    let stream_cache = dir.join("streams");
     let mut local_player = LocalPlayer::new(audio_out);
     local_player.set_crossfade_ms(settings.crossfade_ms);
-    {
-        // Resolves `remote:<source>:<id>` queue paths to downloaded files
-        // in the streams cache; everything else passes through unchanged.
-        let map = remote_map.clone();
-        let settings = settings_arc.clone();
-        let cache = stream_cache.clone();
-        local_player.set_resolver(Box::new(move |item| {
-            let Some(key) = item.path.strip_prefix("remote:") else {
-                return Ok(item.path.clone());
-            };
-            resolve_remote(&map, &settings, &cache, key).map(|f| f.display().to_string())
-        }));
-    }
-
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -2690,8 +2533,7 @@ pub fn run() {
                         Code::MediaTrackPrevious | Code::MediaRewind => Control::Previous,
                         _ => return,
                     };
-                    // The hotkey thread must not block on a remote
-                    // resolve — same reason media_control is async.
+                    // Keep the hotkey thread free while the next file opens.
                     let app = app.clone();
                     std::thread::spawn(move || {
                         let state = app.state::<AppState>();
@@ -2736,9 +2578,6 @@ pub fn run() {
             hud_pos_pending: Mutex::new(None),
             desk_lyrics_pos_pending: Mutex::new(None),
             rodio,
-            remote: remote_map,
-            stream_cache,
-            prefetching: std::sync::Arc::new(Mutex::new(std::collections::HashSet::new())),
             discord: Mutex::new(discord::DiscordRpc::new(
                 &noctbeat_core::branding::branding().discord_client_id,
             )),
@@ -2752,6 +2591,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_now_playing,
             get_ext_status,
+            system_accent,
+            ext_play,
+            ext_video,
+            catalog_search,
             media_control,
             get_palette,
             get_lyrics,
@@ -2786,11 +2629,6 @@ pub fn run() {
             scan_library,
             library_tracks,
             play_items,
-            provider_status,
-            provider_search,
-            provider_play,
-            provider_enqueue,
-            resolve_video,
             list_outputs,
             set_output_device,
             set_eq,
@@ -2802,7 +2640,6 @@ pub fn run() {
             delete_profile,
             set_sleep_timer,
             import_playlist,
-            import_playlist_url,
             export_playlist,
             list_playlists,
             rename_playlist,
@@ -2908,9 +2745,8 @@ pub fn run() {
         });
 }
 
-/// Tray menu events run on the main thread; a next/prev that lands on an
-/// uncached remote track blocks on a yt-dlp resolve, so bounce to a
-/// worker thread — same reason `media_control` is an async command.
+/// Tray menu events run on the main thread; bounce next/prev to a worker
+/// thread — same reason `media_control` is an async command.
 fn tray_media_control(app: &tauri::AppHandle, cmd: Control) {
     let app = app.clone();
     std::thread::spawn(move || {

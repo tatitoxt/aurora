@@ -74,6 +74,20 @@ pub trait NowPlayingSource: Send {
     fn ext_status(&self) -> Option<(usize, Option<String>)> {
         None
     }
+    /// Provider hosts of every fresh extension tab.
+    fn ext_providers(&self) -> Vec<String> {
+        Vec::new()
+    }
+    /// YouTube video id of an extension tab on a watch page whose track is
+    /// `artist` / `title` (so local audio never gets an unrelated clip).
+    fn ext_video_id(&self, _artist: &str, _title: &str) -> Option<String> {
+        None
+    }
+    /// Ask a connected `provider` tab ("spotify", "youtube", ...) to search
+    /// `query` and play the first match. False when no such tab reports.
+    fn play_in_tab(&mut self, _provider: &str, _query: &str) -> bool {
+        false
+    }
 }
 
 /// Source used when nothing real is available: reports Stopped.

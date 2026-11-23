@@ -1,23 +1,75 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import Stage from "./pages/Stage";
-import Settings from "./pages/Settings";
-import Hud from "./pages/Hud";
-import DeskLyrics from "./pages/DeskLyrics";
-import Library from "./pages/Library";
-import Artist from "./pages/Artist";
-import Albums from "./pages/Albums";
-import Album from "./pages/Album";
-import Stats from "./pages/Stats";
-import Wrapped from "./pages/Wrapped";
-import Visualizer from "./pages/Visualizer";
 import Palette from "./Palette";
-import { bridge, onFileDrop, subscribe, type NowPlaying, type Settings as AppSettings } from "./bridge";
+import {
+  bridge,
+  onFileDrop,
+  subscribe,
+  type NowPlaying,
+  type Settings as AppSettings,
+} from "./bridge";
 import { favEntryFor, loadFavs, toggleFav } from "./favs";
 import { useT } from "./i18n";
 import { applyDynAccent, applyGlassOpacity, applyTheme } from "./themes";
 
+// Each window (Stage, HUD, desk lyrics) loads only its own page chunk.
+const Stage = lazy(() => import("./pages/Stage"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Hud = lazy(() => import("./pages/Hud"));
+const DeskLyrics = lazy(() => import("./pages/DeskLyrics"));
+const Library = lazy(() => import("./pages/Library"));
+const Artist = lazy(() => import("./pages/Artist"));
+const Albums = lazy(() => import("./pages/Albums"));
+const Album = lazy(() => import("./pages/Album"));
+const Stats = lazy(() => import("./pages/Stats"));
+const Wrapped = lazy(() => import("./pages/Wrapped"));
+const Visualizer = lazy(() => import("./pages/Visualizer"));
+
 export default function App() {
+  // Every icon button explains itself on hover: mirror aria-label into title.
+  useEffect(() => {
+    const label = (b: HTMLElement) => {
+      const l = b.getAttribute("aria-label");
+      if (!l || (b.title && !b.dataset.autotitle)) return;
+      if (b.title !== l) b.title = l;
+      b.dataset.autotitle = "1";
+    };
+    const scan = (root: ParentNode) =>
+      root.querySelectorAll<HTMLElement>("button[aria-label]").forEach(label);
+    scan(document);
+    // Only touch nodes that changed: a full rescan on every lyric/progress
+    // mutation was a measurable main-thread cost.
+    const mo = new MutationObserver((recs) => {
+      for (const r of recs) {
+        if (r.type === "attributes") {
+          if (r.target instanceof HTMLButtonElement) label(r.target);
+          continue;
+        }
+        r.addedNodes.forEach((n) => {
+          if (!(n instanceof HTMLElement)) return;
+          if (n instanceof HTMLButtonElement) label(n);
+          scan(n);
+        });
+      }
+    });
+    mo.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["aria-label"],
+    });
+    return () => mo.disconnect();
+  }, []);
+  // OS accent (macOS Appearance / Windows personalization) tints active controls.
+  useEffect(() => {
+    void bridge
+      .systemAccent()
+      .then(
+        (c) =>
+          c && document.documentElement.style.setProperty("--sys-accent", c),
+      )
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     let theme: AppSettings["theme"] | null = null;
     let art: string | undefined;
@@ -72,20 +124,22 @@ export default function App() {
   }, []);
   return (
     <>
-      <Routes>
-        <Route path="/" element={<Stage />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/hud" element={<Hud />} />
-        <Route path="/desklyrics" element={<DeskLyrics />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/artist/:name" element={<Artist />} />
-        <Route path="/albums" element={<Albums />} />
-        <Route path="/album/:artist/:name" element={<Album />} />
-        <Route path="/stats" element={<Stats />} />
-        <Route path="/wrapped" element={<Wrapped />} />
-        <Route path="/visualizer" element={<Visualizer />} />
-        <Route path="/fullscreen" element={<Stage />} />
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<Stage />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/hud" element={<Hud />} />
+          <Route path="/desklyrics" element={<DeskLyrics />} />
+          <Route path="/library" element={<Library />} />
+          <Route path="/artist/:name" element={<Artist />} />
+          <Route path="/albums" element={<Albums />} />
+          <Route path="/album/:artist/:name" element={<Album />} />
+          <Route path="/stats" element={<Stats />} />
+          <Route path="/wrapped" element={<Wrapped />} />
+          <Route path="/visualizer" element={<Visualizer />} />
+          <Route path="/fullscreen" element={<Stage />} />
+        </Routes>
+      </Suspense>
       <PaletteGate />
       <DropGate />
       <ShortcutsGate />
@@ -181,7 +235,8 @@ function ShortcutsGate() {
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         if (e.shiftKey) void b.mediaControl("next");
-        else void b.getNowPlaying().then((np) => b.seek(np.positionMs + 10_000));
+        else
+          void b.getNowPlaying().then((np) => b.seek(np.positionMs + 10_000));
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         if (e.shiftKey) void b.mediaControl("previous");
@@ -192,13 +247,17 @@ function ShortcutsGate() {
       } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
         const d = e.key === "ArrowUp" ? 0.05 : -0.05;
-        void b.getVolume().then((v) => b.setVolume(Math.min(1, Math.max(0, v + d))));
+        void b
+          .getVolume()
+          .then((v) => b.setVolume(Math.min(1, Math.max(0, v + d))));
       } else if (e.key === "s" || e.key === "S") {
         void b.getShuffle().then((on) => b.setShuffle(!on));
       } else if (e.key === "r" || e.key === "R") {
-        void b.getRepeat().then((m) =>
-          b.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
-        );
+        void b
+          .getRepeat()
+          .then((m) =>
+            b.setRepeat(m === "off" ? "all" : m === "all" ? "one" : "off"),
+          );
       } else if (e.key === "l" || e.key === "L") {
         void b.getNowPlaying().then((np) => {
           const entry = favEntryFor(np);
@@ -230,7 +289,11 @@ function DropGate() {
     const off = onFileDrop((paths) => {
       void bridge.enqueueFiles(paths).then((n) => {
         const tt = tRef.current;
-        setNote(n > 0 ? tt(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n }) : tt("app.noAudioDrop"));
+        setNote(
+          n > 0
+            ? tt(n === 1 ? "app.trackAdded" : "app.tracksAdded", { n })
+            : tt("app.noAudioDrop"),
+        );
         clearTimeout(timer);
         timer = setTimeout(() => setNote(""), 2600);
       });

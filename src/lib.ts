@@ -19,7 +19,11 @@ export function activeLyricIndex(lines: LrcLine[], posMs: number): number {
 }
 
 /** Ease-out pulse: 1 right after a beat, decaying to 0 over `decayMs`. */
-export function beatPulse(lastBeatMs: number, nowMs: number, decayMs = 320): number {
+export function beatPulse(
+  lastBeatMs: number,
+  nowMs: number,
+  decayMs = 320,
+): number {
   const t = Math.max(0, nowMs - lastBeatMs) / decayMs;
   return t >= 1 ? 0 : 1 - t * t;
 }
@@ -27,12 +31,18 @@ export function beatPulse(lastBeatMs: number, nowMs: number, decayMs = 320): num
 /** Split a lyric line into text tokens, flagging adlibs — background
  * vocals conventionally written inside parentheses — so renderers can
  * style them smaller and dimmer than the lead words. */
-export function adlibSegments(text: string): { text: string; adlib: boolean }[] {
+export function adlibSegments(
+  text: string,
+): { text: string; adlib: boolean }[] {
   const out: { text: string; adlib: boolean }[] = [];
   let depth = 0;
   let buf = "";
   const flush = () => {
-    if (buf) out.push({ text: buf, adlib: depth > 0 || /^\s*\(/.test(buf) || /\)\s*$/.test(buf) });
+    if (buf)
+      out.push({
+        text: buf,
+        adlib: depth > 0 || /^\s*\(/.test(buf) || /\)\s*$/.test(buf),
+      });
     buf = "";
   };
   for (const ch of text) {
@@ -67,3 +77,44 @@ export function adlibMask(words: string[]): boolean[] {
   }
   return mask;
 }
+
+/** Artist cards for a song list: first artwork per artist, max 8. Collab
+ *  credits ("A & B") are hidden when a credited artist has its own card;
+ *  punctuated names like "Earth, Wind & Fire" stay whole. */
+export function artistCards(
+  songs: { artist: string; artworkUrl: string }[],
+): [string, string][] {
+  const seen = new Map<string, string>();
+  for (const s of songs) {
+    if (s.artist && !seen.has(s.artist)) seen.set(s.artist, s.artworkUrl);
+  }
+  const names = [...seen.keys()];
+  return [...seen]
+    .filter(([n]) => {
+      const parts = n.split(/\s*(?:,|&|\bfeat\.?|\bx\b)\s*/i);
+      return !(
+        parts.length > 1 && names.some((o) => o !== n && parts.includes(o))
+      );
+    })
+    .slice(0, 8);
+}
+
+/** Provider host reported by the browser extension → friendly label + picker id. */
+/** WebKitGTK: transparent windows leave stale paint, so Linux stays opaque. */
+export const isLinux = () =>
+  typeof navigator !== "undefined" &&
+  /Linux/.test(navigator.userAgent) &&
+  !/Android/.test(navigator.userAgent);
+
+export const EXT_HOSTS: [RegExp, string, string][] = [
+  [/(^|\.)youtube\.com/, "YouTube Music", "youtube"],
+  [/open\.spotify\.com/, "Spotify", "spotify"],
+  [/soundcloud\.com/, "SoundCloud", "soundcloud"],
+  [/music\.apple\.com/, "Apple Music", "apple"],
+  [/listen\.tidal\.com/, "Tidal", "tidal"],
+  [/music\.amazon\./, "Amazon Music", "amazon"],
+];
+export const extLabel = (host: string) =>
+  EXT_HOSTS.find(([re]) => re.test(host))?.[1] ?? host;
+export const extProviderId = (host: string | null | undefined) =>
+  (host && EXT_HOSTS.find(([re]) => re.test(host))?.[2]) ?? null;

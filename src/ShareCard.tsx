@@ -214,7 +214,7 @@ export default function ShareCard({
       <div className="share" onMouseDown={(e) => e.stopPropagation()}>
         <div className="share__head">
           <span>{t("share.title")}</span>
-          <button className="ctl" aria-label="Close" onClick={onClose}>
+          <button className="ctl" aria-label={t("fs.close")} onClick={onClose}>
             <X size={14} />
           </button>
         </div>

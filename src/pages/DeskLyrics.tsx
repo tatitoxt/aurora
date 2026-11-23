@@ -46,7 +46,7 @@ export default function DeskLyrics() {
 
   return (
     <div className="dlyrics" onMouseDown={onMouseDown}>
-      <button className="dlyrics__close" aria-label="Close lyrics overlay" onClick={close}>
+      <button className="dlyrics__close" aria-label={t("dl.close")} onClick={close}>
         <X weight="bold" size={13} />
       </button>
       {line ? (

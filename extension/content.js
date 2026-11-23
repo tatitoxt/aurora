@@ -110,10 +110,126 @@ function run(cmd) {
 // Post every tick even when nothing changed: the reply is also the
 // transport-command channel, so a paused tab must keep polling or desktop
 // controls (resume/skip) would sit queued forever.
+// "Search and play" from the app: open the provider's own search page in
+// this tab and click play on the first track, so it plays with the user's
+// account even when nothing was playing. SPA routes are tried first (no
+// reload); otherwise the query survives a full navigation in sessionStorage.
+const enc = encodeURIComponent;
+const SEARCH = {
+  "open.spotify.com": {
+    url: (q) => `/search/${enc(q)}/tracks`,
+    spa: true,
+    play: [
+      '[data-testid="tracklist-row"] [data-testid="play-button"]',
+      '[data-testid="tracklist-row"] button[aria-label]',
+    ],
+    row: '[data-testid="tracklist-row"]',
+  },
+  "music.youtube.com": {
+    url: (q) => `/search?q=${enc(q)}`,
+    play: [
+      "ytmusic-card-shelf-renderer ytmusic-play-button-renderer",
+      "ytmusic-shelf-renderer ytmusic-play-button-renderer",
+    ],
+  },
+  "youtube.com": {
+    url: (q) => `/results?search_query=${enc(q)}`,
+    play: ["ytd-video-renderer a#thumbnail"],
+  },
+  "soundcloud.com": {
+    url: (q) => `/search/sounds?q=${enc(q)}`,
+    spa: true,
+    play: [".searchList__item .sc-button-play", ".soundList__item .sc-button-play"],
+    // Signed-out tabs get an optional sign-in wall that holds playback.
+    dismiss: [
+      ".modal__closeButton",
+      '.modal button[aria-label="Close"]',
+      '.modal button[title="Close"]',
+    ],
+  },
+  "music.apple.com": {
+    url: (q) => `/${location.pathname.split("/")[1] || "us"}/search?term=${enc(q)}`,
+    play: [
+      '[data-testid="track-lockup"] [data-testid="play-button"]',
+      '[data-testid="track-list-item"] button[aria-label*="Play"]',
+      "button.play-button",
+    ],
+  },
+  "listen.tidal.com": {
+    url: (q) => `/search/tracks?q=${enc(q)}`,
+    play: ['[data-test="tracklist-row"] [data-test="play-button"]', '[data-test="play-button"]'],
+    row: '[data-test="tracklist-row"]',
+  },
+  amazon: {
+    url: (q) => `/search/${enc(q)}`,
+    play: [
+      'music-image-row music-button[icon-name="play"]',
+      'music-horizontal-item music-button[icon-name="play"]',
+    ],
+  },
+};
+const PENDING = "noctbeat.play";
+// Amazon Music runs on regional hosts (music.amazon.de, .co.uk, ...).
+const searchCfg = SEARCH[host] || (host.startsWith("music.amazon.") ? SEARCH.amazon : null);
+
+function waitFor(sels, ms) {
+  return new Promise((done) => {
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      for (const sel of sels) {
+        const el = document.querySelector(sel);
+        if (el) {
+          clearInterval(iv);
+          return done(el);
+        }
+      }
+      if (Date.now() - t0 > ms) {
+        clearInterval(iv);
+        done(null);
+      }
+    }, 250);
+  });
+}
+
+async function clickFirst(cfg) {
+  const el = await waitFor(cfg.play, 12000);
+  if (el) {
+    el.click();
+    if (cfg.dismiss) void waitFor(cfg.dismiss, 5000).then((x) => x?.click());
+    return true;
+  }
+  const row = cfg.row && document.querySelector(cfg.row);
+  if (row) {
+    row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    return true;
+  }
+  return false;
+}
+
+async function playQuery(q) {
+  const cfg = searchCfg;
+  if (!cfg) return;
+  const path = cfg.url(q);
+  if (cfg.spa) {
+    history.pushState({}, "", path);
+    dispatchEvent(new PopStateEvent("popstate", { state: {} }));
+    if (await clickFirst(cfg)) return;
+  }
+  sessionStorage.setItem(PENDING, q);
+  location.assign(path);
+}
+
+const pendingQ = sessionStorage.getItem(PENDING);
+if (pendingQ && searchCfg) {
+  sessionStorage.removeItem(PENDING);
+  void clickFirst(searchCfg);
+}
+
 function tick() {
   chrome.runtime.sendMessage({ type: "now-playing", payload: collect() }, (resp) => {
     void chrome.runtime.lastError;
     (resp?.commands || []).forEach(run);
+    if (resp?.play?.query) void playQuery(resp.play.query);
   });
 }
 

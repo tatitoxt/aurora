@@ -28,6 +28,12 @@ html, body, #root { height: 100%; }
 
 body {
   background: transparent;
+}
+/* WebKitGTK never clears transparent pixels between frames (stale,
+   doubled UI on scroll/re-render), so Linux main windows paint opaque. */
+html.opaque body { background: var(--bg); }
+.fs.fs--clear { background: transparent; }
+body {
   color: var(--text);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
@@ -647,6 +653,8 @@ body {
 .panel > span { font-size: 11px; color: var(--dim); }
 
 /* ---------- settings ---------- */
+/* Own compositing layer: WebKitGTK without DMA-BUF left stale paint
+   behind when this transparent scroller scrolled or re-rendered. */
 .settings { padding: 20px 18px; gap: 24px; overflow-y: auto; height: 100%; }
 .settings > .field, .settings > .row {
   background: rgba(255, 255, 255, 0.045);
@@ -1028,31 +1036,35 @@ body {
    macOS frame cuts, or the opaque stage shows a square corner artifact. */
 .fs--win { border-radius: 14px; }
 /* Liquid ambient wash: artwork-tinted gradient blobs drifting slowly.
+   Stepped (~3 fps) and unblurred: a 60 fps drift kept WebKit repainting
+   full-window layers, ~4 cores without GPU compositing; the soft radial
+   gradients already read as blurred and the motion is too slow to judder.
    Opacity stays low so glass and text keep their contrast over it. */
 .amb { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .amb__b {
   position: absolute; width: 58vmax; height: 58vmax; border-radius: 50%;
-  filter: blur(70px); opacity: 0.32; will-change: transform;
+  opacity: 0.32; will-change: transform;
 }
 .amb__b1 {
   top: -20%; left: -14%;
   background: radial-gradient(circle, var(--accent) 0%, transparent 66%);
-  animation: ambDrift1 34s ease-in-out infinite alternate;
+  animation: ambDrift1 34s steps(100) infinite alternate;
 }
 .amb__b2 {
   bottom: -24%; right: -16%;
   background: radial-gradient(circle, var(--accent2, var(--accent)) 0%, transparent 66%);
-  animation: ambDrift2 44s ease-in-out infinite alternate;
+  animation: ambDrift2 44s steps(130) infinite alternate;
 }
 .amb__b3 {
   top: 28%; left: 34%; opacity: 0.2;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, var(--accent2, var(--accent))) 0%, transparent 66%);
-  animation: ambDrift3 52s ease-in-out infinite alternate;
+  animation: ambDrift3 52s steps(150) infinite alternate;
 }
 @keyframes ambDrift1 { to { transform: translate(18vw, 12vh) scale(1.18); } }
 @keyframes ambDrift2 { to { transform: translate(-16vw, -14vh) scale(0.82) rotate(40deg); } }
 @keyframes ambDrift3 { to { transform: translate(-10vw, 16vh) scale(1.24); } }
 @media (prefers-reduced-motion: reduce) { .amb__b { animation: none; } }
+.amb--still .amb__b { animation-play-state: paused; }
 
 .fs__bg { position: absolute; inset: 0; }
 .fs__bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.06); filter: blur(12px) saturate(1.15) brightness(0.62); }
@@ -1085,9 +1097,10 @@ body {
     radial-gradient(34% 30% at 76% 24%, color-mix(in srgb, var(--accent-2, var(--accent)) 36%, transparent), transparent 70%),
     radial-gradient(45% 38% at 60% 78%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%),
     #0c0c11;
-  filter: blur(40px) saturate(1.25);
-  animation: fs-mesh-drift 26s ease-in-out infinite alternate;
+  filter: saturate(1.25);
+  animation: fs-mesh-drift 26s steps(80) infinite alternate;
 }
+.fs__mesh--still { animation-play-state: paused; }
 @keyframes fs-mesh-drift {
   from { transform: rotate(-4deg) scale(1.02); }
   to { transform: rotate(4deg) scale(1.12); }
@@ -2140,3 +2153,473 @@ body {
   }
   .fs__menuopt .fs__slider { flex: 1; min-width: 60px; }
 }
+
+/* ==========================================================================
+   Design system v2 — one type scale, one spacing scale, one surface model.
+   Reference: Linear / Spotify desktop chrome. Monochrome: the only "accent"
+   is white; colour comes from album art, never from UI chrome.
+   ========================================================================== */
+:root {
+  --ui: "Inter Variable", "Inter", -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --fs-2xs: 10px; --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-lg: 15px; --fs-xl: 20px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-pill: 999px;
+  --surface-1: rgba(255, 255, 255, 0.04);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --hair: rgba(255, 255, 255, 0.08);
+  --hair-strong: rgba(255, 255, 255, 0.14);
+  --ink: #0b0b0e;
+  --muted: color-mix(in srgb, var(--dim) 72%, transparent);
+  font-family: var(--ui);
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+button, input, select, textarea { font-family: var(--ui); }
+
+/* Headings: UI chrome is sans, tight tracking. Serif stays for lyrics/HUD. */
+.pagehead__name, .art__name, .settings h1 {
+  font-family: var(--ui); font-size: var(--fs-xl); font-weight: 650;
+  letter-spacing: -0.02em; line-height: 1.15; text-shadow: none;
+}
+.pagehead { gap: 2px; }
+.pagehead__meta, .art__meta { font-size: var(--fs-xs); color: var(--muted); }
+
+/* Kickers / section labels: small caps, modest tracking. */
+.art__kicker, .lib__kicker, .setghead, .field > span:first-child, .field > label:first-child {
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.lib__count { font-size: var(--fs-2xs); background: var(--surface-2); border-color: transparent; }
+
+/* Header links: quiet ghost pills. */
+.pagehead__link, .art__back {
+  font-size: var(--fs-xs); font-weight: 500; color: var(--dim);
+  padding: 5px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--hair); background: var(--surface-1);
+}
+.pagehead__link:hover, .art__back:hover { color: var(--text); background: var(--surface-hover); border-color: var(--hair-strong); }
+
+/* Sticky section rail: no tinted band and no nested backdrop blur (a child
+   blur inside the window glass samples only the dark panel tint). The pills
+   carry their own surface so scrolled content stays legible beneath them. */
+.setnav {
+  /* Near-opaque strip: rows scrolling under the sticky pills read as
+     duplicated buttons when the bar is see-through. */
+  background: linear-gradient(180deg, rgba(11, 11, 14, 0.97) 78%, rgba(11, 11, 14, 0));
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  padding: 8px 18px 12px; gap: 4px;
+}
+.setnav__pill {
+  font-size: var(--fs-xs); font-weight: 500; color: var(--dim);
+  padding: 6px 12px; border: 1px solid var(--hair);
+  background: color-mix(in srgb, var(--panel-strong) 92%, #fff 8%);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.setnav__pill:hover { background: var(--surface-hover); border-color: var(--hair); }
+.setnav__pill:focus-visible { border-color: rgba(255, 255, 255, 0.5); }
+
+/* Cards: flat translucent surface + hairline, no diagonal sheen. */
+.setgroup {
+  background: var(--surface-1); border: 1px solid var(--hair);
+  border-radius: var(--r-lg); padding: var(--sp-4) var(--sp-4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  gap: var(--sp-3);
+}
+.setgroup > .row + .row, .setgroup > .row + .field,
+.setgroup > .field + .row, .setgroup > .field + .field { border-top-color: var(--hair); padding-top: var(--sp-3); }
+.panel, .stat-card {
+  background: var(--surface-1); border: 1px solid var(--hair); border-radius: var(--r-lg);
+}
+.panel { padding: var(--sp-3); }
+.panel > span { font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lib__hero {
+  background: var(--surface-1); border-color: var(--hair);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.lib__hero:hover { transform: none; background: var(--surface-hover); border-color: var(--hair-strong); }
+.lib__heroicon { background: var(--surface-2); border-color: var(--hair); box-shadow: none; border-radius: var(--r-md); }
+.lib__thumb--ph { background: var(--surface-2); }
+
+/* Controls: white is the only "on" colour. */
+.toggle { background: var(--surface-2); border-color: var(--hair-strong); box-shadow: none; }
+.toggle.on { background: #fff; border-color: #fff; }
+.toggle.on::after { background: var(--ink); box-shadow: none; }
+.seg { background: var(--surface-1); border-color: var(--hair); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.seg button { font-size: var(--fs-xs); font-weight: 500; padding: 5px 12px; }
+.seg button.on { background: #fff; color: var(--ink); box-shadow: none; }
+.field input[type="text"], .field select, .row select {
+  background: var(--surface-1); border-color: var(--hair-strong); border-radius: var(--r-md);
+  box-shadow: none; font-size: var(--fs-sm);
+}
+.field input[type="text"]:focus, .field select:focus, .row select:focus { outline: none; border-color: rgba(255, 255, 255, 0.45); }
+
+/* Track rows (Spotify list rhythm): 36px art, two-line meta, quiet hover. */
+.lib__row { padding: 6px 10px 6px 6px; border-radius: var(--r-md); gap: 1px 12px; }
+.lib__row:hover { background: var(--surface-1); }
+.lib__row--current { background: var(--surface-2); }
+.lib__thumb { width: 36px; height: 36px; border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--hair); }
+.lib__title { font-size: var(--fs-md); font-weight: 550; letter-spacing: -0.005em; }
+.lib__sub, .lib__dur { font-size: var(--fs-xs); color: var(--muted); }
+.tops__row { padding: 6px 10px; border-radius: var(--r-md); font-size: var(--fs-md); gap: 12px; }
+.tops__row:hover { background: var(--surface-1); }
+.tops__meta b { font-weight: 550; }
+.tops__meta span, .tops__n, .tops__row > em { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Stats: numbers in the UI face, neutral bars, no glow. */
+.stat-card { padding: var(--sp-3); gap: 2px; }
+.stat-card em { font-family: var(--ui); font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stat-card span { font-size: var(--fs-xs); color: var(--muted); }
+.days { border-bottom-color: var(--hair); }
+.days__bar { background: rgba(255, 255, 255, 0.22); box-shadow: none; border-radius: 4px 4px 0 0; }
+.days__bar--max { background: #fff; box-shadow: none; }
+.tops__link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Progress bars: white fill everywhere. */
+.hud__progress-fill { background: #fff; }
+.fs--arc .fs__hairfill { background: #fff; box-shadow: none; }
+
+/* Albums grid: equal columns regardless of title length. */
+.art__albums { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--sp-3); }
+.art__album { min-width: 0; padding: 6px; border-radius: var(--r-md); }
+.art__album:hover { background: var(--surface-1); }
+.art__albumCover { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--hair); }
+.art__albumName { font-size: var(--fs-sm); font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.art__albumSub { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Theme gallery: flat swatch of the theme base with a thin tone bar. */
+.themegal { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--sp-2); }
+.themechip { height: 52px; border-radius: var(--r-md); border-color: var(--hair-strong); font-size: var(--fs-xs); font-weight: 500; }
+.themechip:hover { transform: none; border-color: rgba(255, 255, 255, 0.3); }
+.themechip.on { border-color: #fff; box-shadow: 0 0 0 1px #fff; }
+.themechip::after { display: none; }
+.themechip__sw::after { content: ""; position: absolute; right: 10px; bottom: 10px; width: 18px; height: 3px; border-radius: 2px; background: var(--sw-tone, #fff); }
+.themechip__nm { left: 10px; bottom: 7px; text-shadow: none; }
+
+/* Headers without artwork: no dark scrim band. */
+.art__heroScrim:first-child { display: none; }
+
+/* Active icons / links: white, never the art-tinted accent. */
+.fs__icon--on, .fs__morebtn--on, .hud__lyrswap.on { color: #fff; }
+.fs__npkick { color: var(--muted); letter-spacing: 0.06em; font-weight: 600; }
+.lib__artist:hover { color: var(--text); }
+.setnav__pill:focus-visible, .lib__add:hover, .stats__clear:hover, .profile.on { border-color: rgba(255, 255, 255, 0.5); }
+
+/* ---------- Design system v2.1: tabs, numbered rows, spacing ---------- */
+.settings > .stat-cards, .settings > .panel, .settings > .stats__clear { margin-top: var(--sp-3); }
+.stat-cards { gap: var(--sp-2); }
+
+.libtabs {
+  display: flex; gap: 2px; width: fit-content; max-width: 100%;
+  margin-top: var(--sp-3); padding: 3px;
+  background: var(--surface-1); border: 1px solid var(--hair); border-radius: var(--r-pill);
+}
+.libtabs button {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: none; cursor: pointer; color: var(--dim);
+  font-size: var(--fs-xs); font-weight: 500; padding: 6px 14px; border-radius: var(--r-pill);
+  transition: background .15s, color .15s;
+}
+.libtabs button:hover { color: var(--text); }
+.libtabs button.on { background: #fff; color: var(--ink); }
+.libtabs em { font-style: normal; font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; opacity: .6; }
+.settings--lib > .inrow { margin-top: var(--sp-3); }
+.settings--lib .note { background: none; border: none; padding: 2px 4px; margin: 8px 0 0; color: var(--muted); }
+.settings--lib .lib { margin-top: var(--sp-2); padding: 0; }
+
+.seg--ghost { background: none; border-color: transparent; }
+.seg--ghost button { color: var(--dim); }
+.seg--ghost button:hover:not(:disabled) { color: var(--text); background: var(--surface-1); }
+
+.lib__row--num { grid-template-columns: 20px auto 1fr auto; padding-left: 4px; }
+.lib__row--num .lib__thumb { grid-column: 2; }
+.lib__row--num .lib__title, .lib__row--num .lib__sub { grid-column: 3; }
+.lib__row--num .lib__dur { grid-column: 4; }
+.lib__idx {
+  grid-column: 1; grid-row: 1 / span 2; justify-self: end;
+  font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.lib__row--current .lib__idx { color: var(--text); }
+.lib__row--num .lib__eq { margin-right: 0; }
+
+/* Artwork backdrop for secondary pages */
+.artbg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.artbg img {
+  position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover;
+  filter: blur(56px) saturate(1.25) brightness(0.55);
+}
+.artbg::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(6, 6, 8, 0.28), rgba(6, 6, 8, 0.62));
+}
+.glass:has(> .artbg) { background: rgba(10, 10, 12, 0.55); }
+.glass:has(> .artbg) > :not(.artbg) { position: relative; z-index: 1; }
+.settings > .setblock { margin-top: var(--sp-5); }
+.settings > .setnav + .setblock { margin-top: var(--sp-2); }
+.settings > .setblock { scroll-margin-top: 80px; }
+.setnav { mask-image: linear-gradient(90deg, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); }
+.art__hero:not(:has(.art__playAll)) > .art__back { position: absolute; top: 16px; right: 18px; z-index: 2; }
+.glass:has(> .artbg) .art__heroBg, .glass:has(> .artbg) .art__heroScrim { display: none; }
+.glass:has(> .artbg) .art__hero { min-height: 0; padding: 20px 18px 8px; }
+.glass:has(> .artbg) .art__scroll { padding: 8px 18px 16px; }
+.art__albums { margin: 0 -6px; }
+.settings--lib .lib__toolbar { padding: 0; }
+
+/* ---------- Stage v3: one proportional unit, so the layout keeps its ratio
+   at any window size (16:9 reference: --u is 1% of the width that fits). */
+.fs {
+  --u: min(1vw, 1.7778vh);
+  --con: calc(clamp(88px, 11 * var(--u), 230px) * var(--cscale, 1));
+  --cside: calc(clamp(52px, 7 * var(--u), 150px) * var(--cscale, 1));
+}
+.fs__clockwrap { padding-top: clamp(34px, 5.5 * var(--u), 96px); }
+.fs__date { font-size: clamp(9px, 1.05 * var(--u), 20px); margin-bottom: clamp(2px, 0.4 * var(--u), 8px); letter-spacing: 0.24em; }
+.fs__clock { font-size: calc(clamp(40px, 7 * var(--u), 140px) * var(--clksc, 1)); }
+.fs__center { min-height: 0; padding: clamp(6px, 1 * var(--u), 20px) 6vw; }
+.fs__lyrics {
+  max-height: none; overflow: visible; gap: clamp(4px, 0.8 * var(--u), 16px);
+  -webkit-mask-image: none; mask-image: none;
+}
+.fs__lyric { font-size: calc(clamp(20px, 3.6 * var(--u), 72px) * var(--lyrsc, 1)); max-width: 88vw; line-height: 1.12; }
+.fs__lyrctx {
+  font-size: clamp(13px, 1.7 * var(--u), 32px); max-width: 80vw;
+  white-space: normal; text-overflow: clip;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.fs__lyrctx--dn2 { color: rgba(244, 245, 250, 0.3); }
+/* Spotify-style karaoke: sung words solid, the current one glows. */
+.fs__lyric .fsword { color: rgba(244, 245, 250, 0.4); transition: color 0.25s, text-shadow 0.25s; }
+.fs__lyric .fsword--done { color: rgba(244, 245, 250, 0.96); }
+.fs__lyric .fsword--now {
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.75), 0 0 42px rgba(255, 255, 255, 0.35), 0 2px 24px rgba(0, 0, 0, 0.8);
+}
+.fs .fs__covers {
+  padding: 0 calc(50% - var(--con) / 2); gap: clamp(8px, 1.2 * var(--u), 22px);
+  margin-bottom: clamp(8px, 1.4 * var(--u), 24px); align-items: flex-end;
+  animation: fs-rise 0.35s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+.fs .fs__cover { width: var(--cside); }
+.fs .fs__cover--on { width: var(--con); }
+.fs .fs__covers--big .fs__cover--on { width: calc(var(--con) * 1.3); }
+.fs .fs__coverimg, .fs .fs__covers--big .fs__coverimg { aspect-ratio: 1; border-radius: clamp(10px, 1.4 * var(--u), 22px); }
+.fs .fs__cover img { border-radius: clamp(8px, 1.1 * var(--u), 20px); }
+.fs__cvmeta { left: 9%; right: 9%; bottom: 8%; }
+.fs__cvtitle { font-size: clamp(11px, 1.25 * var(--u), 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__cvart { font-size: clamp(9.5px, 0.95 * var(--u), 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__cname { font-size: clamp(9.5px, 0.95 * var(--u), 14px); margin-top: clamp(3px, 0.5 * var(--u), 8px); }
+.fs__cart { font-size: clamp(8.5px, 0.8 * var(--u), 12px); }
+.fs__bottom { padding: 0 6vw clamp(10px, 2.4 * var(--u), 44px); gap: clamp(6px, 0.8 * var(--u), 12px); }
+/* Dock: title, timeline and transport share the pill's width, all centred. */
+.fs__dock { display: inline-grid; gap: clamp(6px, 0.8 * var(--u), 12px); max-width: 100%; }
+.fs__dock > .fs__nowrow { width: 0; min-width: 100%; display: flex; flex-direction: column; gap: 3px; }
+.fs__nowtxt { position: relative; text-align: center; padding: 0 36px; min-width: 0; }
+.fs__nowtxt .fs__mtitle, .fs__nowtxt .fs__msub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.75); }
+.fs__nowtxt .fs__msub { color: rgba(244, 245, 250, 0.72); }
+.fs__thumbtog { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; color: var(--text); }
+.fs__timerow { display: flex; align-items: center; gap: 10px; }
+.fs__timerow .fs__hair { flex: 1; margin-top: 0; }
+.fs__tm { min-width: 32px; font-size: 11px; font-variant-numeric: tabular-nums; color: rgba(244, 245, 250, 0.82); text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
+.fs__tm--end { text-align: right; }
+/* Transport: play is the exact centre; equal groups either side. */
+.fs .fs__pill { display: grid; grid-template-columns: 1fr auto 1fr; }
+.fs__pgl, .fs__pgr { display: flex; align-items: center; gap: inherit; }
+.fs__pgl { justify-content: flex-end; }
+.fs__pgr { justify-content: flex-start; }
+.fs__pgl > *, .fs__pgr > * { flex: none; }
+
+/* Liquid glass: clear body, reflective rim — never a dark slab. */
+.fs .fs__pill, .hud__pill, .hud__focusrow, .hud__list {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(14px) saturate(1.7); -webkit-backdrop-filter: blur(14px) saturate(1.7);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 20px rgba(255, 255, 255, 0.06),
+    0 10px 30px -14px rgba(0, 0, 0, 0.45);
+}
+.fs .fs__pill .fs__icon, .hud__pill .hctl, .hud__focusrow .hctl { color: #fff; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6)); }
+.hud__focusrow { padding: 2px 8px; border-radius: 999px; }
+
+/* ---------- HUD: no panel, the desktop shows through the window ---------- */
+.hud { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; }
+.hud__clock, .hud__focustitle, .hud__focussub { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.6); }
+.hud__focusart { box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.6); }
+
+/* Settings over artwork: liquid-glass cards that pick up the song's colors. */
+.glass:has(> .artbg) .setgroup {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 32px -14px rgba(0, 0, 0, 0.55);
+}
+.glass:has(> .artbg) .setnav__pill {
+  background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+
+/* ---------- v3.1: clearer glass, OS accent, outlined text ---------- */
+.fs .fs__pill, .hud__pill, .hud__focusrow, .hud__list, .fs__qpanel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
+  backdrop-filter: blur(8px) saturate(1.5); -webkit-backdrop-filter: blur(8px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 20px rgba(255, 255, 255, 0.05),
+    0 10px 30px -14px rgba(0, 0, 0, 0.4);
+}
+.fs__icon--on, .hctl--on,
+.fs .fs__pill .fs__icon.fs__icon--on, .hud__pill .hctl.hctl--on, .hud__focusrow .hctl.hctl--on { color: var(--sys-accent, var(--accent)); }
+.fs__hairfill, .hud__progress-fill { background: var(--sys-accent, #fff); }
+.fs__nowtxt .fs__mtitle, .fs__nowtxt .fs__msub, .fs__tm, .fs__clock, .fs__date,
+.hud__clock, .hud__focustitle, .hud__focussub, .fs__qname, .fs__qsub, .fs__qtitle {
+  -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.35); paint-order: stroke fill;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 10px rgba(0, 0, 0, 0.7);
+}
+.fs__lyric, .fs__lyrctx {
+  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.35); paint-order: stroke fill;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.8), 0 2px 18px rgba(0, 0, 0, 0.6);
+}
+.fs__lyric .fsword { color: rgba(244, 245, 250, 0.5); }
+.fs__lyric .fsword--done { color: rgba(255, 255, 255, 0.95); }
+.fs__lyric .fsword--now {
+  color: #fff;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.9), 0 0 14px rgba(255, 255, 255, 0.9), 0 0 34px rgba(255, 255, 255, 0.5);
+}
+/* Seek: bigger hit area, click or drag anywhere along it. */
+.fs__hair { height: 5px; transition: height 0.15s; }
+.fs__hair::before { content: ""; position: absolute; inset: -9px 0; }
+.fs__hair:hover { height: 7px; }
+/* Up next panel */
+.fs__qpanel {
+  position: absolute; z-index: 8;
+  left: clamp(10px, 2 * var(--u), 32px); top: clamp(56px, 8 * var(--u), 120px);
+  width: clamp(200px, 22 * var(--u), 340px); max-height: calc(100% - 220px);
+  display: flex; flex-direction: column; border-radius: 18px; overflow: hidden;
+}
+.fs__qhead { display: flex; align-items: center; gap: 2px; padding: 6px 6px 4px 14px; cursor: grab; touch-action: none; }
+.fs__qhead .fs__icon { width: 26px; height: 26px; color: #fff; }
+.fs__qtitle { flex: 1; font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.85); }
+.fs__qlist { overflow-y: auto; padding: 0 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+.fs__qrow {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px;
+  background: none; border: none; color: #fff; text-align: left; cursor: pointer; font: inherit;
+}
+.fs__qrow:hover { background: rgba(255, 255, 255, 0.08); }
+.fs__qrow--on { background: rgba(255, 255, 255, 0.13); }
+.fs__qrow img, .fs__qimg { width: 34px; height: 34px; border-radius: 7px; object-fit: cover; flex: none; background: rgba(255, 255, 255, 0.08); }
+.fs__qtxt { display: flex; flex-direction: column; min-width: 0; }
+.fs__qname { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs__qsub { font-size: 11px; color: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- v3.2: neutral glass popovers, anchored pickers, glass HUD play, Library popup ---------- */
+.fs__volpop {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(26px) saturate(1.4); -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.1), 0 18px 44px -16px rgba(0, 0, 0, 0.5);
+}
+@keyframes fsPopIn { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+.fs__provpop {
+  position: absolute; left: 0; bottom: calc(100% + 14px); transform: none;
+  transform-origin: bottom left; animation: fsPopIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fs__provpop--search { min-width: 300px; }
+.fs__morebtn, .fs__extlive { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
+.hud__pill .hctl.hctl--play, .hud__pill .hctl.hctl--play:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06));
+  color: #fff; border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 14px -6px rgba(0, 0, 0, 0.5);
+}
+.hud__pill .hctl.hctl--play:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1)); }
+/* Progress moves by transform (compositor only): a width transition
+   relaid out and repainted the bar under the glass pill every frame. */
+.fs__hairclip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.fs__hairfill { inset: 0; width: 100%; transition: transform 0.25s linear; will-change: transform; }
+.fs__libpop {
+  position: absolute; z-index: 9; inset: clamp(44px, 6%, 80px) clamp(12px, 8%, 160px) clamp(90px, 16%, 150px);
+  border-radius: 22px; overflow: hidden; animation: fsPopIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02)), rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(30px) saturate(1.4); -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+}
+.fs__libpop > .glass { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; overflow-y: auto; }
+.fs__libpop > .glass > .artbg { display: none; }
+.fs__libclose { position: absolute; top: 8px; right: 8px; z-index: 2; color: #fff; }
+.fs :has(.fs__provpop) { z-index: 30; }
+.fs__provpop { background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)), rgba(10, 10, 10, 0.42); backdrop-filter: blur(34px) saturate(1.4); -webkit-backdrop-filter: blur(34px) saturate(1.4); }
+.fs__libpop .pagehead__links { margin-right: 30px; }
+/* Blur lives on a pseudo-element so the pill isn't a backdrop root: its popovers can blur the page behind them. */
+.fs .fs__pill { position: relative; z-index: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.fs .fs__pill::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  backdrop-filter: blur(8px) saturate(1.5); -webkit-backdrop-filter: blur(8px) saturate(1.5);
+}
+/* Library: narrow movable glass panel like Up next. */
+.fs__libpop {
+  --libw: clamp(300px, 30 * var(--u), 420px);
+  inset: auto; width: var(--libw); height: min(calc(100% - 230px), 540px); min-height: 260px;
+  left: calc(50% - var(--libw) / 2); top: clamp(56px, 8 * var(--u), 120px);
+}
+.fs__libpop > .glass { height: 100%; padding-top: 14px; }
+.fs__libgrip { position: absolute; top: 0; left: 0; right: 40px; height: 22px; z-index: 2; cursor: grab; touch-action: none; }
+.fs__libgrip:active { cursor: grabbing; }
+.fs__libgrip::after { content: ""; position: absolute; top: 8px; left: calc(50% + 20px); width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: rgba(255, 255, 255, 0.35); }
+/* Popovers anchor to the pill: providers open left, search opens right. */
+.fs .fs__vol--prov { position: static; }
+.fs__provpop--search { left: auto; right: 0; transform-origin: bottom right; }
+/* Apple lock-screen style clock: solid, heavy, tight tracking. */
+.fs__clock {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Variable", "Inter", system-ui, sans-serif;
+  font-weight: 600; letter-spacing: -0.035em; font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92); -webkit-text-stroke: 0;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18), 0 6px 30px rgba(0, 0, 0, 0.35);
+}
+.fs__date { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", "Inter", system-ui, sans-serif; font-weight: 600; letter-spacing: 0.02em; text-transform: none; font-variant-caps: normal; margin-bottom: 2px; }
+/* Spotify-style search panel inside the right-anchored glass popover. */
+.fs__provpop--search { width: min(400px, calc(100vw - 32px)); min-width: 0; max-width: none; max-height: min(64vh, 560px); display: flex; flex-direction: column; overflow: hidden; }
+.srch { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
+.srch__body { overflow-y: auto; scrollbar-width: thin; padding: 2px 4px 6px; min-height: 0; }
+.srch__note { font-size: 11px; color: var(--dim); padding: 8px 10px; }
+.srch__h { display: block; font-size: 13px; font-weight: 700; color: #fff; padding: 10px 4px 6px; letter-spacing: -0.01em; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.srch__top {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%;
+  padding: 14px; border-radius: 12px; text-align: left; color: #fff; cursor: pointer;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.15s;
+}
+.srch__top:hover { background: rgba(255, 255, 255, 0.13); }
+.srch__topart { width: 76px; height: 76px; border-radius: 6px; object-fit: cover; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.srch__topart--round { border-radius: 50%; }
+.srch__toptitle { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); color: #fff; }
+.srch__artists { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; }
+.srch__artist { flex: 0 0 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 2px; border-radius: 10px; color: #fff; cursor: pointer; background: none; border: 0; }
+.srch__artist:hover { background: rgba(255, 255, 255, 0.08); }
+.srch__artist img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+.srch__artist span { font-size: 11px; font-weight: 600; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__back { background: none; border: 0; color: #fff; font: inherit; cursor: pointer; padding: 0; }
+.srch__back:hover { text-decoration: underline; }
+.srch__songs { display: flex; flex-direction: column; }
+.srch__row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; cursor: pointer; color: #fff; }
+.srch__row:hover, .srch__row:focus-visible { background: rgba(255, 255, 255, 0.10); outline: none; }
+.srch__row img { width: 38px; height: 38px; border-radius: 4px; object-fit: cover; flex: none; }
+.srch__meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.srch__title { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__sub { font-size: 11px; color: rgba(255, 255, 255, 0.66); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch__dur { font-size: 11px; color: rgba(255, 255, 255, 0.66); font-variant-numeric: tabular-nums; flex: none; }
+.srch__row .fs__provadd { opacity: 0; transition: opacity 0.15s; }
+.srch__row:hover .fs__provadd, .srch__row .fs__provadd:focus-visible { opacity: 1; }
+/* Queue like heart beside the duration, Spotify-style. */
+.lib__heart { opacity: 0; margin-right: 6px; transition: opacity 0.15s, color 0.15s; }
+.lib__row:hover .lib__heart, .lib__heart:focus-visible, .lib__heart--on { opacity: 1; }
+.lib__heart--on { color: var(--accent); }
+/* iOS lock-screen numerals: SF Pro heavy, tight, solid fill. */
+.fs__clock { font-weight: 700; letter-spacing: -0.045em; font-feature-settings: "tnum" 1, "ss01" 1; }
+
+/* Native selects follow the GTK/OS theme (light on Linux) unless told
+   otherwise: keep the closed control and its menu dark and legible. */
+select { color-scheme: dark; }
+.field select, .row select { background-color: #1c1c24; color: #f2f2f5; }

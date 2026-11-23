@@ -22,7 +22,7 @@ A floating, always-on-top glass HUD with your queue and transport — synced lyr
 - **Themes + EQ** — Noct/Ember/Glacier/Mono presets plus custom accent colors, applied live; a 5-band biquad EQ with presets and an output-device picker.
 - **Library + local playback** — scans a music folder (mp3/flac/ogg/m4a/aac/wav), queues and plays through an in-app rodio engine with seek and volume.
 - **Listening stats** — play history, top tracks/artists, a daily activity strip and a monthly Wrapped page; stored locally.
-- **Streaming search** — YouTube and SoundCloud track search via an optional `yt-dlp` binary; results join the queue lazily via `remote:` paths.
+- **Search** — Spotify-style catalog search (top result, artists, songs); the pick plays in the user's own provider tab through the Noctbeat Bridge extension. No stream extraction.
 
 ## Browser extension
 
