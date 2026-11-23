@@ -354,7 +354,7 @@ export default function Stage() {
       const t = e.target as HTMLElement | null;
       if (
         t?.closest(".palette") ||
-        t?.closest("input, textarea, [contenteditable]")
+        (e.key !== "Escape" && t?.closest("input, textarea, [contenteditable]"))
       )
         return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -395,13 +395,36 @@ export default function Stage() {
       } else if (e.key === "f" || e.key === "F") {
         void bridge.toggleFullscreen();
       } else if (e.key === "Escape") {
-        exitFs();
+        if (volOpen || moreOpen || provOpen || (qOpen && !qPinned)) {
+          setVolOpen(false);
+          setMoreOpen(false);
+          setProvOpen(false);
+          if (!qPinned) setQOpen(false);
+        } else {
+          exitFs();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav, pos, loc.pathname]);
+  }, [nav, pos, loc.pathname, volOpen, moreOpen, provOpen, qOpen, qPinned]);
+
+  // Outside click dismisses the transient pill popovers (volume, ··· menu,
+  // provider/search panels). Clicks on buttons are left to the buttons
+  // themselves so their toggles still work.
+  useEffect(() => {
+    if (!volOpen && !moreOpen && !provOpen) return;
+    const down = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest(".fs__volpop, .fs__provpop, .fs__searchpop, button, input, select, a")) return;
+      setVolOpen(false);
+      setMoreOpen(false);
+      setProvOpen(false);
+    };
+    window.addEventListener("pointerdown", down, true);
+    return () => window.removeEventListener("pointerdown", down, true);
+  }, [volOpen, moreOpen, provOpen]);
 
   useEffect(() => {
     if (!track) {
@@ -699,6 +722,14 @@ export default function Stage() {
       <div className="fs__topbar">
         <button
           className="fs__icon"
+          aria-label={t("nav.browse")}
+          title={t("nav.browse")}
+          onClick={() => nav("/browse")}
+        >
+          <SquaresFour size={15} />
+        </button>
+        <button
+          className="fs__icon"
           aria-label={t("nav.library")}
           title={t("nav.library")}
           onClick={() => setLibOpen((v) => !v)}
@@ -751,6 +782,17 @@ export default function Stage() {
           </span>
           {mm}
         </div>
+
+        {provOpen && provMode === "search" && (
+          <div className="fs__searchpop">
+            <SearchPanel
+              src={searchSrc}
+              label={provLabel}
+              connected={connected}
+              onPlayed={() => {}}
+            />
+          </div>
+        )}
       </div>
 
       {libOpen && (
@@ -790,8 +832,8 @@ export default function Stage() {
             qPos
               ? // re-clamped on render so a position saved in a bigger window stays reachable
                 {
-                  left: `max(4px, min(${qPos.x}px, calc(100% - var(--qw) - 8px)))`,
-                  top: `max(4px, min(${qPos.y}px, calc(100% - 80px)))`,
+                  left: `max(12px, min(${qPos.x}px, calc(100% - var(--qw) - 12px)))`,
+                  top: `max(12px, min(${qPos.y}px, calc(100% - 80px)))`,
                 }
               : undefined
           }
@@ -1132,12 +1174,11 @@ export default function Stage() {
                 >
                   <ProvIcon size={16} weight="fill" />
                 </button>
-                {provOpen && (
+                {provOpen && provMode === "prov" && (
                   <span
                     className={`fs__volpop fs__morepop fs__provpop fs__provpop--${provMode}`}
                   >
-                    {provMode === "prov" && (
-                      <>
+                    <>
                         {ext && ext.tabs > 0 ? (
                           <span className="fs__extlive">
                             ● {t("fs.connected")} ·{" "}
@@ -1187,15 +1228,6 @@ export default function Stage() {
                           );
                         })}
                       </>
-                    )}
-                    {provMode === "search" && (
-                      <SearchPanel
-                        src={searchSrc}
-                        label={provLabel}
-                        connected={connected}
-                        onPlayed={() => {}}
-                      />
-                    )}
                   </span>
                 )}
               </span>

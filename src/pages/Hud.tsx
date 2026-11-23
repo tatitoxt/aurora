@@ -245,7 +245,18 @@ export default function Hud() {
         >
           <div className="hud__progress-fill" style={{ width: `${(pos / dur) * 100}%` }} />
         </div>
+        {/* One symmetric pill: play stays dead-center under the clock and
+            no control row can clip off the bottom in short windows. */}
         <div className="hud__pill">
+          <button
+            className={`hctl ${fav ? "hctl--on" : ""}`}
+            aria-label={fav ? "Unlike" : "Like"}
+            title={fav ? t("hud.unlike") : t("hud.like")}
+            onClick={onToggleFav}
+            disabled={!track}
+          >
+            <Heart weight={fav ? "fill" : "regular"} size={14} />
+          </button>
           <button
             className={`hctl ${queueOpen ? "hctl--on" : ""}`}
             aria-label={t("lib.queue")}
@@ -267,17 +278,6 @@ export default function Hud() {
           </button>
           <button className="hctl" aria-label={t("fs.next")} title={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={15} />
-          </button>
-        </div>
-        <div className="hud__focusrow">
-          <button
-            className={`hctl ${fav ? "hctl--on" : ""}`}
-            aria-label={fav ? "Unlike" : "Like"}
-            title={fav ? t("hud.unlike") : t("hud.like")}
-            onClick={onToggleFav}
-            disabled={!track}
-          >
-            <Heart weight={fav ? "fill" : "regular"} size={14} />
           </button>
           <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />

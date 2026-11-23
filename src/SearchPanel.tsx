@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bridge, type CatalogSong } from "./bridge";
 import { useT } from "./i18n";
 import { artistCards, formatTime } from "./lib";
@@ -23,14 +23,27 @@ export default function SearchPanel({
   label,
   connected,
   onPlayed,
+  query,
+  onQuery,
+  aside,
+  songLimit,
 }: {
   src: string;
   label: (id: string) => string;
   connected: Set<string | null>;
   onPlayed: () => void;
+  /** Controlled query (e.g. a persistent rail search bar owns it). */
+  query?: string;
+  onQuery?: (q: string) => void;
+  /** Extra content for the right column on wide layouts (e.g. playlists). */
+  aside?: ReactNode;
+  /** Cap the songs block (Spotify's short "Songs" list); artist pages show all. */
+  songLimit?: number;
 }) {
   const t = useT();
-  const [q, setQ] = useState("");
+  const [qLocal, setQLocal] = useState("");
+  const q = query ?? qLocal;
+  const setQ = onQuery ?? setQLocal;
   const [songs, setSongs] = useState<CatalogSong[]>([]);
   const [artist, setArtist] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,6 +55,8 @@ export default function SearchPanel({
     setArtist(null);
     if (!term) {
       setSongs([]);
+      setErr("");
+      setNote("");
       return;
     }
     let live = true;
@@ -84,6 +99,7 @@ export default function SearchPanel({
     ? songs.filter((s) => s.artist.toLowerCase().includes(artist.toLowerCase()))
     : songs;
   const top = shown[0];
+  const listed = !artist && songLimit ? shown.slice(0, songLimit) : shown;
 
   const target =
     src === "auto"
@@ -115,7 +131,7 @@ export default function SearchPanel({
         className="fs__provq"
         autoFocus
         value={q}
-        placeholder={t("fs.search", { src: label(src) })}
+        placeholder={t("fs.searchSongs")}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && top && play(top)}
       />
@@ -189,7 +205,7 @@ export default function SearchPanel({
             )}
           </span>
           <div className="srch__songs">
-            {shown.map((s, i) => (
+            {listed.map((s, i) => (
               <div
                 key={`${s.title}:${s.artist}:${i}`}
                 className="srch__row"
@@ -210,6 +226,7 @@ export default function SearchPanel({
               </div>
             ))}
           </div>
+          {aside && <div className="srch__aside">{aside}</div>}
         </div>
       )}
     </div>

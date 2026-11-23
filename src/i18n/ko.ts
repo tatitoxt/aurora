@@ -275,6 +275,7 @@ const ko: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
+  "nav.browse": "둘러보기","brw.home": "홈","brw.search": "검색","brw.topTracks": "가장 많이 들은 곡","brw.topArtists": "인기 아티스트","brw.plays": "회 재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.seek": "위치",
 };
 
 export default ko;
