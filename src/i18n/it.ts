@@ -275,7 +275,7 @@ const it: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "Sfoglia","brw.home": "Home","brw.search": "Cerca","brw.topTracks": "I tuoi brani più ascoltati","brw.topArtists": "I tuoi artisti","brw.plays": "riproduzioni","brw.playAll": "Riproduci tutto","brw.liveView": "Vista live","brw.seek": "Posizione","brw.greetMorning": "Buongiorno","brw.greetAfternoon": "Buon pomeriggio","brw.greetEvening": "Buonasera","brw.jumpBackIn": "Riprendi da dove eri rimasto","brw.showAll": "Mostra tutto",
+  "nav.browse": "Sfoglia","brw.home": "Home","brw.search": "Cerca","brw.topTracks": "I tuoi brani più ascoltati","brw.topArtists": "I tuoi artisti","brw.plays": "riproduzioni","brw.playAll": "Riproduci tutto","brw.liveView": "Vista live","brw.seek": "Posizione","brw.trackMissing": "File del brano mancante","brw.greetMorning": "Buongiorno","brw.greetAfternoon": "Buon pomeriggio","brw.greetEvening": "Buonasera","brw.jumpBackIn": "Riprendi da dove eri rimasto","brw.showAll": "Mostra tutto",
 };
 
 export default it;

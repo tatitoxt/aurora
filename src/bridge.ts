@@ -813,10 +813,28 @@ export const bridge = {
     });
     return typeof sel === "string" ? sel : null;
   },
-  importPlaylist: (path: string): Promise<ImportResult> =>
-    isTauri()
-      ? invokeCmd<ImportResult>("import_playlist", { path })
-      : Promise.resolve({ imported: 0, remote: 0, missing: 0 }),
+  importPlaylist: (path: string): Promise<ImportResult> => {
+    if (isTauri()) return invokeCmd<ImportResult>("import_playlist", { path });
+    /* Mirror the real importer: remote rows are skipped, files append
+       to the queue in order. */
+    const pl = findPl(path);
+    if (!pl) return Promise.resolve({ imported: 0, remote: 0, missing: 0 });
+    let imported = 0;
+    let remote = 0;
+    for (const pt of pl.tracks) {
+      if (pt.remote) {
+        remote++;
+        continue;
+      }
+      const hit = DEMO_PLAYLIST.find(([t, a]) => t === pt.title && a === pt.artist);
+      mock.playlist.push(
+        hit ?? [pt.title, pt.artist, "", pt.durationMs ?? 0, "", ""],
+      );
+      imported++;
+    }
+    emitMock("queue", mockQueueState());
+    return Promise.resolve({ imported, remote, missing: 0 });
+  },
   /** Write the queue as an .m3u8 in the music folder; returns the path. */
   exportPlaylist: (name: string): Promise<ExportResult> =>
     isTauri()

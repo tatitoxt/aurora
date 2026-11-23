@@ -37,10 +37,15 @@ import {
   Pause,
   Play,
   Playlist,
+  Repeat,
+  RepeatOnce,
+  Shuffle,
   SkipBack,
   SkipForward,
+  SpeakerHigh,
   SquaresFour,
   User,
+  X,
 } from "@phosphor-icons/react";
 
 /** Providers tried, in order, when playing a catalog/stats entry. */
@@ -89,6 +94,11 @@ export default function Browse() {
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
   const [q, setQ] = useState("");
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
+  const [vol, setVol] = useState(0.8);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
 
   const refresh = () => {
     void bridge.getQueue().then(setQueue).catch(() => {});
@@ -106,6 +116,9 @@ export default function Browse() {
       refresh();
     });
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
+    void bridge.getShuffle().then(setShuffle).catch(() => {});
+    void bridge.getRepeat().then(setRepeat).catch(() => {});
+    void bridge.getVolume().then(setVol).catch(() => {});
     const poll = setInterval(refresh, 4000);
     return () => {
       offQ();
@@ -225,12 +238,19 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
 
-  /** Playlist detail rows play from that index: import, then start at
-      the offset the imported tracks landed at. */
+  /** Playlist detail rows play the clicked track: remote rows can't be
+      queued (import skips them) so they go through the provider bridge;
+      file rows are matched by path because import also skips missing
+      files, shifting every later row's queue index. */
   const playPlTrack = (i: number) => {
     const p = playlists.find((x) => `pl:${x.path}` === view);
-    if (!p) return;
+    const pt = plTracks[i];
+    if (!p || !pt) return;
     setErr("");
+    if (pt.remote) {
+      playExternal(`${pt.title} ${pt.artist}`.trim());
+      return;
+    }
     const before = queue.items.length;
     void bridge
       .importPlaylist(p.path)
@@ -238,7 +258,14 @@ export default function Browse() {
         if (res.imported === 0) return;
         return bridge.getQueue().then((q2) => {
           setQueue(q2);
-          return bridge.playQueueIndex(Math.min(before + i, q2.items.length - 1));
+          const idx = q2.items.findIndex(
+            (it, j) =>
+              j >= before &&
+              (it.path === pt.path ||
+                (it.track.title === pt.title && it.track.artist === pt.artist)),
+          );
+          if (idx >= 0) return bridge.playQueueIndex(idx);
+          setErr(t("brw.trackMissing"));
         });
       })
       .catch(fail);
@@ -491,6 +518,34 @@ export default function Browse() {
               </div>
             </section>
 
+            {liked.length > 0 && (
+              <section className="brw__section">
+                <span className="brw__sechead">
+                  <span className="brw__kick">{t("lib.liked")}</span>
+                  <button className="brw__showall" onClick={() => setView("liked")}>
+                    {t("brw.showAll")}
+                  </button>
+                </span>
+                <div className="brw__grid">
+                  {liked.slice(0, 12).map((e) => (
+                    <button
+                      key={e.key}
+                      className="brw__card"
+                      title={`${e.title} — ${e.artist}`}
+                      onClick={() => playLiked(e)}
+                    >
+                      <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
+                      <span className="brw__cardplay" aria-hidden>
+                        <Play weight="fill" />
+                      </span>
+                      <span className="brw__cardt">{e.title}</span>
+                      <span className="brw__cards">{e.artist}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {stats && stats.topTracks.length > 0 && (
               <section className="brw__section">
                 <span className="brw__kick">{t("brw.topTracks")}</span>
@@ -528,9 +583,9 @@ export default function Browse() {
                       <span className="brw__art brw__art--round brw__art--ph" aria-hidden>
                         <User />
                       </span>
-                      <span
+                      <button
+                        type="button"
                         className="brw__cardplay"
-                        role="button"
                         aria-label={`${t("fs.playBtn")} ${a.name}`}
                         title={`${t("fs.playBtn")} ${a.name}`}
                         onClick={(e) => {
@@ -540,7 +595,7 @@ export default function Browse() {
                         }}
                       >
                         <Play weight="fill" />
-                      </span>
+                      </button>
                       <span className="brw__cardt">{a.name}</span>
                       <span className="brw__cards">
                         {a.plays} {t("brw.plays")}
@@ -565,9 +620,9 @@ export default function Browse() {
                       <span className="brw__art brw__art--ph" aria-hidden>
                         <Playlist />
                       </span>
-                      <span
+                      <button
+                        type="button"
                         className="brw__cardplay"
-                        role="button"
                         aria-label={`${t("fs.playBtn")} ${p.name}`}
                         title={`${t("fs.playBtn")} ${p.name}`}
                         onClick={(e) => {
@@ -577,7 +632,7 @@ export default function Browse() {
                         }}
                       >
                         <Play weight="fill" />
-                      </span>
+                      </button>
                       <span className="brw__cardt">{p.name}</span>
                       <span className="brw__cards">playlist</span>
                     </button>
@@ -621,39 +676,89 @@ export default function Browse() {
         )}
 
         {view === "queue" && (
-          <div className="lib">
-            {queue.items.map((item, i) => {
-              const current = queue.currentIndex === i;
-              return (
-                <button
-                  key={item.path}
-                  className={`lib__row lib__row--num ${current ? "lib__row--current" : ""}`}
-                  onClick={() => void bridge.playQueueIndex(i)}
-                >
-                  <span className="lib__idx">
-                    {current && playing ? (
-                      <span className="lib__eq" aria-hidden>
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  <Art url={item.track.artworkUrl} />
-                  <span className="lib__title">{item.track.title}</span>
-                  <span className="lib__sub">{item.track.artist}</span>
-                  <span className="lib__dur">
-                    {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
-                  </span>
-                </button>
-              );
-            })}
-            {queue.items.length === 0 && (
-              <span className="brw__empty">{t("lib.queueEmpty")}</span>
+          <>
+            {queue.items.length > 0 && (
+              <div className="brw__qtools">
+                <span className="seg seg--ghost">
+                  <button onClick={() => void bridge.clearQueue().catch(fail)}>
+                    {t("lib.clear")}
+                  </button>
+                </span>
+              </div>
             )}
-          </div>
+            <div className="lib">
+              {queue.items.map((item, i) => {
+                const current = queue.currentIndex === i;
+                return (
+                  <button
+                    key={item.path}
+                    className={[
+                      "lib__row",
+                      "lib__row--num",
+                      current ? "lib__row--current" : "",
+                      dragIdx === i ? "lib__row--dragging" : "",
+                      dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    draggable
+                    onDragStart={() => setDragIdx(i)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDropIdx(i);
+                    }}
+                    onDragLeave={() => setDropIdx((d) => (d === i ? null : d))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragIdx !== null && dragIdx !== i) {
+                        void bridge.queueMove(dragIdx, i).catch(fail);
+                      }
+                      setDragIdx(null);
+                      setDropIdx(null);
+                    }}
+                    onDragEnd={() => {
+                      setDragIdx(null);
+                      setDropIdx(null);
+                    }}
+                    onClick={() => void bridge.playQueueIndex(i)}
+                  >
+                    <span className="lib__idx">
+                      {current && playing ? (
+                        <span className="lib__eq" aria-hidden>
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                      ) : (
+                        i + 1
+                      )}
+                    </span>
+                    <Art url={item.track.artworkUrl} />
+                    <span className="lib__title">{item.track.title}</span>
+                    <span className="lib__sub">{item.track.artist}</span>
+                    <span className="lib__dur">
+                      {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
+                    </span>
+                    <span
+                      className="lib__rm"
+                      role="button"
+                      aria-label={current ? t("fs.playingCantRemove") : t("fs.removeFromQueue")}
+                      title={current ? t("fs.playingCantRemove") : t("fs.removeFromQueue")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!current) void bridge.queueRemove(i).catch(fail);
+                      }}
+                    >
+                      <X size={13} />
+                    </span>
+                  </button>
+                );
+              })}
+              {queue.items.length === 0 && (
+                <span className="brw__empty">{t("lib.queueEmpty")}</span>
+              )}
+            </div>
+          </>
         )}
 
         {view.startsWith("pl:") && (
@@ -668,15 +773,16 @@ export default function Browse() {
                   {plTracks.length} {plTracks.length === 1 ? t("lib.track") : t("lib.tracks")}
                 </span>
               </span>
-              <button
-                className="seg seg--ghost"
-                onClick={() => {
-                  const p = playlists.find((x) => `pl:${x.path}` === view);
-                  if (p) playPlaylist(p);
-                }}
-              >
-                <Play weight="fill" /> {t("brw.playAll")}
-              </button>
+              <span className="seg seg--ghost">
+                <button
+                  onClick={() => {
+                    const p = playlists.find((x) => `pl:${x.path}` === view);
+                    if (p) playPlaylist(p);
+                  }}
+                >
+                  <Play weight="fill" /> {t("brw.playAll")}
+                </button>
+              </span>
             </div>
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             <div className="lib">
@@ -725,6 +831,19 @@ export default function Browse() {
         )}
         <span className="brw__ctl">
           <button
+            className={`brw__icon ${shuffle ? "on" : ""}`}
+            aria-label={t("fs.shuffle")}
+            title={t("fs.shuffle")}
+            onClick={() =>
+              void bridge.getShuffle().then((on) => {
+                const next = !on;
+                return bridge.setShuffle(next).then(() => setShuffle(next));
+              })
+            }
+          >
+            <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
+          </button>
+          <button
             className="brw__icon"
             aria-label={t("fs.prev")}
             title={t("fs.prev")}
@@ -748,6 +867,35 @@ export default function Browse() {
           >
             <SkipForward size={16} weight="fill" />
           </button>
+          <button
+            className={`brw__icon ${repeat !== "off" ? "on" : ""}`}
+            aria-label={t(
+              repeat === "off"
+                ? "fs.repeatOff"
+                : repeat === "all"
+                  ? "fs.repeatAll"
+                  : "fs.repeatOne",
+            )}
+            title={t(
+              repeat === "off"
+                ? "fs.repeatOff"
+                : repeat === "all"
+                  ? "fs.repeatAll"
+                  : "fs.repeatOne",
+            )}
+            onClick={() =>
+              void bridge.getRepeat().then((m) => {
+                const next = m === "off" ? "all" : m === "all" ? "one" : "off";
+                return bridge.setRepeat(next).then(() => setRepeat(next));
+              })
+            }
+          >
+            {repeat === "one" ? (
+              <RepeatOnce size={15} weight="fill" />
+            ) : (
+              <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />
+            )}
+          </button>
           <span className="brw__time">{track ? formatTime(np?.positionMs ?? 0) : "0:00"}</span>
           <button
             className="brw__seek"
@@ -765,6 +913,23 @@ export default function Browse() {
           <span className="brw__time">
             {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
           </span>
+        </span>
+        <span className="brw__volwrap" title={t("fs.volume")}>
+          <SpeakerHigh size={15} />
+          <input
+            className="brw__vol"
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={vol}
+            aria-label={t("fs.volume")}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setVol(v);
+              void bridge.setVolume(v);
+            }}
+          />
         </span>
         <button
           className="brw__icon brw__icon--live"

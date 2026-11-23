@@ -291,7 +291,7 @@ const en = {
   "brw.plays": "plays",
   "brw.playAll": "Play all",
   "brw.liveView": "Live view",
-  "brw.seek": "Seek",
+  "brw.seek": "Seek","brw.trackMissing": "That track's file is missing",
   "brw.greetMorning": "Good morning",
   "brw.greetAfternoon": "Good afternoon",
   "brw.greetEvening": "Good evening",
