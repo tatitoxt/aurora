@@ -2582,9 +2582,14 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__libgrip { position: absolute; top: 0; left: 0; right: 40px; height: 22px; z-index: 2; cursor: grab; touch-action: none; }
 .fs__libgrip:active { cursor: grabbing; }
 .fs__libgrip::after { content: ""; position: absolute; top: 8px; left: calc(50% + 20px); width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: rgba(255, 255, 255, 0.35); }
-/* Popovers anchor to the pill: providers open left, search opens right. */
+/* Popovers anchor to the pill: providers open left. */
 .fs .fs__vol--prov { position: static; }
-.fs__provpop--search { left: auto; right: 0; transform-origin: bottom right; }
+/* Search floats as a centered Spotlight-style panel under the top bar —
+   anchored to the pill it covered the transport controls. */
+.fs__provpop--search {
+  position: fixed; left: 50%; right: auto; top: clamp(72px, 14vh, 110px); bottom: auto;
+  transform: translateX(-50%); transform-origin: top center;
+}
 /* Apple lock-screen style clock: solid, heavy, tight tracking. */
 .fs__clock {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Variable", "Inter", system-ui, sans-serif;
