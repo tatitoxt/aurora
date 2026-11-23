@@ -2600,7 +2600,9 @@ button, input, select, textarea { font-family: var(--ui); }
 }
 .fs__date { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", "Inter", system-ui, sans-serif; font-weight: 600; letter-spacing: 0.02em; text-transform: none; font-variant-caps: normal; margin-bottom: 2px; }
 /* Spotify-style search panel inside the right-anchored glass popover. */
-.fs__provpop--search { width: min(400px, calc(100vw - 32px)); min-width: 0; max-width: none; max-height: min(64vh, 560px); display: flex; flex-direction: column; overflow: hidden; }
+/* Height reserves the seek row + pill zone (~235px) so results never
+   reach the transport controls. */
+.fs__provpop--search { width: min(400px, calc(100vw - 32px)); min-width: 0; max-width: none; max-height: min(56vh, calc(100vh - 235px), 480px); display: flex; flex-direction: column; overflow: hidden; }
 .srch { display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
 .srch__body { overflow-y: auto; scrollbar-width: thin; padding: 2px 4px 6px; min-height: 0; }
 .srch__note { font-size: 11px; color: var(--dim); padding: 8px 10px; }
