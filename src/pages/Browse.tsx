@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   artSrc,
@@ -64,6 +64,7 @@ type View =
   | "queue"
   | "services"
   | "settings"
+  | "recent"
   | `pl:${string}`
   | `ar:${string}`;
 
@@ -138,13 +139,21 @@ export default function Browse() {
     setFuture((f) => f.slice(1));
   };
 
+  /* The 4 s poll closes over the first render's view — read the live
+     one through a ref so Show all doesn't get clipped back to 12. */
+  const viewRef = useRef<View>(view);
+  viewRef.current = view;
+
   const refresh = () => {
     void bridge.getQueue().then(setQueue).catch(() => {});
     /* Tabs can connect while Browse is mounted — keep the provider set
        live or playback still reports no tab. */
     void bridge.getExtStatus().then(setExt).catch(() => {});
     /* A finished listen should surface on Home without remounting. */
-    void bridge.recentPlays(12).then(setRecent).catch(() => {});
+    void bridge
+      .recentPlays(viewRef.current === "recent" ? 50 : 12)
+      .then(setRecent)
+      .catch(() => {});
   };
   useEffect(() => {
     refresh();
@@ -275,6 +284,12 @@ export default function Browse() {
       .catch(fail)
       .finally(() => setArLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  /* "Show all" pulls a longer history than the Home preview row. */
+  useEffect(() => {
+    if (view !== "recent") return;
+    void bridge.recentPlays(50).then(setRecent).catch(() => {});
   }, [view]);
 
   /* Put the saved queue back when a playlist swap fails to start. */
@@ -574,6 +589,7 @@ export default function Browse() {
             {view === "queue" && t("fs.upNext")}
             {view === "services" && t("sources.heading")}
             {view === "settings" && t("brw.settings")}
+            {view === "recent" && t("brw.recentlyPlayed")}
             {view.startsWith("pl:") && plName}
             {view.startsWith("ar:") && arName}
           </h1>
@@ -677,6 +693,31 @@ export default function Browse() {
           </div>
         )}
 
+        {view === "recent" && (
+          <section className="brw__section">
+            {recent.length === 0 && (
+              <span className="brw__empty">{t("brw.noTracks")}</span>
+            )}
+            <div className="brw__grid">
+              {recent.map((r) => (
+                <button
+                  key={`${r.trackId}-${r.playedAtMs}`}
+                  className="brw__card"
+                  title={`${r.title} — ${r.artist}`}
+                  onClick={() => playRecent(r)}
+                >
+                  <Art url={recArt(r)} />
+                  <span className="brw__cardplay" aria-hidden>
+                    <Play weight="fill" />
+                  </span>
+                  <span className="brw__cardt">{r.title}</span>
+                  <span className="brw__cards">{r.artist}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {view === "home" && (
           <>
             <h2 className="brw__greet">{greet}</h2>
@@ -701,6 +742,9 @@ export default function Browse() {
               <section className="brw__section">
                 <span className="brw__sechead">
                   <span className="brw__kick">{t("brw.recentlyPlayed")}</span>
+                  <button className="brw__showall" onClick={() => go("recent")}>
+                    {t("brw.showAll")}
+                  </button>
                 </span>
                 <div className="brw__grid">
                   {recent.slice(0, 12).map((r) => (
