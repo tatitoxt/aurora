@@ -81,6 +81,8 @@ const ko: Record<keyof typeof en, string> = {
   "fs.unlike": "\uc88b\uc544\uc694 \ucde8\uc18c",
   "fs.lyricsThumbs": "\uac00\uc0ac / \uc12c\ub124\uc77c",
   "fs.volume": "\ubcfc\ub968",
+  "fs.mute": "\uc74c\uc18c\uac70",
+  "fs.unmute": "\uc74c\uc18c\uac70 \ud574\uc81c",
   "fs.more": "\ub354 \ubcf4\uae30",
   "fs.addToQueue": "\ub4f1\ub85d\uc5d0 \ucd94\uac00",
   "fs.removeFromQueue": "\ub4f1\ub85d\uc5d0\uc11c \uc0ad\uc81c",
@@ -275,7 +277,7 @@ const ko: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "둘러보기","brw.home": "홈","brw.search": "검색","brw.topTracks": "가장 많이 들은 곡","brw.topArtists": "인기 아티스트","brw.plays": "회 재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.seek": "위치",
+  "nav.browse": "둘러보기","brw.home": "홈","brw.search": "검색","brw.topTracks": "가장 많이 들은 곡","brw.topArtists": "인기 아티스트","brw.plays": "회 재생","brw.play": "재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.forward": "앞으로","brw.recentlyPlayed": "최근 재생한 항목","brw.settings": "설정","brw.account": "계정","brw.appSettings": "앱 설정","brw.noTracks": "아직 트랙이 없습니다","brw.seek": "위치","brw.trackMissing": "파일이 없습니다","brw.greetMorning": "좋은 아침입니다","brw.greetAfternoon": "안녕하세요","brw.greetEvening": "좋은 저녁입니다","brw.jumpBackIn": "이어서 듣기","brw.volLocalOnly": "\ub85c\uceec \uc7ac\uc0dd\ub9cc","brw.showAll": "모두 보기",
 };
 
 export default ko;

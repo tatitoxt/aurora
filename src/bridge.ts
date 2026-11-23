@@ -150,6 +150,16 @@ export interface PlaylistTrack {
   path: string;
   remote: boolean;
 }
+export interface PlayRecord {
+  trackId: string;
+  title: string;
+  artist: string;
+  /** "local", "mpris", "demo", ... — where playback came from. */
+  source: string;
+  durationMs: number;
+  msListened: number;
+  playedAtMs: number;
+}
 export interface TopEntry {
   name: string;
   /** Track artist; empty for artist entries. */
@@ -813,10 +823,28 @@ export const bridge = {
     });
     return typeof sel === "string" ? sel : null;
   },
-  importPlaylist: (path: string): Promise<ImportResult> =>
-    isTauri()
-      ? invokeCmd<ImportResult>("import_playlist", { path })
-      : Promise.resolve({ imported: 0, remote: 0, missing: 0 }),
+  importPlaylist: (path: string): Promise<ImportResult> => {
+    if (isTauri()) return invokeCmd<ImportResult>("import_playlist", { path });
+    /* Mirror the real importer: remote rows are skipped, files append
+       to the queue in order. */
+    const pl = findPl(path);
+    if (!pl) return Promise.resolve({ imported: 0, remote: 0, missing: 0 });
+    let imported = 0;
+    let remote = 0;
+    for (const pt of pl.tracks) {
+      if (pt.remote) {
+        remote++;
+        continue;
+      }
+      const hit = DEMO_PLAYLIST.find(([t, a]) => t === pt.title && a === pt.artist);
+      mock.playlist.push(
+        hit ?? [pt.title, pt.artist, "", pt.durationMs ?? 0, "", ""],
+      );
+      imported++;
+    }
+    emitMock("queue", mockQueueState());
+    return Promise.resolve({ imported, remote, missing: 0 });
+  },
   /** Write the queue as an .m3u8 in the music folder; returns the path. */
   exportPlaylist: (name: string): Promise<ExportResult> =>
     isTauri()
@@ -849,6 +877,16 @@ export const bridge = {
   playlistRemoveTrack: (path: string, index: number): Promise<void> => {
     if (isTauri()) return invokeCmd("playlist_remove_track", { path, index });
     findPl(path)?.tracks.splice(index, 1);
+    return Promise.resolve();
+  },
+  /** Move the entry at `from` to position `to` and rewrite the file. */
+  playlistMoveTrack: (path: string, from: number, to: number): Promise<void> => {
+    if (isTauri()) return invokeCmd("playlist_move_track", { path, from, to });
+    const pl = findPl(path);
+    if (pl && from !== to && pl.tracks[from]) {
+      const [m] = pl.tracks.splice(from, 1);
+      pl.tracks.splice(to, 0, m);
+    }
     return Promise.resolve();
   },
   /** Append local files to an .m3u/.m3u8 playlist; returns added count. */
@@ -906,6 +944,21 @@ export const bridge = {
   },
   clearHistory: () =>
     isTauri() ? invokeCmd<null>("clear_history") : Promise.resolve(null),
+  /** Newest-first unique plays (trackId is the file path for locals). */
+  recentPlays: (limit = 12): Promise<PlayRecord[]> =>
+    isTauri()
+      ? invokeCmd<PlayRecord[]>("recent_plays", { limit })
+      : Promise.resolve(
+          mock.playlist.slice(0, limit).map(([title, artist], i) => ({
+            trackId: `demo-${i}`,
+            title,
+            artist,
+            source: "demo",
+            durationMs: 200_000,
+            msListened: 60_000,
+            playedAtMs: Date.now() - (i + 1) * 3_600_000,
+          })),
+        ),
   listenStatus: (): Promise<ListenStatus> =>
     isTauri()
       ? invokeCmd<ListenStatus>("listen_status")

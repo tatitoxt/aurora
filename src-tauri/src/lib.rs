@@ -399,6 +399,20 @@ fn clear_history(state: State<AppState>) -> Result<(), String> {
     h.save(&state.history_path).map_err(|e| e.to_string())
 }
 
+/// Newest-first unique plays (deduped by track) for "recently played".
+#[tauri::command]
+fn recent_plays(state: State<AppState>, limit: usize) -> Result<Vec<PlayRecord>, String> {
+    let h = state.history.lock().map_err(|e| e.to_string())?;
+    let mut seen = std::collections::HashSet::new();
+    Ok(h.records
+        .iter()
+        .rev()
+        .filter(|r| seen.insert(r.track_id.clone()))
+        .take(limit.min(200))
+        .cloned()
+        .collect())
+}
+
 /// Transport routing shared by the IPC command, the tray menu and
 /// global hotkeys: the local player when it holds the queue, the
 /// external source otherwise.
@@ -744,7 +758,7 @@ fn scan_library(
 
 /// Read-only scan: returns the library without replacing the queue
 /// (artist/album views browse without clobbering playback).
-#[tauri::command]
+#[tauri::command(async)]
 fn library_tracks(state: State<AppState>, dir: Option<String>) -> Result<Vec<QueueItem>, String> {
     Ok(noctbeat_core::library::scan(std::path::Path::new(
         &resolve_music_dir(&state, dir)?,
@@ -762,6 +776,15 @@ async fn play_items(
 ) -> Result<(), String> {
     if index >= items.len() {
         return Err(format!("no item at index {index}"));
+    }
+    /* Fail before replacing the queue: a moved/deleted file must not
+       wipe the listener's current queue and playback. */
+    let target = &items[index];
+    if !target.path.contains("://")
+        && !target.path.starts_with("remote:")
+        && !std::path::Path::new(&target.path).exists()
+    {
+        return Err(format!("track file is missing: {}", target.path));
     }
     {
         let mut p = state.player.lock().map_err(|e| e.to_string())?;
@@ -1162,6 +1185,30 @@ fn playlist_remove_track(state: State<AppState>, path: String, index: u32) -> Re
         return Err("track index out of range".into());
     }
     entries.remove(i);
+    rewrite_playlist(&file, &entries)
+}
+
+/// Move the entry at `from` to position `to` and rewrite the playlist.
+/// Indexes count every entry exactly as `playlist_tracks` lists them.
+#[tauri::command]
+fn playlist_move_track(
+    state: State<AppState>,
+    path: String,
+    from: u32,
+    to: u32,
+) -> Result<(), String> {
+    let file = playlist_path_checked(&state, &path)?;
+    m3u_editable(&file)?;
+    let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let mut entries = noctbeat_core::playlists::parse(&file, &content);
+    let (f, t) = (from as usize, to as usize);
+    if f >= entries.len() || t >= entries.len() {
+        return Err("track index out of range".into());
+    }
+    if f != t {
+        let e = entries.remove(f);
+        entries.insert(t, e);
+    }
     rewrite_playlist(&file, &entries)
 }
 
@@ -2698,6 +2745,8 @@ pub fn run() {
             delete_playlist,
             playlist_tracks,
             playlist_remove_track,
+            playlist_move_track,
+            recent_plays,
             playlist_add_tracks,
             get_stats,
             get_artist_stats,

@@ -81,6 +81,8 @@ const zh: Record<keyof typeof en, string> = {
   "fs.unlike": "\u53d6\u6d88\u559c\u6b22",
   "fs.lyricsThumbs": "\u6b4c\u8bcd / \u7f29\u7565\u56fe",
   "fs.volume": "\u97f3\u91cf",
+  "fs.mute": "\u9759\u97f3",
+  "fs.unmute": "\u53d6\u6d88\u9759\u97f3",
   "fs.more": "\u66f4\u591a",
   "fs.addToQueue": "\u52a0\u5165\u961f\u5217",
   "fs.removeFromQueue": "\u4ece\u961f\u5217\u5220\u9664",
@@ -275,7 +277,7 @@ const zh: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "","brw.home": "","brw.search": "","brw.topTracks": "","brw.topArtists": "","brw.plays": "","brw.playAll": "","brw.liveView": "","brw.seek": "",
+  "nav.browse": "浏览","brw.home": "主页","brw.search": "搜索","brw.topTracks": "你最常听的歌曲","brw.topArtists": "热门艺人","brw.plays": "次播放","brw.play": "播放","brw.playAll": "全部播放","brw.liveView": "实时视图","brw.forward": "前进","brw.recentlyPlayed": "最近播放","brw.settings": "设置","brw.account": "帐户","brw.appSettings": "应用设置","brw.noTracks": "还没有曲目","brw.seek": "位置","brw.trackMissing": "此曲目的文件缺失","brw.greetMorning": "早上好","brw.greetAfternoon": "下午好","brw.greetEvening": "晚上好","brw.jumpBackIn": "继续收听","brw.volLocalOnly": "\u4ec5\u672c\u5730\u64ad\u653e","brw.showAll": "显示全部",
 };
 
 export default zh;

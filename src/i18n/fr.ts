@@ -81,6 +81,8 @@ const fr: Record<keyof typeof en, string> = {
   "fs.unlike": "Retirer l'aimé",
   "fs.lyricsThumbs": "Paroles / pochettes",
   "fs.volume": "Volume",
+  "fs.mute": "Couper le son",
+  "fs.unmute": "Activer le son",
   "fs.more": "Plus",
   "fs.addToQueue": "Ajouter à la file",
   "fs.removeFromQueue": "Retirer de la file",
@@ -275,7 +277,7 @@ const fr: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "Parcourir","brw.home": "Accueil","brw.search": "Rechercher","brw.topTracks": "Vos titres les plus écoutés","brw.topArtists": "Vos artistes","brw.plays": "écoutes","brw.playAll": "Tout lire","brw.liveView": "Vue live","brw.seek": "Position",
+  "nav.browse": "Parcourir","brw.home": "Accueil","brw.search": "Rechercher","brw.topTracks": "Vos titres les plus écoutés","brw.topArtists": "Vos artistes","brw.plays": "écoutes","brw.play": "Lire","brw.playAll": "Tout lire","brw.liveView": "Vue live","brw.forward": "Suivant","brw.recentlyPlayed": "Écoutés récemment","brw.settings": "Paramètres","brw.account": "Compte","brw.appSettings": "Réglages de l’app","brw.noTracks": "Aucun titre pour l’instant","brw.seek": "Position","brw.trackMissing": "Fichier du titre manquant","brw.greetMorning": "Bonjour","brw.greetAfternoon": "Bon après-midi","brw.greetEvening": "Bonsoir","brw.jumpBackIn": "Reprends où tu en étais","brw.volLocalOnly": "Lecture locale uniquement","brw.showAll": "Tout afficher",
 };
 
 export default fr;
