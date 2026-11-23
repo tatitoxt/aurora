@@ -1453,6 +1453,29 @@ fn get_settings(state: State<AppState>) -> Result<Settings, String> {
     Ok(state.settings.lock().map_err(|e| e.to_string())?.clone())
 }
 
+/// macOS vibrancy: "see-through background" blurs the real desktop
+/// behind the window (Apple glass), not just transparent pixels.
+#[cfg(target_os = "macos")]
+fn sync_vibrancy(app: &tauri::AppHandle, transparent: bool) {
+    use window_vibrancy::{
+        apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial, NSVisualEffectState,
+    };
+    if let Some(win) = app.get_webview_window("player") {
+        if transparent {
+            let _ = apply_vibrancy(
+                &win,
+                NSVisualEffectMaterial::HudWindow,
+                Some(NSVisualEffectState::Active),
+                None,
+            );
+        } else {
+            let _ = clear_vibrancy(&win);
+        }
+    }
+}
+#[cfg(not(target_os = "macos"))]
+fn sync_vibrancy(_app: &tauri::AppHandle, _transparent: bool) {}
+
 #[tauri::command]
 fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let state = app.state::<AppState>();
@@ -1460,9 +1483,11 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     // rendered before the timer was armed would otherwise resurrect or
     // erase the live deadline on every unrelated save.
     let mut incoming = settings;
+    let bg_changed;
     {
         let mut guard = state.settings.lock().map_err(|e| e.to_string())?;
         incoming.sleep_timer_ends_ms = guard.sleep_timer_ends_ms;
+        bg_changed = guard.transparent_bg != incoming.transparent_bg;
         incoming
             .save(&state.settings_path)
             .map_err(|e| e.to_string())?;
@@ -1470,6 +1495,11 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     }
     sync_hud_window(&app, &incoming);
     sync_desk_lyrics_window(&app, &incoming);
+    // apply_vibrancy stacks an NSVisualEffectView per call — only touch the
+    // window when the flag actually flipped.
+    if bg_changed {
+        sync_vibrancy(&app, incoming.transparent_bg);
+    }
     state
         .player
         .lock()
@@ -1596,6 +1626,27 @@ fn open_url(url: String) -> Result<(), String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("refusing non-http url".into());
     }
+    open_in_system(&url)
+}
+
+/// Opens only the bundled bridge folder, ready for "Load unpacked".
+#[tauri::command]
+fn open_extension_folder(app: tauri::AppHandle) -> Result<(), String> {
+    // Resources declared as "../extension" bundle under "_up_/extension" in
+    // packaged apps; dev and side-by-side layouts keep plain "extension".
+    let folder = ["extension", "_up_/extension"]
+        .iter()
+        .filter_map(|dir| {
+            app.path()
+                .resolve(dir, tauri::path::BaseDirectory::Resource)
+                .ok()
+        })
+        .find(|folder| folder.join("manifest.json").is_file())
+        .ok_or("The bundled browser extension could not be found.".to_string())?;
+    open_in_system(folder.to_str().ok_or("Invalid extension folder path")?)
+}
+
+fn open_in_system(url: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     let r = std::process::Command::new("xdg-open").arg(&url).spawn();
     #[cfg(target_os = "macos")]
@@ -1624,7 +1675,7 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     // the same playback, just a smaller remote for it).
     if let Some(win) = app.get_webview_window("hud") {
         if settings.hud_enabled {
-            let _ = win.set_always_on_top(settings.hud_always_on_top);
+            let _ = win.set_always_on_top(true);
             let _ = win.show();
             if let Some(player) = app.get_webview_window("player") {
                 let _ = player.hide();
@@ -1657,7 +1708,7 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
             .radius(18.0)
             .build(),
     )
-    .always_on_top(settings.hud_always_on_top)
+    .always_on_top(true)
     .skip_taskbar(true)
     .resizable(true)
     .min_inner_size(260.0, 140.0)
@@ -2605,6 +2656,7 @@ pub fn run() {
             activate_license,
             deactivate_license,
             open_url,
+            open_extension_folder,
             set_hud_pinned,
             hud_start_drag,
             desk_lyrics_start_drag,
@@ -2712,6 +2764,7 @@ pub fn run() {
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_hud_window(app.handle(), &s);
             sync_desk_lyrics_window(app.handle(), &s);
+            sync_vibrancy(app.handle(), s.transparent_bg);
             // The player is the only recoverable window: closing it must
             // hide (HUD/tray can reopen), never destroy — a destroyed
             // player takes the whole app down and leaves no way back.

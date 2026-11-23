@@ -12,7 +12,6 @@ import {
 } from "../bridge";
 import {
   Monitor,
-  PushPin,
   SkipBack,
   SkipForward,
   Pause,
@@ -105,9 +104,9 @@ export default function Hud() {
   }, [trackKey]);
   useEffect(() => {
     setVideoUrl(null);
+    const req = ++videoReq.current;
     // Only the video mode looks up the clip.
     if (mediaMode !== "video" || !trackKey || !track) return;
-    const req = ++videoReq.current;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (videoReq.current === req && u) setVideoUrl(u);
     });
@@ -142,7 +141,6 @@ export default function Hud() {
       if (e.buttons & 1) scrubTo(e.currentTarget, e.clientX);
     },
   };
-  const pinned = settings.hudAlwaysOnTop;
   const fav = favKeys(favs).has(favKeyFor(np));
   const onToggleFav = () => {
     const entry = favEntryFor(np);
@@ -181,12 +179,13 @@ export default function Hud() {
           {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
         <div className="hud__focusart">
-          {mediaMode === "video" && videoUrl ? (
-            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
-          ) : art ? (
+          {art ? (
             <img src={art} alt="" />
           ) : (
             <MusicNote size={40} weight="thin" />
+          )}
+          {mediaMode === "video" && videoUrl && (
+            <VideoBackdrop url={videoUrl} posMs={pos} playing={playing} />
           )}
           {lyricsOn ? (
             <div className="hud__lyrover">
@@ -195,8 +194,11 @@ export default function Hud() {
               ) : null}
             </div>
           ) : null}
-          {queueOpen && queue.items.length > 0 ? (
+          {queueOpen ? (
             <div className="hud__list hud__list--overlay">
+              {queue.items.length === 0 && (
+                <div className="hud__qempty">{t("lib.queueEmpty")}</div>
+              )}
               {queue.items.map((it, i) => (
                 <button
                   key={it.path + i}
@@ -252,17 +254,18 @@ export default function Hud() {
           >
             <ListBullets size={15} />
           </button>
-          <button className="hctl" aria-label={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
+          <button className="hctl" aria-label={t("fs.prev")} title={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={15} />
           </button>
           <button
             className="hctl hctl--play"
             aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
+            title={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
             onClick={() => bridge.mediaControl("play-pause")}
           >
             {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
           </button>
-          <button className="hctl" aria-label={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
+          <button className="hctl" aria-label={t("fs.next")} title={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={15} />
           </button>
         </div>
@@ -275,14 +278,6 @@ export default function Hud() {
             disabled={!track}
           >
             <Heart weight={fav ? "fill" : "regular"} size={14} />
-          </button>
-          <button
-            className={`hctl ${pinned ? "hctl--on" : ""}`}
-            aria-label={pinned ? "Unpin" : "Pin"}
-            title={pinned ? t("hud.unpin") : t("hud.pin")}
-            onClick={() => void bridge.setHudPinned(!pinned)}
-          >
-            <PushPin weight={pinned ? "fill" : "regular"} size={14} />
           </button>
           <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />

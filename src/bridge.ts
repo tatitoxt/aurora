@@ -210,7 +210,7 @@ export const DEFAULT_SETTINGS: Settings = {
   version: 1,
   trayLiveIcon: true,
   licenseKey: null,
-  hudEnabled: true,
+  hudEnabled: false,
   hudAlwaysOnTop: true,
   hudPosition: null,
   musicDir: null,
@@ -581,6 +581,8 @@ export const bridge = {
   /** Open an external https:// URL in the system browser. */
   openUrl: (url: string): Promise<null> =>
     isTauri() ? invokeCmd<null>("open_url", { url }) : (window.open(url, "_blank"), Promise.resolve(null)),
+  /** Open the bundled bridge extension folder (dev: extension/, packaged: _up_/extension). */
+  openExtensionFolder: (): Promise<void> => invokeCmd<void>("open_extension_folder"),
   seek: (positionMs: number) => {
     if (isTauri()) return invokeCmd<null>("seek", { positionMs });
     mock.seek(positionMs);

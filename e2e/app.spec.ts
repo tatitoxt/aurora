@@ -59,6 +59,16 @@ test.describe("Noctbeat stage", () => {
     await page.goto(`${APP}/#/settings`);
     await expect(page.locator(".glass")).toBeVisible();
   });
+
+  test("services tab lists the six bridged providers", async ({ page }) => {
+    await page.goto(`${APP}/#/library`);
+    await page.locator(".libtabs button").last().click();
+    await expect(page.locator(".sources__service")).toHaveCount(6);
+    await expect(page.locator(".sources__setup")).toBeVisible();
+    // Settings → Sources embeds the same services panel
+    await page.goto(`${APP}/#/settings`);
+    await expect(page.locator('[data-setgrp="sources"] .sources__service').first()).toBeVisible();
+  });
 });
 
 test.describe("Covers carousel", () => {

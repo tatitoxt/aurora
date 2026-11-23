@@ -35,6 +35,7 @@ import {
 } from "@phosphor-icons/react";
 import { artSrc } from "../bridge";
 import ArtBackdrop from "../ArtBackdrop";
+import BrowserSources from "../BrowserSources";
 
 /** 32px rounded row cover: real artwork when the file has art, else a
  * soft glass disc with an icon. */
@@ -62,10 +63,10 @@ function LibThumb({ url, icon }: { url?: string; icon?: React.ReactNode }) {
 /** Provider tabs tried, in order, to replay a liked song. */
 const TAB_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
 
-export default function Library() {
+export default function Library({ embedded = false }: { embedded?: boolean }) {
   const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
-  const [tab, setTab] = useState<"queue" | "liked" | "playlists">("queue");
+  const [tab, setTab] = useState<"queue" | "liked" | "playlists" | "services">("queue");
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [error, setError] = useState("");
 
@@ -286,14 +287,16 @@ export default function Library() {
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
             <span />
-            <span className="pagehead__links">
-              <Link to="/albums" className="pagehead__link">
-                {t("lib.albums")}
-              </Link>
-              <Link to="/" className="pagehead__link">
-                {t("nav.back")}
-              </Link>
-            </span>
+            {!embedded && (
+              <span className="pagehead__links">
+                <Link to="/albums" className="pagehead__link">
+                  {t("lib.albums")}
+                </Link>
+                <Link to="/" className="pagehead__link">
+                  {t("nav.back")}
+                </Link>
+              </span>
+            )}
           </div>
           <h1 className="pagehead__name">{t("lib.title")}</h1>
           <span className="pagehead__meta">
@@ -309,6 +312,7 @@ export default function Library() {
               ["queue", t("lib.queue"), queue.items.length],
               ["liked", t("lib.liked"), liked.length],
               ["playlists", t("lib.playlists"), playlists.length],
+              ["services", t("sources.heading"), 0],
             ] as const
           ).map(([id, label, n]) => (
             <button
@@ -597,6 +601,11 @@ export default function Library() {
               ))}
             </div>
           </>
+        )}
+        {tab === "services" && (
+          <div className="collection__section">
+            <BrowserSources />
+          </div>
         )}
       </div>
     </div>

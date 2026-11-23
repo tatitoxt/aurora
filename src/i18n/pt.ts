@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const pt: Record<keyof typeof en, string> = {
+  "sources.heading": "Serviços de música",
+  "sources.live": "Conectado",
+  "sources.waiting": "Aguardando uma aba de música",
+  "sources.demo": "Prévia no navegador",
+  "sources.open": "Abrir {name} no navegador",
+  "sources.setup": "Configurar a extensão",
+  "sources.folder": "Abrir pasta da extensão",
+  "sources.playlists": "Abra suas playlists em um serviço acima. A extensão acompanha a música e permite controlar a reprodução no Noctbeat.",
+  "sources.emptyLikes": "As músicas marcadas com o coração aparecem aqui.",
+  "sources.emptyPlaylists": "Importe uma playlist ou salve a fila para começar sua coleção.",
   "nav.library": "Biblioteca",
   "nav.visualizer": "Visualizador",
   "nav.stats": "Estatísticas",
@@ -95,6 +105,7 @@ const pt: Record<keyof typeof en, string> = {
   "dl.close": "Fechar letras flutuantes",
   "stk.hint": "Sticker: arraste para mover, clique direito ou Delete para remover",
   "lib.queue": "Fila",
+  "lib.queueEmpty": "Nada na fila — toque algo para preenchê-la.",
   "lib.save": "Salvar",
   "lib.playlistName": "Nome da playlist",
   "lib.likedEmpty": "Toque no cora\u00e7\u00e3o de qualquer faixa para salv\u00e1-la aqui.",

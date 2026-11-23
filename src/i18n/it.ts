@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const it: Record<keyof typeof en, string> = {
+  "sources.heading": "Servizi musicali",
+  "sources.live": "Connesso",
+  "sources.waiting": "In attesa di una scheda musicale",
+  "sources.demo": "Anteprima web",
+  "sources.open": "Apri {name} nel browser",
+  "sources.setup": "Configura l’estensione",
+  "sources.folder": "Apri la cartella dell’estensione",
+  "sources.playlists": "Apri le playlist in uno dei servizi. L’estensione segue il brano e permette di controllare la riproduzione da Noctbeat.",
+  "sources.emptyLikes": "I brani segnati con il cuore appaiono qui.",
+  "sources.emptyPlaylists": "Importa una playlist o salva la coda per creare la tua raccolta.",
   "nav.library": "Libreria",
   "nav.visualizer": "Visualizzatore",
   "nav.stats": "Statistiche",
@@ -95,6 +105,7 @@ const it: Record<keyof typeof en, string> = {
   "dl.close": "Chiudi testi fluttuanti",
   "stk.hint": "Sticker: trascina per spostare, clic destro o Canc per rimuovere",
   "lib.queue": "Coda",
+  "lib.queueEmpty": "Niente in coda — riproduci qualcosa per riempirla.",
   "lib.save": "Salva",
   "lib.playlistName": "Nome playlist",
   "lib.likedEmpty": "Tocca il cuore su un brano per salvarlo qui.",

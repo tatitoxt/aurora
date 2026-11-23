@@ -1,6 +1,16 @@
 import type en from "./en";
 
 const zh: Record<keyof typeof en, string> = {
+  "sources.heading": "音乐服务",
+  "sources.live": "已连接",
+  "sources.waiting": "等待音乐标签页",
+  "sources.demo": "浏览器预览",
+  "sources.open": "在浏览器中打开{name}",
+  "sources.setup": "设置浏览器扩展",
+  "sources.folder": "打开扩展文件夹",
+  "sources.playlists": "在上述服务中打开歌单。扩展会跟踪当前歌曲，并通过 Noctbeat 控制播放。",
+  "sources.emptyLikes": "标记喜欢的歌曲会显示在这里。",
+  "sources.emptyPlaylists": "导入歌单或保存队列以创建收藏。",
   "nav.library": "\u97f3\u4e50\u5e93",
   "nav.visualizer": "\u53ef\u89c6\u5316",
   "nav.stats": "\u7edf\u8ba1",
@@ -95,6 +105,7 @@ const zh: Record<keyof typeof en, string> = {
   "dl.close": "\u5173\u95ed\u6b4c\u8bcd\u6d6e\u5c42",
   "stk.hint": "\u8d34\u7eb8\uff1a\u62d6\u52a8\u79fb\u52a8\uff0c\u53f3\u952e\u6216 Delete \u5220\u9664",
   "lib.queue": "\u961f\u5217",
+  "lib.queueEmpty": "队列为空 — 播放歌曲后会显示在这里。",
   "lib.save": "\u4fdd\u5b58",
   "lib.playlistName": "\u64ad\u653e\u5217\u8868\u540d\u79f0",
   "lib.likedEmpty": "\u70b9\u6309\u4efb\u610f\u6b4c\u66f2\u7684\u7231\u5fc3\u5373\u53ef\u4fdd\u5b58\u5230\u8fd9\u91cc\u3002",
