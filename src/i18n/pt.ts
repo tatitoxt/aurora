@@ -275,6 +275,7 @@ const pt: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
+  "nav.browse": "Explorar","brw.home": "Início","brw.search": "Buscar","brw.topTracks": "Suas mais tocadas","brw.topArtists": "Seus artistas","brw.plays": "reproduções","brw.playAll": "Reproduzir tudo","brw.liveView": "Visualização ao vivo","brw.seek": "Posição",
 };
 
 export default pt;

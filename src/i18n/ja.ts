@@ -275,6 +275,7 @@ const ja: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
+  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "","brw.topTracks": "よくく","brw.topArtists": "トップアーティスト","brw.plays": "","brw.playAll": "すべて","brw.liveView": "ライブビュー","brw.seek": "",
 };
 
 export default ja;

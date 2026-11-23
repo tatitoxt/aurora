@@ -11,6 +11,7 @@ const es: Record<keyof typeof en, string> = {
   "sources.playlists": "Abrí tus playlists en uno de estos servicios. La extensión sigue la canción y permite controlar la reproducción desde Noctbeat.",
   "sources.emptyLikes": "Las canciones que marques con el corazón aparecen acá.",
   "sources.emptyPlaylists": "Importá una playlist o guardá la cola para crear tu colección.",
+  "nav.browse": "Explorar",
   "nav.library": "Biblioteca",
   "nav.visualizer": "Visualizador",
   "nav.stats": "Estadísticas",
@@ -274,6 +275,14 @@ const es: Record<keyof typeof en, string> = {
   "fs.dragMove": "Arrastrá para mover",
   "fs.thumbsShow": "Mostrar miniaturas",
   "fs.thumbsHide": "Ocultar miniaturas",
+  "brw.home": "Inicio",
+  "brw.search": "Buscar",
+  "brw.topTracks": "Tus más escuchadas",
+  "brw.topArtists": "Tus artistas",
+  "brw.plays": "reproducciones",
+  "brw.playAll": "Reproducir todo",
+  "brw.liveView": "Vista en vivo",
+  "brw.seek": "Posición",
   "fs.lyricsBtn": "Letras",
 };
 

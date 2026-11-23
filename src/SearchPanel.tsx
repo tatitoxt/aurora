@@ -42,6 +42,8 @@ export default function SearchPanel({
     setArtist(null);
     if (!term) {
       setSongs([]);
+      setErr("");
+      setNote("");
       return;
     }
     let live = true;

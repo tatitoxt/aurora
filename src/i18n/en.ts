@@ -10,6 +10,7 @@ const en = {
   "sources.emptyLikes": "Songs you like with the heart appear here.",
   "sources.emptyPlaylists": "Import a playlist file or save your queue to start a collection.",
   // nav
+  "nav.browse": "Browse",
   "nav.library": "Library",
   "nav.visualizer": "Visualizer",
   "nav.stats": "Stats",
@@ -283,6 +284,14 @@ const en = {
   "fs.dragMove": "Drag to move",
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
+  "brw.home": "Home",
+  "brw.search": "Search",
+  "brw.topTracks": "Your top tracks",
+  "brw.topArtists": "Top artists",
+  "brw.plays": "plays",
+  "brw.playAll": "Play all",
+  "brw.liveView": "Live view",
+  "brw.seek": "Seek",
   "fs.lyricsBtn": "Lyrics",
 } as const;
 

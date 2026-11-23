@@ -18,6 +18,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Hud = lazy(() => import("./pages/Hud"));
 const DeskLyrics = lazy(() => import("./pages/DeskLyrics"));
 const Library = lazy(() => import("./pages/Library"));
+const Browse = lazy(() => import("./pages/Browse"));
 const Artist = lazy(() => import("./pages/Artist"));
 const Albums = lazy(() => import("./pages/Albums"));
 const Album = lazy(() => import("./pages/Album"));
@@ -131,6 +132,7 @@ export default function App() {
           <Route path="/hud" element={<Hud />} />
           <Route path="/desklyrics" element={<DeskLyrics />} />
           <Route path="/library" element={<Library />} />
+          <Route path="/browse" element={<Browse />} />
           <Route path="/artist/:name" element={<Artist />} />
           <Route path="/albums" element={<Albums />} />
           <Route path="/album/:artist/:name" element={<Album />} />
