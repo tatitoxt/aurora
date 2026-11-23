@@ -264,8 +264,12 @@ export default function Browse() {
               if (!(e.nativeEvent as InputEvent).isComposing) setView("search");
             }}
             /* Committing the same interim text fires no onChange —
-               open Search when the composition ends instead. */
-            onCompositionEnd={() => setView("search")}
+               open Search when the composition ends instead. A
+               canceled composition ends with empty data and must
+               not switch the view. */
+            onCompositionEnd={(e) => {
+              if (e.data !== "") setView("search");
+            }}
           />
         </label>
         <button
