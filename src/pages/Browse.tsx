@@ -1237,11 +1237,52 @@ export default function Browse() {
             <div className="lib">
               {plTracks.map((pt, i) => (
                 <div
-                  className="lib__row"
+                  className={[
+                    "lib__row",
+                    dragIdx === i ? "lib__row--dragging" : "",
+                    dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   role="button"
                   tabIndex={0}
                   key={`${pt.path}-${i}`}
                   title={pt.title || pt.path.split("/").pop()}
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDropIdx(i);
+                  }}
+                  onDragLeave={() => setDropIdx((d) => (d === i ? null : d))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const p = playlists.find((x) => `pl:${x.path}` === view);
+                    if (p && dragIdx !== null && dragIdx !== i) {
+                      const from = dragIdx;
+                      setPlTracks((ts) => {
+                        const n = [...ts];
+                        const [m] = n.splice(from, 1);
+                        n.splice(i, 0, m);
+                        return n;
+                      });
+                      void bridge
+                        .playlistMoveTrack(p.path, from, i)
+                        .catch((err) => {
+                          fail(err);
+                          return bridge
+                            .playlistTracks(p.path)
+                            .then(setPlTracks)
+                            .catch(() => {});
+                        });
+                    }
+                    setDragIdx(null);
+                    setDropIdx(null);
+                  }}
+                  onDragEnd={() => {
+                    setDragIdx(null);
+                    setDropIdx(null);
+                  }}
                   onClick={() => playPlTrack(i)}
                   onKeyDown={(e) => {
                     if (

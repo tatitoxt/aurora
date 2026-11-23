@@ -1188,6 +1188,30 @@ fn playlist_remove_track(state: State<AppState>, path: String, index: u32) -> Re
     rewrite_playlist(&file, &entries)
 }
 
+/// Move the entry at `from` to position `to` and rewrite the playlist.
+/// Indexes count every entry exactly as `playlist_tracks` lists them.
+#[tauri::command]
+fn playlist_move_track(
+    state: State<AppState>,
+    path: String,
+    from: u32,
+    to: u32,
+) -> Result<(), String> {
+    let file = playlist_path_checked(&state, &path)?;
+    m3u_editable(&file)?;
+    let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let mut entries = noctbeat_core::playlists::parse(&file, &content);
+    let (f, t) = (from as usize, to as usize);
+    if f >= entries.len() || t >= entries.len() {
+        return Err("track index out of range".into());
+    }
+    if f != t {
+        let e = entries.remove(f);
+        entries.insert(t, e);
+    }
+    rewrite_playlist(&file, &entries)
+}
+
 /// Append local files to a playlist and rewrite it. Returns how many
 /// entries were added — paths that aren't real files are skipped (a
 /// stale queue item or a `remote:` pseudo-path must not land in the
@@ -2721,6 +2745,7 @@ pub fn run() {
             delete_playlist,
             playlist_tracks,
             playlist_remove_track,
+            playlist_move_track,
             recent_plays,
             playlist_add_tracks,
             get_stats,

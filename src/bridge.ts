@@ -879,6 +879,16 @@ export const bridge = {
     findPl(path)?.tracks.splice(index, 1);
     return Promise.resolve();
   },
+  /** Move the entry at `from` to position `to` and rewrite the file. */
+  playlistMoveTrack: (path: string, from: number, to: number): Promise<void> => {
+    if (isTauri()) return invokeCmd("playlist_move_track", { path, from, to });
+    const pl = findPl(path);
+    if (pl && from !== to && pl.tracks[from]) {
+      const [m] = pl.tracks.splice(from, 1);
+      pl.tracks.splice(to, 0, m);
+    }
+    return Promise.resolve();
+  },
   /** Append local files to an .m3u/.m3u8 playlist; returns added count. */
   playlistAddTracks: (path: string, paths: string[]): Promise<number> => {
     if (isTauri()) return invokeCmd<number>("playlist_add_tracks", { path, paths });
