@@ -239,7 +239,7 @@ export default function Browse() {
       )}
       <aside className="brw__rail">
         <span className="brw__brand">
-          <img className="brw__logo" src="/noctbeat-logo.png" alt="" />
+          <img className="brw__logo" src="/noctbeat-mark.png" alt="" />
           {bridge.productName}
         </span>
         <label
@@ -340,6 +340,26 @@ export default function Browse() {
               onPlayed={refresh}
               query={q}
               onQuery={setQ}
+              aside={
+                playlists.length > 0 ? (
+                  <>
+                    <span className="srch__h">{t("lib.playlists")}</span>
+                    <div className="srch__pllist">
+                      {playlists.map((p) => (
+                        <button
+                          key={p.path}
+                          className="srch__pl"
+                          title={p.name}
+                          onClick={() => openPlaylist(p)}
+                        >
+                          <Playlist />
+                          <span>{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : undefined
+              }
             />
           </div>
         )}

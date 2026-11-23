@@ -2720,8 +2720,7 @@ select { color-scheme: dark; }
   padding: 2px 8px 12px;
 }
 .brw__logo {
-  width: 34px; height: 34px; flex: none;
-  border-radius: 9px; box-shadow: 0 0 0 1px var(--hair);
+  width: 74px; height: auto; flex: none;
 }
 .brw__railsearch {
   display: flex; align-items: center; gap: 8px;
@@ -2824,8 +2823,33 @@ select { color-scheme: dark; }
 .brw__empty { font-size: var(--fs-sm); color: var(--muted); padding: 8px 4px; }
 .brw__search { width: 100%; max-width: none; }
 .brw__search .fs__provq { width: 100%; max-width: 640px; }
-/* Songs use the whole column; top result + artists cap at a readable width. */
-.brw__search .srch__top, .brw__search .srch__artists { max-width: 640px; }
+/* Two-column results on wide layouts: songs left, artists + playlists right. */
+.brw__search .srch__body {
+  display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+  column-gap: 28px; align-items: start;
+}
+.brw__search .srch__body > * { grid-column: 1; min-width: 0; }
+.brw__search .srch__body > .srch__h:has(+ .srch__artists),
+.brw__search .srch__body > .srch__artists,
+.brw__search .srch__body > .srch__aside { grid-column: 2; }
+.brw__search .srch__artists { flex-wrap: wrap; overflow: visible; }
+.srch__aside { display: flex; flex-direction: column; min-width: 0; }
+.srch__pllist { display: flex; flex-direction: column; }
+.srch__pl {
+  display: flex; align-items: center; gap: 10px; padding: 7px 6px;
+  border: 0; border-radius: 8px; background: none; color: #fff;
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  text-align: left; min-width: 0;
+}
+.srch__pl:hover, .srch__pl:focus-visible { background: rgba(255, 255, 255, 0.10); outline: none; }
+.srch__pl svg { width: 15px; height: 15px; flex: none; color: rgba(255, 255, 255, 0.66); }
+.srch__pl span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) {
+  .brw__search .srch__body { grid-template-columns: minmax(0, 1fr); }
+  .brw__search .srch__body > .srch__h:has(+ .srch__artists),
+  .brw__search .srch__body > .srch__artists,
+  .brw__search .srch__body > .srch__aside { grid-column: 1; }
+}
 .brw__plhead { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .brw__plhead .brw__art { width: 56px; flex: none; }
 .brw__plmeta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

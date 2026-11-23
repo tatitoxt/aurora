@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bridge, type CatalogSong } from "./bridge";
 import { useT } from "./i18n";
 import { artistCards, formatTime } from "./lib";
@@ -25,6 +25,7 @@ export default function SearchPanel({
   onPlayed,
   query,
   onQuery,
+  aside,
 }: {
   src: string;
   label: (id: string) => string;
@@ -33,6 +34,8 @@ export default function SearchPanel({
   /** Controlled query (e.g. a persistent rail search bar owns it). */
   query?: string;
   onQuery?: (q: string) => void;
+  /** Extra content for the right column on wide layouts (e.g. playlists). */
+  aside?: ReactNode;
 }) {
   const t = useT();
   const [qLocal, setQLocal] = useState("");
@@ -219,6 +222,7 @@ export default function SearchPanel({
               </div>
             ))}
           </div>
+          {aside && <div className="srch__aside">{aside}</div>}
         </div>
       )}
     </div>
