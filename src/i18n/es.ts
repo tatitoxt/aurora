@@ -283,6 +283,7 @@ const es: Record<keyof typeof en, string> = {
   "brw.topArtists": "Tus artistas",
   "brw.plays": "reproducciones",
   "brw.play": "Reproducir",
+  "brw.volLocalOnly": "Solo reproducción local",
   "brw.playAll": "Reproducir todo",
   "brw.liveView": "Vista en vivo",
   "brw.forward": "Adelante","brw.recentlyPlayed": "Escuchado recientemente","brw.settings": "Configuración","brw.account": "Cuenta","brw.appSettings": "Ajustes de la app","brw.noTracks": "Todavía no hay canciones","brw.seek": "Posición","brw.trackMissing": "Falta el archivo de ese tema",

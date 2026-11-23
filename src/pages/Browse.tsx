@@ -61,6 +61,10 @@ import {
 /** Providers tried, in order, when playing a catalog/stats entry. */
 const AUTO_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
 
+/* Module scope: the ref resets when Browse unmounts (Live view and
+   back), which would silently revert unmute to the default volume. */
+let preMuteVol = 0.8;
+
 type View =
   | "home"
   | "search"
@@ -128,7 +132,6 @@ export default function Browse() {
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
-  const preMuteVol = useRef(0.8);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
@@ -170,6 +173,15 @@ export default function Browse() {
       .recentPlays(viewRef.current === "recent" ? 50 : 12)
       .then(setRecent)
       .catch(() => {});
+    /* Volume can change outside this page (arrow-key shortcuts on
+       Stage) — re-read or the mute button lies. */
+    void bridge
+      .getVolume()
+      .then((v) => {
+        setVol(v);
+        if (v > 0) preMuteVol = v;
+      })
+      .catch(() => {});
   };
   useEffect(() => {
     refresh();
@@ -183,7 +195,10 @@ export default function Browse() {
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
     void bridge.getShuffle().then(setShuffle).catch(() => {});
     void bridge.getRepeat().then(setRepeat).catch(() => {});
-    void bridge.getVolume().then(setVol).catch(() => {});
+    void bridge.getVolume().then((v) => {
+      setVol(v);
+      if (v > 0) preMuteVol = v;
+    }).catch(() => {});
     const poll = setInterval(refresh, 4000);
     return () => {
       offQ();
@@ -230,12 +245,22 @@ export default function Browse() {
   const isFav = favKey !== "" && favSet.has(favKey);
   const track = np?.track ?? null;
   const playing = np?.status === "playing";
-  /* Row highlight: playlist/liked rows key off title+artist (queue
-     rows use currentIndex already). */
-  const isNow = (title: string, artist: string) =>
-    !!track &&
-    track.title.trim().toLowerCase() === title.trim().toLowerCase() &&
-    track.artist.trim().toLowerCase() === artist.trim().toLowerCase();
+  /* Row highlight (queue rows use currentIndex already). Local rows
+     match the file path — Track.id is the path for local playback —
+     so two entries sharing title+artist don't both light up. Remote
+     rows have no path to compare, they key off the displayed title. */
+  const isNow = (pt: PlaylistTrack) => {
+    if (!track) return false;
+    if (!pt.remote) return pt.path === track.id;
+    const shown = pt.title || pt.path.split("/").pop() || "";
+    return (
+      track.title.trim().toLowerCase() === shown.trim().toLowerCase() &&
+      track.artist.trim().toLowerCase() === pt.artist.trim().toLowerCase()
+    );
+  };
+  /* Volume controls only reach the local player — provider tabs keep
+     their own audio, so mute/slider would lie during external playback. */
+  const volLocal = !track || np?.source === "local";
   const progress = track?.durationMs
     ? Math.min(1, (np?.positionMs ?? 0) / track.durationMs)
     : 0;
@@ -1272,6 +1297,8 @@ export default function Browse() {
                       {formatTime(
                         plTracks.reduce((ms, pt) => ms + pt.durationMs, 0),
                       )}
+                      {/* '+' flags a subtotal: some rows report no length. */}
+                      {plTracks.some((pt) => pt.durationMs === 0) ? "+" : ""}
                     </>
                   )}
                 </span>
@@ -1346,7 +1373,7 @@ export default function Browse() {
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             <div className="lib">
               {plTracks.map((pt, i) => {
-                const current = isNow(pt.title, pt.artist);
+                const current = isNow(pt);
                 return (
                 <div
                   className={[
@@ -1594,14 +1621,18 @@ export default function Browse() {
             {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
           </span>
         </span>
-        <span className="brw__volwrap">
+        <span
+          className={`brw__volwrap ${volLocal ? "" : "brw__volwrap--off"}`}
+          title={volLocal ? t("fs.volume") : t("brw.volLocalOnly")}
+        >
           <button
             className={`brw__icon ${vol === 0 ? "" : "on"}`}
+            disabled={!volLocal}
             aria-label={vol === 0 ? t("fs.unmute") : t("fs.mute")}
-            title={vol === 0 ? t("fs.unmute") : t("fs.mute")}
+            title={volLocal ? (vol === 0 ? t("fs.unmute") : t("fs.mute")) : t("brw.volLocalOnly")}
             onClick={() => {
-              const next = vol === 0 ? preMuteVol.current : 0;
-              if (vol !== 0) preMuteVol.current = vol;
+              const next = vol === 0 ? preMuteVol : 0;
+              if (vol !== 0) preMuteVol = vol;
               setVol(next);
               void bridge.setVolume(next);
             }}
@@ -1615,6 +1646,7 @@ export default function Browse() {
             max={1}
             step={0.01}
             value={vol}
+            disabled={!volLocal}
             aria-label={t("fs.volume")}
             onChange={(e) => {
               const v = Number(e.target.value);

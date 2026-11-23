@@ -292,6 +292,7 @@ const en = {
   "brw.topArtists": "Top artists",
   "brw.plays": "plays",
   "brw.play": "Play",
+  "brw.volLocalOnly": "Local playback only",
   "brw.playAll": "Play all",
   "brw.liveView": "Live view",
   "brw.forward": "Forward","brw.recentlyPlayed": "Recently played","brw.settings": "Settings","brw.account": "Account","brw.appSettings": "App settings","brw.noTracks": "No tracks yet","brw.seek": "Seek","brw.trackMissing": "That track's file is missing",

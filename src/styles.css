@@ -2994,6 +2994,7 @@ select { color-scheme: dark; }
   display: flex; align-items: center; gap: 6px; flex: none;
   color: var(--muted);
 }
+.brw__volwrap--off { opacity: 0.4; }
 .brw__vol { width: 90px; accent-color: #fff; cursor: pointer; }
 .brw__plhead { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 16px; padding: 18px 4px 14px; }
 .brw__plhead .brw__art { width: 56px; flex: none; }
