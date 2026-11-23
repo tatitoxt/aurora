@@ -258,7 +258,10 @@ export default function Browse() {
             aria-label={t("brw.search")}
             onChange={(e) => {
               setQ(e.target.value);
-              setView("search");
+              /* During IME composition the interim events would yank
+                 focus to SearchPanel mid-composition — only switch
+                 once the text is committed. */
+              if (!(e.nativeEvent as InputEvent).isComposing) setView("search");
             }}
           />
         </label>
