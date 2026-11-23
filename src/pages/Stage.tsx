@@ -701,7 +701,7 @@ export default function Stage() {
           className="fs__icon"
           aria-label={t("nav.library")}
           title={t("nav.library")}
-          onClick={() => setLibOpen(true)}
+          onClick={() => setLibOpen((v) => !v)}
         >
           <Books size={15} />
         </button>
@@ -780,7 +780,7 @@ export default function Stage() {
           >
             <X size={14} />
           </button>
-          <Library />
+          <Library embedded />
         </div>
       )}
       {qOpen && queue.items.length > 0 && (

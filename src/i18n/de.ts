@@ -105,6 +105,7 @@ const de: Record<keyof typeof en, string> = {
   "dl.close": "Songtext-Overlay schlie\u00dfen",
   "stk.hint": "Sticker: ziehen zum Verschieben, Rechtsklick oder Entf zum Entfernen",
   "lib.queue": "Warteschlange",
+  "lib.queueEmpty": "Nichts in der Warteschlange — spiel etwas ab.",
   "lib.save": "Speichern",
   "lib.playlistName": "Playlist-Name",
   "lib.likedEmpty": "Tippe auf das Herz eines Titels, um ihn hier zu speichern.",

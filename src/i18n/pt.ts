@@ -105,6 +105,7 @@ const pt: Record<keyof typeof en, string> = {
   "dl.close": "Fechar letras flutuantes",
   "stk.hint": "Sticker: arraste para mover, clique direito ou Delete para remover",
   "lib.queue": "Fila",
+  "lib.queueEmpty": "Nada na fila — toque algo para preenchê-la.",
   "lib.save": "Salvar",
   "lib.playlistName": "Nome da playlist",
   "lib.likedEmpty": "Toque no cora\u00e7\u00e3o de qualquer faixa para salv\u00e1-la aqui.",

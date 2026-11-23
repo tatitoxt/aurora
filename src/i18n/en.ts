@@ -145,6 +145,7 @@ const en = {
   "dl.close": "Close lyrics overlay",
   "stk.hint": "Sticker: drag to move, right-click or Delete to remove",
   "lib.queue": "Queue",
+  "lib.queueEmpty": "Nothing queued — play something to fill it.",
   "lib.save": "Save",
   "lib.playlistName": "Playlist name",
   "lib.likedEmpty": "Tap the heart on any track to save it here.",

@@ -63,7 +63,7 @@ function LibThumb({ url, icon }: { url?: string; icon?: React.ReactNode }) {
 /** Provider tabs tried, in order, to replay a liked song. */
 const TAB_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
 
-export default function Library() {
+export default function Library({ embedded = false }: { embedded?: boolean }) {
   const t = useT();
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [tab, setTab] = useState<"queue" | "liked" | "playlists" | "services">("queue");
@@ -287,14 +287,16 @@ export default function Library() {
         <div className="pagehead" style={{ padding: "0 0 4px" }}>
           <div className="pagehead__top">
             <span />
-            <span className="pagehead__links">
-              <Link to="/albums" className="pagehead__link">
-                {t("lib.albums")}
-              </Link>
-              <Link to="/" className="pagehead__link">
-                {t("nav.back")}
-              </Link>
-            </span>
+            {!embedded && (
+              <span className="pagehead__links">
+                <Link to="/albums" className="pagehead__link">
+                  {t("lib.albums")}
+                </Link>
+                <Link to="/" className="pagehead__link">
+                  {t("nav.back")}
+                </Link>
+              </span>
+            )}
           </div>
           <h1 className="pagehead__name">{t("lib.title")}</h1>
           <span className="pagehead__meta">

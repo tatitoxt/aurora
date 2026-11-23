@@ -196,8 +196,11 @@ export default function Hud() {
               ) : null}
             </div>
           ) : null}
-          {queueOpen && queue.items.length > 0 ? (
+          {queueOpen ? (
             <div className="hud__list hud__list--overlay">
+              {queue.items.length === 0 && (
+                <div className="hud__qempty">{t("lib.queueEmpty")}</div>
+              )}
               {queue.items.map((it, i) => (
                 <button
                   key={it.path + i}
@@ -253,17 +256,18 @@ export default function Hud() {
           >
             <ListBullets size={15} />
           </button>
-          <button className="hctl" aria-label={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
+          <button className="hctl" aria-label={t("fs.prev")} title={t("fs.prev")} onClick={() => bridge.mediaControl("previous")}>
             <SkipBack weight="fill" size={15} />
           </button>
           <button
             className="hctl hctl--play"
             aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
+            title={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
             onClick={() => bridge.mediaControl("play-pause")}
           >
             {playing ? <Pause weight="fill" size={17} /> : <Play weight="fill" size={17} />}
           </button>
-          <button className="hctl" aria-label={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
+          <button className="hctl" aria-label={t("fs.next")} title={t("fs.next")} onClick={() => bridge.mediaControl("next")}>
             <SkipForward weight="fill" size={15} />
           </button>
         </div>

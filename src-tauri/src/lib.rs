@@ -1453,6 +1453,29 @@ fn get_settings(state: State<AppState>) -> Result<Settings, String> {
     Ok(state.settings.lock().map_err(|e| e.to_string())?.clone())
 }
 
+/// macOS vibrancy: "see-through background" blurs the real desktop
+/// behind the window (Apple glass), not just transparent pixels.
+#[cfg(target_os = "macos")]
+fn sync_vibrancy(app: &tauri::AppHandle, transparent: bool) {
+    use window_vibrancy::{
+        apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial, NSVisualEffectState,
+    };
+    if let Some(win) = app.get_webview_window("player") {
+        if transparent {
+            let _ = apply_vibrancy(
+                &win,
+                NSVisualEffectMaterial::HudWindow,
+                Some(NSVisualEffectState::Active),
+                None,
+            );
+        } else {
+            let _ = clear_vibrancy(&win);
+        }
+    }
+}
+#[cfg(not(target_os = "macos"))]
+fn sync_vibrancy(_app: &tauri::AppHandle, _transparent: bool) {}
+
 #[tauri::command]
 fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let state = app.state::<AppState>();
@@ -1470,6 +1493,7 @@ fn update_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), Stri
     }
     sync_hud_window(&app, &incoming);
     sync_desk_lyrics_window(&app, &incoming);
+    sync_vibrancy(&app, incoming.transparent_bg);
     state
         .player
         .lock()
@@ -2734,6 +2758,7 @@ pub fn run() {
             let s = state.settings.lock().map_err(|e| e.to_string())?.clone();
             sync_hud_window(app.handle(), &s);
             sync_desk_lyrics_window(app.handle(), &s);
+            sync_vibrancy(app.handle(), s.transparent_bg);
             // The player is the only recoverable window: closing it must
             // hide (HUD/tray can reopen), never destroy — a destroyed
             // player takes the whole app down and leaves no way back.

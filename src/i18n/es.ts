@@ -105,6 +105,7 @@ const es: Record<keyof typeof en, string> = {
   "dl.close": "Cerrar letras flotantes",
   "stk.hint": "Sticker: arrastr\u00e1 para mover, clic derecho o Suprimir para quitar",
   "lib.queue": "Cola",
+  "lib.queueEmpty": "No hay nada en cola — poné algo para llenarla.",
   "lib.save": "Guardar",
   "lib.playlistName": "Nombre de la playlist",
   "lib.likedEmpty": "Toc\u00e1 el coraz\u00f3n en cualquier tema para guardarlo ac\u00e1.",
