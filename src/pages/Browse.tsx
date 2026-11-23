@@ -372,6 +372,19 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
   const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
+  /* Header art: first playlist row whose artwork we can resolve. */
+  const plArt =
+    plTracks
+      .map(
+        (pt) =>
+          queue.items.find(
+            (i) => i.track.title === pt.title && i.track.artist === pt.artist,
+          )?.track.artworkUrl ??
+          liked.find((e) => e.title === pt.title && e.artist === pt.artist)
+            ?.artworkUrl ??
+          "",
+      )
+      .find(Boolean) ?? "";
 
   /** A history row maps onto the fav replay rules: local trackIds are
       file paths, everything else becomes a provider query. */
@@ -1196,8 +1209,8 @@ export default function Browse() {
         {view.startsWith("pl:") && (
           <>
             <div className="brw__plhead">
-              <span className="brw__art brw__art--ph" aria-hidden>
-                <Playlist />
+              <span className="brw__plart">
+                <Art url={plArt} icon={<Playlist />} />
               </span>
               <span className="brw__plmeta">
                 <span className="brw__plt">{plName}</span>
