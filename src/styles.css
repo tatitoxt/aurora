@@ -2508,7 +2508,8 @@ button, input, select, textarea { font-family: var(--ui); }
 .fs__qpanel {
   position: absolute; z-index: 8;
   left: clamp(10px, 2 * var(--u), 32px); top: clamp(56px, 8 * var(--u), 120px);
-  width: clamp(200px, 22 * var(--u), 340px); max-height: calc(100% - 220px);
+  --qw: clamp(200px, 22 * var(--u), 340px);
+  width: var(--qw); max-height: calc(100% - 220px);
   display: flex; flex-direction: column; border-radius: 18px; overflow: hidden;
 }
 .fs__qhead { display: flex; align-items: center; gap: 2px; padding: 6px 6px 4px 14px; cursor: grab; touch-action: none; }
@@ -2573,7 +2574,8 @@ button, input, select, textarea { font-family: var(--ui); }
 /* Library: narrow movable glass panel like Up next. */
 .fs__libpop {
   --libw: clamp(300px, 30vw, 440px);
-  inset: auto; width: var(--libw); height: min(calc(100% - 230px), 540px); min-height: 260px;
+  --libh: min(calc(100% - 230px), 540px);
+  inset: auto; width: var(--libw); height: var(--libh); min-height: 260px;
   left: calc(50% - var(--libw) / 2); top: clamp(56px, 8 * var(--u), 120px);
 }
 .fs__libpop > .glass { height: 100%; padding-top: 14px; }

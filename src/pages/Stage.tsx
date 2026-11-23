@@ -759,8 +759,8 @@ export default function Stage() {
           style={
             libPos
               ? {
-                  left: `min(${libPos.x}px, calc(100% - 140px))`,
-                  top: `min(${libPos.y}px, calc(100% - 80px))`,
+                  left: `max(4px, min(${libPos.x}px, calc(100% - var(--libw) - 8px)))`,
+                  top: `max(4px, min(${libPos.y}px, calc(100% - max(var(--libh), 260px) - 8px)))`,
                 }
               : undefined
           }
@@ -790,8 +790,8 @@ export default function Stage() {
             qPos
               ? // re-clamped on render so a position saved in a bigger window stays reachable
                 {
-                  left: `min(${qPos.x}px, calc(100% - 140px))`,
-                  top: `min(${qPos.y}px, calc(100% - 80px))`,
+                  left: `max(4px, min(${qPos.x}px, calc(100% - var(--qw) - 8px)))`,
+                  top: `max(4px, min(${qPos.y}px, calc(100% - 80px)))`,
                 }
               : undefined
           }
