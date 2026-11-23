@@ -347,6 +347,10 @@ export default function Browse() {
     return () => window.removeEventListener("mousedown", h);
   }, [ctx]);
 
+  /* A row index only means something inside the view it was opened
+     on — keyboard navigation can swap views while the menu is up. */
+  useEffect(() => setCtx(null), [view]);
+
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
     if (saved.items.length > 0)
@@ -1411,7 +1415,13 @@ export default function Browse() {
       </main>
 
       {ctx && (
-        <span className="brw__ctx" style={{ left: ctx.x, top: ctx.y }}>
+        <span
+          className="brw__ctx"
+          style={{
+            left: Math.max(8, Math.min(ctx.x, window.innerWidth - 184)),
+            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 120)),
+          }}
+        >
           <button
             onClick={() => {
               setCtx(null);

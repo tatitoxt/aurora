@@ -3060,6 +3060,12 @@ select { color-scheme: dark; }
   /* The fixed-width transport + volume row would squeeze the seek
      control to zero at the 600px default width. */
   .brw__volwrap { display: none; }
+  /* 160px header art + 4 actions don't fit the default window —
+     shrink the art and let the buttons wrap below the title. */
+  .brw__plhead { flex-wrap: wrap; align-items: center; }
+  .brw__plhead .brw__plart .brw__art { width: 84px; height: 84px; }
+  .brw__plhead .brw__plt { font-size: 20px; white-space: normal; }
+  .brw__plhead .seg { flex-basis: 100%; }
 }
 
 /* Narrow windows: rail collapses to icons. */
