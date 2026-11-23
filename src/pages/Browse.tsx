@@ -40,6 +40,7 @@ import {
   MagnifyingGlass,
   MusicNote,
   Pause,
+  PencilSimple,
   Play,
   Playlist,
   Repeat,
@@ -50,6 +51,7 @@ import {
   SpeakerHigh,
   Gear,
   SquaresFour,
+  Trash,
   User,
   X,
 } from "@phosphor-icons/react";
@@ -989,6 +991,22 @@ export default function Browse() {
             {queue.items.length > 0 && (
               <div className="brw__qtools">
                 <span className="seg seg--ghost">
+                  <button
+                    title={t("lib.save")}
+                    onClick={() => {
+                      const name = window.prompt(t("lib.playlistName"));
+                      if (!name?.trim()) return;
+                      void bridge
+                        .exportPlaylist(name.trim())
+                        .then(() => {
+                          setNote(t("lib.save"));
+                          return bridge.listPlaylists().then(setPlaylists);
+                        })
+                        .catch(fail);
+                    }}
+                  >
+                    {t("lib.save")}
+                  </button>
                   <button onClick={() => void bridge.clearQueue().catch(fail)}>
                     {t("lib.clear")}
                   </button>
@@ -1116,6 +1134,46 @@ export default function Browse() {
                   }}
                 >
                   <Play weight="fill" /> {t("brw.playAll")}
+                </button>
+                <button
+                  title={t("lib.rename")}
+                  onClick={() => {
+                    const p = playlists.find((x) => `pl:${x.path}` === view);
+                    if (!p) return;
+                    const name = window.prompt(t("lib.playlistName"), p.name);
+                    if (!name?.trim() || name.trim() === p.name) return;
+                    void bridge
+                      .renamePlaylist(p.path, name.trim())
+                      .then((f) => {
+                        setPlaylists((pls) =>
+                          pls.map((x) => (x.path === p.path ? f : x)),
+                        );
+                        go(`pl:${f.path}`);
+                      })
+                      .catch(fail);
+                  }}
+                >
+                  <PencilSimple /> {t("lib.rename")}
+                </button>
+                <button
+                  title={t("lib.delete")}
+                  onClick={() => {
+                    const p = playlists.find((x) => `pl:${x.path}` === view);
+                    if (!p) return;
+                    if (!window.confirm(`${t("lib.delete")}: ${p.name}?`))
+                      return;
+                    void bridge
+                      .deletePlaylist(p.path)
+                      .then(() => {
+                        setPlaylists((pls) =>
+                          pls.filter((x) => x.path !== p.path),
+                        );
+                        go("home");
+                      })
+                      .catch(fail);
+                  }}
+                >
+                  <Trash /> {t("lib.delete")}
                 </button>
               </span>
             </div>
