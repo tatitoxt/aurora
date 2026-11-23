@@ -2884,6 +2884,7 @@ select { color-scheme: dark; }
 @media (max-width: 700px) {
   .brw__time { display: none; }
   .brw__icon--live span { display: none; }
+  .brw__np { width: 120px; }
 }
 
 /* Narrow windows: rail collapses to icons. */

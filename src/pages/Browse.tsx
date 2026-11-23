@@ -242,13 +242,20 @@ export default function Browse() {
           <img className="brw__logo" src="/noctbeat-logo.png" alt="" />
           {bridge.productName}
         </span>
-        <label className={`brw__railsearch ${view === "search" ? "on" : ""}`}>
+        <label
+          className={`brw__railsearch ${view === "search" ? "on" : ""}`}
+          /* Click or typing switches to Search — plain keyboard
+             focus must not, or tabbing past the rail would jump
+             the user into SearchPanel's autofocused input. The
+             same click also opens Search when the input is
+             collapsed to just an icon in narrow windows. */
+          onClick={() => setView("search")}
+        >
           <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
           <input
             value={q}
             placeholder={t("fs.searchSongs")}
             aria-label={t("brw.search")}
-            onFocus={() => setView("search")}
             onChange={(e) => {
               setQ(e.target.value);
               setView("search");
