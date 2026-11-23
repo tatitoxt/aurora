@@ -275,7 +275,7 @@ const zh: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "","brw.home": "","brw.search": "","brw.topTracks": "","brw.topArtists": "","brw.plays": "","brw.playAll": "","brw.liveView": "","brw.seek": "",
+  "nav.browse": "","brw.home": "","brw.search": "","brw.topTracks": "","brw.topArtists": "","brw.plays": "","brw.playAll": "","brw.liveView": "","brw.seek": "","brw.greetMorning": "","brw.greetAfternoon": "","brw.greetEvening": "","brw.jumpBackIn": "","brw.showAll": "",
 };
 
 export default zh;

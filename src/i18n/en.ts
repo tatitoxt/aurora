@@ -292,6 +292,11 @@ const en = {
   "brw.playAll": "Play all",
   "brw.liveView": "Live view",
   "brw.seek": "Seek",
+  "brw.greetMorning": "Good morning",
+  "brw.greetAfternoon": "Good afternoon",
+  "brw.greetEvening": "Good evening",
+  "brw.jumpBackIn": "Jump back in",
+  "brw.showAll": "Show all",
   "fs.lyricsBtn": "Lyrics",
 } as const;
 

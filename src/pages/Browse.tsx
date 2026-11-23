@@ -225,6 +225,71 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
 
+  /** Playlist detail rows play from that index: import, then start at
+      the offset the imported tracks landed at. */
+  const playPlTrack = (i: number) => {
+    const p = playlists.find((x) => `pl:${x.path}` === view);
+    if (!p) return;
+    setErr("");
+    const before = queue.items.length;
+    void bridge
+      .importPlaylist(p.path)
+      .then((res) => {
+        if (res.imported === 0) return;
+        return bridge.getQueue().then((q2) => {
+          setQueue(q2);
+          return bridge.playQueueIndex(Math.min(before + i, q2.items.length - 1));
+        });
+      })
+      .catch(fail);
+  };
+
+  /* Spotify-style greeting follows the clock, not a fixed string. */
+  const hour = new Date().getHours();
+  const greet =
+    hour < 12
+      ? t("brw.greetMorning")
+      : hour < 19
+        ? t("brw.greetAfternoon")
+        : t("brw.greetEvening");
+
+  /** Jump-back tiles: the shortcuts Spotify puts under the greeting. */
+  const jumpTiles = [
+    liked.length > 0 && {
+      key: "liked",
+      name: t("lib.liked"),
+      icon: <Heart weight="fill" />,
+      onClick: () => setView("liked"),
+    },
+    queue.items.length > 0 && {
+      key: "queue",
+      name: t("fs.upNext"),
+      art: queue.items[queue.currentIndex ?? 0]?.track.artworkUrl,
+      icon: <ListBullets />,
+      onClick: () => setView("queue"),
+    },
+    ...playlists.slice(0, 4).map((p) => ({
+      key: `pl:${p.path}`,
+      name: p.name,
+      icon: <Playlist />,
+      onClick: () => openPlaylist(p),
+    })),
+    ...(stats?.topArtists ?? []).slice(0, 2).map((a) => ({
+      key: `ar:${a.name}`,
+      name: a.name,
+      icon: <User />,
+      onClick: () => nav(`/artist/${encodeURIComponent(a.name)}`),
+    })),
+  ]
+    .filter(Boolean)
+    .slice(0, 8) as {
+    key: string;
+    name: string;
+    icon: React.ReactNode;
+    art?: string;
+    onClick: () => void;
+  }[];
+
   return (
     <div className="brw">
       {videoUrl && !bridge.isTauri() && (
@@ -239,7 +304,7 @@ export default function Browse() {
       )}
       <aside className="brw__rail">
         <span className="brw__brand">
-          <img className="brw__logo" src="/noctbeat-mark.png" alt="" />
+          <img className="brw__logo" src="/noctbeat-mark.svg" alt="" />
           {bridge.productName}
         </span>
         <label
@@ -377,8 +442,33 @@ export default function Browse() {
 
         {view === "home" && (
           <>
+            <h2 className="brw__greet">{greet}</h2>
+            {jumpTiles.length > 0 && (
+              <div className="brw__jump">
+                {jumpTiles.map((j) => (
+                  <button key={j.key} className="brw__tile" onClick={j.onClick}>
+                    {j.art ? (
+                      <Art url={j.art} icon={j.icon} />
+                    ) : (
+                      <span className="brw__art brw__art--ph" aria-hidden>
+                        {j.icon}
+                      </span>
+                    )}
+                    <span className="brw__tilename">{j.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <section className="brw__section">
-              <span className="brw__kick">{t("fs.upNext")}</span>
+              <span className="brw__sechead">
+                <span className="brw__kick">{t("fs.upNext")}</span>
+                {queue.items.length > 0 && (
+                  <button className="brw__showall" onClick={() => setView("queue")}>
+                    {t("brw.showAll")}
+                  </button>
+                )}
+              </span>
               <div className="brw__grid">
                 {queue.items.slice(0, 12).map((item, i) => (
                   <button
@@ -388,6 +478,9 @@ export default function Browse() {
                     onClick={() => void bridge.playQueueIndex(i)}
                   >
                     <Art url={item.track.artworkUrl} />
+                    <span className="brw__cardplay" aria-hidden>
+                      <Play weight="fill" />
+                    </span>
                     <span className="brw__cardt">{item.track.title}</span>
                     <span className="brw__cards">{item.track.artist}</span>
                   </button>
@@ -435,6 +528,19 @@ export default function Browse() {
                       <span className="brw__art brw__art--round brw__art--ph" aria-hidden>
                         <User />
                       </span>
+                      <span
+                        className="brw__cardplay"
+                        role="button"
+                        aria-label={`${t("fs.playBtn")} ${a.name}`}
+                        title={`${t("fs.playBtn")} ${a.name}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          playExternal(a.name);
+                        }}
+                      >
+                        <Play weight="fill" />
+                      </span>
                       <span className="brw__cardt">{a.name}</span>
                       <span className="brw__cards">
                         {a.plays} {t("brw.plays")}
@@ -458,6 +564,19 @@ export default function Browse() {
                     >
                       <span className="brw__art brw__art--ph" aria-hidden>
                         <Playlist />
+                      </span>
+                      <span
+                        className="brw__cardplay"
+                        role="button"
+                        aria-label={`${t("fs.playBtn")} ${p.name}`}
+                        title={`${t("fs.playBtn")} ${p.name}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          playPlaylist(p);
+                        }}
+                      >
+                        <Play weight="fill" />
                       </span>
                       <span className="brw__cardt">{p.name}</span>
                       <span className="brw__cards">playlist</span>
@@ -562,14 +681,19 @@ export default function Browse() {
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             <div className="lib">
               {plTracks.map((pt, i) => (
-                <div className="lib__row" key={`${pt.path}-${i}`}>
+                <button
+                  className="lib__row"
+                  key={`${pt.path}-${i}`}
+                  title={pt.title || pt.path.split("/").pop()}
+                  onClick={() => playPlTrack(i)}
+                >
                   <span className="lib__idx">{i + 1}</span>
                   <span className="lib__title">{pt.title || pt.path.split("/").pop()}</span>
                   <span className="lib__sub">{pt.artist}</span>
                   <span className="lib__dur">
                     {pt.remote ? "stream" : pt.durationMs ? formatTime(pt.durationMs) : ""}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </>

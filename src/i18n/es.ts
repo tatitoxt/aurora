@@ -283,6 +283,11 @@ const es: Record<keyof typeof en, string> = {
   "brw.playAll": "Reproducir todo",
   "brw.liveView": "Vista en vivo",
   "brw.seek": "Posición",
+  "brw.greetMorning": "Buenos días",
+  "brw.greetAfternoon": "Buenas tardes",
+  "brw.greetEvening": "Buenas noches",
+  "brw.jumpBackIn": "Retomá donde quedaste",
+  "brw.showAll": "Ver todo",
   "fs.lyricsBtn": "Letras",
 };
 
