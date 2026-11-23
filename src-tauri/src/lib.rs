@@ -777,6 +777,15 @@ async fn play_items(
     if index >= items.len() {
         return Err(format!("no item at index {index}"));
     }
+    /* Fail before replacing the queue: a moved/deleted file must not
+       wipe the listener's current queue and playback. */
+    let target = &items[index];
+    if !target.path.contains("://")
+        && !target.path.starts_with("remote:")
+        && !std::path::Path::new(&target.path).exists()
+    {
+        return Err(format!("track file is missing: {}", target.path));
+    }
     {
         let mut p = state.player.lock().map_err(|e| e.to_string())?;
         p.set_queue(items);

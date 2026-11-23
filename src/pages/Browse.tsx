@@ -131,12 +131,13 @@ export default function Browse() {
     /* Tabs can connect while Browse is mounted — keep the provider set
        live or playback still reports no tab. */
     void bridge.getExtStatus().then(setExt).catch(() => {});
+    /* A finished listen should surface on Home without remounting. */
+    void bridge.recentPlays(12).then(setRecent).catch(() => {});
   };
   useEffect(() => {
     refresh();
     void bridge.listPlaylists().then(setPlaylists).catch(() => {});
     void bridge.getStats().then(setStats).catch(() => {});
-    void bridge.recentPlays(12).then(setRecent).catch(() => {});
     const offQ = subscribe<QueueState>("queue", setQueue);
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
       setNp(n);
@@ -233,28 +234,36 @@ export default function Browse() {
     void bridge.playItems(locals, index).catch(fail);
   };
 
-  const openPlaylist = (p: PlaylistFile) => {
-    go(`pl:${p.path}`);
+  const openPlaylist = (p: PlaylistFile) => go(`pl:${p.path}`);
+
+  /* Track loading keys off the view so Back/Forward re-fetches the
+     rows instead of showing the previously opened playlist's. */
+  useEffect(() => {
+    if (!view.startsWith("pl:")) return;
     setPlLoading(true);
     setPlTracks([]);
     void bridge
-      .playlistTracks(p.path)
+      .playlistTracks(view.slice(3))
       .then(setPlTracks)
       .catch(fail)
       .finally(() => setPlLoading(false));
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
-  const playPlaylist = (p: PlaylistFile) => {
+  /* Play All / Shuffle replace the queue with the playlist — importing
+     onto the existing queue would let shuffle leak into older items. */
+  const playPlaylist = (p: PlaylistFile, shuffled = false) => {
     setErr("");
-    const before = queue.items.length;
     void bridge
-      .importPlaylist(p.path)
+      .clearQueue()
+      .then(() => bridge.importPlaylist(p.path))
       .then((res) => {
         if (res.imported === 0) return;
         return bridge.getQueue().then((q) => {
           setQueue(q);
-          const first = Math.min(before, q.items.length - 1);
-          return bridge.playQueueIndex(Math.max(0, first));
+          if (q.items.length === 0) return;
+          const idx = shuffled ? Math.floor(Math.random() * q.items.length) : 0;
+          return bridge.playQueueIndex(idx);
         });
       })
       .catch(fail);
@@ -317,14 +326,14 @@ export default function Browse() {
       playExternal(`${pt.title} ${pt.artist}`.trim() || pt.path);
       return;
     }
-    const before = queue.items.length;
     void bridge
-      .importPlaylist(p.path)
+      .clearQueue()
+      .then(() => bridge.importPlaylist(p.path))
       .then((res) => {
         if (res.imported === 0) return;
         return bridge.getQueue().then((q2) => {
           setQueue(q2);
-          const added = q2.items.slice(before);
+          const added = q2.items;
           /* Exact path wins: an earlier entry may share title+artist but
              point at a different recording. */
           let idx = added.findIndex((it) => it.path === pt.path);
@@ -333,7 +342,7 @@ export default function Browse() {
               (it) =>
                 it.track.title === pt.title && it.track.artist === pt.artist,
             );
-          if (idx >= 0) return bridge.playQueueIndex(before + idx);
+          if (idx >= 0) return bridge.playQueueIndex(idx);
           setErr(t("brw.trackMissing"));
         });
       })
@@ -907,7 +916,7 @@ export default function Browse() {
                       .setShuffle(true)
                       .then(() => {
                         setShuffle(true);
-                        playPlaylist(p);
+                        playPlaylist(p, true);
                       })
                       .catch(fail);
                   }}
