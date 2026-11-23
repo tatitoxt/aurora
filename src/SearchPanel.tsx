@@ -23,14 +23,21 @@ export default function SearchPanel({
   label,
   connected,
   onPlayed,
+  query,
+  onQuery,
 }: {
   src: string;
   label: (id: string) => string;
   connected: Set<string | null>;
   onPlayed: () => void;
+  /** Controlled query (e.g. a persistent rail search bar owns it). */
+  query?: string;
+  onQuery?: (q: string) => void;
 }) {
   const t = useT();
-  const [q, setQ] = useState("");
+  const [qLocal, setQLocal] = useState("");
+  const q = query ?? qLocal;
+  const setQ = onQuery ?? setQLocal;
   const [songs, setSongs] = useState<CatalogSong[]>([]);
   const [artist, setArtist] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

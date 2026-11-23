@@ -88,6 +88,7 @@ export default function Browse() {
   } | null>(null);
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
+  const [q, setQ] = useState("");
 
   const refresh = () => {
     void bridge.getQueue().then(setQueue).catch(() => {});
@@ -237,20 +238,29 @@ export default function Browse() {
         />
       )}
       <aside className="brw__rail">
-        <span className="brw__brand">{bridge.productName}</span>
+        <span className="brw__brand">
+          <img className="brw__logo" src="/noctbeat-logo.png" alt="" />
+          {bridge.productName}
+        </span>
+        <label className={`brw__railsearch ${view === "search" ? "on" : ""}`}>
+          <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
+          <input
+            value={q}
+            placeholder={t("fs.searchSongs")}
+            aria-label={t("brw.search")}
+            onFocus={() => setView("search")}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setView("search");
+            }}
+          />
+        </label>
         <button
           className={`brw__nav ${view === "home" ? "on" : ""}`}
           onClick={() => setView("home")}
         >
           <House weight={view === "home" ? "fill" : "regular"} />
           <span>{t("brw.home")}</span>
-        </button>
-        <button
-          className={`brw__nav ${view === "search" ? "on" : ""}`}
-          onClick={() => setView("search")}
-        >
-          <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
-          <span>{t("brw.search")}</span>
         </button>
         <button
           className={`brw__nav ${view === "liked" ? "on" : ""}`}
@@ -315,6 +325,8 @@ export default function Browse() {
               label={(id) => id}
               connected={connected}
               onPlayed={refresh}
+              query={q}
+              onQuery={setQ}
             />
           </div>
         )}
@@ -574,6 +586,7 @@ export default function Browse() {
           >
             <SkipForward size={16} weight="fill" />
           </button>
+          <span className="brw__time">{track ? formatTime(np?.positionMs ?? 0) : "0:00"}</span>
           <button
             className="brw__seek"
             aria-label={t("brw.seek")}
@@ -587,6 +600,9 @@ export default function Browse() {
           >
             <i style={{ width: `${progress * 100}%` }} />
           </button>
+          <span className="brw__time">
+            {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
+          </span>
         </span>
         <button
           className="brw__icon brw__icon--live"
@@ -594,7 +610,8 @@ export default function Browse() {
           title={t("brw.liveView")}
           onClick={() => nav("/")}
         >
-          <SquaresFour size={16} />
+          <SquaresFour size={15} />
+          <span>{t("brw.liveView")}</span>
         </button>
         <button
           className="brw__icon"
