@@ -646,14 +646,6 @@ export default function Settings() {
           />
         </div>
         <div className="row">
-          <span>{t("set.hudOnTop")}</span>
-          <button
-            className={`toggle ${s.hudAlwaysOnTop ? "on" : ""}`}
-            aria-label={t("set.hudOnTop")}
-            onClick={() => patch({ hudAlwaysOnTop: !s.hudAlwaysOnTop })}
-          />
-        </div>
-        <div className="row">
           <span>{t("set.desktopLyrics")}</span>
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}

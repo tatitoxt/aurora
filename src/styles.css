@@ -2131,7 +2131,8 @@ body {
   .fs__clockwrap { padding-top: max(3vh, 54px); }
   .fs__date { font-size: 13px; letter-spacing: 0.26em; margin-bottom: 5px; }
   .fs__clock { font-size: calc(clamp(38px, 12vw, 110px) * var(--clksc, 1)); }
-  .fs__topbar { padding: 10px 12px; }
+  /* Nav centred at min width, pushed right of the macOS traffic lights. */
+  .fs__topbar { padding: 10px 12px 10px 80px; justify-content: center; }
   .fs__morepop {
     position: fixed; left: auto; right: 10px; bottom: 76px;
     transform: none; max-height: calc(100vh - 148px);
@@ -2325,11 +2326,12 @@ button, input, select, textarea { font-family: var(--ui); }
   background: var(--surface-1); border: 1px solid var(--hair); border-radius: var(--r-pill);
 }
 .libtabs button {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
   border: none; background: none; cursor: pointer; color: var(--dim);
   font-size: var(--fs-xs); font-weight: 500; padding: 6px 14px; border-radius: var(--r-pill);
-  transition: background .15s, color .15s;
+  white-space: nowrap; transition: background .15s, color .15s;
 }
+.fs__libpop .libtabs { overflow-x: auto; scrollbar-width: none; }
 .libtabs button:hover { color: var(--text); }
 .libtabs button.on { background: #fff; color: var(--ink); }
 .libtabs em { font-style: normal; font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; opacity: .6; }
@@ -2570,7 +2572,7 @@ button, input, select, textarea { font-family: var(--ui); }
 }
 /* Library: narrow movable glass panel like Up next. */
 .fs__libpop {
-  --libw: clamp(300px, 30 * var(--u), 420px);
+  --libw: clamp(300px, 30vw, 440px);
   inset: auto; width: var(--libw); height: min(calc(100% - 230px), 540px); min-height: 260px;
   left: calc(50% - var(--libw) / 2); top: clamp(56px, 8 * var(--u), 120px);
 }

@@ -12,7 +12,6 @@ import {
 } from "../bridge";
 import {
   Monitor,
-  PushPin,
   SkipBack,
   SkipForward,
   Pause,
@@ -142,7 +141,6 @@ export default function Hud() {
       if (e.buttons & 1) scrubTo(e.currentTarget, e.clientX);
     },
   };
-  const pinned = settings.hudAlwaysOnTop;
   const fav = favKeys(favs).has(favKeyFor(np));
   const onToggleFav = () => {
     const entry = favEntryFor(np);
@@ -280,14 +278,6 @@ export default function Hud() {
             disabled={!track}
           >
             <Heart weight={fav ? "fill" : "regular"} size={14} />
-          </button>
-          <button
-            className={`hctl ${pinned ? "hctl--on" : ""}`}
-            aria-label={pinned ? "Unpin" : "Pin"}
-            title={pinned ? t("hud.unpin") : t("hud.pin")}
-            onClick={() => void bridge.setHudPinned(!pinned)}
-          >
-            <PushPin weight={pinned ? "fill" : "regular"} size={14} />
           </button>
           <button className="hctl" aria-label={t("hud.openPlayer")} title={t("hud.openPlayer")} onClick={() => void bridge.showPlayer()}>
             <Monitor size={14} />

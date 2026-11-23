@@ -1675,7 +1675,7 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
     // the same playback, just a smaller remote for it).
     if let Some(win) = app.get_webview_window("hud") {
         if settings.hud_enabled {
-            let _ = win.set_always_on_top(settings.hud_always_on_top);
+            let _ = win.set_always_on_top(true);
             let _ = win.show();
             if let Some(player) = app.get_webview_window("player") {
                 let _ = player.hide();
@@ -1708,7 +1708,7 @@ fn sync_hud_window(app: &tauri::AppHandle, settings: &Settings) {
             .radius(18.0)
             .build(),
     )
-    .always_on_top(settings.hud_always_on_top)
+    .always_on_top(true)
     .skip_taskbar(true)
     .resizable(true)
     .min_inner_size(260.0, 140.0)
