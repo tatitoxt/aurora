@@ -19,6 +19,7 @@ const pt: Record<keyof typeof en, string> = {
   "set.karaoke": "Karaokê",
   "set.videoBackdrop": "Videoclipe de fundo",
   "set.ambientBg": "Fundo líquido ambiente",
+  "set.transparentBg": "Fundo transparente (mostrar papel de parede)",
   "set.glassOpacity": "Opacidade do vidro",
   "set.theme": "Tema",
   "set.customColor": "Cor personalizada",

@@ -28,6 +28,12 @@ html, body, #root { height: 100%; }
 
 body {
   background: transparent;
+}
+/* WebKitGTK never clears transparent pixels between frames (stale,
+   doubled UI on scroll/re-render), so Linux main windows paint opaque. */
+html.opaque body { background: var(--bg); }
+.fs.fs--clear { background: transparent; }
+body {
   color: var(--text);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
@@ -649,7 +655,7 @@ body {
 /* ---------- settings ---------- */
 /* Own compositing layer: WebKitGTK without DMA-BUF left stale paint
    behind when this transparent scroller scrolled or re-rendered. */
-.settings { padding: 20px 18px; gap: 24px; overflow-y: auto; height: 100%; transform: translateZ(0); will-change: transform; }
+.settings { padding: 20px 18px; gap: 24px; overflow-y: auto; height: 100%; }
 .settings > .field, .settings > .row {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -2197,7 +2203,9 @@ button, input, select, textarea { font-family: var(--ui); }
    blur inside the window glass samples only the dark panel tint). The pills
    carry their own surface so scrolled content stays legible beneath them. */
 .setnav {
-  background: transparent;
+  /* Near-opaque strip: rows scrolling under the sticky pills read as
+     duplicated buttons when the bar is see-through. */
+  background: linear-gradient(180deg, rgba(11, 11, 14, 0.97) 78%, rgba(11, 11, 14, 0));
   backdrop-filter: none; -webkit-backdrop-filter: none;
   padding: 8px 18px 12px; gap: 4px;
 }

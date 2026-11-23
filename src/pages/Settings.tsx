@@ -10,6 +10,7 @@ import {
   Waveform,
 } from "@phosphor-icons/react";
 import { branding } from "../branding";
+import { isLinux } from "../lib";
 import { LANG_NAMES, useT, type MsgKey } from "../i18n";
 import { LYRIC_ANIMS } from "../lyricanim";
 import { THEMES, presetVar } from "../themes";
@@ -214,6 +215,17 @@ export default function Settings() {
             onClick={() => patch({ ambientBg: !s.ambientBg })}
           />
         </div>
+
+        {!isLinux() && (
+          <div className="row">
+            <span>{t("set.transparentBg")}</span>
+            <button
+              className={`toggle ${s.transparentBg ? "on" : ""}`}
+              aria-label={t("set.transparentBg")}
+              onClick={() => patch({ transparentBg: !s.transparentBg })}
+            />
+          </div>
+        )}
 
         <div className="field">
           <span>{t("set.glassOpacity")}</span>

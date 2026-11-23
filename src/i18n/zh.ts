@@ -19,6 +19,7 @@ const zh: Record<keyof typeof en, string> = {
   "set.karaoke": "\u5361\u62c9OK",
   "set.videoBackdrop": "\u80cc\u666f\u89c6\u9891",
   "set.ambientBg": "液态环境背景",
+  "set.transparentBg": "透明背景（显示桌面壁纸）",
   "set.glassOpacity": "玻璃不透明度",
   "set.theme": "\u4e3b\u9898",
   "set.customColor": "\u81ea\u5b9a\u4e49\u989c\u8272",

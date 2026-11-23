@@ -19,6 +19,7 @@ const de: Record<keyof typeof en, string> = {
   "set.karaoke": "Karaoke",
   "set.videoBackdrop": "Musikvideo im Hintergrund",
   "set.ambientBg": "Animierter Liquid-Hintergrund",
+  "set.transparentBg": "Transparenter Hintergrund (Desktop sichtbar)",
   "set.glassOpacity": "Glas-Deckkraft",
   "set.theme": "Theme",
   "set.customColor": "Eigene Farbe",

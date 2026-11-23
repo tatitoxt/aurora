@@ -19,6 +19,7 @@ const ja: Record<keyof typeof en, string> = {
   "set.karaoke": "\u30ab\u30e9\u30aa\u30b1",
   "set.videoBackdrop": "\u80cc\u666f\u306e\u30d3\u30c7\u30aa\u30af\u30ea\u30c3\u30d7",
   "set.ambientBg": "アンビエントのリキッド背景",
+  "set.transparentBg": "透明な背景（壁紙を表示）",
   "set.glassOpacity": "ガラスの不透明度",
   "set.theme": "\u30c6\u30fc\u30de",
   "set.customColor": "\u30ab\u30b9\u30bf\u30e0\u30ab\u30e9\u30fc",

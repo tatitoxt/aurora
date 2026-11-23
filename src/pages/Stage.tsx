@@ -20,6 +20,7 @@ import {
   extLabel,
   extProviderId,
   formatTime,
+  isLinux,
 } from "../lib";
 import { lyricOffsetFor, setLyricOffset, subscribeLyroff } from "../lyroff";
 import SearchPanel from "../SearchPanel";
@@ -153,6 +154,7 @@ export default function Stage() {
   const [shuffle, setShuffle] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const clearBg = settings.transparentBg && !isLinux();
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(1);
   const [volOpen, setVolOpen] = useState(false);
@@ -657,7 +659,7 @@ export default function Stage() {
 
   return (
     <div
-      className={`fs fs--albums ${nativeFs ? "" : "fs--win"}`}
+      className={`fs fs--albums ${nativeFs ? "" : "fs--win"}${clearBg ? " fs--clear" : ""}`}
       style={
         {
           "--cscale": coverScale / 100,
@@ -667,7 +669,7 @@ export default function Stage() {
       }
       onMouseDown={onGlassMouseDown}
     >
-      <div className="fs__bg">
+      {!clearBg && <div className="fs__bg">
         {videoUrl ? (
           <FsVideo url={videoUrl} posMs={pos} playing={playing} audible={!bridge.isTauri()} />
         ) : wall.length > 1 ? (
@@ -689,7 +691,7 @@ export default function Stage() {
         )}
         <div className="fs__veil" />
         {settings.ambientBg && !videoUrl && <AmbientBg playing={playing} />}
-      </div>
+      </div>}
       <div className="fs__grain" aria-hidden="true" />
 
       {/* Top control strip — always visible above the video/wall. The

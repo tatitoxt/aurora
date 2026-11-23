@@ -49,6 +49,8 @@ export interface Settings {
   videoBackdrop: boolean;
   /** Animated "liquid" gradient blobs behind player surfaces. */
   ambientBg: boolean;
+  /** Stage draws no backdrop: the desktop wallpaper shows through. */
+  transparentBg: boolean;
   /** Glass panel opacity 0-100: lower shows more of the desktop through. */
   glassOpacity: number;
   /** Audio output device name; null = OS default. */
@@ -216,6 +218,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lyricsMode: "lines",
   videoBackdrop: true,
   ambientBg: true,
+  transparentBg: false,
   glassOpacity: 68,
   audioOutput: null,
   eqPreset: "flat",

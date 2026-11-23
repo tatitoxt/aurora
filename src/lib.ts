@@ -100,6 +100,12 @@ export function artistCards(
 }
 
 /** Provider host reported by the browser extension → friendly label + picker id. */
+/** WebKitGTK: transparent windows leave stale paint, so Linux stays opaque. */
+export const isLinux = () =>
+  typeof navigator !== "undefined" &&
+  /Linux/.test(navigator.userAgent) &&
+  !/Android/.test(navigator.userAgent);
+
 export const EXT_HOSTS: [RegExp, string, string][] = [
   [/(^|\.)youtube\.com/, "YouTube Music", "youtube"],
   [/open\.spotify\.com/, "Spotify", "spotify"],

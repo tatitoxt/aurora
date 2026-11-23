@@ -85,6 +85,10 @@ pub struct Settings {
     /// the artwork palette; false keeps the static backdrop.
     #[serde(default = "default_true")]
     pub ambient_bg: bool,
+    /// Stage draws no backdrop of its own, so the desktop wallpaper shows
+    /// through the transparent window (macOS/Windows; Linux stays opaque).
+    #[serde(default)]
+    pub transparent_bg: bool,
     /// Glass panel opacity 0-100; lower lets more of the desktop show through.
     #[serde(default = "default_glass_opacity")]
     pub glass_opacity: u32,
@@ -188,6 +192,7 @@ impl Default for Settings {
             lyrics_mode: default_lyrics_mode(),
             video_backdrop: true,
             ambient_bg: true,
+            transparent_bg: false,
             glass_opacity: default_glass_opacity(),
             audio_output: None,
             crossfade_ms: default_crossfade(),
