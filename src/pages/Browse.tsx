@@ -248,7 +248,10 @@ export default function Browse() {
     if (!p || !pt) return;
     setErr("");
     if (pt.remote) {
-      playExternal(`${pt.title} ${pt.artist}`.trim());
+      /* Remote entries carry only a URL, so fall back to it: an empty
+         query is ignored by the extension while ext_play still stops
+         local playback. */
+      playExternal(`${pt.title} ${pt.artist}`.trim() || pt.path);
       return;
     }
     const before = queue.items.length;
@@ -258,13 +261,16 @@ export default function Browse() {
         if (res.imported === 0) return;
         return bridge.getQueue().then((q2) => {
           setQueue(q2);
-          const idx = q2.items.findIndex(
-            (it, j) =>
-              j >= before &&
-              (it.path === pt.path ||
-                (it.track.title === pt.title && it.track.artist === pt.artist)),
-          );
-          if (idx >= 0) return bridge.playQueueIndex(idx);
+          const added = q2.items.slice(before);
+          /* Exact path wins: an earlier entry may share title+artist but
+             point at a different recording. */
+          let idx = added.findIndex((it) => it.path === pt.path);
+          if (idx < 0)
+            idx = added.findIndex(
+              (it) =>
+                it.track.title === pt.title && it.track.artist === pt.artist,
+            );
+          if (idx >= 0) return bridge.playQueueIndex(before + idx);
           setErr(t("brw.trackMissing"));
         });
       })
@@ -690,8 +696,19 @@ export default function Browse() {
               {queue.items.map((item, i) => {
                 const current = queue.currentIndex === i;
                 return (
-                  <button
+                  <div
                     key={item.path}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (
+                        (e.key === "Enter" || e.key === " ") &&
+                        e.target === e.currentTarget
+                      ) {
+                        e.preventDefault();
+                        void bridge.playQueueIndex(i);
+                      }
+                    }}
                     className={[
                       "lib__row",
                       "lib__row--num",
@@ -739,9 +756,8 @@ export default function Browse() {
                     <span className="lib__dur">
                       {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
                     </span>
-                    <span
+                    <button
                       className="lib__rm"
-                      role="button"
                       aria-label={current ? t("fs.playingCantRemove") : t("fs.removeFromQueue")}
                       title={current ? t("fs.playingCantRemove") : t("fs.removeFromQueue")}
                       onClick={(e) => {
@@ -750,8 +766,8 @@ export default function Browse() {
                       }}
                     >
                       <X size={13} />
-                    </span>
-                  </button>
+                    </button>
+                  </div>
                 );
               })}
               {queue.items.length === 0 && (

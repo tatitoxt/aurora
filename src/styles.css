@@ -3004,6 +3004,9 @@ select { color-scheme: dark; }
   .brw__time { display: none; }
   .brw__icon--live span { display: none; }
   .brw__np { width: 120px; }
+  /* The fixed-width transport + volume row would squeeze the seek
+     control to zero at the 600px default width. */
+  .brw__volwrap { display: none; }
 }
 
 /* Narrow windows: rail collapses to icons. */
