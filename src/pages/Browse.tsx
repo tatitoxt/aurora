@@ -451,7 +451,19 @@ export default function Browse() {
     void bridge
       .playlistTracks(view.slice(3))
       .then(setPlTracks)
-      .catch(fail)
+      .catch((e) => {
+        fail(e);
+        /* A persisted pl: view can outlive the file — a renamed or
+           deleted playlist would reload into the dead page forever.
+           Bail to Home only when the file is confirmed gone, not on
+           a transient IPC error. */
+        void bridge
+          .listPlaylists()
+          .then((pls) => {
+            if (!pls.some((x) => x.path === view.slice(3))) setView("home");
+          })
+          .catch(() => {});
+      })
       .finally(() => setPlLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
