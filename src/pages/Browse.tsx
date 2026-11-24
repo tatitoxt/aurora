@@ -197,9 +197,10 @@ export default function Browse() {
   const [ctx, setCtx] = useState<{
     x: number;
     y: number;
-    kind: "pl" | "queue" | "railpl";
+    kind: "pl" | "queue" | "railpl" | "pladd";
     index: number;
-    /* railpl menus carry the playlist being right-clicked. */
+    /* railpl: the playlist being right-clicked. pladd: the track
+       path being added to a playlist. */
     path?: string;
     name?: string;
   } | null>(null);
@@ -2366,7 +2367,7 @@ export default function Browse() {
             top: Math.max(8, Math.min(ctx.y, window.innerHeight - 120)),
           }}
         >
-          {ctx.kind !== "railpl" && (
+          {ctx.kind !== "railpl" && ctx.kind !== "pladd" && (
             <button
               onClick={() => {
                 setCtx(null);
@@ -2377,6 +2378,26 @@ export default function Browse() {
               {t("brw.play")}
             </button>
           )}
+          {ctx.kind === "pladd" &&
+            playlists.map((p) => (
+              <button
+                key={p.path}
+                title={p.name}
+                onClick={() => {
+                  const tp = ctx.path;
+                  setCtx(null);
+                  if (!tp) return;
+                  void bridge
+                    .playlistAddTracks(p.path, [tp])
+                    .then((n) => {
+                      if (n > 0) flash(p.name);
+                    })
+                    .catch(fail);
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
           {ctx.kind === "railpl" && (
             <>
               <button
@@ -2430,6 +2451,25 @@ export default function Browse() {
               {t("lib.removeFromPlaylist")}
             </button>
           )}
+          {(ctx.kind === "pl" || ctx.kind === "queue") &&
+            playlists.length > 0 && (
+              <button
+                onClick={() =>
+                  setCtx({
+                    x: ctx.x,
+                    y: ctx.y,
+                    kind: "pladd",
+                    index: ctx.index,
+                    path:
+                      ctx.kind === "pl"
+                        ? plTracks[ctx.index]?.path
+                        : queue.items[ctx.index]?.path,
+                  })
+                }
+              >
+                {t("lib.addToPlaylist")}…
+              </button>
+            )}
           {ctx.kind === "queue" &&
             queue.items[ctx.index]?.track.artist && (
               <button
