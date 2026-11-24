@@ -877,7 +877,10 @@ export default function Browse() {
         .deletePlaylist(dlg.path)
         .then(() => {
           setPlaylists((pls) => pls.filter((x) => x.path !== dlg.path));
-          go("home");
+          /* Deleting a different playlist from the rail shouldn't
+             yank the user off the one they're browsing (or wipe its
+             find/sort state). */
+          if (view === `pl:${dlg.path}`) go("home");
         })
         .catch(fail);
     }
