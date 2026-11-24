@@ -130,11 +130,25 @@ function GenCover({ name }: { name: string }) {
 const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 
 const RECENT_SEARCHES_KEY = "brw.recentSearches";
+const LAST_VIEW_KEY = "brw.lastView";
+
+const readLastView = (): View => {
+  try {
+    const v = localStorage.getItem(LAST_VIEW_KEY) ?? "";
+    return /^(home|search|liked|queue|services|settings|recent|pl:|ar:)/.test(
+      v,
+    )
+      ? (v as View)
+      : "home";
+  } catch {
+    return "home";
+  }
+};
 
 export default function Browse() {
   const t = useT();
   const nav = useNavigate();
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(readLastView);
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
   const [plTracks, setPlTracks] = useState<PlaylistTrack[]>([]);
@@ -291,6 +305,15 @@ export default function Browse() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  /* Re-entering Browse from Stage should land where you left off. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_VIEW_KEY, view);
+    } catch {
+      /* storage can be unavailable in private contexts */
+    }
   }, [view]);
 
   /* Browser preview only: the demo soundtrack lives in the YouTube embed,
