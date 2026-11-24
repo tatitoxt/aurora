@@ -301,7 +301,7 @@ const es: Record<keyof typeof en, string> = {
   "brw.greetAfternoon": "Buenas tardes",
   "brw.greetEvening": "Buenas noches",
   "brw.jumpBackIn": "Retomá donde quedaste",
-  "brw.showAll": "Ver todo","brw.nextInQueue": "Siguiente en la cola","brw.browseAll": "Explorar todo","brw.cat.charts": "Listas","brw.cat.newReleases": "Novedades","brw.cat.latin": "Latina","brw.cat.mood": "Estados de ánimo","brw.cat.workout": "Entrenamiento","brw.cat.party": "Fiesta",
+  "brw.showAll": "Ver todo","brw.nextInQueue": "Siguiente en la cola","brw.browseAll": "Explorar todo","brw.cat.charts": "Listas","brw.cat.newReleases": "Novedades","brw.cat.latin": "Latina","brw.cat.mood": "Estados de ánimo","brw.cat.workout": "Entrenamiento","brw.cat.party": "Fiesta","brw.goToArtist": "Ir al artista",
   "fs.lyricsBtn": "Letras",
 };
 

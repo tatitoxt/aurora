@@ -2343,16 +2343,43 @@ export default function Browse() {
               </button>
             </>
           )}
+          {ctx.kind === "pl" && plTracks[ctx.index]?.artist && (
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  go(`ar:${encodeURIComponent(plTracks[ctx.index].artist)}`);
+                }}
+              >
+                {t("brw.goToArtist")}
+              </button>
+            )}
           {ctx.kind === "pl" && (
             <button
               onClick={() => {
                 setCtx(null);
-                removePlTrack(ctx.index);
+                /* A selected row's Remove honors the selection —
+                   deleting just the clicked row would silently drop
+                   the user's multi-select intent. */
+                if (sel.size > 1 && sel.has(ctx.index)) removeSelected();
+                else removePlTrack(ctx.index);
               }}
             >
               {t("lib.removeFromPlaylist")}
             </button>
           )}
+          {ctx.kind === "queue" &&
+            queue.items[ctx.index]?.track.artist && (
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  go(
+                    `ar:${encodeURIComponent(queue.items[ctx.index].track.artist)}`,
+                  );
+                }}
+              >
+                {t("brw.goToArtist")}
+              </button>
+            )}
           {ctx.kind === "queue" && queue.currentIndex !== ctx.index && (
             <button
               onClick={() => {

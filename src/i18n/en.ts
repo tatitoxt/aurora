@@ -310,7 +310,7 @@ const en = {
   "brw.greetAfternoon": "Good afternoon",
   "brw.greetEvening": "Good evening",
   "brw.jumpBackIn": "Jump back in",
-  "brw.showAll": "Show all","brw.nextInQueue": "Next in queue","brw.browseAll": "Browse all","brw.cat.charts": "Charts","brw.cat.newReleases": "New releases","brw.cat.latin": "Latin","brw.cat.mood": "Mood","brw.cat.workout": "Workout","brw.cat.party": "Party",
+  "brw.showAll": "Show all","brw.nextInQueue": "Next in queue","brw.browseAll": "Browse all","brw.cat.charts": "Charts","brw.cat.newReleases": "New releases","brw.cat.latin": "Latin","brw.cat.mood": "Mood","brw.cat.workout": "Workout","brw.cat.party": "Party","brw.goToArtist": "Go to artist",
   "fs.lyricsBtn": "Lyrics",
 } as const;
 
