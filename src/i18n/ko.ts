@@ -280,7 +280,7 @@ const ko: Record<keyof typeof en, string> = {
   "nav.browse": "둘러보기","brw.home": "홈","brw.search": "검색","brw.topTracks": "가장 많이 들은 곡","brw.topArtists": "인기 아티스트","brw.all": "전체", "brw.recentSearches": "최근 검색",
   "brw.inLibrary": "내 라이브러리", "brw.fromCatalog": "카탈로그에서",
   "brw.colTitle": "제목", "brw.colDuration": "재생 시간", "brw.findInPlaylist": "플레이리스트에서 검색",
-  "brw.plays": "회 재생","brw.playsOne": "회 재생","brw.cancel": "취소","brw.play": "재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.forward": "앞으로","brw.recentlyPlayed": "최근 재생한 항목","brw.settings": "설정","brw.account": "계정","brw.appSettings": "앱 설정","brw.noTracks": "아직 트랙이 없습니다","brw.seek": "위치","brw.trackMissing": "파일이 없습니다","brw.greetMorning": "좋은 아침입니다","brw.greetAfternoon": "안녕하세요","brw.greetEvening": "좋은 저녁입니다","brw.jumpBackIn": "이어서 듣기","brw.volLocalOnly": "\ub85c\uceec \uc7ac\uc0dd\ub9cc","brw.showAll": "모두 보기",
+  "brw.plays": "회 재생","brw.playsOne": "회 재생","brw.cancel": "취소","brw.play": "재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.forward": "앞으로","brw.recentlyPlayed": "최근 재생한 항목","brw.settings": "설정","brw.account": "계정","brw.appSettings": "앱 설정","brw.noTracks": "아직 트랙이 없습니다","brw.seek": "위치","brw.trackMissing": "파일이 없습니다","brw.greetMorning": "좋은 아침입니다","brw.greetAfternoon": "안녕하세요","brw.greetEvening": "좋은 저녁입니다","brw.jumpBackIn": "이어서 듣기","brw.volLocalOnly": "\ub85c\uceec \uc7ac\uc0dd\ub9cc","brw.showAll": "모두 보기","brw.nextInQueue": "다음에 재생",
 };
 
 export default ko;

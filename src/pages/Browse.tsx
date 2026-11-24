@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   artSrc,
@@ -1608,9 +1608,20 @@ export default function Browse() {
             <div className="lib">
               {queue.items.map((item, i) => {
                 const current = queue.currentIndex === i;
+                const ci = queue.currentIndex ?? -1;
                 return (
-                  <div
-                    key={item.path}
+                  <Fragment key={item.path}>
+                    {current && (
+                      <div className="brw__kick brw__qsection">
+                        {t("fs.nowPlaying")}
+                      </div>
+                    )}
+                    {i === ci + 1 && (
+                      <div className="brw__kick brw__qsection">
+                        {t("brw.nextInQueue")}
+                      </div>
+                    )}
+                    <div
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -1690,6 +1701,7 @@ export default function Browse() {
                       <X size={13} />
                     </button>
                   </div>
+                  </Fragment>
                 );
               })}
               {queue.items.length === 0 && (

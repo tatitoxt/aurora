@@ -2910,6 +2910,9 @@ select { color-scheme: dark; }
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
   margin-bottom: 10px;
 }
+/* Section labels inside the queue list (Now playing / Next in queue). */
+.brw__qsection { margin: 12px 2px 4px; }
+.brw__qsection:first-child { margin-top: 0; }
 .brw__grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
   gap: 12px;

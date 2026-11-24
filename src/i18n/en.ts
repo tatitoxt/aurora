@@ -310,7 +310,7 @@ const en = {
   "brw.greetAfternoon": "Good afternoon",
   "brw.greetEvening": "Good evening",
   "brw.jumpBackIn": "Jump back in",
-  "brw.showAll": "Show all",
+  "brw.showAll": "Show all","brw.nextInQueue": "Next in queue",
   "fs.lyricsBtn": "Lyrics",
 } as const;
 

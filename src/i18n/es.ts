@@ -301,7 +301,7 @@ const es: Record<keyof typeof en, string> = {
   "brw.greetAfternoon": "Buenas tardes",
   "brw.greetEvening": "Buenas noches",
   "brw.jumpBackIn": "Retomá donde quedaste",
-  "brw.showAll": "Ver todo",
+  "brw.showAll": "Ver todo","brw.nextInQueue": "Siguiente en la cola",
   "fs.lyricsBtn": "Letras",
 };
 
