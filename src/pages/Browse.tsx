@@ -761,6 +761,17 @@ export default function Browse() {
     m.delete("");
     return [...m.entries(), ...(singles.length ? [["", singles] as [string, CatalogSong[]]] : [])];
   }, [arSongs]);
+  /* Liked songs by this artist — the artist page shows your own
+     relationship, not just the catalog (Spotify does the same). */
+  const arLiked = useMemo(
+    () =>
+      arName
+        ? liked.filter(
+            (e) => e.artist.trim().toLowerCase() === arName.trim().toLowerCase(),
+          )
+        : [],
+    [liked, arName],
+  );
   /* Spotify groups Recently played by day. */
   const recGroups = useMemo(() => {
     const dayStart = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
@@ -1474,6 +1485,28 @@ export default function Browse() {
                   </button>
                 ))}
               </div>
+              </>
+            )}
+            {arLiked.length > 0 && (
+              <>
+                <span className="brw__kick">{t("brw.inYourLiked")}</span>
+                <div className="lib">
+                  {arLiked.slice(0, 5).map((e) => (
+                    <button
+                      className="lib__row"
+                      key={e.key}
+                      title={e.title}
+                      onClick={() => playLiked(e)}
+                    >
+                      <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
+                      <span className="lib__title">{e.title}</span>
+                      <span className="lib__sub">{e.artist}</span>
+                      <span className="lib__dur">
+                        {e.durationMs ? formatTime(e.durationMs) : ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </>
             )}
             {arSongs.length > 0 && (
