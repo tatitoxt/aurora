@@ -171,8 +171,11 @@ export default function Browse() {
   const [ctx, setCtx] = useState<{
     x: number;
     y: number;
-    kind: "pl" | "queue";
+    kind: "pl" | "queue" | "railpl";
     index: number;
+    /* railpl menus carry the playlist being right-clicked. */
+    path?: string;
+    name?: string;
   } | null>(null);
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
@@ -951,6 +954,17 @@ export default function Browse() {
               key={p.path}
               className={`brw__nav brw__nav--pl ${view === `pl:${p.path}` ? "on" : ""} ${plDrop === p.path ? "brw__nav--drop" : ""}`}
               onClick={() => openPlaylist(p)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setCtx({
+                  x: e.clientX,
+                  y: e.clientY,
+                  kind: "railpl",
+                  index: 0,
+                  path: p.path,
+                  name: p.name,
+                });
+              }}
               onDragOver={(e) => {
                 if (
                   e.dataTransfer.types.includes("application/x-noctbeat-track")
@@ -2081,15 +2095,46 @@ export default function Browse() {
             top: Math.max(8, Math.min(ctx.y, window.innerHeight - 120)),
           }}
         >
-          <button
-            onClick={() => {
-              setCtx(null);
-              if (ctx.kind === "pl") playPlTrack(ctx.index);
-              else void bridge.playQueueIndex(ctx.index);
-            }}
-          >
-            {t("brw.play")}
-          </button>
+          {ctx.kind !== "railpl" && (
+            <button
+              onClick={() => {
+                setCtx(null);
+                if (ctx.kind === "pl") playPlTrack(ctx.index);
+                else void bridge.playQueueIndex(ctx.index);
+              }}
+            >
+              {t("brw.play")}
+            </button>
+          )}
+          {ctx.kind === "railpl" && (
+            <>
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  setDlgName(ctx.name ?? "");
+                  setDlg({
+                    kind: "rename",
+                    path: ctx.path ?? "",
+                    name: ctx.name ?? "",
+                  });
+                }}
+              >
+                {t("lib.rename")}
+              </button>
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  setDlg({
+                    kind: "delete",
+                    path: ctx.path ?? "",
+                    name: ctx.name ?? "",
+                  });
+                }}
+              >
+                {t("lib.delete")}
+              </button>
+            </>
+          )}
           {ctx.kind === "pl" && (
             <button
               onClick={() => {
