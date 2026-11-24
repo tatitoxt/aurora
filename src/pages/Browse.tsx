@@ -366,6 +366,23 @@ export default function Browse() {
           return;
         }
       }
+      /* Esc peels UI layers before navigating: context menu, then
+         dialogs, then back in the view history — so one key never
+         does two things. */
+      if (e.key === "Escape") {
+        if (ctx) {
+          setCtx(null);
+          return;
+        }
+        if (dlg) {
+          setDlg(null);
+          return;
+        }
+        if (!inField && past.length > 0) {
+          goBack();
+          return;
+        }
+      }
       /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
       if (e.key !== "/" || inField) return;
       e.preventDefault();
@@ -383,7 +400,7 @@ export default function Browse() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, sel.size, plShown]);
+  }, [view, sel.size, plShown, ctx, dlg, past.length]);
 
   /* Re-entering Browse from Stage should land where you left off. */
   useEffect(() => {
