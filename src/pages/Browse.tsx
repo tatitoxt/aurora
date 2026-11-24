@@ -2572,7 +2572,13 @@ export default function Browse() {
             <Art url={track.artworkUrl} />
             <span className="brw__np">
               <span className="brw__npt">{track.title}</span>
-              <span className="brw__npa">{track.artist}</span>
+              <button
+                className="brw__npa brw__npa--link"
+                title={t("brw.goToArtist")}
+                onClick={() => go(`ar:${encodeURIComponent(track.artist)}`)}
+              >
+                {track.artist}
+              </button>
             </span>
             <button
               className={`brw__icon ${isFav ? "on" : ""}`}
