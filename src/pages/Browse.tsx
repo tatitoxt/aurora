@@ -219,6 +219,10 @@ export default function Browse() {
      2 000-track playlist shouldn't mount 2 000 rows of DOM at once. */
   const [listLimit, setListLimit] = useState(200);
   const listEndRef = useRef<HTMLDivElement>(null);
+  /* Multi-select on playlist rows: indices into plTracks (the stored
+     file order), so they stay valid under find/sort. */
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const selAnchor = useRef<number | null>(null);
   /* Spotify-style back/forward inside the Browse tab. */
   const [past, setPast] = useState<View[]>([]);
   const [future, setFuture] = useState<View[]>([]);
@@ -599,6 +603,10 @@ export default function Browse() {
   /* A new view or filter restarts the reveal window. */
   useEffect(() => setListLimit(200), [view, plQuery]);
   useEffect(() => {
+    setSel(new Set());
+    selAnchor.current = null;
+  }, [view]);
+  useEffect(() => {
     const el = listEndRef.current;
     if (!el) return;
     const io = new IntersectionObserver((es) => {
@@ -847,6 +855,27 @@ export default function Browse() {
       .catch(fail)
       .finally(() => {
         plRemoving.current = false;
+      });
+  };
+
+  /* Bulk remove: walk selected indices descending so each deletion
+     leaves the earlier indices valid. One reload at the end. */
+  const removeSelected = () => {
+    const p = playlists.find((x) => `pl:${x.path}` === view);
+    if (!p || sel.size === 0 || plRemoving.current) return;
+    plRemoving.current = true;
+    const idx = [...sel].sort((a, b) => b - a);
+    void idx
+      .reduce(
+        (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
+        Promise.resolve() as Promise<unknown>,
+      )
+      .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
+      .catch(fail)
+      .finally(() => {
+        plRemoving.current = false;
+        setSel(new Set());
+        selAnchor.current = null;
       });
   };
 
@@ -2023,6 +2052,7 @@ export default function Browse() {
                   className={[
                     "lib__row",
                     current ? "lib__row--current" : "",
+                    sel.has(i) ? "lib__row--sel" : "",
                     dragIdx === i ? "lib__row--dragging" : "",
                     dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
                   ]
@@ -2073,12 +2103,40 @@ export default function Browse() {
                     setDragIdx(null);
                     setDropIdx(null);
                   }}
-                  onClick={() => playPlTrack(i)}
+                  onClick={(e) => {
+                    /* Spotify-style multi-select: Shift = range from the
+                       last picked row, Cmd/Ctrl toggles one row. A plain
+                       click still plays the track. */
+                    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                      setSel((s) => {
+                        const n = new Set(s);
+                        if (e.shiftKey && selAnchor.current !== null) {
+                          const a = Math.min(selAnchor.current, i);
+                          const b = Math.max(selAnchor.current, i);
+                          for (let k = a; k <= b; k++) n.add(k);
+                        } else if (n.has(i)) n.delete(i);
+                        else n.add(i);
+                        return n;
+                      });
+                      selAnchor.current = i;
+                      return;
+                    }
+                    if (sel.size > 0) setSel(new Set());
+                    playPlTrack(i);
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setCtx({ x: e.clientX, y: e.clientY, kind: "pl", index: i });
                   }}
                   onKeyDown={(e) => {
+                    if (
+                      (e.key === "Delete" || e.key === "Backspace") &&
+                      sel.size > 0
+                    ) {
+                      e.preventDefault();
+                      removeSelected();
+                      return;
+                    }
                     if (
                       (e.key === "Enter" || e.key === " ") &&
                       e.target === e.currentTarget
@@ -2121,6 +2179,25 @@ export default function Browse() {
             </div>
             {plShown.length > listLimit && (
               <div ref={listEndRef} aria-hidden />
+            )}
+            {sel.size > 0 && (
+              <div className="brw__selbar">
+                <b>{sel.size}</b>
+                <button
+                  className="brw__selbtn"
+                  onClick={removeSelected}
+                  title={t("lib.removeFromPlaylist")}
+                >
+                  <Trash /> {t("lib.removeFromPlaylist")}
+                </button>
+                <button
+                  className="brw__selbtn"
+                  onClick={() => setSel(new Set())}
+                  title={t("brw.cancel")}
+                >
+                  {t("brw.cancel")}
+                </button>
+              </div>
             )}
           </>
         )}
