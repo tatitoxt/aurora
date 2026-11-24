@@ -718,6 +718,29 @@ export default function Browse() {
     m.delete("");
     return [...m.entries(), ...(singles.length ? [["", singles] as [string, CatalogSong[]]] : [])];
   }, [arSongs]);
+  /* Spotify groups Recently played by day. */
+  const recGroups = useMemo(() => {
+    const dayStart = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
+    const today = dayStart(Date.now());
+    const m = new Map<number, PlayRecord[]>();
+    for (const r of recent) {
+      const d = dayStart(r.playedAtMs);
+      const g = m.get(d);
+      if (g) g.push(r);
+      else m.set(d, [r]);
+    }
+    return [...m.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([d, rows]) => ({
+        label:
+          d === today
+            ? t("brw.today")
+            : d === today - 86400000
+              ? t("brw.yesterday")
+              : new Date(d).toLocaleDateString(),
+        rows,
+      }));
+  }, [recent, t]);
   /* Header art: first playlist row whose artwork we can resolve. */
   const artFor = (ts: PlaylistTrack[]) =>
     ts
@@ -1407,23 +1430,30 @@ export default function Browse() {
             {recent.length === 0 && (
               <span className="brw__empty">{t("brw.noTracks")}</span>
             )}
-            <div className="brw__grid">
-              {recent.map((r) => (
-                <button
-                  key={`${r.trackId}-${r.playedAtMs}`}
-                  className="brw__card"
-                  title={`${r.title} — ${r.artist}`}
-                  onClick={() => playRecent(r)}
-                >
-                  <Art url={recArt(r)} />
-                  <span className="brw__cardplay" aria-hidden>
-                    <Play weight="fill" />
-                  </span>
-                  <span className="brw__cardt">{r.title}</span>
-                  <span className="brw__cards">{r.artist}</span>
-                </button>
-              ))}
-            </div>
+            {recGroups.map((g) => (
+              <Fragment key={g.label}>
+                {recGroups.length > 1 && (
+                  <span className="brw__kick brw__qsection">{g.label}</span>
+                )}
+                <div className="brw__grid">
+                  {g.rows.map((r) => (
+                    <button
+                      key={`${r.trackId}-${r.playedAtMs}`}
+                      className="brw__card"
+                      title={`${r.title} — ${r.artist}`}
+                      onClick={() => playRecent(r)}
+                    >
+                      <Art url={recArt(r)} />
+                      <span className="brw__cardplay" aria-hidden>
+                        <Play weight="fill" />
+                      </span>
+                      <span className="brw__cardt">{r.title}</span>
+                      <span className="brw__cards">{r.artist}</span>
+                    </button>
+                  ))}
+                </div>
+              </Fragment>
+            ))}
           </section>
         )}
 
