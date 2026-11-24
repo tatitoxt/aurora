@@ -177,6 +177,9 @@ export default function Browse() {
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
+  /* Rail playlist item highlighted as a drop target while a track
+     row is dragged over it. */
+  const [plDrop, setPlDrop] = useState<string | null>(null);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
@@ -905,8 +908,32 @@ export default function Browse() {
           {playlists.map((p) => (
             <button
               key={p.path}
-              className={`brw__nav brw__nav--pl ${view === `pl:${p.path}` ? "on" : ""}`}
+              className={`brw__nav brw__nav--pl ${view === `pl:${p.path}` ? "on" : ""} ${plDrop === p.path ? "brw__nav--drop" : ""}`}
               onClick={() => openPlaylist(p)}
+              onDragOver={(e) => {
+                if (
+                  e.dataTransfer.types.includes("application/x-noctbeat-track")
+                ) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  setPlDrop(p.path);
+                }
+              }}
+              onDragLeave={() => setPlDrop((d) => (d === p.path ? null : d))}
+              onDrop={(e) => {
+                e.preventDefault();
+                setPlDrop(null);
+                const tp = e.dataTransfer.getData("application/x-noctbeat-track");
+                if (!tp) return;
+                void bridge
+                  .playlistAddTracks(p.path, [tp])
+                  .then((n) => {
+                    if (n > 0) flash(p.name);
+                    if (view === `pl:${p.path}`)
+                      return bridge.playlistTracks(p.path).then(setPlTracks);
+                  })
+                  .catch(fail);
+              }}
             >
               <Playlist />
               <span>{p.name}</span>
@@ -1417,17 +1444,46 @@ export default function Browse() {
                   >
                     <Shuffle /> {t("fs.shuffle")}
                   </button>
+                  <label className="brw__plfind" title={t("brw.findInPlaylist")}>
+                    <MagnifyingGlass />
+                    <input
+                      value={plQuery}
+                      placeholder={t("brw.findInPlaylist")}
+                      onChange={(e) => setPlQuery(e.target.value)}
+                    />
+                    {plQuery && (
+                      <button
+                        title={t("lib.clear")}
+                        aria-label={t("lib.clear")}
+                        onClick={() => setPlQuery("")}
+                      >
+                        <X />
+                      </button>
+                    )}
+                  </label>
                 </span>
               </div>
             )}
             {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
             <div className="lib">
-              {liked.map((e) => (
+              {liked
+                .filter(
+                  (e) =>
+                    !plQuery.trim() ||
+                    e.title.toLowerCase().includes(plQuery.trim().toLowerCase()) ||
+                    e.artist.toLowerCase().includes(plQuery.trim().toLowerCase()),
+                )
+                .map((e) => (
                 <div
                   key={e.key}
                   className="lib__row"
                   role="button"
                   tabIndex={0}
+                  draggable={!e.trackId.startsWith("remote:")}
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.setData("application/x-noctbeat-track", e.trackId);
+                    ev.dataTransfer.effectAllowed = "copy";
+                  }}
                   onClick={() => playLiked(e)}
                   onKeyDown={(ev) => {
                     if (
@@ -1549,7 +1605,12 @@ export default function Browse() {
                       .filter(Boolean)
                       .join(" ")}
                     draggable
-                    onDragStart={() => setDragIdx(i)}
+                    onDragStart={(e) => {
+                      /* Also published for rail-playlist drops. */
+                      e.dataTransfer.setData("application/x-noctbeat-track", item.path);
+                      e.dataTransfer.effectAllowed = "copyMove";
+                      setDragIdx(i);
+                    }}
                     onDragOver={(e) => {
                       e.preventDefault();
                       setDropIdx(i);
@@ -1776,7 +1837,11 @@ export default function Browse() {
                   /* Sorted/filtered rows don't map to file indices —
                      Spotify locks manual reorder the same way. */
                   draggable={!plQuery.trim() && !plSort.key}
-                  onDragStart={() => setDragIdx(i)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/x-noctbeat-track", pt.path);
+                    e.dataTransfer.effectAllowed = "copyMove";
+                    setDragIdx(i);
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDropIdx(i);
@@ -2094,6 +2159,14 @@ export default function Browse() {
             {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
           </span>
         </span>
+        <button
+          className={`brw__icon ${view === "queue" ? "on" : ""}`}
+          aria-label={t("lib.queue")}
+          title={t("lib.queue")}
+          onClick={() => go("queue")}
+        >
+          <ListBullets size={15} />
+        </button>
         <span
           className={`brw__volwrap ${volLocal ? "" : "brw__volwrap--off"}`}
           title={volLocal ? t("fs.volume") : t("brw.volLocalOnly")}

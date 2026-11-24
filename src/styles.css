@@ -3216,3 +3216,5 @@ select { color-scheme: dark; }
 }
 .brw__arplay:hover { transform: scale(1.05); }
 .brw__arplay svg { width: 18px; height: 18px; }
+
+.brw__nav--drop { outline: 1.5px dashed var(--text); outline-offset: -2px; }
