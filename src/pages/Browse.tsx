@@ -26,6 +26,7 @@ import {
 } from "../favs";
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
+import type { MsgKey } from "../i18n";
 import SearchPanel from "../SearchPanel";
 import BrowserSources from "../BrowserSources";
 import { VideoBackdrop } from "../VideoBackdrop";
@@ -131,6 +132,17 @@ const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 
 const RECENT_SEARCHES_KEY = "brw.recentSearches";
 const LAST_VIEW_KEY = "brw.lastView";
+
+/* Spotify's "Browse all" grid on the empty search page — each tile
+   seeds a provider query since we have no editorial catalog. */
+const CATEGORIES: { k: MsgKey; q: string; hue: number }[] = [
+  { k: "brw.cat.charts", q: "top hits", hue: 262 },
+  { k: "brw.cat.newReleases", q: "new releases", hue: 205 },
+  { k: "brw.cat.latin", q: "latin hits", hue: 340 },
+  { k: "brw.cat.mood", q: "mood", hue: 275 },
+  { k: "brw.cat.workout", q: "workout", hue: 160 },
+  { k: "brw.cat.party", q: "party", hue: 20 },
+];
 
 const readLastView = (): View => {
   try {
@@ -1181,6 +1193,26 @@ export default function Browse() {
                   </button>
                 </div>
               </div>
+            )}
+            {q.trim() === "" && (
+              <>
+                <span className="brw__kick">{t("brw.browseAll")}</span>
+                <div className="brw__cats">
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.k}
+                      className="brw__cat"
+                      style={{
+                        background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
+                      }}
+                      onClick={() => setQ(c.q)}
+                      title={c.q}
+                    >
+                      <span className="brw__catname">{t(c.k)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
             <SearchPanel
               src="auto"

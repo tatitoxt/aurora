@@ -3156,6 +3156,23 @@ select { color-scheme: dark; }
 }
 .brw__rchip:hover { background: var(--surface-hover); }
 .brw__rchip svg { width: 14px; height: 14px; flex: none; }
+.brw__cats {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px; margin-top: 8px;
+}
+.brw__cat {
+  position: relative; height: 96px; border: 0; cursor: pointer;
+  border-radius: var(--r-lg); overflow: hidden; text-align: left;
+}
+.brw__cat::after {
+  content: ""; position: absolute; right: -14px; bottom: -16px;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14); transform: rotate(25deg);
+}
+.brw__catname {
+  position: absolute; left: 12px; top: 10px; z-index: 1;
+  color: #fff; font-size: var(--fs-md); font-weight: 700;
+}
 
 .brw__plfind {
   display: inline-flex; align-items: center; gap: 8px;
