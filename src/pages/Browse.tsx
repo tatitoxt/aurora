@@ -370,8 +370,15 @@ export default function Browse() {
          dialogs, then back in the view history — so one key never
          does two things. */
       if (e.key === "Escape") {
+        /* The command palette lives outside this component — while
+           it's open, Esc is its key, not ours. */
+        if (document.querySelector(".palette-backdrop")) return;
         if (ctx) {
           setCtx(null);
+          return;
+        }
+        if (addTo) {
+          setAddTo(null);
           return;
         }
         if (dlg) {
@@ -400,7 +407,7 @@ export default function Browse() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, sel.size, plShown, ctx, dlg, past.length]);
+  }, [view, sel.size, plShown, ctx, addTo, dlg, past.length]);
 
   /* Re-entering Browse from Stage should land where you left off. */
   useEffect(() => {
@@ -494,7 +501,10 @@ export default function Browse() {
       .catch(fail);
   };
 
-  const playLiked = (e: FavEntry) => {
+  /* pool narrows the queue to a section's rows (e.g. one artist's
+     likes) — Next must play the next row in that section, not jump
+     to an unrelated favorite. */
+  const playLiked = (e: FavEntry, pool?: FavEntry[]) => {
     setErr("");
     const replay = replayFor(e);
     if (!replay) return;
@@ -502,7 +512,9 @@ export default function Browse() {
       playExternal(replay.query);
       return;
     }
-    const locals = liked.filter((x) => replayFor(x)?.kind === "local").map(toQueueItem);
+    const locals = (pool ?? liked)
+      .filter((x) => replayFor(x)?.kind === "local")
+      .map(toQueueItem);
     const index = locals.findIndex((i) => i.path === e.trackId);
     if (index < 0) return;
     void bridge.playItems(locals, index).catch(fail);
@@ -1496,7 +1508,7 @@ export default function Browse() {
                       className="lib__row"
                       key={e.key}
                       title={e.title}
-                      onClick={() => playLiked(e)}
+                      onClick={() => playLiked(e, arLiked)}
                     >
                       <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
                       <span className="lib__title">{e.title}</span>
