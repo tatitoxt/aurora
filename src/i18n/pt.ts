@@ -108,7 +108,7 @@ const pt: Record<keyof typeof en, string> = {
   "stk.hint": "Sticker: arraste para mover, clique direito ou Delete para remover",
   "lib.queue": "Fila",
   "lib.queueEmpty": "Nada na fila — toque algo para preenchê-la.",
-  "lib.save": "Salvar",
+  "lib.create": "Criar", "lib.save": "Salvar",
   "lib.playlistName": "Nome da playlist",
   "lib.likedEmpty": "Toque no cora\u00e7\u00e3o de qualquer faixa para salv\u00e1-la aqui.",
   "lib.playlistsEmpty": "Salve a fila como playlist ou importe uma.",

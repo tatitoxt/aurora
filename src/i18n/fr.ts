@@ -108,7 +108,7 @@ const fr: Record<keyof typeof en, string> = {
   "stk.hint": "Sticker : glisser pour d\u00e9placer, clic droit ou Suppr pour retirer",
   "lib.queue": "File d'attente",
   "lib.queueEmpty": "File d'attente vide — lancez un titre pour la remplir.",
-  "lib.save": "Enregistrer",
+  "lib.create": "Créer", "lib.save": "Enregistrer",
   "lib.playlistName": "Nom de la playlist",
   "lib.likedEmpty": "Touchez le c\u0153ur d'un titre pour l'enregistrer ici.",
   "lib.playlistsEmpty": "Enregistrez la file comme playlist ou importez-en une.",

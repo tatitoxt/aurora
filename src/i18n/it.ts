@@ -108,7 +108,7 @@ const it: Record<keyof typeof en, string> = {
   "stk.hint": "Sticker: trascina per spostare, clic destro o Canc per rimuovere",
   "lib.queue": "Coda",
   "lib.queueEmpty": "Niente in coda — riproduci qualcosa per riempirla.",
-  "lib.save": "Salva",
+  "lib.create": "Crea", "lib.save": "Salva",
   "lib.playlistName": "Nome playlist",
   "lib.likedEmpty": "Tocca il cuore su un brano per salvarlo qui.",
   "lib.playlistsEmpty": "Salva la coda come playlist o importane una.",

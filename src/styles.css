@@ -3191,3 +3191,20 @@ select { color-scheme: dark; }
 .brw__colhead svg { width: 12px; height: 12px; flex: none; }
 .brw__colhead .brw__coldur { justify-content: flex-end; }
 .brw__coldur svg:first-child { width: 14px; height: 14px; }
+
+.brw__railhead { display: flex; align-items: center; }
+.brw__railadd {
+  margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: none; color: var(--dim); cursor: pointer;
+}
+.brw__railadd:hover { background: var(--surface-1); color: var(--text); }
+.brw__railadd svg { width: 14px; height: 14px; }
+
+.brw__arhead { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+.brw__arhead img, .brw__arhead .brw__art {
+  width: 112px; height: 112px; border-radius: 50%; object-fit: cover;
+  box-shadow: 0 8px 28px rgba(0,0,0,.45);
+}
+.brw__arhead .brw__art--gen { font-size: 42px; border-radius: 50%; }
+.brw__arname { font-size: var(--fs-xl); font-weight: 750; letter-spacing: -0.01em; }

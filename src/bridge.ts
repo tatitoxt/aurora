@@ -855,6 +855,17 @@ export const bridge = {
     isTauri()
       ? invokeCmd<PlaylistFile[]>("list_playlists")
       : Promise.resolve(mockPlaylistStore.map((m) => m.file)),
+  /** Create an empty playlist file; returns its name + path. */
+  createPlaylist: (name: string): Promise<PlaylistFile> => {
+    if (isTauri()) return invokeCmd<PlaylistFile>("create_playlist", { name });
+    const stem = name.trim() || "playlist";
+    let path = `/demo/${stem}.m3u8`;
+    let n = 2;
+    while (findPl(path)) path = `/demo/${stem}-${n++}.m3u8`;
+    const file = { name: path.split("/").pop()!.replace(/\.m3u8$/, ""), path };
+    mockPlaylistStore.push({ file, tracks: [] });
+    return Promise.resolve(file);
+  },
   /** Rename a playlist file in place, keeping its extension. */
   renamePlaylist: (path: string, name: string): Promise<PlaylistFile> => {
     if (isTauri()) return invokeCmd<PlaylistFile>("rename_playlist", { path, name });

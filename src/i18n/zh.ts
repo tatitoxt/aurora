@@ -108,7 +108,7 @@ const zh: Record<keyof typeof en, string> = {
   "stk.hint": "\u8d34\u7eb8\uff1a\u62d6\u52a8\u79fb\u52a8\uff0c\u53f3\u952e\u6216 Delete \u5220\u9664",
   "lib.queue": "\u961f\u5217",
   "lib.queueEmpty": "队列为空 — 播放歌曲后会显示在这里。",
-  "lib.save": "\u4fdd\u5b58",
+  "lib.create": "创建", "lib.save": "\u4fdd\u5b58",
   "lib.playlistName": "\u64ad\u653e\u5217\u8868\u540d\u79f0",
   "lib.likedEmpty": "\u70b9\u6309\u4efb\u610f\u6b4c\u66f2\u7684\u7231\u5fc3\u5373\u53ef\u4fdd\u5b58\u5230\u8fd9\u91cc\u3002",
   "lib.playlistsEmpty": "\u5c06\u961f\u5217\u4fdd\u5b58\u4e3a\u64ad\u653e\u5217\u8868\uff0c\u6216\u5bfc\u5165\u4e00\u4e2a\u3002",

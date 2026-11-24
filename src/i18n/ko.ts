@@ -108,7 +108,7 @@ const ko: Record<keyof typeof en, string> = {
   "stk.hint": "\uc2a4\ud2f0\ucee4: \ub4dc\ub798\uadf8\ub85c \uc774\ub3d9, \uc6b0\ud074\ub9ad \ub610\ub294 Delete\ub85c \uc0ad\uc81c",
   "lib.queue": "\ub300\uae30\uc5f4",
   "lib.queueEmpty": "대기열이 비어 있습니다 — 곡을 재생하면 여기에 표시됩니다.",
-  "lib.save": "\uc800\uc7a5",
+  "lib.create": "만들기", "lib.save": "\uc800\uc7a5",
   "lib.playlistName": "\ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8 \uc774\ub984",
   "lib.likedEmpty": "\uace1\uc758 \ud558\ud2b8\ub97c \ub204\ub974\uba74 \uc5ec\uae30\uc5d0 \uc800\uc7a5\ub429\ub2c8\ub2e4.",
   "lib.playlistsEmpty": "\ub300\uae30\uc5f4\uc744 \ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8\ub85c \uc800\uc7a5\ud558\uac70\ub098 \uac00\uc838\uc624\uc138\uc694.",

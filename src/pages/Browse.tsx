@@ -162,6 +162,7 @@ export default function Browse() {
      suppressed in automation and look alien anyway. */
   const [dlg, setDlg] = useState<
     | { kind: "save" }
+    | { kind: "create" }
     | { kind: "rename"; path: string; name: string }
     | { kind: "delete"; path: string; name: string }
     | null
@@ -728,6 +729,15 @@ export default function Browse() {
           return bridge.listPlaylists().then(setPlaylists);
         })
         .catch(fail);
+    } else if (dlg.kind === "create") {
+      if (!name) return;
+      void bridge
+        .createPlaylist(name)
+        .then((f) => {
+          setPlaylists((pls) => [...pls, f]);
+          go(`pl:${f.path}`);
+        })
+        .catch(fail);
     } else if (dlg.kind === "rename") {
       if (!name || name === dlg.name) {
         setDlg(null);
@@ -877,7 +887,20 @@ export default function Browse() {
           <span>{t("sources.heading")}</span>
         </button>
 
-        <span className="brw__railhead">{t("lib.playlists")}</span>
+        <span className="brw__railhead">
+          {t("lib.playlists")}
+          <button
+            className="brw__railadd"
+            title={t("lib.newPlaylist")}
+            aria-label={t("lib.newPlaylist")}
+            onClick={() => {
+              setDlgName(t("lib.newPlaylist"));
+              setDlg({ kind: "create" });
+            }}
+          >
+            <Plus />
+          </button>
+        </span>
         <div className="brw__pllist">
           {playlists.map((p) => (
             <button
@@ -1057,6 +1080,13 @@ export default function Browse() {
 
         {view.startsWith("ar:") && (
           <div className="brw__section">
+            <div className="brw__arhead">
+              <Art
+                url={arSongs[0]?.artworkUrl ?? arLocal[0]?.track.artworkUrl}
+                icon={<User />}
+              />
+              <span className="brw__arname">{arName}</span>
+            </div>
             {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             {!arLoading && arLocal.length === 0 && arSongs.length === 0 && (
               <span className="brw__empty">{t("brw.noTracks")}</span>
@@ -1848,9 +1878,11 @@ export default function Browse() {
             <span className="brw__dlgtitle">
               {dlg.kind === "save"
                 ? t("lib.save")
-                : dlg.kind === "rename"
-                  ? t("lib.rename")
-                  : t("lib.delete")}
+                : dlg.kind === "create"
+                  ? t("lib.newPlaylist")
+                  : dlg.kind === "rename"
+                    ? t("lib.rename")
+                    : t("lib.delete")}
             </span>
             {dlg.kind === "delete" ? (
               <span className="brw__dlgname">{dlg.name}</span>
@@ -1881,9 +1913,11 @@ export default function Browse() {
               >
                 {dlg.kind === "save"
                   ? t("lib.save")
-                  : dlg.kind === "rename"
-                    ? t("lib.rename")
-                    : t("lib.delete")}
+                  : dlg.kind === "create"
+                    ? t("lib.create")
+                    : dlg.kind === "rename"
+                      ? t("lib.rename")
+                      : t("lib.delete")}
               </button>
             </span>
           </span>

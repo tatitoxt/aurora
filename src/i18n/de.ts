@@ -108,7 +108,7 @@ const de: Record<keyof typeof en, string> = {
   "stk.hint": "Sticker: ziehen zum Verschieben, Rechtsklick oder Entf zum Entfernen",
   "lib.queue": "Warteschlange",
   "lib.queueEmpty": "Nichts in der Warteschlange — spiel etwas ab.",
-  "lib.save": "Speichern",
+  "lib.create": "Erstellen", "lib.save": "Speichern",
   "lib.playlistName": "Playlist-Name",
   "lib.likedEmpty": "Tippe auf das Herz eines Titels, um ihn hier zu speichern.",
   "lib.playlistsEmpty": "Speichere die Warteschlange als Playlist oder importiere eine.",
