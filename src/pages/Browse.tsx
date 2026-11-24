@@ -180,6 +180,8 @@ export default function Browse() {
   /* Rail playlist item highlighted as a drop target while a track
      row is dragged over it. */
   const [plDrop, setPlDrop] = useState<string | null>(null);
+  /* Spotify's "/" shortcut jumps focus to the rail search box. */
+  const railSearchRef = useRef<HTMLInputElement>(null);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
@@ -269,6 +271,24 @@ export default function Browse() {
       clearInterval(poll);
     };
   }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (
+        e.key !== "/" ||
+        (e.target as HTMLElement | null)?.closest(
+          "input, textarea, [contenteditable]",
+        )
+      )
+        return;
+      e.preventDefault();
+      go("search");
+      railSearchRef.current?.focus();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   /* Browser preview only: the demo soundtrack lives in the YouTube embed,
      which unmounts with Stage — keep an audible (hidden) embed here so
@@ -839,9 +859,16 @@ export default function Browse() {
           >
             <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
             <input
+              ref={railSearchRef}
               value={q}
               placeholder={t("fs.searchSongs")}
               aria-label={t("brw.search")}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && q) {
+                  e.stopPropagation();
+                  setQ("");
+                }
+              }}
               onChange={(e) => {
                 setQ(e.target.value);
                 /* During IME composition the interim events would yank
