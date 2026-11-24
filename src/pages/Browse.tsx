@@ -383,11 +383,12 @@ export default function Browse() {
        would run its 4 IPCs hundreds of times a minute. */
     const npSig = { current: "" };
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
-      /* Everything except positionMs is render-worthy: metadata can
-         arrive after the track starts (duration, artwork). Signing
-         the rest keeps per-tick position updates out of the page
-         while never freezing the fields the UI actually shows. */
-      const { positionMs: _pos, ...rest } = n;
+      /* Everything except the volatile fields is render-worthy:
+         metadata can arrive after the track starts (duration,
+         artwork). updatedAtMs is stamped fresh on every snapshot,
+         so it must stay out of the signature together with
+         positionMs — otherwise every tick still re-renders. */
+      const { positionMs: _pos, updatedAtMs: _upd, ...rest } = n;
       const sig = JSON.stringify(rest);
       if (sig !== npSig.current) {
         npSig.current = sig;
