@@ -1357,7 +1357,12 @@ export default function Browse() {
                       style={{
                         background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
                       }}
-                      onClick={() => setQ(c.q)}
+                      /* A stale chip filter would hide the catalog
+                         results this tile asks for. */
+                      onClick={() => {
+                        setQ(c.q);
+                        setSFilter("all");
+                      }}
                       title={c.q}
                     >
                       <span className="brw__catname">{t(c.k)}</span>
