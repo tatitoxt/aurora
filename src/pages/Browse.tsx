@@ -1264,26 +1264,6 @@ export default function Browse() {
                 </div>
               </div>
             )}
-            {q.trim() === "" && (
-              <>
-                <span className="brw__kick">{t("brw.browseAll")}</span>
-                <div className="brw__cats">
-                  {CATEGORIES.map((c) => (
-                    <button
-                      key={c.k}
-                      className="brw__cat"
-                      style={{
-                        background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
-                      }}
-                      onClick={() => setQ(c.q)}
-                      title={c.q}
-                    >
-                      <span className="brw__catname">{t(c.k)}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
             <SearchPanel
               src="auto"
               label={(id) => id}
@@ -1325,6 +1305,28 @@ export default function Browse() {
                 ) : undefined
               }
             />
+            {/* "Browse all" category grid under the search field, the
+                same order Spotify uses on its empty search page. */}
+            {q.trim() === "" && (
+              <>
+                <span className="brw__kick">{t("brw.browseAll")}</span>
+                <div className="brw__cats">
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.k}
+                      className="brw__cat"
+                      style={{
+                        background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
+                      }}
+                      onClick={() => setQ(c.q)}
+                      title={c.q}
+                    >
+                      <span className="brw__catname">{t(c.k)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
