@@ -901,7 +901,20 @@ export default function Browse() {
     plRemoving.current = true;
     void bridge
       .playlistRemoveTrack(p.path, i)
-      .then(() => setPlTracks((ts) => ts.filter((_, j) => j !== i)))
+      .then(() => {
+        setPlTracks((ts) => ts.filter((_, j) => j !== i));
+        /* Rows below the deleted one shift down — renumber the
+           selection so it still points at the same tracks. */
+        setSel((s) => {
+          if (s.size === 0) return s;
+          const n = new Set<number>();
+          s.forEach((j) => {
+            if (j < i) n.add(j);
+            else if (j > i) n.add(j - 1);
+          });
+          return n;
+        });
+      })
       .catch(fail)
       .finally(() => {
         plRemoving.current = false;
@@ -2164,6 +2177,11 @@ export default function Browse() {
                     const p = playlists.find((x) => `pl:${x.path}` === view);
                     if (p && dragIdx !== null && dragIdx !== i) {
                       const from = dragIdx;
+                      /* A move renumbers the file — drop the
+                         selection instead of pointing it at the
+                         wrong tracks. */
+                      setSel(new Set());
+                      selAnchor.current = null;
                       setPlTracks((ts) => {
                         const n = [...ts];
                         const [m] = n.splice(from, 1);
