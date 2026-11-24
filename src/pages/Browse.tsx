@@ -1245,8 +1245,11 @@ export default function Browse() {
                   onClick={() => {
                     if (arLocal.length > 0)
                       void bridge.playItems(arLocal, 0).catch(fail);
-                    else if (arSongs[0])
-                      playExternal(`${arSongs[0].title} ${arSongs[0].artist}`);
+                    /* No remote-queue API exists — extPlay takes one
+                       query, so search the artist: the provider plays
+                       their top track rather than an arbitrary first
+                       catalog entry. */
+                    else if (arSongs.length > 0) playExternal(arName);
                   }}
                 >
                   <Play weight="fill" />
