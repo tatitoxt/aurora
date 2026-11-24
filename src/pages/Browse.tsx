@@ -759,6 +759,14 @@ export default function Browse() {
         rows,
       }));
   }, [recent, t]);
+  /* Queue stats line: tracks + total runtime of what's left. */
+  const queueLeftMs = useMemo(
+    () =>
+      queue.items
+        .slice(Math.max(0, queue.currentIndex ?? 0))
+        .reduce((s, i) => s + (i.track.durationMs ?? 0), 0),
+    [queue],
+  );
   /* Header art: first playlist row whose artwork we can resolve. */
   const artFor = (ts: PlaylistTrack[]) =>
     ts
@@ -1840,6 +1848,11 @@ export default function Browse() {
                   <button onClick={() => void bridge.clearQueue().catch(fail)}>
                     {t("lib.clear")}
                   </button>
+                </span>
+                <span className="brw__qstat">
+                  {queue.items.length}{" "}
+                  {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")} ·{" "}
+                  {formatTime(queueLeftMs)}
                 </span>
               </div>
             )}

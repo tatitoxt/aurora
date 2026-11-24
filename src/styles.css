@@ -3029,7 +3029,11 @@ select { color-scheme: dark; }
   .brw__search .srch__body > * { grid-column: 1 !important; grid-row: auto !important; }
   .brw__search .srch__top { min-height: 0; }
 }
-.brw__qtools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.brw__qtools { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 8px; }
+.brw__qstat {
+  margin-left: 12px; color: var(--muted);
+  font-size: var(--fs-xs); font-weight: 550; font-variant-numeric: tabular-nums;
+}
 .lib__row .brw__art { width: 32px; height: 32px; }
 .lib__rm {
   grid-column: 5; grid-row: 1 / span 2;
