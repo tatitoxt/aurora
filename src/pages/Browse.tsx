@@ -2116,12 +2116,18 @@ export default function Browse() {
               />
             )}
             <span className="brw__dlgbtns">
-              <button className="brw__dlgbtn" onClick={() => setDlg(null)}>
+              <button
+                className="brw__dlgbtn"
+                /* Destructive dialogs focus Cancel: an Enter held through
+                   key repeat would otherwise submit the confirm the
+                   instant it gains focus. */
+                autoFocus={dlg.kind === "delete"}
+                onClick={() => setDlg(null)}
+              >
                 {t("brw.cancel")}
               </button>
               <button
                 className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
-                autoFocus={dlg.kind === "delete"}
                 onClick={submitDlg}
               >
                 {dlg.kind === "save"
