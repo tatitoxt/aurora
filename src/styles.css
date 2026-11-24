@@ -3153,3 +3153,41 @@ select { color-scheme: dark; }
 }
 .brw__rchip:hover { background: var(--surface-hover); }
 .brw__rchip svg { width: 14px; height: 14px; flex: none; }
+
+.brw__plfind {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; margin-left: auto; padding: 0 10px;
+  border-radius: var(--r-pill); color: var(--dim);
+}
+.brw__plfind svg { width: 14px; height: 14px; flex: none; }
+.brw__plfind input {
+  background: none; border: none; outline: none; color: var(--text);
+  font: inherit; font-size: var(--fs-sm); width: 130px;
+}
+.brw__plfind input::placeholder { color: var(--dim); }
+.brw__plfind:focus-within { background: var(--surface-1); color: var(--text); }
+.brw__plfind button {
+  display: inline-flex; border: none; background: none; color: var(--dim);
+  cursor: pointer; padding: 2px;
+}
+.brw__plfind button:hover { color: var(--text); }
+.brw__plfind button svg { width: 13px; height: 13px; }
+
+.brw__colhead {
+  display: grid; grid-template-columns: 22px 1fr 1fr 56px;
+  gap: 12px; align-items: center;
+  padding: 2px 14px 8px 12px; margin: 0 6px;
+  border-bottom: 1px solid var(--hair);
+  color: var(--dim); font-size: var(--fs-2xs); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.brw__colhead button {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit;
+  text-align: left;
+}
+.brw__colhead button:hover, .brw__colhead button.on { color: var(--text); }
+.brw__colhead svg { width: 12px; height: 12px; flex: none; }
+.brw__colhead .brw__coldur { justify-content: flex-end; }
+.brw__coldur svg:first-child { width: 14px; height: 14px; }

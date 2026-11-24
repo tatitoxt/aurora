@@ -32,8 +32,12 @@ import { VideoBackdrop } from "../VideoBackdrop";
 import {
   ArrowsOut,
   Broadcast,
+  CaretDown,
   CaretLeft,
   CaretRight,
+  CaretUp,
+  CaretUpDown,
+  Clock,
   Heart,
   House,
   ListBullets,
@@ -453,6 +457,8 @@ export default function Browse() {
   useEffect(() => {
     setCtx(null);
     setAddTo(null);
+    setPlSort({ key: null, dir: 1 });
+    setPlQuery("");
   }, [view]);
 
   /* Spotify stores the query when a result actually plays. */
@@ -483,6 +489,50 @@ export default function Browse() {
   const [sFilter, setSFilter] = useState<
     "all" | "songs" | "artists" | "playlists"
   >("all");
+
+  /* Playlist view: display-only sort + in-playlist filter (Spotify's
+     column header and find box). Sorting never rewrites the .m3u,
+     and drag-reorder stays disabled while a sort/filter is on — the
+     visible order wouldn't map back to file indices. */
+  const [plSort, setPlSort] = useState<{
+    key: "title" | "artist" | "duration" | null;
+    dir: 1 | -1;
+  }>({ key: null, dir: 1 });
+  const [plQuery, setPlQuery] = useState("");
+  const toggleSort = (key: "title" | "artist" | "duration") =>
+    setPlSort((p) =>
+      p.key !== key
+        ? { key, dir: 1 }
+        : p.dir === 1
+          ? { key, dir: -1 }
+          : { key: null, dir: 1 },
+    );
+  const plShown = useMemo(() => {
+    let rows = plTracks.map((t, i) => ({ t, i }));
+    const term = plQuery.trim().toLowerCase();
+    if (term)
+      rows = rows.filter(
+        ({ t: pt }) =>
+          pt.title.toLowerCase().includes(term) ||
+          pt.artist.toLowerCase().includes(term) ||
+          pt.path.toLowerCase().includes(term),
+      );
+    if (plSort.key) {
+      const dir = plSort.dir;
+      const key = plSort.key;
+      rows = [...rows].sort((a, b) => {
+        const cmp =
+          key === "duration"
+            ? (a.t.durationMs ?? Number.MAX_SAFE_INTEGER) -
+              (b.t.durationMs ?? Number.MAX_SAFE_INTEGER)
+            : key === "artist"
+              ? a.t.artist.localeCompare(b.t.artist)
+              : a.t.title.localeCompare(b.t.title);
+        return cmp !== 0 ? cmp * dir : a.i - b.i;
+      });
+    }
+    return rows;
+  }, [plTracks, plQuery, plSort]);
 
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
@@ -1581,11 +1631,81 @@ export default function Browse() {
                 >
                   <Trash /> {t("lib.delete")}
                 </button>
+                <label className="brw__plfind" title={t("brw.findInPlaylist")}>
+                  <MagnifyingGlass />
+                  <input
+                    value={plQuery}
+                    placeholder={t("brw.findInPlaylist")}
+                    onChange={(e) => setPlQuery(e.target.value)}
+                  />
+                  {plQuery && (
+                    <button
+                      title={t("lib.clear")}
+                      aria-label={t("lib.clear")}
+                      onClick={() => setPlQuery("")}
+                    >
+                      <X />
+                    </button>
+                  )}
+                </label>
               </span>
             </div>
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
+            {plTracks.length > 0 && (
+              <div className="brw__colhead" aria-hidden>
+                <span>#</span>
+                <button
+                  className={plSort.key === "title" ? "on" : ""}
+                  onClick={() => toggleSort("title")}
+                  title={t("brw.colTitle")}
+                >
+                  {t("brw.colTitle")}
+                  {plSort.key === "title" ? (
+                    plSort.dir === 1 ? (
+                      <CaretUp />
+                    ) : (
+                      <CaretDown />
+                    )
+                  ) : (
+                    <CaretUpDown />
+                  )}
+                </button>
+                <button
+                  className={plSort.key === "artist" ? "on" : ""}
+                  onClick={() => toggleSort("artist")}
+                  title={t("srch.artist")}
+                >
+                  {t("srch.artist")}
+                  {plSort.key === "artist" ? (
+                    plSort.dir === 1 ? (
+                      <CaretUp />
+                    ) : (
+                      <CaretDown />
+                    )
+                  ) : (
+                    <CaretUpDown />
+                  )}
+                </button>
+                <button
+                  className={`brw__coldur ${plSort.key === "duration" ? "on" : ""}`}
+                  onClick={() => toggleSort("duration")}
+                  title={t("brw.colDuration")}
+                >
+                  <Clock />
+                  {plSort.key === "duration" ? (
+                    plSort.dir === 1 ? (
+                      <CaretUp />
+                    ) : (
+                      <CaretDown />
+                    )
+                  ) : (
+                    <CaretUpDown />
+                  )}
+                </button>
+              </div>
+            )}
             <div className="lib">
-              {plTracks.map((pt, i) => {
+              {plShown.map(({ t: pt, i }) => {
                 const current = isNow(pt);
                 return (
                 <div
@@ -1601,7 +1721,9 @@ export default function Browse() {
                   tabIndex={0}
                   key={`${pt.path}-${i}`}
                   title={pt.title || pt.path.split("/").pop()}
-                  draggable
+                  /* Sorted/filtered rows don't map to file indices —
+                     Spotify locks manual reorder the same way. */
+                  draggable={!plQuery.trim() && !plSort.key}
                   onDragStart={() => setDragIdx(i)}
                   onDragOver={(e) => {
                     e.preventDefault();

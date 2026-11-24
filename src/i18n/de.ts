@@ -278,6 +278,7 @@ const de: Record<keyof typeof en, string> = {
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
   "nav.browse": "Durchsuchen","brw.home": "Start","brw.search": "Suchen","brw.topTracks": "Deine Top-Titel","brw.topArtists": "Top-Künstler","brw.all": "Alle", "brw.recentSearches": "Letzte Suchen",
+  "brw.colTitle": "Titel", "brw.colDuration": "Dauer", "brw.findInPlaylist": "In Playlist suchen",
   "brw.plays": "Wiedergaben","brw.playsOne": "Wiedergabe","brw.cancel": "Abbrechen","brw.play": "Abspielen","brw.playAll": "Alle abspielen","brw.liveView": "Live-Ansicht","brw.forward": "Vor","brw.recentlyPlayed": "Kürzlich gespielt","brw.settings": "Einstellungen","brw.account": "Konto","brw.appSettings": "App-Einstellungen","brw.noTracks": "Noch keine Titel","brw.seek": "Position","brw.trackMissing": "Datei dieses Titels fehlt","brw.greetMorning": "Guten Morgen","brw.greetAfternoon": "Guten Tag","brw.greetEvening": "Guten Abend","brw.jumpBackIn": "Weiterhören","brw.volLocalOnly": "Nur lokale Wiedergabe","brw.showAll": "Alle anzeigen",
 };
 
