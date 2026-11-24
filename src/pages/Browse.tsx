@@ -624,26 +624,39 @@ export default function Browse() {
   const playPlaylist = (p: PlaylistFile, shuffled = false) => {
     setErr("");
     const saved = queue;
+    /* Check emptiness first: clearing the live queue for an empty
+       playlist would force restoreQueue to restart the current track
+       from position 0, even when it was paused. */
     void bridge
-      .clearQueue()
-      .then(() => bridge.importPlaylist(p.path))
-      .then((res) => {
-        if (res.imported === 0) {
-          restoreQueue(saved);
+      .playlistTracks(p.path)
+      .then((ts) => {
+        if (ts.length === 0) {
+          flash(t("brw.noTracks"));
           return;
         }
-        return bridge.getQueue().then((q) => {
-          setQueue(q);
-          if (q.items.length === 0) {
-            restoreQueue(saved);
-            return;
-          }
-          const idx = shuffled ? Math.floor(Math.random() * q.items.length) : 0;
-          return bridge.playQueueIndex(idx).catch((e) => {
-            restoreQueue(saved);
-            throw e;
+        return bridge
+          .clearQueue()
+          .then(() => bridge.importPlaylist(p.path))
+          .then((res) => {
+            if (res.imported === 0) {
+              restoreQueue(saved);
+              return;
+            }
+            return bridge.getQueue().then((q) => {
+              setQueue(q);
+              if (q.items.length === 0) {
+                restoreQueue(saved);
+                return;
+              }
+              const idx = shuffled
+                ? Math.floor(Math.random() * q.items.length)
+                : 0;
+              return bridge.playQueueIndex(idx).catch((e) => {
+                restoreQueue(saved);
+                throw e;
+              });
+            });
           });
-        });
       })
       .catch(fail);
   };
