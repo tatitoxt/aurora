@@ -414,7 +414,16 @@ export default function Browse() {
       .catch(() => {});
     void bridge
       .catalogSearch(name)
-      .then(setArSongs)
+      /* catalogSearch matches the term anywhere (title, album);
+         an artist page must list that artist's own catalog — the
+         same credit filter SearchPanel applies internally. */
+      .then((r) =>
+        setArSongs(
+          r.filter((s) =>
+            s.artist.toLowerCase().includes(name.trim().toLowerCase()),
+          ),
+        ),
+      )
       .catch(fail)
       .finally(() => setArLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1684,6 +1693,35 @@ export default function Browse() {
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                setDlg(null);
+                return;
+              }
+              if (e.key !== "Tab") return;
+              /* Focus trap: Tab cycles through the card's own
+                 controls so focus can't fall behind the overlay. */
+              const els = Array.from(
+                e.currentTarget.querySelectorAll<HTMLElement>(
+                  "button, input",
+                ),
+              );
+              if (els.length === 0) return;
+              const first = els[0];
+              const last = els[els.length - 1];
+              const active = document.activeElement as HTMLElement | null;
+              if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last.focus();
+              } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first.focus();
+              } else if (active && !els.includes(active)) {
+                e.preventDefault();
+                (e.shiftKey ? last : first).focus();
+              }
+            }}
           >
             <span className="brw__dlgtitle">
               {dlg.kind === "save"
@@ -1703,8 +1741,10 @@ export default function Browse() {
                 aria-label={t("lib.playlistName")}
                 onChange={(e) => setDlgName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") submitDlg();
-                  if (e.key === "Escape") setDlg(null);
+                  /* Enter that confirms an IME candidate must not
+                     submit — the name hasn't reached dlgName yet. */
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing)
+                    submitDlg();
                 }}
               />
             )}
@@ -1714,6 +1754,7 @@ export default function Browse() {
               </button>
               <button
                 className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
+                autoFocus={dlg.kind === "delete"}
                 onClick={submitDlg}
               >
                 {dlg.kind === "save"
