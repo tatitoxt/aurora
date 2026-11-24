@@ -291,6 +291,8 @@ const en = {
   "brw.topTracks": "Your top tracks",
   "brw.topArtists": "Top artists",
   "brw.plays": "plays",
+  "brw.playsOne": "play",
+  "brw.cancel": "Cancel",
   "brw.play": "Play",
   "brw.volLocalOnly": "Local playback only",
   "brw.playAll": "Play all",

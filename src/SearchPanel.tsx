@@ -27,6 +27,7 @@ export default function SearchPanel({
   onQuery,
   aside,
   songLimit,
+  onArtist,
 }: {
   src: string;
   label: (id: string) => string;
@@ -39,6 +40,9 @@ export default function SearchPanel({
   aside?: ReactNode;
   /** Cap the songs block (Spotify's short "Songs" list); artist pages show all. */
   songLimit?: number;
+  /** Route artist clicks externally (e.g. Browse pushes its own artist
+      view onto the history stack) instead of the internal sub-page. */
+  onArtist?: (name: string) => void;
 }) {
   const t = useT();
   const [qLocal, setQLocal] = useState("");
@@ -78,6 +82,10 @@ export default function SearchPanel({
 
   // An artist page lists that artist's own catalog, not just this query's hits.
   const openArtist = (name: string) => {
+    if (onArtist) {
+      onArtist(name);
+      return;
+    }
     setArtist(name);
     void bridge
       .catalogSearch(name)

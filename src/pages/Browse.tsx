@@ -98,6 +98,29 @@ function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
   );
 }
 
+const hueOf = (s: string) => {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+};
+
+/** Generated cover for art-less playlists: a two-tone gradient tile
+    with the initial — reads like a blurred cover, not a dead square. */
+function GenCover({ name }: { name: string }) {
+  const h = hueOf(name);
+  return (
+    <span
+      className="brw__art brw__art--gen"
+      style={{
+        background: `linear-gradient(135deg, hsl(${h} 42% 34%), hsl(${(h + 70) % 360} 38% 16%))`,
+      }}
+      aria-hidden
+    >
+      {name.trim().charAt(0).toUpperCase() || "♪"}
+    </span>
+  );
+}
+
 export default function Browse() {
   const t = useT();
   const nav = useNavigate();
@@ -122,7 +145,18 @@ export default function Browse() {
   const [vol, setVol] = useState(0.8);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
-  const [addToKey, setAddToKey] = useState<string | null>(null);
+  /* "+" add-to-playlist popover: anchored to the button's viewport
+     rect (fixed) so the scroll container can't clip it. */
+  const [addTo, setAddTo] = useState<{ key: string; x: number; y: number } | null>(null);
+  /* In-app dialog for Save/Rename/Delete — window.prompt/confirm are
+     suppressed in automation and look alien anyway. */
+  const [dlg, setDlg] = useState<
+    | { kind: "save" }
+    | { kind: "rename"; path: string; name: string }
+    | { kind: "delete"; path: string; name: string }
+    | null
+  >(null);
+  const [dlgName, setDlgName] = useState("");
   const [ctx, setCtx] = useState<{
     x: number;
     y: number;
@@ -374,17 +408,23 @@ export default function Browse() {
 
   /* Right-click menu: closes on any press outside it. */
   useEffect(() => {
-    if (!ctx) return;
+    if (!ctx && !addTo) return;
     const h = (e: MouseEvent) => {
-      if (!(e.target as Element | null)?.closest?.(".brw__ctx")) setCtx(null);
+      const el = e.target as Element | null;
+      if (!el?.closest?.(".brw__ctx")) setCtx(null);
+      if (!el?.closest?.(".brw__plmenu") && !el?.closest?.(".lib__rm"))
+        setAddTo(null);
     };
     window.addEventListener("mousedown", h);
     return () => window.removeEventListener("mousedown", h);
-  }, [ctx]);
+  }, [ctx, addTo]);
 
   /* A row index only means something inside the view it was opened
      on — keyboard navigation can swap views while the menu is up. */
-  useEffect(() => setCtx(null), [view]);
+  useEffect(() => {
+    setCtx(null);
+    setAddTo(null);
+  }, [view]);
 
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
@@ -428,8 +468,8 @@ export default function Browse() {
       : "";
   const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
   /* Header art: first playlist row whose artwork we can resolve. */
-  const plArt =
-    plTracks
+  const artFor = (ts: PlaylistTrack[]) =>
+    ts
       .map(
         (pt) =>
           queue.items.find(
@@ -440,6 +480,32 @@ export default function Browse() {
           "",
       )
       .find(Boolean) ?? "";
+  const plArt = artFor(plTracks);
+
+  /* Card covers: resolve one artwork per playlist so the grids show
+     real covers, not icon placeholders. */
+  const [plArts, setPlArts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (playlists.length === 0) {
+      setPlArts({});
+      return;
+    }
+    let live = true;
+    void Promise.all(
+      playlists.map((p) =>
+        bridge
+          .playlistTracks(p.path)
+          .then((ts) => [p.path, artFor(ts)] as const)
+          .catch(() => [p.path, ""] as const),
+      ),
+    ).then((es) => live && setPlArts(Object.fromEntries(es)));
+    return () => {
+      live = false;
+    };
+    /* artFor reads queue/liked as they are when the playlist list
+       changes — re-running per queue tick would refetch endlessly. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlists]);
 
   /** A history row maps onto the fav replay rules: local trackIds are
       file paths, everything else becomes a provider query. */
@@ -541,6 +607,43 @@ export default function Browse() {
       });
   };
 
+  /** In-app dialog submit: Save queue-as-playlist / Rename / Delete. */
+  const submitDlg = () => {
+    if (!dlg) return;
+    const name = dlgName.trim();
+    if (dlg.kind === "save") {
+      if (!name) return;
+      void bridge
+        .exportPlaylist(name)
+        .then(() => {
+          flash(t("lib.save"));
+          return bridge.listPlaylists().then(setPlaylists);
+        })
+        .catch(fail);
+    } else if (dlg.kind === "rename") {
+      if (!name || name === dlg.name) {
+        setDlg(null);
+        return;
+      }
+      void bridge
+        .renamePlaylist(dlg.path, name)
+        .then((f) => {
+          setPlaylists((pls) => pls.map((x) => (x.path === dlg.path ? f : x)));
+          go(`pl:${f.path}`);
+        })
+        .catch(fail);
+    } else {
+      void bridge
+        .deletePlaylist(dlg.path)
+        .then(() => {
+          setPlaylists((pls) => pls.filter((x) => x.path !== dlg.path));
+          go("home");
+        })
+        .catch(fail);
+    }
+    setDlg(null);
+  };
+
   /* Spotify-style greeting follows the clock, not a fixed string. */
   const hour = new Date().getHours();
   const greet =
@@ -600,39 +703,41 @@ export default function Browse() {
         />
       )}
       <aside className="brw__rail">
-        <span className="brw__brand" title={bridge.productName}>
-          <img className="brw__logo" src="/noctbeat-mark.svg" alt={bridge.productName} />
+        <span className="brw__top">
+          <span className="brw__brand" title={bridge.productName}>
+            <img className="brw__logo" src="/noctbeat-mark.svg" alt={bridge.productName} />
+          </span>
+          <label
+            className={`brw__railsearch ${view === "search" ? "on" : ""}`}
+            /* Click or typing switches to Search — plain keyboard
+               focus must not, or tabbing past the rail would jump
+               the user into SearchPanel's autofocused input. The
+               same click also opens Search when the input is
+               collapsed to just an icon in narrow windows. */
+            onClick={() => go("search")}
+          >
+            <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
+            <input
+              value={q}
+              placeholder={t("fs.searchSongs")}
+              aria-label={t("brw.search")}
+              onChange={(e) => {
+                setQ(e.target.value);
+                /* During IME composition the interim events would yank
+                   focus to SearchPanel mid-composition — only switch
+                   once the text is committed. */
+                if (!(e.nativeEvent as InputEvent).isComposing) go("search");
+              }}
+              /* Committing the same interim text fires no onChange —
+                 open Search when the composition ends instead. A
+                 canceled composition ends with empty data and must
+                 not switch the view. */
+              onCompositionEnd={(e) => {
+                if (e.data !== "") go("search");
+              }}
+            />
+          </label>
         </span>
-        <label
-          className={`brw__railsearch ${view === "search" ? "on" : ""}`}
-          /* Click or typing switches to Search — plain keyboard
-             focus must not, or tabbing past the rail would jump
-             the user into SearchPanel's autofocused input. The
-             same click also opens Search when the input is
-             collapsed to just an icon in narrow windows. */
-          onClick={() => go("search")}
-        >
-          <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
-          <input
-            value={q}
-            placeholder={t("fs.searchSongs")}
-            aria-label={t("brw.search")}
-            onChange={(e) => {
-              setQ(e.target.value);
-              /* During IME composition the interim events would yank
-                 focus to SearchPanel mid-composition — only switch
-                 once the text is committed. */
-              if (!(e.nativeEvent as InputEvent).isComposing) go("search");
-            }}
-            /* Committing the same interim text fires no onChange —
-               open Search when the composition ends instead. A
-               canceled composition ends with empty data and must
-               not switch the view. */
-            onCompositionEnd={(e) => {
-              if (e.data !== "") go("search");
-            }}
-          />
-        </label>
         <button
           className={`brw__nav ${view === "home" ? "on" : ""}`}
           onClick={() => go("home")}
@@ -738,6 +843,7 @@ export default function Browse() {
               query={q}
               onQuery={setQ}
               songLimit={6}
+              onArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
               aside={
                 playlists.length > 0 ? (
                   <>
@@ -987,7 +1093,8 @@ export default function Browse() {
                         <span className="brw__ms">{e.sub}</span>
                       </span>
                       <span className="brw__plays">
-                        {e.plays} {t("brw.plays")}
+                        {e.plays}{" "}
+                        {e.plays === 1 ? t("brw.playsOne") : t("brw.plays")}
                       </span>
                     </button>
                   ))}
@@ -1043,9 +1150,11 @@ export default function Browse() {
                       title={p.name}
                       onClick={() => openPlaylist(p)}
                     >
-                      <span className="brw__art brw__art--ph" aria-hidden>
-                        <Playlist />
-                      </span>
+                      {plArts[p.path] ? (
+                        <img className="brw__art" src={plArts[p.path]} alt="" />
+                      ) : (
+                        <GenCover name={p.name} />
+                      )}
                       <button
                         type="button"
                         className="brw__cardplay"
@@ -1130,14 +1239,26 @@ export default function Browse() {
                         aria-label={t("lib.addToPlaylist")}
                         onClick={(ev) => {
                           ev.stopPropagation();
-                          setAddToKey(addToKey === e.key ? null : e.key);
+                          const r = ev.currentTarget.getBoundingClientRect();
+                          setAddTo(
+                            addTo?.key === e.key
+                              ? null
+                              : { key: e.key, x: r.left, y: r.bottom + 6 },
+                          );
                         }}
                       >
                         <Plus />
                       </button>
-                      {addToKey === e.key && (
+                      {addTo?.key === e.key && (
                         <span
                           className="brw__plmenu"
+                          style={{
+                            left: Math.max(
+                              8,
+                              Math.min(addTo.x, window.innerWidth - 176),
+                            ),
+                            top: Math.min(addTo.y, window.innerHeight - 60),
+                          }}
                           onClick={(ev) => ev.stopPropagation()}
                         >
                           {playlists.map((p) => (
@@ -1145,11 +1266,11 @@ export default function Browse() {
                               key={p.path}
                               title={p.name}
                               onClick={() => {
-                                setAddToKey(null);
+                                setAddTo(null);
                                 void bridge
                                   .playlistAddTracks(p.path, [e.trackId])
                                   .then((n) => {
-                                    if (n > 0) setNote(p.name);
+                                    if (n > 0) flash(p.name);
                                   })
                                   .catch(fail);
                               }}
@@ -1175,15 +1296,8 @@ export default function Browse() {
                   <button
                     title={t("lib.save")}
                     onClick={() => {
-                      const name = window.prompt(t("lib.playlistName"));
-                      if (!name?.trim()) return;
-                      void bridge
-                        .exportPlaylist(name.trim())
-                        .then(() => {
-                          setNote(t("lib.save"));
-                          return bridge.listPlaylists().then(setPlaylists);
-                        })
-                        .catch(fail);
+                      setDlgName("");
+                      setDlg({ kind: "save" });
                     }}
                   >
                     {t("lib.save")}
@@ -1287,7 +1401,11 @@ export default function Browse() {
           <>
             <div className="brw__plhead">
               <span className="brw__plart">
-                <Art url={plArt} icon={<Playlist />} />
+                {plArt ? (
+                  <Art url={plArt} icon={<Playlist />} />
+                ) : (
+                  <GenCover name={plName} />
+                )}
               </span>
               <span className="brw__plmeta">
                 <span className="brw__plt">{plName}</span>
@@ -1335,17 +1453,8 @@ export default function Browse() {
                   onClick={() => {
                     const p = playlists.find((x) => `pl:${x.path}` === view);
                     if (!p) return;
-                    const name = window.prompt(t("lib.playlistName"), p.name);
-                    if (!name?.trim() || name.trim() === p.name) return;
-                    void bridge
-                      .renamePlaylist(p.path, name.trim())
-                      .then((f) => {
-                        setPlaylists((pls) =>
-                          pls.map((x) => (x.path === p.path ? f : x)),
-                        );
-                        go(`pl:${f.path}`);
-                      })
-                      .catch(fail);
+                    setDlgName(p.name);
+                    setDlg({ kind: "rename", path: p.path, name: p.name });
                   }}
                 >
                   <PencilSimple /> {t("lib.rename")}
@@ -1355,17 +1464,7 @@ export default function Browse() {
                   onClick={() => {
                     const p = playlists.find((x) => `pl:${x.path}` === view);
                     if (!p) return;
-                    if (!window.confirm(`${t("lib.delete")}: ${p.name}?`))
-                      return;
-                    void bridge
-                      .deletePlaylist(p.path)
-                      .then(() => {
-                        setPlaylists((pls) =>
-                          pls.filter((x) => x.path !== p.path),
-                        );
-                        go("home");
-                      })
-                      .catch(fail);
+                    setDlg({ kind: "delete", path: p.path, name: p.name });
                   }}
                 >
                   <Trash /> {t("lib.delete")}
@@ -1474,6 +1573,56 @@ export default function Browse() {
           </>
         )}
       </main>
+
+      {dlg && (
+        <span className="brw__dlg" onClick={() => setDlg(null)}>
+          <span
+            className="brw__dlgcard"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="brw__dlgtitle">
+              {dlg.kind === "save"
+                ? t("lib.save")
+                : dlg.kind === "rename"
+                  ? t("lib.rename")
+                  : t("lib.delete")}
+            </span>
+            {dlg.kind === "delete" ? (
+              <span className="brw__dlgname">{dlg.name}</span>
+            ) : (
+              <input
+                className="brw__dlginput"
+                autoFocus
+                value={dlgName}
+                placeholder={t("lib.playlistName")}
+                aria-label={t("lib.playlistName")}
+                onChange={(e) => setDlgName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitDlg();
+                  if (e.key === "Escape") setDlg(null);
+                }}
+              />
+            )}
+            <span className="brw__dlgbtns">
+              <button className="brw__dlgbtn" onClick={() => setDlg(null)}>
+                {t("brw.cancel")}
+              </button>
+              <button
+                className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
+                onClick={submitDlg}
+              >
+                {dlg.kind === "save"
+                  ? t("lib.save")
+                  : dlg.kind === "rename"
+                    ? t("lib.rename")
+                    : t("lib.delete")}
+              </button>
+            </span>
+          </span>
+        </span>
+      )}
 
       {ctx && (
         <span

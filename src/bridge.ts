@@ -872,7 +872,9 @@ export const bridge = {
   playlistTracks: (path: string): Promise<PlaylistTrack[]> =>
     isTauri()
       ? invokeCmd<PlaylistTrack[]>("playlist_tracks", { path })
-      : Promise.resolve(findPl(path)?.tracks ?? []),
+      /* Copy: the view derives state by filtering/splicing the result —
+         handing it the store's array would mutate both at once. */
+      : Promise.resolve([...(findPl(path)?.tracks ?? [])]),
   /** Drop the entry at `index` from an .m3u/.m3u8 playlist. */
   playlistRemoveTrack: (path: string, index: number): Promise<void> => {
     if (isTauri()) return invokeCmd("playlist_remove_track", { path, index });

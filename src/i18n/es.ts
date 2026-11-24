@@ -282,6 +282,8 @@ const es: Record<keyof typeof en, string> = {
   "brw.topTracks": "Tus más escuchadas",
   "brw.topArtists": "Tus artistas",
   "brw.plays": "reproducciones",
+  "brw.playsOne": "reproducción",
+  "brw.cancel": "Cancelar",
   "brw.play": "Reproducir",
   "brw.volLocalOnly": "Solo reproducción local",
   "brw.playAll": "Reproducir todo",
