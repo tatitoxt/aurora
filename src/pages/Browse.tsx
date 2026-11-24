@@ -908,6 +908,22 @@ export default function Browse() {
       });
   };
 
+  /* Arrow keys walk focus across .lib__row siblings, skipping the
+     section kickers and headers between them. */
+  const navRow = (e: React.KeyboardEvent, dir: 1 | -1) => {
+    let sib: Element | null =
+      dir > 0
+        ? e.currentTarget.nextElementSibling
+        : e.currentTarget.previousElementSibling;
+    while (sib && !sib.classList.contains("lib__row"))
+      sib =
+        dir > 0 ? sib.nextElementSibling : sib.previousElementSibling;
+    if (sib) {
+      e.preventDefault();
+      (sib as HTMLElement).focus();
+    }
+  };
+
   /* Bulk remove: walk selected indices descending so each deletion
      leaves the earlier indices valid. One reload at the end. */
   const removeSelected = () => {
@@ -1757,6 +1773,8 @@ export default function Browse() {
                   }}
                   onClick={() => playLiked(e)}
                   onKeyDown={(ev) => {
+                    if (ev.key === "ArrowDown") return navRow(ev, 1);
+                    if (ev.key === "ArrowUp") return navRow(ev, -1);
                     if (
                       (ev.key === "Enter" || ev.key === " ") &&
                       ev.target === ev.currentTarget
@@ -1877,6 +1895,8 @@ export default function Browse() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") return navRow(e, 1);
+                      if (e.key === "ArrowUp") return navRow(e, -1);
                       if (
                         (e.key === "Enter" || e.key === " ") &&
                         e.target === e.currentTarget
@@ -2193,6 +2213,8 @@ export default function Browse() {
                     setCtx({ x: e.clientX, y: e.clientY, kind: "pl", index: i });
                   }}
                   onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") return navRow(e, 1);
+                    if (e.key === "ArrowUp") return navRow(e, -1);
                     if (
                       (e.key === "Delete" || e.key === "Backspace") &&
                       sel.size > 0
