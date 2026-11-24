@@ -277,13 +277,13 @@ export default function Browse() {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (
-        e.key !== "/" ||
-        (e.target as HTMLElement | null)?.closest(
-          "input, textarea, [contenteditable]",
-        )
-      )
-        return;
+      const inField = (e.target as HTMLElement | null)?.closest(
+        "input, textarea, [contenteditable]",
+      );
+      /* Spotify binds both "/" and Ctrl/Cmd+K to search. */
+      const searchKey =
+        e.key === "/" || (e.key === "k" && (e.metaKey || e.ctrlKey));
+      if (!searchKey || (e.key === "/" && inField)) return;
       e.preventDefault();
       go("search");
       railSearchRef.current?.focus();
