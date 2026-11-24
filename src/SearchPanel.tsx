@@ -144,7 +144,15 @@ export default function SearchPanel({
         value={q}
         placeholder={t("fs.searchSongs")}
         onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && top && play(top)}
+        /* Enter plays the top song only when songs are on screen —
+           the Artists/Playlists filters hide them. */
+        onKeyDown={(e) =>
+          e.key === "Enter" &&
+          top &&
+          filter !== "artists" &&
+          filter !== "none" &&
+          play(top)
+        }
       />
       {err && <span className="fs__proverr">{err}</span>}
       {note && !err && <span className="fs__extlive">● {note}</span>}
