@@ -314,6 +314,24 @@ export default function Browse() {
       const inField = (e.target as HTMLElement | null)?.closest(
         "input, textarea, [contenteditable]",
       );
+      /* Playlist multi-select: Esc clears, Cmd/Ctrl+A picks every row
+         (unless the user is selecting text in a field). */
+      if (view.startsWith("pl:")) {
+        if (e.key === "Escape" && sel.size > 0) {
+          setSel(new Set());
+          return;
+        }
+        if (
+          e.key === "a" &&
+          (e.metaKey || e.ctrlKey) &&
+          !inField &&
+          plTracks.length > 0
+        ) {
+          e.preventDefault();
+          setSel(new Set(plTracks.map((_, i) => i)));
+          return;
+        }
+      }
       /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
       if (e.key !== "/" || inField) return;
       e.preventDefault();
@@ -331,7 +349,7 @@ export default function Browse() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  }, [view, sel.size, plTracks.length]);
 
   /* Re-entering Browse from Stage should land where you left off. */
   useEffect(() => {
