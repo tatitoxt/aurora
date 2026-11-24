@@ -284,6 +284,8 @@ const es: Record<keyof typeof en, string> = {
   "brw.topArtists": "Tus artistas",
   "brw.all": "Todo",
   "brw.recentSearches": "Búsquedas recientes",
+  "brw.inLibrary": "En tu biblioteca",
+  "brw.fromCatalog": "Del catálogo",
   "brw.colTitle": "Título",
   "brw.colDuration": "Duración",
   "brw.findInPlaylist": "Buscar en la playlist",

@@ -3208,3 +3208,11 @@ select { color-scheme: dark; }
 }
 .brw__arhead .brw__art--gen { font-size: 42px; border-radius: 50%; }
 .brw__arname { font-size: var(--fs-xl); font-weight: 750; letter-spacing: -0.01em; }
+
+.brw__arplay {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin-left: 12px; border-radius: 50%;
+  border: none; background: var(--text); color: var(--bg); cursor: pointer;
+}
+.brw__arplay:hover { transform: scale(1.05); }
+.brw__arplay svg { width: 18px; height: 18px; }

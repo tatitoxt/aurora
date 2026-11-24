@@ -1086,12 +1086,28 @@ export default function Browse() {
                 icon={<User />}
               />
               <span className="brw__arname">{arName}</span>
+              {(arLocal.length > 0 || arSongs.length > 0) && (
+                <button
+                  className="brw__arplay"
+                  title={t("brw.playAll")}
+                  onClick={() => {
+                    if (arLocal.length > 0)
+                      void bridge.playItems(arLocal, 0).catch(fail);
+                    else if (arSongs[0])
+                      playExternal(`${arSongs[0].title} ${arSongs[0].artist}`);
+                  }}
+                >
+                  <Play weight="fill" />
+                </button>
+              )}
             </div>
             {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             {!arLoading && arLocal.length === 0 && arSongs.length === 0 && (
               <span className="brw__empty">{t("brw.noTracks")}</span>
             )}
             {arLocal.length > 0 && (
+              <>
+                <span className="brw__kick">{t("brw.inLibrary")}</span>
               <div className="lib">
                 {arLocal.map((it, i) => (
                   <button
@@ -1111,8 +1127,13 @@ export default function Browse() {
                   </button>
                 ))}
               </div>
+              </>
             )}
             {arSongs.length > 0 && (
+              <>
+                {arLocal.length > 0 && (
+                  <span className="brw__kick">{t("brw.fromCatalog")}</span>
+                )}
               <div className="lib">
                 {arSongs.map((s, i) => (
                   <button
@@ -1130,6 +1151,7 @@ export default function Browse() {
                   </button>
                 ))}
               </div>
+              </>
             )}
           </div>
         )}

@@ -293,6 +293,8 @@ const en = {
   "brw.topArtists": "Top artists",
   "brw.all": "All",
   "brw.recentSearches": "Recent searches",
+  "brw.inLibrary": "In your library",
+  "brw.fromCatalog": "From the catalog",
   "brw.colTitle": "Title",
   "brw.colDuration": "Duration",
   "brw.findInPlaylist": "Find in playlist",
