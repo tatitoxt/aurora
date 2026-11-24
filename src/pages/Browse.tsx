@@ -653,6 +653,12 @@ export default function Browse() {
     setSel(new Set());
     selAnchor.current = null;
   }, [view]);
+  /* The anchor is a display position — any reorder, filter change or
+     file mutation (delete/move renumbers rows) makes it point at a
+     different track, so the next Shift-click must re-anchor. */
+  useEffect(() => {
+    selAnchor.current = null;
+  }, [plQuery, plSort, plTracks]);
   useEffect(() => {
     const el = listEndRef.current;
     if (!el) return;
