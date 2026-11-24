@@ -133,6 +133,65 @@ function GenCover({ name }: { name: string }) {
    whole-tree re-render it costs) when nothing actually changed. */
 const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
 
+/* The engine emits now-playing every tick; the page only needs
+   track/status/source changes, so the per-tick positionMs stream
+   lives inside the two components that display it — otherwise the
+   whole Browse tree would re-render on every tick. */
+function usePosMs() {
+  const [pos, setPos] = useState(0);
+  useEffect(
+    () =>
+      subscribe<NowPlaying>("now-playing", (n) =>
+        setPos(n.positionMs ?? 0),
+      ),
+    [],
+  );
+  return pos;
+}
+
+function SeekCluster({
+  durationMs,
+  hasTrack,
+}: {
+  durationMs: number | undefined;
+  hasTrack: boolean;
+}) {
+  const t = useT();
+  const pos = usePosMs();
+  const progress = durationMs ? Math.min(1, pos / durationMs) : 0;
+  return (
+    <>
+      <span className="brw__time">{hasTrack ? formatTime(pos) : "0:00"}</span>
+      <button
+        className="brw__seek"
+        aria-label={t("brw.seek")}
+        onClick={(e) => {
+          if (!durationMs) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          void bridge.seek(
+            Math.round(((e.clientX - r.left) / r.width) * durationMs),
+          );
+        }}
+      >
+        <i style={{ width: `${progress * 100}%` }} />
+      </button>
+      <span className="brw__time">
+        {durationMs ? formatTime(durationMs) : "0:00"}
+      </span>
+    </>
+  );
+}
+
+function SyncBackdrop(props: {
+  url: string;
+  playing: boolean;
+  cls: string;
+  readyCls: string;
+}) {
+  const pos = usePosMs();
+  return <VideoBackdrop {...props} posMs={pos} audible />;
+}
+
 const RECENT_SEARCHES_KEY = "brw.recentSearches";
 const LAST_VIEW_KEY = "brw.lastView";
 
@@ -324,10 +383,10 @@ export default function Browse() {
        would run its 4 IPCs hundreds of times a minute. */
     const npSig = { current: "" };
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
-      setNp(n);
       const sig = `${n.track?.id ?? ""}:${n.status}:${n.source ?? ""}`;
       if (sig !== npSig.current) {
         npSig.current = sig;
+        setNp(n);
         refresh();
       }
     });
@@ -483,9 +542,7 @@ export default function Browse() {
      "demo" stays enabled: the preview mock routes it to the audible
      YouTube-embed backdrop. */
   const volLocal = !track || np?.source === "local" || np?.source === "demo";
-  const progress = track?.durationMs
-    ? Math.min(1, (np?.positionMs ?? 0) / track.durationMs)
-    : 0;
+
 
   const flash = (msg: string) => {
     setNote(msg);
@@ -1118,13 +1175,11 @@ export default function Browse() {
   return (
     <div className="brw">
       {videoUrl && !bridge.isTauri() && (
-        <VideoBackdrop
+        <SyncBackdrop
           url={videoUrl}
-          posMs={np?.positionMs ?? 0}
           playing={playing}
           cls="brw__bgvid"
           readyCls="brw__bgvid--ready"
-          audible
         />
       )}
       <aside className="brw__rail">
@@ -2739,23 +2794,7 @@ export default function Browse() {
               <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />
             )}
           </button>
-          <span className="brw__time">{track ? formatTime(np?.positionMs ?? 0) : "0:00"}</span>
-          <button
-            className="brw__seek"
-            aria-label={t("brw.seek")}
-            onClick={(e) => {
-              if (!track?.durationMs) return;
-              const r = e.currentTarget.getBoundingClientRect();
-              void bridge.seek(
-                Math.round(((e.clientX - r.left) / r.width) * track.durationMs),
-              );
-            }}
-          >
-            <i style={{ width: `${progress * 100}%` }} />
-          </button>
-          <span className="brw__time">
-            {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
-          </span>
+          <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
         </span>
         <button
           className={`brw__icon ${view === "queue" ? "on" : ""}`}
