@@ -95,7 +95,10 @@ function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
       live = false;
     };
   }, [url]);
-  if (src) return <img className="brw__art" src={src} alt="" />;
+  if (src)
+    return (
+      <img className="brw__art" src={src} alt="" loading="lazy" decoding="async" />
+    );
   return (
     <span className="brw__art brw__art--ph" aria-hidden>
       {icon ?? <MusicNote />}
@@ -207,6 +210,9 @@ export default function Browse() {
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
+  /* Artist catalog results are static for the session — cache by
+     artist so revisiting a page doesn't re-hit the extension. */
+  const arCatalogCache = useRef(new Map<string, CatalogSong[]>());
   /* Rail playlist item highlighted as a drop target while a track
      row is dragged over it. */
   const [plDrop, setPlDrop] = useState<string | null>(null);
@@ -450,9 +456,12 @@ export default function Browse() {
     [ext],
   );
 
-  const liked = listable(favs);
-  const favSet = new Set(favs.map((f) => f.key));
-  const favKey = favKeyFor(np);
+  /* These derive from inputs that change rarely (favs, np track
+     identity) — recomputing them per render allocated a Set and
+     re-ran listable over every favorite on every tick. */
+  const liked = useMemo(() => listable(favs), [favs]);
+  const favSet = useMemo(() => new Set(favs.map((f) => f.key)), [favs]);
+  const favKey = useMemo(() => favKeyFor(np), [np]);
   const isFav = favKey !== "" && favSet.has(favKey);
   const track = np?.track ?? null;
   const playing = np?.status === "playing";
@@ -586,18 +595,24 @@ export default function Browse() {
         ),
       )
       .catch(() => {});
+    const cached = arCatalogCache.current.get(name.trim().toLowerCase());
+    if (cached) {
+      setArSongs(cached);
+      setArLoading(false);
+      return;
+    }
     void bridge
       .catalogSearch(name)
       /* catalogSearch matches the term anywhere (title, album);
          an artist page must list that artist's own catalog — the
          same credit filter SearchPanel applies internally. */
-      .then((r) =>
-        setArSongs(
-          r.filter((s) =>
-            s.artist.toLowerCase().includes(name.trim().toLowerCase()),
-          ),
-        ),
-      )
+      .then((r) => {
+        const songs = r.filter((s) =>
+          s.artist.toLowerCase().includes(name.trim().toLowerCase()),
+        );
+        arCatalogCache.current.set(name.trim().toLowerCase(), songs);
+        setArSongs(songs);
+      })
       .catch(fail)
       .finally(() => setArLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
