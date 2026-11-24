@@ -3139,3 +3139,17 @@ select { color-scheme: dark; }
 /* Hidden audible demo embed: browser preview only — keeps the song
    playing while Browse has the stage unmounted. */
 .brw__bgvid { position: fixed; width: 2px; height: 2px; left: -10px; top: -10px; opacity: 0.01; pointer-events: none; }
+
+.brw__chips { margin: 0 0 14px; }
+.brw__rsearch { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.brw__rchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.brw__rchip {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 32px; padding: 0 14px; max-width: 240px;
+  border-radius: var(--r-pill); border: 1px solid var(--hair);
+  background: var(--surface-1); color: var(--text);
+  font-size: var(--fs-sm); font-weight: 550; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.brw__rchip:hover { background: var(--surface-hover); }
+.brw__rchip svg { width: 14px; height: 14px; flex: none; }

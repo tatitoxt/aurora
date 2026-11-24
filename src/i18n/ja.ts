@@ -277,7 +277,8 @@ const ja: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "検索","brw.topTracks": "よく聴く曲","brw.topArtists": "トップアーティスト","brw.plays": "回再生","brw.playsOne": "回再生","brw.cancel": "キャンセル","brw.play": "再生","brw.playAll": "すべて再生","brw.liveView": "ライブビュー","brw.forward": "進む","brw.recentlyPlayed": "最近再生した項目","brw.settings": "設定","brw.account": "アカウント","brw.appSettings": "アプリの設定","brw.noTracks": "トラックがまだありません","brw.seek": "位置","brw.trackMissing": "このトラックのファイルがありません","brw.greetMorning": "おはようございます","brw.greetAfternoon": "こんにちは","brw.greetEvening": "こんばんは","brw.jumpBackIn": "再生を再開","brw.volLocalOnly": "\u30ed\u30fc\u30ab\u30eb\u518d\u751f\u306e\u307f","brw.showAll": "すべて表示",
+  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "検索","brw.topTracks": "よく聴く曲","brw.topArtists": "トップアーティスト","brw.all": "すべて", "brw.recentSearches": "最近の検索",
+  "brw.plays": "回再生","brw.playsOne": "回再生","brw.cancel": "キャンセル","brw.play": "再生","brw.playAll": "すべて再生","brw.liveView": "ライブビュー","brw.forward": "進む","brw.recentlyPlayed": "最近再生した項目","brw.settings": "設定","brw.account": "アカウント","brw.appSettings": "アプリの設定","brw.noTracks": "トラックがまだありません","brw.seek": "位置","brw.trackMissing": "このトラックのファイルがありません","brw.greetMorning": "おはようございます","brw.greetAfternoon": "こんにちは","brw.greetEvening": "こんばんは","brw.jumpBackIn": "再生を再開","brw.volLocalOnly": "\u30ed\u30fc\u30ab\u30eb\u518d\u751f\u306e\u307f","brw.showAll": "すべて表示",
 };
 
 export default ja;

@@ -290,6 +290,8 @@ const en = {
   "brw.search": "Search",
   "brw.topTracks": "Your top tracks",
   "brw.topArtists": "Top artists",
+  "brw.all": "All",
+  "brw.recentSearches": "Recent searches",
   "brw.plays": "plays",
   "brw.playsOne": "play",
   "brw.cancel": "Cancel",

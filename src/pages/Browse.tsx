@@ -121,6 +121,12 @@ function GenCover({ name }: { name: string }) {
   );
 }
 
+/* The poll emits fresh objects every call — skip the setState (and the
+   whole-tree re-render it costs) when nothing actually changed. */
+const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+
+const RECENT_SEARCHES_KEY = "brw.recentSearches";
+
 export default function Browse() {
   const t = useT();
   const nav = useNavigate();
@@ -198,21 +204,27 @@ export default function Browse() {
   viewRef.current = view;
 
   const refresh = () => {
-    void bridge.getQueue().then(setQueue).catch(() => {});
+    void bridge
+      .getQueue()
+      .then((q2) => setQueue((p) => (sameJson(p, q2) ? p : q2)))
+      .catch(() => {});
     /* Tabs can connect while Browse is mounted — keep the provider set
        live or playback still reports no tab. */
-    void bridge.getExtStatus().then(setExt).catch(() => {});
+    void bridge
+      .getExtStatus()
+      .then((e) => setExt((p) => (sameJson(p, e) ? p : e)))
+      .catch(() => {});
     /* A finished listen should surface on Home without remounting. */
     void bridge
       .recentPlays(viewRef.current === "recent" ? 50 : 12)
-      .then(setRecent)
+      .then((r) => setRecent((p) => (sameJson(p, r) ? p : r)))
       .catch(() => {});
     /* Volume can change outside this page (arrow-key shortcuts on
        Stage) — re-read or the mute button lies. */
     void bridge
       .getVolume()
       .then((v) => {
-        setVol(v);
+        setVol((p) => (p === v ? p : v));
         if (v > 0) preMuteVol = v;
       })
       .catch(() => {});
@@ -222,9 +234,17 @@ export default function Browse() {
     void bridge.listPlaylists().then(setPlaylists).catch(() => {});
     void bridge.getStats().then(setStats).catch(() => {});
     const offQ = subscribe<QueueState>("queue", setQueue);
+    /* now-playing emits every engine tick (position updates) — only
+       re-poll when the meaningful signature changes, or refresh()
+       would run its 4 IPCs hundreds of times a minute. */
+    const npSig = { current: "" };
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
       setNp(n);
-      refresh();
+      const sig = `${n.track?.id ?? ""}:${n.status}:${n.source ?? ""}`;
+      if (sig !== npSig.current) {
+        npSig.current = sig;
+        refresh();
+      }
     });
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
     void bridge.getShuffle().then(setShuffle).catch(() => {});
@@ -425,6 +445,35 @@ export default function Browse() {
     setCtx(null);
     setAddTo(null);
   }, [view]);
+
+  /* Spotify stores the query when a result actually plays. */
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      const v = JSON.parse(
+        localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]",
+      );
+      return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const pushSearch = (s: string) => {
+    const v = s.trim();
+    if (!v) return;
+    setRecentSearches((p) => {
+      const n = [v, ...p.filter((x) => x.toLowerCase() !== v.toLowerCase())].slice(
+        0,
+        8,
+      );
+      try {
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(n));
+      } catch {}
+      return n;
+    });
+  };
+  const [sFilter, setSFilter] = useState<
+    "all" | "songs" | "artists" | "playlists"
+  >("all");
 
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
@@ -835,16 +884,70 @@ export default function Browse() {
 
         {view === "search" && (
           <div className="brw__search">
+            {q.trim() !== "" && (
+              <span className="brw__chips seg seg--ghost">
+                {(["all", "songs", "artists", "playlists"] as const).map((f) => (
+                  <button
+                    key={f}
+                    className={sFilter === f ? "on" : ""}
+                    onClick={() => setSFilter(f)}
+                  >
+                    {f === "all"
+                      ? t("brw.all")
+                      : f === "songs"
+                        ? t("srch.songs")
+                        : f === "artists"
+                          ? t("srch.artists")
+                          : t("lib.playlists")}
+                  </button>
+                ))}
+              </span>
+            )}
+            {q.trim() === "" && recentSearches.length > 0 && (
+              <div className="brw__rsearch">
+                <span className="brw__kick">{t("brw.recentSearches")}</span>
+                <div className="brw__rchips">
+                  {recentSearches.map((s) => (
+                    <button
+                      key={s}
+                      className="brw__rchip"
+                      title={s}
+                      onClick={() => setQ(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                  <button
+                    className="brw__rchip"
+                    title={t("lib.clear")}
+                    aria-label={t("lib.clear")}
+                    onClick={() => {
+                      setRecentSearches([]);
+                      try {
+                        localStorage.removeItem(RECENT_SEARCHES_KEY);
+                      } catch {}
+                    }}
+                  >
+                    <X />
+                  </button>
+                </div>
+              </div>
+            )}
             <SearchPanel
               src="auto"
               label={(id) => id}
               connected={connected}
-              onPlayed={refresh}
+              onPlayed={() => {
+                refresh();
+                pushSearch(q);
+              }}
               query={q}
               onQuery={setQ}
               songLimit={6}
               onArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
+              filter={sFilter === "playlists" ? "none" : sFilter}
               aside={
+                (sFilter === "all" || sFilter === "playlists") &&
                 playlists.length > 0 ? (
                   <>
                     <span className="srch__h">{t("lib.playlists")}</span>

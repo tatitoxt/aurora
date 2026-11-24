@@ -28,6 +28,7 @@ export default function SearchPanel({
   aside,
   songLimit,
   onArtist,
+  filter = "all",
 }: {
   src: string;
   label: (id: string) => string;
@@ -43,6 +44,8 @@ export default function SearchPanel({
   /** Route artist clicks externally (e.g. Browse pushes its own artist
       view onto the history stack) instead of the internal sub-page. */
   onArtist?: (name: string) => void;
+  /** Spotify-style section filter for the caller's filter chips. */
+  filter?: "all" | "songs" | "artists" | "none";
 }) {
   const t = useT();
   const [qLocal, setQLocal] = useState("");
@@ -153,8 +156,8 @@ export default function SearchPanel({
       )}
       {shown.length > 0 && (
         <div className="srch__body">
-          {!artist && <span className="srch__h">{t("srch.top")}</span>}
-          {artist ? null : topArtist ? (
+          {filter === "all" && !artist && <span className="srch__h">{t("srch.top")}</span>}
+          {filter !== "all" || artist ? null : topArtist ? (
             <button
               className="srch__top"
               title={topArtist[0]}
@@ -181,7 +184,10 @@ export default function SearchPanel({
               </span>
             </button>
           )}
-          {!artist && artists.length > 1 && (
+          {!artist &&
+            (filter === "artists" ? artists.length > 0 : artists.length > 1) &&
+            filter !== "songs" &&
+            filter !== "none" && (
             <>
               <span className="srch__h">{t("srch.artists")}</span>
               <div className="srch__artists">
@@ -199,6 +205,8 @@ export default function SearchPanel({
               </div>
             </>
           )}
+          {filter !== "artists" && filter !== "none" && (
+            <>
           <span className="srch__h">
             {artist ? (
               <button
@@ -234,6 +242,8 @@ export default function SearchPanel({
               </div>
             ))}
           </div>
+            </>
+          )}
           {aside && <div className="srch__aside">{aside}</div>}
         </div>
       )}
