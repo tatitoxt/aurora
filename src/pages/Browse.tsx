@@ -203,6 +203,10 @@ export default function Browse() {
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
   const [arLoading, setArLoading] = useState(false);
+  /* Long lists render in 200-row pages revealed by a sentinel — a
+     2 000-track playlist shouldn't mount 2 000 rows of DOM at once. */
+  const [listLimit, setListLimit] = useState(200);
+  const listEndRef = useRef<HTMLDivElement>(null);
   /* Spotify-style back/forward inside the Browse tab. */
   const [past, setPast] = useState<View[]>([]);
   const [future, setFuture] = useState<View[]>([]);
@@ -315,6 +319,7 @@ export default function Browse() {
       /* storage can be unavailable in private contexts */
     }
   }, [view]);
+
 
   /* Browser preview only: the demo soundtrack lives in the YouTube embed,
      which unmounts with Stage — keep an audible (hidden) embed here so
@@ -549,6 +554,29 @@ export default function Browse() {
     dir: 1 | -1;
   }>({ key: null, dir: 1 });
   const [plQuery, setPlQuery] = useState("");
+  /* Liked rows reuse the same find box text. */
+  const likedShown = useMemo(
+    () =>
+      liked.filter(
+        (e) =>
+          !plQuery.trim() ||
+          e.title.toLowerCase().includes(plQuery.trim().toLowerCase()) ||
+          e.artist.toLowerCase().includes(plQuery.trim().toLowerCase()),
+      ),
+    [liked, plQuery],
+  );
+
+  /* A new view or filter restarts the reveal window. */
+  useEffect(() => setListLimit(200), [view, plQuery]);
+  useEffect(() => {
+    const el = listEndRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((es) => {
+      if (es.some((e) => e.isIntersecting)) setListLimit((l) => l + 200);
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  });
   const toggleSort = (key: "title" | "artist" | "duration") =>
     setPlSort((p) =>
       p.key !== key
@@ -1553,14 +1581,7 @@ export default function Browse() {
             )}
             {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
             <div className="lib">
-              {liked
-                .filter(
-                  (e) =>
-                    !plQuery.trim() ||
-                    e.title.toLowerCase().includes(plQuery.trim().toLowerCase()) ||
-                    e.artist.toLowerCase().includes(plQuery.trim().toLowerCase()),
-                )
-                .map((e) => (
+              {likedShown.slice(0, listLimit).map((e) => (
                 <div
                   key={e.key}
                   className="lib__row"
@@ -1642,6 +1663,9 @@ export default function Browse() {
                 </div>
               ))}
             </div>
+            {likedShown.length > listLimit && (
+              <div ref={listEndRef} aria-hidden />
+            )}
           </>
         )}
 
@@ -1917,7 +1941,7 @@ export default function Browse() {
               </div>
             )}
             <div className="lib">
-              {plShown.map(({ t: pt, i }) => {
+              {plShown.slice(0, listLimit).map(({ t: pt, i }) => {
                 const current = isNow(pt);
                 return (
                 <div
@@ -2020,6 +2044,9 @@ export default function Browse() {
                 );
               })}
             </div>
+            {plShown.length > listLimit && (
+              <div ref={listEndRef} aria-hidden />
+            )}
           </>
         )}
       </main>
