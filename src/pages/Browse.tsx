@@ -599,6 +599,20 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
   const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
+  /* Spotify groups an artist page by release — keep first-seen album
+     order; empty album names fall into a "singles" bucket last. */
+  const arGroups = useMemo(() => {
+    const m = new Map<string, CatalogSong[]>();
+    for (const s of arSongs) {
+      const k = s.album?.trim() || "";
+      const g = m.get(k);
+      if (g) g.push(s);
+      else m.set(k, [s]);
+    }
+    const singles = m.get("") ?? [];
+    m.delete("");
+    return [...m.entries(), ...(singles.length ? [["", singles] as [string, CatalogSong[]]] : [])];
+  }, [arSongs]);
   /* Header art: first playlist row whose artwork we can resolve. */
   const artFor = (ts: PlaylistTrack[]) =>
     ts
@@ -1189,20 +1203,29 @@ export default function Browse() {
                   <span className="brw__kick">{t("brw.fromCatalog")}</span>
                 )}
               <div className="lib">
-                {arSongs.map((s, i) => (
-                  <button
-                    className="lib__row"
-                    key={`${s.title}-${i}`}
-                    title={s.title}
-                    onClick={() => playExternal(`${s.title} ${s.artist}`)}
-                  >
-                    <span className="lib__idx">{i + 1}</span>
-                    <span className="lib__title">{s.title}</span>
-                    <span className="lib__sub">{s.album || s.artist}</span>
-                    <span className="lib__dur">
-                      {s.durationMs ? formatTime(s.durationMs) : ""}
-                    </span>
-                  </button>
+                {arGroups.map(([album, songs]) => (
+                  <Fragment key={album || "__singles"}>
+                    {/* Only label groups when albums actually exist —
+                        a flat list needs no header. */}
+                    {album !== "" && arGroups.length > 1 && (
+                      <div className="brw__kick brw__qsection">{album}</div>
+                    )}
+                    {songs.map((s, i) => (
+                      <button
+                        className="lib__row"
+                        key={`${s.title}-${album}-${i}`}
+                        title={s.title}
+                        onClick={() => playExternal(`${s.title} ${s.artist}`)}
+                      >
+                        <span className="lib__idx">{i + 1}</span>
+                        <span className="lib__title">{s.title}</span>
+                        <span className="lib__sub">{s.album || s.artist}</span>
+                        <span className="lib__dur">
+                          {s.durationMs ? formatTime(s.durationMs) : ""}
+                        </span>
+                      </button>
+                    ))}
+                  </Fragment>
                 ))}
               </div>
               </>
