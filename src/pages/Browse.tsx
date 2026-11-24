@@ -1167,7 +1167,13 @@ export default function Browse() {
                   <>
                     <span className="srch__h">{t("lib.playlists")}</span>
                     <div className="srch__pllist">
-                      {playlists.map((p) => (
+                      {playlists
+                        .filter((p) =>
+                          p.name
+                            .toLowerCase()
+                            .includes(q.trim().toLowerCase()),
+                        )
+                        .map((p) => (
                         <button
                           key={p.path}
                           className="srch__pl"
