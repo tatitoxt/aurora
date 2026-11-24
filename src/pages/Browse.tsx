@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   artSrc,
@@ -26,14 +26,19 @@ import {
 } from "../favs";
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
+import type { MsgKey } from "../i18n";
 import SearchPanel from "../SearchPanel";
 import BrowserSources from "../BrowserSources";
 import { VideoBackdrop } from "../VideoBackdrop";
 import {
   ArrowsOut,
   Broadcast,
+  CaretDown,
   CaretLeft,
   CaretRight,
+  CaretUp,
+  CaretUpDown,
+  Clock,
   Heart,
   House,
   ListBullets,
@@ -98,10 +103,64 @@ function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
   );
 }
 
+const hueOf = (s: string) => {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+};
+
+/** Generated cover for art-less playlists: a two-tone gradient tile
+    with the initial — reads like a blurred cover, not a dead square. */
+function GenCover({ name }: { name: string }) {
+  const h = hueOf(name);
+  return (
+    <span
+      className="brw__art brw__art--gen"
+      style={{
+        background: `linear-gradient(135deg, hsl(${h} 42% 34%), hsl(${(h + 70) % 360} 38% 16%))`,
+      }}
+      aria-hidden
+    >
+      {name.trim().charAt(0).toUpperCase() || "♪"}
+    </span>
+  );
+}
+
+/* The poll emits fresh objects every call — skip the setState (and the
+   whole-tree re-render it costs) when nothing actually changed. */
+const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+
+const RECENT_SEARCHES_KEY = "brw.recentSearches";
+const LAST_VIEW_KEY = "brw.lastView";
+
+/* Spotify's "Browse all" grid on the empty search page — each tile
+   seeds a provider query since we have no editorial catalog. */
+const CATEGORIES: { k: MsgKey; q: string; hue: number }[] = [
+  { k: "brw.cat.charts", q: "top hits", hue: 262 },
+  { k: "brw.cat.newReleases", q: "new releases", hue: 205 },
+  { k: "brw.cat.latin", q: "latin hits", hue: 340 },
+  { k: "brw.cat.mood", q: "mood", hue: 275 },
+  { k: "brw.cat.workout", q: "workout", hue: 160 },
+  { k: "brw.cat.party", q: "party", hue: 20 },
+];
+
+const readLastView = (): View => {
+  try {
+    const v = localStorage.getItem(LAST_VIEW_KEY) ?? "";
+    return /^(home|search|liked|queue|services|settings|recent|pl:|ar:)/.test(
+      v,
+    )
+      ? (v as View)
+      : "home";
+  } catch {
+    return "home";
+  }
+};
+
 export default function Browse() {
   const t = useT();
   const nav = useNavigate();
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(readLastView);
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
   const [plTracks, setPlTracks] = useState<PlaylistTrack[]>([]);
@@ -122,20 +181,80 @@ export default function Browse() {
   const [vol, setVol] = useState(0.8);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
-  const [addToKey, setAddToKey] = useState<string | null>(null);
+  /* "+" add-to-playlist popover: anchored to the button's viewport
+     rect (fixed) so the scroll container can't clip it. */
+  const [addTo, setAddTo] = useState<{ key: string; x: number; y: number } | null>(null);
+  /* In-app dialog for Save/Rename/Delete — window.prompt/confirm are
+     suppressed in automation and look alien anyway. */
+  const [dlg, setDlg] = useState<
+    | { kind: "save" }
+    | { kind: "create" }
+    | { kind: "rename"; path: string; name: string }
+    | { kind: "delete"; path: string; name: string }
+    | null
+  >(null);
+  const [dlgName, setDlgName] = useState("");
   const [ctx, setCtx] = useState<{
     x: number;
     y: number;
-    kind: "pl" | "queue";
+    kind: "pl" | "queue" | "railpl" | "pladd";
     index: number;
+    /* railpl: the playlist being right-clicked. pladd: the track
+       path being added to a playlist. */
+    path?: string;
+    name?: string;
   } | null>(null);
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
+  /* Rail playlist item highlighted as a drop target while a track
+     row is dragged over it. */
+  const [plDrop, setPlDrop] = useState<string | null>(null);
+  /* Spotify's "/" shortcut jumps focus to the rail search box. */
+  const railSearchRef = useRef<HTMLInputElement>(null);
   const [recent, setRecent] = useState<PlayRecord[]>([]);
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
   const [arLoading, setArLoading] = useState(false);
+  /* Long lists render in 200-row pages revealed by a sentinel — a
+     2 000-track playlist shouldn't mount 2 000 rows of DOM at once. */
+  const [listLimit, setListLimit] = useState(200);
+  const listEndRef = useRef<HTMLDivElement>(null);
+  /* Multi-select on playlist rows: indices into plTracks (the stored
+     file order), so they stay valid under find/sort. */
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const selAnchor = useRef<number | null>(null);
+  const [plSort, setPlSort] = useState<{
+    key: "title" | "artist" | "duration" | null;
+    dir: 1 | -1;
+  }>({ key: null, dir: 1 });
+  const [plQuery, setPlQuery] = useState("");
+  const plShown = useMemo(() => {
+    let rows = plTracks.map((t, i) => ({ t, i }));
+    const term = plQuery.trim().toLowerCase();
+    if (term)
+      rows = rows.filter(
+        ({ t: pt }) =>
+          pt.title.toLowerCase().includes(term) ||
+          pt.artist.toLowerCase().includes(term) ||
+          pt.path.toLowerCase().includes(term),
+      );
+    if (plSort.key) {
+      const dir = plSort.dir;
+      const key = plSort.key;
+      rows = [...rows].sort((a, b) => {
+        const cmp =
+          key === "duration"
+            ? (a.t.durationMs ?? Number.MAX_SAFE_INTEGER) -
+              (b.t.durationMs ?? Number.MAX_SAFE_INTEGER)
+            : key === "artist"
+              ? a.t.artist.localeCompare(b.t.artist)
+              : a.t.title.localeCompare(b.t.title);
+        return cmp !== 0 ? cmp * dir : a.i - b.i;
+      });
+    }
+    return rows;
+  }, [plTracks, plQuery, plSort]);
   /* Spotify-style back/forward inside the Browse tab. */
   const [past, setPast] = useState<View[]>([]);
   const [future, setFuture] = useState<View[]>([]);
@@ -164,21 +283,27 @@ export default function Browse() {
   viewRef.current = view;
 
   const refresh = () => {
-    void bridge.getQueue().then(setQueue).catch(() => {});
+    void bridge
+      .getQueue()
+      .then((q2) => setQueue((p) => (sameJson(p, q2) ? p : q2)))
+      .catch(() => {});
     /* Tabs can connect while Browse is mounted — keep the provider set
        live or playback still reports no tab. */
-    void bridge.getExtStatus().then(setExt).catch(() => {});
+    void bridge
+      .getExtStatus()
+      .then((e) => setExt((p) => (sameJson(p, e) ? p : e)))
+      .catch(() => {});
     /* A finished listen should surface on Home without remounting. */
     void bridge
       .recentPlays(viewRef.current === "recent" ? 50 : 12)
-      .then(setRecent)
+      .then((r) => setRecent((p) => (sameJson(p, r) ? p : r)))
       .catch(() => {});
     /* Volume can change outside this page (arrow-key shortcuts on
        Stage) — re-read or the mute button lies. */
     void bridge
       .getVolume()
       .then((v) => {
-        setVol(v);
+        setVol((p) => (p === v ? p : v));
         if (v > 0) preMuteVol = v;
       })
       .catch(() => {});
@@ -188,9 +313,17 @@ export default function Browse() {
     void bridge.listPlaylists().then(setPlaylists).catch(() => {});
     void bridge.getStats().then(setStats).catch(() => {});
     const offQ = subscribe<QueueState>("queue", setQueue);
+    /* now-playing emits every engine tick (position updates) — only
+       re-poll when the meaningful signature changes, or refresh()
+       would run its 4 IPCs hundreds of times a minute. */
+    const npSig = { current: "" };
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
       setNp(n);
-      refresh();
+      const sig = `${n.track?.id ?? ""}:${n.status}:${n.source ?? ""}`;
+      if (sig !== npSig.current) {
+        npSig.current = sig;
+        refresh();
+      }
     });
     const offFavs = subscribeFavs(() => setFavs(loadFavs()));
     void bridge.getShuffle().then(setShuffle).catch(() => {});
@@ -207,6 +340,60 @@ export default function Browse() {
       clearInterval(poll);
     };
   }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const inField = (e.target as HTMLElement | null)?.closest(
+        "input, textarea, [contenteditable]",
+      );
+      /* Playlist multi-select: Esc clears, Cmd/Ctrl+A picks every row
+         (unless the user is selecting text in a field). */
+      if (view.startsWith("pl:")) {
+        if (e.key === "Escape" && sel.size > 0) {
+          setSel(new Set());
+          return;
+        }
+        if (
+          e.key === "a" &&
+          (e.metaKey || e.ctrlKey) &&
+          !inField &&
+          plShown.length > 0
+        ) {
+          e.preventDefault();
+          /* Select-all covers the rows the user can see — a filter
+             must not rope hidden tracks into a bulk delete. */
+          setSel(new Set(plShown.map((r) => r.i)));
+          return;
+        }
+      }
+      /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
+      if (e.key !== "/" || inField) return;
+      e.preventDefault();
+      go("search");
+      /* The rail input collapses to an icon under 440px — focusing a
+         hidden element drops the keystrokes, so aim at the panel's
+         own input after it mounts. */
+      const rail = railSearchRef.current;
+      if (rail && rail.offsetParent !== null) rail.focus();
+      else
+        requestAnimationFrame(() =>
+          document.querySelector<HTMLInputElement>(".srch input")?.focus(),
+        );
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, sel.size, plShown]);
+
+  /* Re-entering Browse from Stage should land where you left off. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_VIEW_KEY, view);
+    } catch {
+      /* storage can be unavailable in private contexts */
+    }
+  }, [view]);
+
 
   /* Browser preview only: the demo soundtrack lives in the YouTube embed,
      which unmounts with Stage — keep an audible (hidden) embed here so
@@ -332,7 +519,19 @@ export default function Browse() {
     void bridge
       .playlistTracks(view.slice(3))
       .then(setPlTracks)
-      .catch(fail)
+      .catch((e) => {
+        fail(e);
+        /* A persisted pl: view can outlive the file — a renamed or
+           deleted playlist would reload into the dead page forever.
+           Bail to Home only when the file is confirmed gone, not on
+           a transient IPC error. */
+        void bridge
+          .listPlaylists()
+          .then((pls) => {
+            if (!pls.some((x) => x.path === view.slice(3))) setView("home");
+          })
+          .catch(() => {});
+      })
       .finally(() => setPlLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
@@ -360,7 +559,16 @@ export default function Browse() {
       .catch(() => {});
     void bridge
       .catalogSearch(name)
-      .then(setArSongs)
+      /* catalogSearch matches the term anywhere (title, album);
+         an artist page must list that artist's own catalog — the
+         same credit filter SearchPanel applies internally. */
+      .then((r) =>
+        setArSongs(
+          r.filter((s) =>
+            s.artist.toLowerCase().includes(name.trim().toLowerCase()),
+          ),
+        ),
+      )
       .catch(fail)
       .finally(() => setArLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -374,18 +582,100 @@ export default function Browse() {
 
   /* Right-click menu: closes on any press outside it. */
   useEffect(() => {
-    if (!ctx) return;
+    if (!ctx && !addTo) return;
     const h = (e: MouseEvent) => {
-      if (!(e.target as Element | null)?.closest?.(".brw__ctx")) setCtx(null);
+      const el = e.target as Element | null;
+      if (!el?.closest?.(".brw__ctx")) setCtx(null);
+      if (!el?.closest?.(".brw__plmenu") && !el?.closest?.(".lib__rm"))
+        setAddTo(null);
     };
     window.addEventListener("mousedown", h);
     return () => window.removeEventListener("mousedown", h);
-  }, [ctx]);
+  }, [ctx, addTo]);
 
   /* A row index only means something inside the view it was opened
      on — keyboard navigation can swap views while the menu is up. */
-  useEffect(() => setCtx(null), [view]);
+  useEffect(() => {
+    setCtx(null);
+    setAddTo(null);
+    setPlSort({ key: null, dir: 1 });
+    setPlQuery("");
+  }, [view]);
 
+  /* Spotify stores the query when a result actually plays. */
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      const v = JSON.parse(
+        localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]",
+      );
+      return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const pushSearch = (s: string) => {
+    const v = s.trim();
+    if (!v) return;
+    setRecentSearches((p) => {
+      const n = [v, ...p.filter((x) => x.toLowerCase() !== v.toLowerCase())].slice(
+        0,
+        8,
+      );
+      try {
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(n));
+      } catch {}
+      return n;
+    });
+  };
+  const [sFilter, setSFilter] = useState<
+    "all" | "songs" | "artists" | "playlists"
+  >("all");
+
+  /* Playlist view: display-only sort + in-playlist filter (Spotify's
+     column header and find box). Sorting never rewrites the .m3u,
+     and drag-reorder stays disabled while a sort/filter is on — the
+     visible order wouldn't map back to file indices. */
+  /* Liked rows reuse the same find box text. */
+  const likedShown = useMemo(
+    () =>
+      liked.filter(
+        (e) =>
+          !plQuery.trim() ||
+          e.title.toLowerCase().includes(plQuery.trim().toLowerCase()) ||
+          e.artist.toLowerCase().includes(plQuery.trim().toLowerCase()),
+      ),
+    [liked, plQuery],
+  );
+
+  /* A new view or filter restarts the reveal window. */
+  useEffect(() => setListLimit(200), [view, plQuery]);
+  useEffect(() => {
+    setSel(new Set());
+    selAnchor.current = null;
+  }, [view]);
+  /* The anchor is a display position — any reorder, filter change or
+     file mutation (delete/move renumbers rows) makes it point at a
+     different track, so the next Shift-click must re-anchor. */
+  useEffect(() => {
+    selAnchor.current = null;
+  }, [plQuery, plSort, plTracks]);
+  useEffect(() => {
+    const el = listEndRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((es) => {
+      if (es.some((e) => e.isIntersecting)) setListLimit((l) => l + 200);
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  });
+  const toggleSort = (key: "title" | "artist" | "duration") =>
+    setPlSort((p) =>
+      p.key !== key
+        ? { key, dir: 1 }
+        : p.dir === 1
+          ? { key, dir: -1 }
+          : { key: null, dir: 1 },
+    );
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
     if (saved.items.length > 0)
@@ -398,26 +688,39 @@ export default function Browse() {
   const playPlaylist = (p: PlaylistFile, shuffled = false) => {
     setErr("");
     const saved = queue;
+    /* Check emptiness first: clearing the live queue for an empty
+       playlist would force restoreQueue to restart the current track
+       from position 0, even when it was paused. */
     void bridge
-      .clearQueue()
-      .then(() => bridge.importPlaylist(p.path))
-      .then((res) => {
-        if (res.imported === 0) {
-          restoreQueue(saved);
+      .playlistTracks(p.path)
+      .then((ts) => {
+        if (ts.length === 0) {
+          flash(t("brw.noTracks"));
           return;
         }
-        return bridge.getQueue().then((q) => {
-          setQueue(q);
-          if (q.items.length === 0) {
-            restoreQueue(saved);
-            return;
-          }
-          const idx = shuffled ? Math.floor(Math.random() * q.items.length) : 0;
-          return bridge.playQueueIndex(idx).catch((e) => {
-            restoreQueue(saved);
-            throw e;
+        return bridge
+          .clearQueue()
+          .then(() => bridge.importPlaylist(p.path))
+          .then((res) => {
+            if (res.imported === 0) {
+              restoreQueue(saved);
+              return;
+            }
+            return bridge.getQueue().then((q) => {
+              setQueue(q);
+              if (q.items.length === 0) {
+                restoreQueue(saved);
+                return;
+              }
+              const idx = shuffled
+                ? Math.floor(Math.random() * q.items.length)
+                : 0;
+              return bridge.playQueueIndex(idx).catch((e) => {
+                restoreQueue(saved);
+                throw e;
+              });
+            });
           });
-        });
       })
       .catch(fail);
   };
@@ -427,9 +730,54 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
   const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
+  /* Spotify groups an artist page by release — keep first-seen album
+     order; empty album names fall into a "singles" bucket last. */
+  const arGroups = useMemo(() => {
+    const m = new Map<string, CatalogSong[]>();
+    for (const s of arSongs) {
+      const k = s.album?.trim() || "";
+      const g = m.get(k);
+      if (g) g.push(s);
+      else m.set(k, [s]);
+    }
+    const singles = m.get("") ?? [];
+    m.delete("");
+    return [...m.entries(), ...(singles.length ? [["", singles] as [string, CatalogSong[]]] : [])];
+  }, [arSongs]);
+  /* Spotify groups Recently played by day. */
+  const recGroups = useMemo(() => {
+    const dayStart = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
+    const today = dayStart(Date.now());
+    const m = new Map<number, PlayRecord[]>();
+    for (const r of recent) {
+      const d = dayStart(r.playedAtMs);
+      const g = m.get(d);
+      if (g) g.push(r);
+      else m.set(d, [r]);
+    }
+    return [...m.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([d, rows]) => ({
+        label:
+          d === today
+            ? t("brw.today")
+            : d === today - 86400000
+              ? t("brw.yesterday")
+              : new Date(d).toLocaleDateString(),
+        rows,
+      }));
+  }, [recent, t]);
+  /* Queue stats line: tracks + total runtime of what's left. */
+  const queueLeftMs = useMemo(
+    () =>
+      queue.items
+        .slice(Math.max(0, queue.currentIndex ?? 0))
+        .reduce((s, i) => s + (i.track.durationMs ?? 0), 0),
+    [queue],
+  );
   /* Header art: first playlist row whose artwork we can resolve. */
-  const plArt =
-    plTracks
+  const artFor = (ts: PlaylistTrack[]) =>
+    ts
       .map(
         (pt) =>
           queue.items.find(
@@ -440,6 +788,32 @@ export default function Browse() {
           "",
       )
       .find(Boolean) ?? "";
+  const plArt = artFor(plTracks);
+
+  /* Card covers: resolve one artwork per playlist so the grids show
+     real covers, not icon placeholders. */
+  const [plArts, setPlArts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (playlists.length === 0) {
+      setPlArts({});
+      return;
+    }
+    let live = true;
+    void Promise.all(
+      playlists.map((p) =>
+        bridge
+          .playlistTracks(p.path)
+          .then((ts) => [p.path, artFor(ts)] as const)
+          .catch(() => [p.path, ""] as const),
+      ),
+    ).then((es) => live && setPlArts(Object.fromEntries(es)));
+    return () => {
+      live = false;
+    };
+    /* artFor reads queue/liked as they are when the playlist list
+       changes — re-running per queue tick would refetch endlessly. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlists]);
 
   /** A history row maps onto the fav replay rules: local trackIds are
       file paths, everything else becomes a provider query. */
@@ -534,11 +908,110 @@ export default function Browse() {
     plRemoving.current = true;
     void bridge
       .playlistRemoveTrack(p.path, i)
-      .then(() => setPlTracks((ts) => ts.filter((_, j) => j !== i)))
+      .then(() => {
+        setPlTracks((ts) => ts.filter((_, j) => j !== i));
+        /* Rows below the deleted one shift down — renumber the
+           selection so it still points at the same tracks. */
+        setSel((s) => {
+          if (s.size === 0) return s;
+          const n = new Set<number>();
+          s.forEach((j) => {
+            if (j < i) n.add(j);
+            else if (j > i) n.add(j - 1);
+          });
+          return n;
+        });
+      })
       .catch(fail)
       .finally(() => {
         plRemoving.current = false;
       });
+  };
+
+  /* Arrow keys walk focus across .lib__row siblings, skipping the
+     section kickers and headers between them. */
+  const navRow = (e: React.KeyboardEvent, dir: 1 | -1) => {
+    let sib: Element | null =
+      dir > 0
+        ? e.currentTarget.nextElementSibling
+        : e.currentTarget.previousElementSibling;
+    while (sib && !sib.classList.contains("lib__row"))
+      sib =
+        dir > 0 ? sib.nextElementSibling : sib.previousElementSibling;
+    if (sib) {
+      e.preventDefault();
+      (sib as HTMLElement).focus();
+    }
+  };
+
+  /* Bulk remove: walk selected indices descending so each deletion
+     leaves the earlier indices valid. One reload at the end. */
+  const removeSelected = () => {
+    const p = playlists.find((x) => `pl:${x.path}` === view);
+    if (!p || sel.size === 0 || plRemoving.current) return;
+    plRemoving.current = true;
+    const idx = [...sel].sort((a, b) => b - a);
+    void idx
+      .reduce(
+        (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
+        Promise.resolve() as Promise<unknown>,
+      )
+      .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
+      .catch(fail)
+      .finally(() => {
+        plRemoving.current = false;
+        setSel(new Set());
+        selAnchor.current = null;
+      });
+  };
+
+  /** In-app dialog submit: Save queue-as-playlist / Rename / Delete. */
+  const submitDlg = () => {
+    if (!dlg) return;
+    const name = dlgName.trim();
+    if (dlg.kind === "save") {
+      if (!name) return;
+      void bridge
+        .exportPlaylist(name)
+        .then(() => {
+          flash(t("lib.save"));
+          return bridge.listPlaylists().then(setPlaylists);
+        })
+        .catch(fail);
+    } else if (dlg.kind === "create") {
+      if (!name) return;
+      void bridge
+        .createPlaylist(name)
+        .then((f) => {
+          setPlaylists((pls) => [...pls, f]);
+          go(`pl:${f.path}`);
+        })
+        .catch(fail);
+    } else if (dlg.kind === "rename") {
+      if (!name || name === dlg.name) {
+        setDlg(null);
+        return;
+      }
+      void bridge
+        .renamePlaylist(dlg.path, name)
+        .then((f) => {
+          setPlaylists((pls) => pls.map((x) => (x.path === dlg.path ? f : x)));
+          go(`pl:${f.path}`);
+        })
+        .catch(fail);
+    } else {
+      void bridge
+        .deletePlaylist(dlg.path)
+        .then(() => {
+          setPlaylists((pls) => pls.filter((x) => x.path !== dlg.path));
+          /* Deleting a different playlist from the rail shouldn't
+             yank the user off the one they're browsing (or wipe its
+             find/sort state). */
+          if (view === `pl:${dlg.path}`) go("home");
+        })
+        .catch(fail);
+    }
+    setDlg(null);
   };
 
   /* Spotify-style greeting follows the clock, not a fixed string. */
@@ -600,39 +1073,48 @@ export default function Browse() {
         />
       )}
       <aside className="brw__rail">
-        <span className="brw__brand" title={bridge.productName}>
-          <img className="brw__logo" src="/noctbeat-mark.svg" alt={bridge.productName} />
+        <span className="brw__top">
+          <span className="brw__brand" title={bridge.productName}>
+            <img className="brw__logo" src="/noctbeat-mark.svg" alt={bridge.productName} />
+          </span>
+          <label
+            className={`brw__railsearch ${view === "search" ? "on" : ""}`}
+            /* Click or typing switches to Search — plain keyboard
+               focus must not, or tabbing past the rail would jump
+               the user into SearchPanel's autofocused input. The
+               same click also opens Search when the input is
+               collapsed to just an icon in narrow windows. */
+            onClick={() => go("search")}
+          >
+            <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
+            <input
+              ref={railSearchRef}
+              value={q}
+              placeholder={t("fs.searchSongs")}
+              aria-label={t("brw.search")}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && q) {
+                  e.stopPropagation();
+                  setQ("");
+                }
+              }}
+              onChange={(e) => {
+                setQ(e.target.value);
+                /* During IME composition the interim events would yank
+                   focus to SearchPanel mid-composition — only switch
+                   once the text is committed. */
+                if (!(e.nativeEvent as InputEvent).isComposing) go("search");
+              }}
+              /* Committing the same interim text fires no onChange —
+                 open Search when the composition ends instead. A
+                 canceled composition ends with empty data and must
+                 not switch the view. */
+              onCompositionEnd={(e) => {
+                if (e.data !== "") go("search");
+              }}
+            />
+          </label>
         </span>
-        <label
-          className={`brw__railsearch ${view === "search" ? "on" : ""}`}
-          /* Click or typing switches to Search — plain keyboard
-             focus must not, or tabbing past the rail would jump
-             the user into SearchPanel's autofocused input. The
-             same click also opens Search when the input is
-             collapsed to just an icon in narrow windows. */
-          onClick={() => go("search")}
-        >
-          <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
-          <input
-            value={q}
-            placeholder={t("fs.searchSongs")}
-            aria-label={t("brw.search")}
-            onChange={(e) => {
-              setQ(e.target.value);
-              /* During IME composition the interim events would yank
-                 focus to SearchPanel mid-composition — only switch
-                 once the text is committed. */
-              if (!(e.nativeEvent as InputEvent).isComposing) go("search");
-            }}
-            /* Committing the same interim text fires no onChange —
-               open Search when the composition ends instead. A
-               canceled composition ends with empty data and must
-               not switch the view. */
-            onCompositionEnd={(e) => {
-              if (e.data !== "") go("search");
-            }}
-          />
-        </label>
         <button
           className={`brw__nav ${view === "home" ? "on" : ""}`}
           onClick={() => go("home")}
@@ -664,13 +1146,61 @@ export default function Browse() {
           <span>{t("sources.heading")}</span>
         </button>
 
-        <span className="brw__railhead">{t("lib.playlists")}</span>
+        <span className="brw__railhead">
+          {t("lib.playlists")}
+          <button
+            className="brw__railadd"
+            title={t("lib.newPlaylist")}
+            aria-label={t("lib.newPlaylist")}
+            onClick={() => {
+              setDlgName(t("lib.newPlaylist"));
+              setDlg({ kind: "create" });
+            }}
+          >
+            <Plus />
+          </button>
+        </span>
         <div className="brw__pllist">
           {playlists.map((p) => (
             <button
               key={p.path}
-              className={`brw__nav brw__nav--pl ${view === `pl:${p.path}` ? "on" : ""}`}
+              className={`brw__nav brw__nav--pl ${view === `pl:${p.path}` ? "on" : ""} ${plDrop === p.path ? "brw__nav--drop" : ""}`}
               onClick={() => openPlaylist(p)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setCtx({
+                  x: e.clientX,
+                  y: e.clientY,
+                  kind: "railpl",
+                  index: 0,
+                  path: p.path,
+                  name: p.name,
+                });
+              }}
+              onDragOver={(e) => {
+                if (
+                  e.dataTransfer.types.includes("application/x-noctbeat-track")
+                ) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  setPlDrop(p.path);
+                }
+              }}
+              onDragLeave={() => setPlDrop((d) => (d === p.path ? null : d))}
+              onDrop={(e) => {
+                e.preventDefault();
+                setPlDrop(null);
+                const tp = e.dataTransfer.getData("application/x-noctbeat-track");
+                if (!tp) return;
+                void bridge
+                  .playlistAddTracks(p.path, [tp])
+                  .then((n) => {
+                    if (n > 0) flash(p.name);
+                    if (view === `pl:${p.path}`)
+                      return bridge.playlistTracks(p.path).then(setPlTracks);
+                  })
+                  .catch(fail);
+              }}
             >
               <Playlist />
               <span>{p.name}</span>
@@ -730,20 +1260,81 @@ export default function Browse() {
 
         {view === "search" && (
           <div className="brw__search">
+            {q.trim() !== "" && (
+              <span className="brw__chips seg seg--ghost">
+                {(["all", "songs", "artists", "playlists"] as const).map((f) => (
+                  <button
+                    key={f}
+                    className={sFilter === f ? "on" : ""}
+                    onClick={() => setSFilter(f)}
+                  >
+                    {f === "all"
+                      ? t("brw.all")
+                      : f === "songs"
+                        ? t("srch.songs")
+                        : f === "artists"
+                          ? t("srch.artists")
+                          : t("lib.playlists")}
+                  </button>
+                ))}
+              </span>
+            )}
+            {q.trim() === "" && recentSearches.length > 0 && (
+              <div className="brw__rsearch">
+                <span className="brw__kick">{t("brw.recentSearches")}</span>
+                <div className="brw__rchips">
+                  {recentSearches.map((s) => (
+                    <button
+                      key={s}
+                      className="brw__rchip"
+                      title={s}
+                      onClick={() => setQ(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                  <button
+                    className="brw__rchip"
+                    title={t("lib.clear")}
+                    aria-label={t("lib.clear")}
+                    onClick={() => {
+                      setRecentSearches([]);
+                      try {
+                        localStorage.removeItem(RECENT_SEARCHES_KEY);
+                      } catch {}
+                    }}
+                  >
+                    <X />
+                  </button>
+                </div>
+              </div>
+            )}
             <SearchPanel
               src="auto"
               label={(id) => id}
               connected={connected}
-              onPlayed={refresh}
+              onPlayed={() => {
+                refresh();
+                pushSearch(q);
+              }}
               query={q}
               onQuery={setQ}
               songLimit={6}
+              onArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
+              filter={sFilter === "playlists" ? "none" : sFilter}
               aside={
+                (sFilter === "all" || sFilter === "playlists") &&
                 playlists.length > 0 ? (
                   <>
                     <span className="srch__h">{t("lib.playlists")}</span>
                     <div className="srch__pllist">
-                      {playlists.map((p) => (
+                      {playlists
+                        .filter((p) =>
+                          p.name
+                            .toLowerCase()
+                            .includes(q.trim().toLowerCase()),
+                        )
+                        .map((p) => (
                         <button
                           key={p.path}
                           className="srch__pl"
@@ -759,6 +1350,33 @@ export default function Browse() {
                 ) : undefined
               }
             />
+            {/* "Browse all" category grid under the search field, the
+                same order Spotify uses on its empty search page. */}
+            {q.trim() === "" && (
+              <>
+                <span className="brw__kick">{t("brw.browseAll")}</span>
+                <div className="brw__cats">
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.k}
+                      className="brw__cat"
+                      style={{
+                        background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
+                      }}
+                      /* A stale chip filter would hide the catalog
+                         results this tile asks for. */
+                      onClick={() => {
+                        setQ(c.q);
+                        setSFilter("all");
+                      }}
+                      title={c.q}
+                    >
+                      <span className="brw__catname">{t(c.k)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -789,11 +1407,37 @@ export default function Browse() {
 
         {view.startsWith("ar:") && (
           <div className="brw__section">
+            <div className="brw__arhead">
+              <Art
+                url={arSongs[0]?.artworkUrl ?? arLocal[0]?.track.artworkUrl}
+                icon={<User />}
+              />
+              <span className="brw__arname">{arName}</span>
+              {(arLocal.length > 0 || arSongs.length > 0) && (
+                <button
+                  className="brw__arplay"
+                  title={t("brw.playAll")}
+                  onClick={() => {
+                    if (arLocal.length > 0)
+                      void bridge.playItems(arLocal, 0).catch(fail);
+                    /* No remote-queue API exists — extPlay takes one
+                       query, so search the artist: the provider plays
+                       their top track rather than an arbitrary first
+                       catalog entry. */
+                    else if (arSongs.length > 0) playExternal(arName);
+                  }}
+                >
+                  <Play weight="fill" />
+                </button>
+              )}
+            </div>
             {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
             {!arLoading && arLocal.length === 0 && arSongs.length === 0 && (
               <span className="brw__empty">{t("brw.noTracks")}</span>
             )}
             {arLocal.length > 0 && (
+              <>
+                <span className="brw__kick">{t("brw.inLibrary")}</span>
               <div className="lib">
                 {arLocal.map((it, i) => (
                   <button
@@ -813,25 +1457,40 @@ export default function Browse() {
                   </button>
                 ))}
               </div>
+              </>
             )}
             {arSongs.length > 0 && (
+              <>
+                {arLocal.length > 0 && (
+                  <span className="brw__kick">{t("brw.fromCatalog")}</span>
+                )}
               <div className="lib">
-                {arSongs.map((s, i) => (
-                  <button
-                    className="lib__row"
-                    key={`${s.title}-${i}`}
-                    title={s.title}
-                    onClick={() => playExternal(`${s.title} ${s.artist}`)}
-                  >
-                    <span className="lib__idx">{i + 1}</span>
-                    <span className="lib__title">{s.title}</span>
-                    <span className="lib__sub">{s.album || s.artist}</span>
-                    <span className="lib__dur">
-                      {s.durationMs ? formatTime(s.durationMs) : ""}
-                    </span>
-                  </button>
+                {arGroups.map(([album, songs]) => (
+                  <Fragment key={album || "__singles"}>
+                    {/* Only label groups when albums actually exist —
+                        a flat list needs no header. */}
+                    {album !== "" && arGroups.length > 1 && (
+                      <div className="brw__kick brw__qsection">{album}</div>
+                    )}
+                    {songs.map((s, i) => (
+                      <button
+                        className="lib__row"
+                        key={`${s.title}-${album}-${i}`}
+                        title={s.title}
+                        onClick={() => playExternal(`${s.title} ${s.artist}`)}
+                      >
+                        <span className="lib__idx">{i + 1}</span>
+                        <span className="lib__title">{s.title}</span>
+                        <span className="lib__sub">{s.album || s.artist}</span>
+                        <span className="lib__dur">
+                          {s.durationMs ? formatTime(s.durationMs) : ""}
+                        </span>
+                      </button>
+                    ))}
+                  </Fragment>
                 ))}
               </div>
+              </>
             )}
           </div>
         )}
@@ -841,23 +1500,30 @@ export default function Browse() {
             {recent.length === 0 && (
               <span className="brw__empty">{t("brw.noTracks")}</span>
             )}
-            <div className="brw__grid">
-              {recent.map((r) => (
-                <button
-                  key={`${r.trackId}-${r.playedAtMs}`}
-                  className="brw__card"
-                  title={`${r.title} — ${r.artist}`}
-                  onClick={() => playRecent(r)}
-                >
-                  <Art url={recArt(r)} />
-                  <span className="brw__cardplay" aria-hidden>
-                    <Play weight="fill" />
-                  </span>
-                  <span className="brw__cardt">{r.title}</span>
-                  <span className="brw__cards">{r.artist}</span>
-                </button>
-              ))}
-            </div>
+            {recGroups.map((g) => (
+              <Fragment key={g.label}>
+                {recGroups.length > 1 && (
+                  <span className="brw__kick brw__qsection">{g.label}</span>
+                )}
+                <div className="brw__grid">
+                  {g.rows.map((r) => (
+                    <button
+                      key={`${r.trackId}-${r.playedAtMs}`}
+                      className="brw__card"
+                      title={`${r.title} — ${r.artist}`}
+                      onClick={() => playRecent(r)}
+                    >
+                      <Art url={recArt(r)} />
+                      <span className="brw__cardplay" aria-hidden>
+                        <Play weight="fill" />
+                      </span>
+                      <span className="brw__cardt">{r.title}</span>
+                      <span className="brw__cards">{r.artist}</span>
+                    </button>
+                  ))}
+                </div>
+              </Fragment>
+            ))}
           </section>
         )}
 
@@ -987,7 +1653,8 @@ export default function Browse() {
                         <span className="brw__ms">{e.sub}</span>
                       </span>
                       <span className="brw__plays">
-                        {e.plays} {t("brw.plays")}
+                        {e.plays}{" "}
+                        {e.plays === 1 ? t("brw.playsOne") : t("brw.plays")}
                       </span>
                     </button>
                   ))}
@@ -1043,9 +1710,11 @@ export default function Browse() {
                       title={p.name}
                       onClick={() => openPlaylist(p)}
                     >
-                      <span className="brw__art brw__art--ph" aria-hidden>
-                        <Playlist />
-                      </span>
+                      {plArts[p.path] ? (
+                        <img className="brw__art" src={plArts[p.path]} alt="" />
+                      ) : (
+                        <GenCover name={p.name} />
+                      )}
                       <button
                         type="button"
                         className="brw__cardplay"
@@ -1094,19 +1763,43 @@ export default function Browse() {
                   >
                     <Shuffle /> {t("fs.shuffle")}
                   </button>
+                  <label className="brw__plfind" title={t("brw.findInPlaylist")}>
+                    <MagnifyingGlass />
+                    <input
+                      value={plQuery}
+                      placeholder={t("brw.findInPlaylist")}
+                      onChange={(e) => setPlQuery(e.target.value)}
+                    />
+                    {plQuery && (
+                      <button
+                        title={t("lib.clear")}
+                        aria-label={t("lib.clear")}
+                        onClick={() => setPlQuery("")}
+                      >
+                        <X />
+                      </button>
+                    )}
+                  </label>
                 </span>
               </div>
             )}
             {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
             <div className="lib">
-              {liked.map((e) => (
+              {likedShown.slice(0, listLimit).map((e) => (
                 <div
                   key={e.key}
                   className="lib__row"
                   role="button"
                   tabIndex={0}
+                  draggable={!e.trackId.startsWith("remote:")}
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.setData("application/x-noctbeat-track", e.trackId);
+                    ev.dataTransfer.effectAllowed = "copy";
+                  }}
                   onClick={() => playLiked(e)}
                   onKeyDown={(ev) => {
+                    if (ev.key === "ArrowDown") return navRow(ev, 1);
+                    if (ev.key === "ArrowUp") return navRow(ev, -1);
                     if (
                       (ev.key === "Enter" || ev.key === " ") &&
                       ev.target === ev.currentTarget
@@ -1130,14 +1823,26 @@ export default function Browse() {
                         aria-label={t("lib.addToPlaylist")}
                         onClick={(ev) => {
                           ev.stopPropagation();
-                          setAddToKey(addToKey === e.key ? null : e.key);
+                          const r = ev.currentTarget.getBoundingClientRect();
+                          setAddTo(
+                            addTo?.key === e.key
+                              ? null
+                              : { key: e.key, x: r.left, y: r.bottom + 6 },
+                          );
                         }}
                       >
                         <Plus />
                       </button>
-                      {addToKey === e.key && (
+                      {addTo?.key === e.key && (
                         <span
                           className="brw__plmenu"
+                          style={{
+                            left: Math.max(
+                              8,
+                              Math.min(addTo.x, window.innerWidth - 176),
+                            ),
+                            top: Math.min(addTo.y, window.innerHeight - 60),
+                          }}
                           onClick={(ev) => ev.stopPropagation()}
                         >
                           {playlists.map((p) => (
@@ -1145,11 +1850,11 @@ export default function Browse() {
                               key={p.path}
                               title={p.name}
                               onClick={() => {
-                                setAddToKey(null);
+                                setAddTo(null);
                                 void bridge
                                   .playlistAddTracks(p.path, [e.trackId])
                                   .then((n) => {
-                                    if (n > 0) setNote(p.name);
+                                    if (n > 0) flash(p.name);
                                   })
                                   .catch(fail);
                               }}
@@ -1164,6 +1869,9 @@ export default function Browse() {
                 </div>
               ))}
             </div>
+            {likedShown.length > listLimit && (
+              <div ref={listEndRef} aria-hidden />
+            )}
           </>
         )}
 
@@ -1175,15 +1883,8 @@ export default function Browse() {
                   <button
                     title={t("lib.save")}
                     onClick={() => {
-                      const name = window.prompt(t("lib.playlistName"));
-                      if (!name?.trim()) return;
-                      void bridge
-                        .exportPlaylist(name.trim())
-                        .then(() => {
-                          setNote(t("lib.save"));
-                          return bridge.listPlaylists().then(setPlaylists);
-                        })
-                        .catch(fail);
+                      setDlgName("");
+                      setDlg({ kind: "save" });
                     }}
                   >
                     {t("lib.save")}
@@ -1192,17 +1893,35 @@ export default function Browse() {
                     {t("lib.clear")}
                   </button>
                 </span>
+                <span className="brw__qstat">
+                  {queue.items.length}{" "}
+                  {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")} ·{" "}
+                  {formatTime(queueLeftMs)}
+                </span>
               </div>
             )}
             <div className="lib">
               {queue.items.map((item, i) => {
                 const current = queue.currentIndex === i;
+                const ci = queue.currentIndex ?? -1;
                 return (
-                  <div
-                    key={item.path}
+                  <Fragment key={item.path}>
+                    {current && (
+                      <div className="brw__kick brw__qsection">
+                        {t("fs.nowPlaying")}
+                      </div>
+                    )}
+                    {i === ci + 1 && (
+                      <div className="brw__kick brw__qsection">
+                        {t("brw.nextInQueue")}
+                      </div>
+                    )}
+                    <div
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") return navRow(e, 1);
+                      if (e.key === "ArrowUp") return navRow(e, -1);
                       if (
                         (e.key === "Enter" || e.key === " ") &&
                         e.target === e.currentTarget
@@ -1221,7 +1940,12 @@ export default function Browse() {
                       .filter(Boolean)
                       .join(" ")}
                     draggable
-                    onDragStart={() => setDragIdx(i)}
+                    onDragStart={(e) => {
+                      /* Also published for rail-playlist drops. */
+                      e.dataTransfer.setData("application/x-noctbeat-track", item.path);
+                      e.dataTransfer.effectAllowed = "copyMove";
+                      setDragIdx(i);
+                    }}
                     onDragOver={(e) => {
                       e.preventDefault();
                       setDropIdx(i);
@@ -1274,6 +1998,7 @@ export default function Browse() {
                       <X size={13} />
                     </button>
                   </div>
+                  </Fragment>
                 );
               })}
               {queue.items.length === 0 && (
@@ -1287,7 +2012,11 @@ export default function Browse() {
           <>
             <div className="brw__plhead">
               <span className="brw__plart">
-                <Art url={plArt} icon={<Playlist />} />
+                {plArt ? (
+                  <Art url={plArt} icon={<Playlist />} />
+                ) : (
+                  <GenCover name={plName} />
+                )}
               </span>
               <span className="brw__plmeta">
                 <span className="brw__plt">{plName}</span>
@@ -1335,17 +2064,8 @@ export default function Browse() {
                   onClick={() => {
                     const p = playlists.find((x) => `pl:${x.path}` === view);
                     if (!p) return;
-                    const name = window.prompt(t("lib.playlistName"), p.name);
-                    if (!name?.trim() || name.trim() === p.name) return;
-                    void bridge
-                      .renamePlaylist(p.path, name.trim())
-                      .then((f) => {
-                        setPlaylists((pls) =>
-                          pls.map((x) => (x.path === p.path ? f : x)),
-                        );
-                        go(`pl:${f.path}`);
-                      })
-                      .catch(fail);
+                    setDlgName(p.name);
+                    setDlg({ kind: "rename", path: p.path, name: p.name });
                   }}
                 >
                   <PencilSimple /> {t("lib.rename")}
@@ -1355,32 +2075,93 @@ export default function Browse() {
                   onClick={() => {
                     const p = playlists.find((x) => `pl:${x.path}` === view);
                     if (!p) return;
-                    if (!window.confirm(`${t("lib.delete")}: ${p.name}?`))
-                      return;
-                    void bridge
-                      .deletePlaylist(p.path)
-                      .then(() => {
-                        setPlaylists((pls) =>
-                          pls.filter((x) => x.path !== p.path),
-                        );
-                        go("home");
-                      })
-                      .catch(fail);
+                    setDlg({ kind: "delete", path: p.path, name: p.name });
                   }}
                 >
                   <Trash /> {t("lib.delete")}
                 </button>
+                <label className="brw__plfind" title={t("brw.findInPlaylist")}>
+                  <MagnifyingGlass />
+                  <input
+                    value={plQuery}
+                    placeholder={t("brw.findInPlaylist")}
+                    onChange={(e) => setPlQuery(e.target.value)}
+                  />
+                  {plQuery && (
+                    <button
+                      title={t("lib.clear")}
+                      aria-label={t("lib.clear")}
+                      onClick={() => setPlQuery("")}
+                    >
+                      <X />
+                    </button>
+                  )}
+                </label>
               </span>
             </div>
             {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
+            {plTracks.length > 0 && (
+              <div className="brw__colhead" aria-hidden>
+                <span>#</span>
+                <button
+                  className={plSort.key === "title" ? "on" : ""}
+                  onClick={() => toggleSort("title")}
+                  title={t("brw.colTitle")}
+                >
+                  {t("brw.colTitle")}
+                  {plSort.key === "title" ? (
+                    plSort.dir === 1 ? (
+                      <CaretUp />
+                    ) : (
+                      <CaretDown />
+                    )
+                  ) : (
+                    <CaretUpDown />
+                  )}
+                </button>
+                <button
+                  className={plSort.key === "artist" ? "on" : ""}
+                  onClick={() => toggleSort("artist")}
+                  title={t("srch.artist")}
+                >
+                  {t("srch.artist")}
+                  {plSort.key === "artist" ? (
+                    plSort.dir === 1 ? (
+                      <CaretUp />
+                    ) : (
+                      <CaretDown />
+                    )
+                  ) : (
+                    <CaretUpDown />
+                  )}
+                </button>
+                <button
+                  className={`brw__coldur ${plSort.key === "duration" ? "on" : ""}`}
+                  onClick={() => toggleSort("duration")}
+                  title={t("brw.colDuration")}
+                >
+                  <Clock />
+                  {plSort.key === "duration" ? (
+                    plSort.dir === 1 ? (
+                      <CaretUp />
+                    ) : (
+                      <CaretDown />
+                    )
+                  ) : (
+                    <CaretUpDown />
+                  )}
+                </button>
+              </div>
+            )}
             <div className="lib">
-              {plTracks.map((pt, i) => {
+              {plShown.slice(0, listLimit).map(({ t: pt, i }, di) => {
                 const current = isNow(pt);
                 return (
                 <div
                   className={[
                     "lib__row",
                     current ? "lib__row--current" : "",
+                    sel.has(i) ? "lib__row--sel" : "",
                     dragIdx === i ? "lib__row--dragging" : "",
                     dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
                   ]
@@ -1390,8 +2171,14 @@ export default function Browse() {
                   tabIndex={0}
                   key={`${pt.path}-${i}`}
                   title={pt.title || pt.path.split("/").pop()}
-                  draggable
-                  onDragStart={() => setDragIdx(i)}
+                  /* Sorted/filtered rows don't map to file indices —
+                     Spotify locks manual reorder the same way. */
+                  draggable={!plQuery.trim() && !plSort.key}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/x-noctbeat-track", pt.path);
+                    e.dataTransfer.effectAllowed = "copyMove";
+                    setDragIdx(i);
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDropIdx(i);
@@ -1402,6 +2189,11 @@ export default function Browse() {
                     const p = playlists.find((x) => `pl:${x.path}` === view);
                     if (p && dragIdx !== null && dragIdx !== i) {
                       const from = dragIdx;
+                      /* A move renumbers the file — drop the
+                         selection instead of pointing it at the
+                         wrong tracks. */
+                      setSel(new Set());
+                      selAnchor.current = null;
                       setPlTracks((ts) => {
                         const n = [...ts];
                         const [m] = n.splice(from, 1);
@@ -1425,12 +2217,48 @@ export default function Browse() {
                     setDragIdx(null);
                     setDropIdx(null);
                   }}
-                  onClick={() => playPlTrack(i)}
+                  onClick={(e) => {
+                    /* Spotify-style multi-select: Shift = range from the
+                       last picked row, Cmd/Ctrl toggles one row. A plain
+                       click still plays the track. */
+                    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                      /* Ranges span display order — under a filter or
+                         sort, picking a visible run must not rope in
+                         the hidden tracks between them in the file. */
+                      setSel((s) => {
+                        const n = new Set(s);
+                        if (e.shiftKey && selAnchor.current !== null) {
+                          const a = Math.min(selAnchor.current, di);
+                          const b = Math.max(selAnchor.current, di);
+                          for (let k = a; k <= b; k++) {
+                            const row = plShown[k];
+                            if (row) n.add(row.i);
+                          }
+                        } else if (n.has(i)) n.delete(i);
+                        else n.add(i);
+                        return n;
+                      });
+                      selAnchor.current = di;
+                      return;
+                    }
+                    if (sel.size > 0) setSel(new Set());
+                    playPlTrack(i);
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setCtx({ x: e.clientX, y: e.clientY, kind: "pl", index: i });
                   }}
                   onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") return navRow(e, 1);
+                    if (e.key === "ArrowUp") return navRow(e, -1);
+                    if (
+                      (e.key === "Delete" || e.key === "Backspace") &&
+                      sel.size > 0
+                    ) {
+                      e.preventDefault();
+                      removeSelected();
+                      return;
+                    }
                     if (
                       (e.key === "Enter" || e.key === " ") &&
                       e.target === e.currentTarget
@@ -1471,37 +2299,260 @@ export default function Browse() {
                 );
               })}
             </div>
+            {plShown.length > listLimit && (
+              <div ref={listEndRef} aria-hidden />
+            )}
+            {sel.size > 0 && (
+              <div className="brw__selbar">
+                <b>{sel.size}</b>
+                <button
+                  className="brw__selbtn"
+                  onClick={removeSelected}
+                  title={t("lib.removeFromPlaylist")}
+                >
+                  <Trash /> {t("lib.removeFromPlaylist")}
+                </button>
+                <button
+                  className="brw__selbtn"
+                  onClick={() => setSel(new Set())}
+                  title={t("brw.cancel")}
+                >
+                  {t("brw.cancel")}
+                </button>
+              </div>
+            )}
           </>
         )}
       </main>
+
+      {dlg && (
+        <span className="brw__dlg" onClick={() => setDlg(null)}>
+          <span
+            className="brw__dlgcard"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                setDlg(null);
+                return;
+              }
+              if (e.key !== "Tab") return;
+              /* Focus trap: Tab cycles through the card's own
+                 controls so focus can't fall behind the overlay. */
+              const els = Array.from(
+                e.currentTarget.querySelectorAll<HTMLElement>(
+                  "button, input",
+                ),
+              );
+              if (els.length === 0) return;
+              const first = els[0];
+              const last = els[els.length - 1];
+              const active = document.activeElement as HTMLElement | null;
+              if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last.focus();
+              } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first.focus();
+              } else if (active && !els.includes(active)) {
+                e.preventDefault();
+                (e.shiftKey ? last : first).focus();
+              }
+            }}
+          >
+            <span className="brw__dlgtitle">
+              {dlg.kind === "save"
+                ? t("lib.save")
+                : dlg.kind === "create"
+                  ? t("lib.newPlaylist")
+                  : dlg.kind === "rename"
+                    ? t("lib.rename")
+                    : t("lib.delete")}
+            </span>
+            {dlg.kind === "delete" ? (
+              <span className="brw__dlgname">{dlg.name}</span>
+            ) : (
+              <input
+                className="brw__dlginput"
+                autoFocus
+                value={dlgName}
+                placeholder={t("lib.playlistName")}
+                aria-label={t("lib.playlistName")}
+                onChange={(e) => setDlgName(e.target.value)}
+                onKeyDown={(e) => {
+                  /* Enter that confirms an IME candidate must not
+                     submit — the name hasn't reached dlgName yet. */
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing)
+                    submitDlg();
+                }}
+              />
+            )}
+            <span className="brw__dlgbtns">
+              <button
+                className="brw__dlgbtn"
+                /* Destructive dialogs focus Cancel: an Enter held through
+                   key repeat would otherwise submit the confirm the
+                   instant it gains focus. */
+                autoFocus={dlg.kind === "delete"}
+                onClick={() => setDlg(null)}
+              >
+                {t("brw.cancel")}
+              </button>
+              <button
+                className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
+                onClick={submitDlg}
+              >
+                {dlg.kind === "save"
+                  ? t("lib.save")
+                  : dlg.kind === "create"
+                    ? t("lib.create")
+                    : dlg.kind === "rename"
+                      ? t("lib.rename")
+                      : t("lib.delete")}
+              </button>
+            </span>
+          </span>
+        </span>
+      )}
 
       {ctx && (
         <span
           className="brw__ctx"
           style={{
             left: Math.max(8, Math.min(ctx.x, window.innerWidth - 184)),
-            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 120)),
+            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 24)),
+            maxHeight: window.innerHeight - 32,
+            overflowY: "auto",
           }}
         >
-          <button
-            onClick={() => {
-              setCtx(null);
-              if (ctx.kind === "pl") playPlTrack(ctx.index);
-              else void bridge.playQueueIndex(ctx.index);
-            }}
-          >
-            {t("brw.play")}
-          </button>
+          {ctx.kind === "pladd" &&
+            playlists
+              .filter((p) => /\.m3u8?$/i.test(p.path))
+              .map((p) => (
+                <button
+                  key={p.path}
+                  title={p.name}
+                  onClick={() => {
+                    const tp = ctx.path;
+                    setCtx(null);
+                    if (!tp) return;
+                    void bridge
+                      .playlistAddTracks(p.path, [tp])
+                      .then((n) => {
+                        if (n > 0) flash(p.name);
+                      })
+                      .catch(fail);
+                  }}
+                >
+                  {p.name}
+                </button>
+              ))}
+          {ctx.kind !== "railpl" && ctx.kind !== "pladd" && (
+            <button
+              onClick={() => {
+                setCtx(null);
+                if (ctx.kind === "pl") playPlTrack(ctx.index);
+                else void bridge.playQueueIndex(ctx.index);
+              }}
+            >
+              {t("brw.play")}
+            </button>
+          )}
+          {ctx.kind === "railpl" && (
+            <>
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  setDlgName(ctx.name ?? "");
+                  setDlg({
+                    kind: "rename",
+                    path: ctx.path ?? "",
+                    name: ctx.name ?? "",
+                  });
+                }}
+              >
+                {t("lib.rename")}
+              </button>
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  setDlg({
+                    kind: "delete",
+                    path: ctx.path ?? "",
+                    name: ctx.name ?? "",
+                  });
+                }}
+              >
+                {t("lib.delete")}
+              </button>
+            </>
+          )}
+          {ctx.kind === "pl" && plTracks[ctx.index]?.artist && (
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  go(`ar:${encodeURIComponent(plTracks[ctx.index].artist)}`);
+                }}
+              >
+                {t("brw.goToArtist")}
+              </button>
+            )}
           {ctx.kind === "pl" && (
             <button
               onClick={() => {
                 setCtx(null);
-                removePlTrack(ctx.index);
+                /* A selected row's Remove honors the selection —
+                   deleting just the clicked row would silently drop
+                   the user's multi-select intent. */
+                if (sel.size > 1 && sel.has(ctx.index)) removeSelected();
+                else removePlTrack(ctx.index);
               }}
             >
               {t("lib.removeFromPlaylist")}
             </button>
           )}
+          {/* Only m3u destinations accept writes, and streams
+              can't be copied into a file playlist — offer the item
+              only when both ends can actually work. */}
+          {(ctx.kind === "pl" || ctx.kind === "queue") &&
+            playlists.some((p) => /\.m3u8?$/i.test(p.path)) &&
+            !(ctx.kind === "pl"
+              ? plTracks[ctx.index]?.remote
+              : /^(remote:|https?:)/i.test(
+                  queue.items[ctx.index]?.path ?? "",
+                )) && (
+              <button
+                onClick={() =>
+                  setCtx({
+                    x: ctx.x,
+                    y: ctx.y,
+                    kind: "pladd",
+                    index: ctx.index,
+                    path:
+                      ctx.kind === "pl"
+                        ? plTracks[ctx.index]?.path
+                        : queue.items[ctx.index]?.path,
+                  })
+                }
+              >
+                {t("lib.addToPlaylist")}…
+              </button>
+            )}
+          {ctx.kind === "queue" &&
+            queue.items[ctx.index]?.track.artist && (
+              <button
+                onClick={() => {
+                  setCtx(null);
+                  go(
+                    `ar:${encodeURIComponent(queue.items[ctx.index].track.artist)}`,
+                  );
+                }}
+              >
+                {t("brw.goToArtist")}
+              </button>
+            )}
           {ctx.kind === "queue" && queue.currentIndex !== ctx.index && (
             <button
               onClick={() => {
@@ -1623,6 +2674,14 @@ export default function Browse() {
             {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
           </span>
         </span>
+        <button
+          className={`brw__icon ${view === "queue" ? "on" : ""}`}
+          aria-label={t("lib.queue")}
+          title={t("lib.queue")}
+          onClick={() => go("queue")}
+        >
+          <ListBullets size={15} />
+        </button>
         <span
           className={`brw__volwrap ${volLocal ? "" : "brw__volwrap--off"}`}
           title={volLocal ? t("fs.volume") : t("brw.volLocalOnly")}

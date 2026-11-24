@@ -869,13 +869,9 @@ struct ExportResult {
     skipped_remote: u32,
 }
 
-/// Save the current queue as an extended M3U (`<music dir>/<name>.m3u8`).
-/// `name` is reduced to a safe file stem; an existing file gets `-2`,
-/// `-3`, … appended. Remote (not-yet-downloaded) items can't round-trip
-/// through a local playlist and are skipped.
-#[tauri::command]
-fn export_playlist(state: State<AppState>, name: String) -> Result<ExportResult, String> {
-    let dir = resolve_music_dir(&state, None)?;
+/// `<dir>/<safe-stem>.m3u8` — the stem is reduced to filename-safe
+/// chars; an existing file gets `-2`, `-3`, … appended.
+fn unique_playlist_path(dir: &str, name: &str) -> std::path::PathBuf {
     let stem = std::path::Path::new(name.trim())
         .file_stem()
         .and_then(|s| s.to_str())
@@ -895,13 +891,24 @@ fn export_playlist(state: State<AppState>, name: String) -> Result<ExportResult,
     } else {
         stem.as_str()
     };
-    let dir_path = std::path::Path::new(&dir);
+    let dir_path = std::path::Path::new(dir);
     let mut file = dir_path.join(format!("{stem}.m3u8"));
     let mut n = 2u32;
     while file.exists() {
         file = dir_path.join(format!("{stem}-{n}.m3u8"));
         n += 1;
     }
+    file
+}
+
+/// Save the current queue as an extended M3U (`<music dir>/<name>.m3u8`).
+/// `name` is reduced to a safe file stem; an existing file gets `-2`,
+/// `-3`, … appended. Remote (not-yet-downloaded) items can't round-trip
+/// through a local playlist and are skipped.
+#[tauri::command]
+fn export_playlist(state: State<AppState>, name: String) -> Result<ExportResult, String> {
+    let dir = resolve_music_dir(&state, None)?;
+    let file = unique_playlist_path(&dir, &name);
     let player = state.player.lock().map_err(|e| e.to_string())?;
     let mut items = Vec::new();
     let mut skipped = 0u32;
@@ -967,6 +974,23 @@ fn list_playlists(state: State<AppState>) -> Result<Vec<PlaylistFile>, String> {
             path: p.to_string_lossy().into_owned(),
         })
         .collect())
+}
+
+/// Create an empty playlist file (the rail's "+" button) — same naming
+/// rules as `export_playlist`, which shares `unique_playlist_path`.
+#[tauri::command]
+fn create_playlist(state: State<AppState>, name: String) -> Result<PlaylistFile, String> {
+    let dir = resolve_music_dir(&state, None)?;
+    let file = unique_playlist_path(&dir, &name);
+    std::fs::write(&file, "#EXTM3U\n")
+        .map_err(|e| format!("write {}: {e}", file.display()))?;
+    Ok(PlaylistFile {
+        name: file
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| name.clone()),
+        path: file.to_string_lossy().into_owned(),
+    })
 }
 
 /// Guard for the playlist-management commands: resolve `path` (a
@@ -2741,6 +2765,7 @@ pub fn run() {
             import_playlist,
             export_playlist,
             list_playlists,
+            create_playlist,
             rename_playlist,
             delete_playlist,
             playlist_tracks,

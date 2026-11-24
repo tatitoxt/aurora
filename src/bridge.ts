@@ -855,6 +855,17 @@ export const bridge = {
     isTauri()
       ? invokeCmd<PlaylistFile[]>("list_playlists")
       : Promise.resolve(mockPlaylistStore.map((m) => m.file)),
+  /** Create an empty playlist file; returns its name + path. */
+  createPlaylist: (name: string): Promise<PlaylistFile> => {
+    if (isTauri()) return invokeCmd<PlaylistFile>("create_playlist", { name });
+    const stem = name.trim() || "playlist";
+    let path = `/demo/${stem}.m3u8`;
+    let n = 2;
+    while (findPl(path)) path = `/demo/${stem}-${n++}.m3u8`;
+    const file = { name: path.split("/").pop()!.replace(/\.m3u8$/, ""), path };
+    mockPlaylistStore.push({ file, tracks: [] });
+    return Promise.resolve(file);
+  },
   /** Rename a playlist file in place, keeping its extension. */
   renamePlaylist: (path: string, name: string): Promise<PlaylistFile> => {
     if (isTauri()) return invokeCmd<PlaylistFile>("rename_playlist", { path, name });
@@ -872,7 +883,9 @@ export const bridge = {
   playlistTracks: (path: string): Promise<PlaylistTrack[]> =>
     isTauri()
       ? invokeCmd<PlaylistTrack[]>("playlist_tracks", { path })
-      : Promise.resolve(findPl(path)?.tracks ?? []),
+      /* Copy: the view derives state by filtering/splicing the result —
+         handing it the store's array would mutate both at once. */
+      : Promise.resolve([...(findPl(path)?.tracks ?? [])]),
   /** Drop the entry at `index` from an .m3u/.m3u8 playlist. */
   playlistRemoveTrack: (path: string, index: number): Promise<void> => {
     if (isTauri()) return invokeCmd("playlist_remove_track", { path, index });

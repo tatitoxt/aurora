@@ -108,7 +108,7 @@ const ja: Record<keyof typeof en, string> = {
   "stk.hint": "\u30b9\u30c6\u30c3\u30ab\u30fc\uff1a\u30c9\u30e9\u30c3\u30b0\u3067\u79fb\u52d5\u3001\u53f3\u30af\u30ea\u30c3\u30af\u307e\u305f\u306fDelete\u3067\u524a\u9664",
   "lib.queue": "\u30ad\u30e5\u30fc",
   "lib.queueEmpty": "キューは空です — 曲を再生するとここに表示されます。",
-  "lib.save": "\u4fdd\u5b58",
+  "lib.create": "作成", "lib.save": "\u4fdd\u5b58",
   "lib.playlistName": "\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8\u540d",
   "lib.likedEmpty": "\u66f2\u306e\u30cf\u30fc\u30c8\u3092\u30bf\u30c3\u30d7\u3059\u308b\u3068\u3053\u3053\u306b\u4fdd\u5b58\u3055\u308c\u307e\u3059\u3002",
   "lib.playlistsEmpty": "\u30ad\u30e5\u30fc\u3092\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8\u3068\u3057\u3066\u4fdd\u5b58\u3059\u308b\u304b\u3001\u30a4\u30f3\u30dd\u30fc\u30c8\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
@@ -277,7 +277,10 @@ const ja: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "検索","brw.topTracks": "よく聴く曲","brw.topArtists": "トップアーティスト","brw.plays": "回再生","brw.play": "再生","brw.playAll": "すべて再生","brw.liveView": "ライブビュー","brw.forward": "進む","brw.recentlyPlayed": "最近再生した項目","brw.settings": "設定","brw.account": "アカウント","brw.appSettings": "アプリの設定","brw.noTracks": "トラックがまだありません","brw.seek": "位置","brw.trackMissing": "このトラックのファイルがありません","brw.greetMorning": "おはようございます","brw.greetAfternoon": "こんにちは","brw.greetEvening": "こんばんは","brw.jumpBackIn": "再生を再開","brw.volLocalOnly": "\u30ed\u30fc\u30ab\u30eb\u518d\u751f\u306e\u307f","brw.showAll": "すべて表示",
+  "nav.browse": "ブラウズ","brw.home": "ホーム","brw.search": "検索","brw.topTracks": "よく聴く曲","brw.topArtists": "トップアーティスト","brw.all": "すべて", "brw.recentSearches": "最近の検索",
+  "brw.inLibrary": "ライブラリから", "brw.fromCatalog": "カタログから",
+  "brw.colTitle": "タイトル", "brw.colDuration": "再生時間", "brw.findInPlaylist": "プレイリスト内を検索",
+  "brw.plays": "回再生","brw.playsOne": "回再生","brw.cancel": "キャンセル","brw.play": "再生","brw.playAll": "すべて再生","brw.liveView": "ライブビュー","brw.forward": "進む","brw.recentlyPlayed": "最近再生した項目","brw.settings": "設定","brw.account": "アカウント","brw.appSettings": "アプリの設定","brw.noTracks": "トラックがまだありません","brw.seek": "位置","brw.trackMissing": "このトラックのファイルがありません","brw.greetMorning": "おはようございます","brw.greetAfternoon": "こんにちは","brw.greetEvening": "こんばんは","brw.jumpBackIn": "再生を再開","brw.volLocalOnly": "\u30ed\u30fc\u30ab\u30eb\u518d\u751f\u306e\u307f","brw.showAll": "すべて表示","brw.nextInQueue": "次に再生","brw.browseAll": "すべてを見る","brw.cat.charts": "チャート","brw.cat.newReleases": "新着","brw.cat.latin": "ラテン","brw.cat.mood": "ムード","brw.cat.workout": "ワークアウト","brw.cat.party": "パーティー","brw.goToArtist": "アーティストに移動","brw.today": "今日","brw.yesterday": "昨日",
 };
 
 export default ja;

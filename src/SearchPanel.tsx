@@ -27,6 +27,8 @@ export default function SearchPanel({
   onQuery,
   aside,
   songLimit,
+  onArtist,
+  filter = "all",
 }: {
   src: string;
   label: (id: string) => string;
@@ -39,6 +41,11 @@ export default function SearchPanel({
   aside?: ReactNode;
   /** Cap the songs block (Spotify's short "Songs" list); artist pages show all. */
   songLimit?: number;
+  /** Route artist clicks externally (e.g. Browse pushes its own artist
+      view onto the history stack) instead of the internal sub-page. */
+  onArtist?: (name: string) => void;
+  /** Spotify-style section filter for the caller's filter chips. */
+  filter?: "all" | "songs" | "artists" | "none";
 }) {
   const t = useT();
   const [qLocal, setQLocal] = useState("");
@@ -78,6 +85,10 @@ export default function SearchPanel({
 
   // An artist page lists that artist's own catalog, not just this query's hits.
   const openArtist = (name: string) => {
+    if (onArtist) {
+      onArtist(name);
+      return;
+    }
     setArtist(name);
     void bridge
       .catalogSearch(name)
@@ -133,7 +144,15 @@ export default function SearchPanel({
         value={q}
         placeholder={t("fs.searchSongs")}
         onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && top && play(top)}
+        /* Enter plays the top song only when songs are on screen —
+           the Artists/Playlists filters hide them. */
+        onKeyDown={(e) =>
+          e.key === "Enter" &&
+          top &&
+          filter !== "artists" &&
+          filter !== "none" &&
+          play(top)
+        }
       />
       {err && <span className="fs__proverr">{err}</span>}
       {note && !err && <span className="fs__extlive">● {note}</span>}
@@ -145,8 +164,8 @@ export default function SearchPanel({
       )}
       {shown.length > 0 && (
         <div className="srch__body">
-          {!artist && <span className="srch__h">{t("srch.top")}</span>}
-          {artist ? null : topArtist ? (
+          {filter === "all" && !artist && <span className="srch__h">{t("srch.top")}</span>}
+          {filter !== "all" || artist ? null : topArtist ? (
             <button
               className="srch__top"
               title={topArtist[0]}
@@ -173,7 +192,10 @@ export default function SearchPanel({
               </span>
             </button>
           )}
-          {!artist && artists.length > 1 && (
+          {!artist &&
+            (filter === "artists" ? artists.length > 0 : artists.length > 1) &&
+            filter !== "songs" &&
+            filter !== "none" && (
             <>
               <span className="srch__h">{t("srch.artists")}</span>
               <div className="srch__artists">
@@ -191,6 +213,8 @@ export default function SearchPanel({
               </div>
             </>
           )}
+          {filter !== "artists" && filter !== "none" && (
+            <>
           <span className="srch__h">
             {artist ? (
               <button
@@ -226,6 +250,8 @@ export default function SearchPanel({
               </div>
             ))}
           </div>
+            </>
+          )}
           {aside && <div className="srch__aside">{aside}</div>}
         </div>
       )}

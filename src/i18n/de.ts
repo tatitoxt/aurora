@@ -108,7 +108,7 @@ const de: Record<keyof typeof en, string> = {
   "stk.hint": "Sticker: ziehen zum Verschieben, Rechtsklick oder Entf zum Entfernen",
   "lib.queue": "Warteschlange",
   "lib.queueEmpty": "Nichts in der Warteschlange — spiel etwas ab.",
-  "lib.save": "Speichern",
+  "lib.create": "Erstellen", "lib.save": "Speichern",
   "lib.playlistName": "Playlist-Name",
   "lib.likedEmpty": "Tippe auf das Herz eines Titels, um ihn hier zu speichern.",
   "lib.playlistsEmpty": "Speichere die Warteschlange als Playlist oder importiere eine.",
@@ -277,7 +277,10 @@ const de: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "Durchsuchen","brw.home": "Start","brw.search": "Suchen","brw.topTracks": "Deine Top-Titel","brw.topArtists": "Top-Künstler","brw.plays": "Wiedergaben","brw.play": "Abspielen","brw.playAll": "Alle abspielen","brw.liveView": "Live-Ansicht","brw.forward": "Vor","brw.recentlyPlayed": "Kürzlich gespielt","brw.settings": "Einstellungen","brw.account": "Konto","brw.appSettings": "App-Einstellungen","brw.noTracks": "Noch keine Titel","brw.seek": "Position","brw.trackMissing": "Datei dieses Titels fehlt","brw.greetMorning": "Guten Morgen","brw.greetAfternoon": "Guten Tag","brw.greetEvening": "Guten Abend","brw.jumpBackIn": "Weiterhören","brw.volLocalOnly": "Nur lokale Wiedergabe","brw.showAll": "Alle anzeigen",
+  "nav.browse": "Durchsuchen","brw.home": "Start","brw.search": "Suchen","brw.topTracks": "Deine Top-Titel","brw.topArtists": "Top-Künstler","brw.all": "Alle", "brw.recentSearches": "Letzte Suchen",
+  "brw.inLibrary": "In deiner Bibliothek", "brw.fromCatalog": "Aus dem Katalog",
+  "brw.colTitle": "Titel", "brw.colDuration": "Dauer", "brw.findInPlaylist": "In Playlist suchen",
+  "brw.plays": "Wiedergaben","brw.playsOne": "Wiedergabe","brw.cancel": "Abbrechen","brw.play": "Abspielen","brw.playAll": "Alle abspielen","brw.liveView": "Live-Ansicht","brw.forward": "Vor","brw.recentlyPlayed": "Kürzlich gespielt","brw.settings": "Einstellungen","brw.account": "Konto","brw.appSettings": "App-Einstellungen","brw.noTracks": "Noch keine Titel","brw.seek": "Position","brw.trackMissing": "Datei dieses Titels fehlt","brw.greetMorning": "Guten Morgen","brw.greetAfternoon": "Guten Tag","brw.greetEvening": "Guten Abend","brw.jumpBackIn": "Weiterhören","brw.volLocalOnly": "Nur lokale Wiedergabe","brw.showAll": "Alle anzeigen","brw.nextInQueue": "Nächste in der Warteschlange","brw.browseAll": "Alles entdecken","brw.cat.charts": "Charts","brw.cat.newReleases": "Neuerscheinungen","brw.cat.latin": "Latin","brw.cat.mood": "Stimmung","brw.cat.workout": "Workout","brw.cat.party": "Party","brw.goToArtist": "Zum Künstler","brw.today": "Heute","brw.yesterday": "Gestern",
 };
 
 export default de;

@@ -108,7 +108,7 @@ const ko: Record<keyof typeof en, string> = {
   "stk.hint": "\uc2a4\ud2f0\ucee4: \ub4dc\ub798\uadf8\ub85c \uc774\ub3d9, \uc6b0\ud074\ub9ad \ub610\ub294 Delete\ub85c \uc0ad\uc81c",
   "lib.queue": "\ub300\uae30\uc5f4",
   "lib.queueEmpty": "대기열이 비어 있습니다 — 곡을 재생하면 여기에 표시됩니다.",
-  "lib.save": "\uc800\uc7a5",
+  "lib.create": "만들기", "lib.save": "\uc800\uc7a5",
   "lib.playlistName": "\ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8 \uc774\ub984",
   "lib.likedEmpty": "\uace1\uc758 \ud558\ud2b8\ub97c \ub204\ub974\uba74 \uc5ec\uae30\uc5d0 \uc800\uc7a5\ub429\ub2c8\ub2e4.",
   "lib.playlistsEmpty": "\ub300\uae30\uc5f4\uc744 \ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8\ub85c \uc800\uc7a5\ud558\uac70\ub098 \uac00\uc838\uc624\uc138\uc694.",
@@ -277,7 +277,10 @@ const ko: Record<keyof typeof en, string> = {
   "fs.thumbsShow": "Show thumbnails",
   "fs.thumbsHide": "Hide thumbnails",
   "fs.lyricsBtn": "Lyrics",
-  "nav.browse": "둘러보기","brw.home": "홈","brw.search": "검색","brw.topTracks": "가장 많이 들은 곡","brw.topArtists": "인기 아티스트","brw.plays": "회 재생","brw.play": "재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.forward": "앞으로","brw.recentlyPlayed": "최근 재생한 항목","brw.settings": "설정","brw.account": "계정","brw.appSettings": "앱 설정","brw.noTracks": "아직 트랙이 없습니다","brw.seek": "위치","brw.trackMissing": "파일이 없습니다","brw.greetMorning": "좋은 아침입니다","brw.greetAfternoon": "안녕하세요","brw.greetEvening": "좋은 저녁입니다","brw.jumpBackIn": "이어서 듣기","brw.volLocalOnly": "\ub85c\uceec \uc7ac\uc0dd\ub9cc","brw.showAll": "모두 보기",
+  "nav.browse": "둘러보기","brw.home": "홈","brw.search": "검색","brw.topTracks": "가장 많이 들은 곡","brw.topArtists": "인기 아티스트","brw.all": "전체", "brw.recentSearches": "최근 검색",
+  "brw.inLibrary": "내 라이브러리", "brw.fromCatalog": "카탈로그에서",
+  "brw.colTitle": "제목", "brw.colDuration": "재생 시간", "brw.findInPlaylist": "플레이리스트에서 검색",
+  "brw.plays": "회 재생","brw.playsOne": "회 재생","brw.cancel": "취소","brw.play": "재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.forward": "앞으로","brw.recentlyPlayed": "최근 재생한 항목","brw.settings": "설정","brw.account": "계정","brw.appSettings": "앱 설정","brw.noTracks": "아직 트랙이 없습니다","brw.seek": "위치","brw.trackMissing": "파일이 없습니다","brw.greetMorning": "좋은 아침입니다","brw.greetAfternoon": "안녕하세요","brw.greetEvening": "좋은 저녁입니다","brw.jumpBackIn": "이어서 듣기","brw.volLocalOnly": "\ub85c\uceec \uc7ac\uc0dd\ub9cc","brw.showAll": "모두 보기","brw.nextInQueue": "다음에 재생","brw.browseAll": "모두 둘러보기","brw.cat.charts": "차트","brw.cat.newReleases": "신곡","brw.cat.latin": "라틴","brw.cat.mood": "무드","brw.cat.workout": "운동","brw.cat.party": "파티","brw.goToArtist": "아티스트로 이동","brw.today": "오늘","brw.yesterday": "어제",
 };
 
 export default ko;
