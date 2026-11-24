@@ -2416,9 +2416,33 @@ export default function Browse() {
           className="brw__ctx"
           style={{
             left: Math.max(8, Math.min(ctx.x, window.innerWidth - 184)),
-            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 120)),
+            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 24)),
+            maxHeight: window.innerHeight - 32,
+            overflowY: "auto",
           }}
         >
+          {ctx.kind === "pladd" &&
+            playlists
+              .filter((p) => /\.m3u8?$/i.test(p.path))
+              .map((p) => (
+                <button
+                  key={p.path}
+                  title={p.name}
+                  onClick={() => {
+                    const tp = ctx.path;
+                    setCtx(null);
+                    if (!tp) return;
+                    void bridge
+                      .playlistAddTracks(p.path, [tp])
+                      .then((n) => {
+                        if (n > 0) flash(p.name);
+                      })
+                      .catch(fail);
+                  }}
+                >
+                  {p.name}
+                </button>
+              ))}
           {ctx.kind !== "railpl" && ctx.kind !== "pladd" && (
             <button
               onClick={() => {
@@ -2430,26 +2454,6 @@ export default function Browse() {
               {t("brw.play")}
             </button>
           )}
-          {ctx.kind === "pladd" &&
-            playlists.map((p) => (
-              <button
-                key={p.path}
-                title={p.name}
-                onClick={() => {
-                  const tp = ctx.path;
-                  setCtx(null);
-                  if (!tp) return;
-                  void bridge
-                    .playlistAddTracks(p.path, [tp])
-                    .then((n) => {
-                      if (n > 0) flash(p.name);
-                    })
-                    .catch(fail);
-                }}
-              >
-                {p.name}
-              </button>
-            ))}
           {ctx.kind === "railpl" && (
             <>
               <button
@@ -2503,8 +2507,16 @@ export default function Browse() {
               {t("lib.removeFromPlaylist")}
             </button>
           )}
+          {/* Only m3u destinations accept writes, and streams
+              can't be copied into a file playlist — offer the item
+              only when both ends can actually work. */}
           {(ctx.kind === "pl" || ctx.kind === "queue") &&
-            playlists.length > 0 && (
+            playlists.some((p) => /\.m3u8?$/i.test(p.path)) &&
+            !(ctx.kind === "pl"
+              ? plTracks[ctx.index]?.remote
+              : /^(remote:|https?:)/i.test(
+                  queue.items[ctx.index]?.path ?? "",
+                )) && (
               <button
                 onClick={() =>
                   setCtx({
