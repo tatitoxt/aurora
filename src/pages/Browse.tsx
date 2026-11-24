@@ -298,13 +298,19 @@ export default function Browse() {
       const inField = (e.target as HTMLElement | null)?.closest(
         "input, textarea, [contenteditable]",
       );
-      /* Spotify binds both "/" and Ctrl/Cmd+K to search. */
-      const searchKey =
-        e.key === "/" || (e.key === "k" && (e.metaKey || e.ctrlKey));
-      if (!searchKey || (e.key === "/" && inField)) return;
+      /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
+      if (e.key !== "/" || inField) return;
       e.preventDefault();
       go("search");
-      railSearchRef.current?.focus();
+      /* The rail input collapses to an icon under 440px — focusing a
+         hidden element drops the keystrokes, so aim at the panel's
+         own input after it mounts. */
+      const rail = railSearchRef.current;
+      if (rail && rail.offsetParent !== null) rail.focus();
+      else
+        requestAnimationFrame(() =>
+          document.querySelector<HTMLInputElement>(".srch input")?.focus(),
+        );
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
