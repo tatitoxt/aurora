@@ -224,6 +224,37 @@ export default function Browse() {
      file order), so they stay valid under find/sort. */
   const [sel, setSel] = useState<Set<number>>(new Set());
   const selAnchor = useRef<number | null>(null);
+  const [plSort, setPlSort] = useState<{
+    key: "title" | "artist" | "duration" | null;
+    dir: 1 | -1;
+  }>({ key: null, dir: 1 });
+  const [plQuery, setPlQuery] = useState("");
+  const plShown = useMemo(() => {
+    let rows = plTracks.map((t, i) => ({ t, i }));
+    const term = plQuery.trim().toLowerCase();
+    if (term)
+      rows = rows.filter(
+        ({ t: pt }) =>
+          pt.title.toLowerCase().includes(term) ||
+          pt.artist.toLowerCase().includes(term) ||
+          pt.path.toLowerCase().includes(term),
+      );
+    if (plSort.key) {
+      const dir = plSort.dir;
+      const key = plSort.key;
+      rows = [...rows].sort((a, b) => {
+        const cmp =
+          key === "duration"
+            ? (a.t.durationMs ?? Number.MAX_SAFE_INTEGER) -
+              (b.t.durationMs ?? Number.MAX_SAFE_INTEGER)
+            : key === "artist"
+              ? a.t.artist.localeCompare(b.t.artist)
+              : a.t.title.localeCompare(b.t.title);
+        return cmp !== 0 ? cmp * dir : a.i - b.i;
+      });
+    }
+    return rows;
+  }, [plTracks, plQuery, plSort]);
   /* Spotify-style back/forward inside the Browse tab. */
   const [past, setPast] = useState<View[]>([]);
   const [future, setFuture] = useState<View[]>([]);
@@ -326,10 +357,12 @@ export default function Browse() {
           e.key === "a" &&
           (e.metaKey || e.ctrlKey) &&
           !inField &&
-          plTracks.length > 0
+          plShown.length > 0
         ) {
           e.preventDefault();
-          setSel(new Set(plTracks.map((_, i) => i)));
+          /* Select-all covers the rows the user can see — a filter
+             must not rope hidden tracks into a bulk delete. */
+          setSel(new Set(plShown.map((r) => r.i)));
           return;
         }
       }
@@ -350,7 +383,7 @@ export default function Browse() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, sel.size, plTracks.length]);
+  }, [view, sel.size, plShown]);
 
   /* Re-entering Browse from Stage should land where you left off. */
   useEffect(() => {
@@ -602,11 +635,6 @@ export default function Browse() {
      column header and find box). Sorting never rewrites the .m3u,
      and drag-reorder stays disabled while a sort/filter is on — the
      visible order wouldn't map back to file indices. */
-  const [plSort, setPlSort] = useState<{
-    key: "title" | "artist" | "duration" | null;
-    dir: 1 | -1;
-  }>({ key: null, dir: 1 });
-  const [plQuery, setPlQuery] = useState("");
   /* Liked rows reuse the same find box text. */
   const likedShown = useMemo(
     () =>
@@ -642,33 +670,6 @@ export default function Browse() {
           ? { key, dir: -1 }
           : { key: null, dir: 1 },
     );
-  const plShown = useMemo(() => {
-    let rows = plTracks.map((t, i) => ({ t, i }));
-    const term = plQuery.trim().toLowerCase();
-    if (term)
-      rows = rows.filter(
-        ({ t: pt }) =>
-          pt.title.toLowerCase().includes(term) ||
-          pt.artist.toLowerCase().includes(term) ||
-          pt.path.toLowerCase().includes(term),
-      );
-    if (plSort.key) {
-      const dir = plSort.dir;
-      const key = plSort.key;
-      rows = [...rows].sort((a, b) => {
-        const cmp =
-          key === "duration"
-            ? (a.t.durationMs ?? Number.MAX_SAFE_INTEGER) -
-              (b.t.durationMs ?? Number.MAX_SAFE_INTEGER)
-            : key === "artist"
-              ? a.t.artist.localeCompare(b.t.artist)
-              : a.t.title.localeCompare(b.t.title);
-        return cmp !== 0 ? cmp * dir : a.i - b.i;
-      });
-    }
-    return rows;
-  }, [plTracks, plQuery, plSort]);
-
   /* Put the saved queue back when a playlist swap fails to start. */
   const restoreQueue = (saved: QueueState) => {
     if (saved.items.length > 0)
@@ -2142,7 +2143,7 @@ export default function Browse() {
               </div>
             )}
             <div className="lib">
-              {plShown.slice(0, listLimit).map(({ t: pt, i }) => {
+              {plShown.slice(0, listLimit).map(({ t: pt, i }, di) => {
                 const current = isNow(pt);
                 return (
                 <div
@@ -2210,17 +2211,23 @@ export default function Browse() {
                        last picked row, Cmd/Ctrl toggles one row. A plain
                        click still plays the track. */
                     if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                      /* Ranges span display order — under a filter or
+                         sort, picking a visible run must not rope in
+                         the hidden tracks between them in the file. */
                       setSel((s) => {
                         const n = new Set(s);
                         if (e.shiftKey && selAnchor.current !== null) {
-                          const a = Math.min(selAnchor.current, i);
-                          const b = Math.max(selAnchor.current, i);
-                          for (let k = a; k <= b; k++) n.add(k);
+                          const a = Math.min(selAnchor.current, di);
+                          const b = Math.max(selAnchor.current, di);
+                          for (let k = a; k <= b; k++) {
+                            const row = plShown[k];
+                            if (row) n.add(row.i);
+                          }
                         } else if (n.has(i)) n.delete(i);
                         else n.add(i);
                         return n;
                       });
-                      selAnchor.current = i;
+                      selAnchor.current = di;
                       return;
                     }
                     if (sel.size > 0) setSel(new Set());
