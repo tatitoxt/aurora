@@ -72,6 +72,7 @@ import ArtistView from "./browse/ArtistView";
 import HomeView from "./browse/HomeView";
 import LikedView from "./browse/LikedView";
 import QueueView from "./browse/QueueView";
+import PlaylistView from "./browse/PlaylistView";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
    back), which would silently revert unmute to the default volume. */
@@ -1353,319 +1354,41 @@ export default function Browse() {
         )}
 
         {view.startsWith("pl:") && (
-          <>
-            <div className="brw__plhead">
-              <span className="brw__plart">
-                {plArt ? (
-                  <Art url={plArt} icon={<Playlist />} />
-                ) : (
-                  <GenCover name={plName} />
-                )}
-              </span>
-              <span className="brw__plmeta">
-                <span className="brw__plt">{plName}</span>
-                <span className="brw__pls">
-                  {plTracks.length} {plTracks.length === 1 ? t("lib.track") : t("lib.tracks")}
-                  {plTracks.some((pt) => pt.durationMs > 0) && (
-                    <>
-                      {" · "}
-                      {formatTime(
-                        plTracks.reduce((ms, pt) => ms + pt.durationMs, 0),
-                      )}
-                      {/* '+' flags a subtotal: some rows report no length. */}
-                      {plTracks.some((pt) => pt.durationMs === 0) ? "+" : ""}
-                    </>
-                  )}
-                </span>
-              </span>
-              <span className="seg seg--ghost">
-                <button
-                  title={t("fs.shuffle")}
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (!p) return;
-                    void bridge
-                      .setShuffle(true)
-                      .then(() => {
-                        setShuffle(true);
-                        playPlaylist(p, true);
-                      })
-                      .catch(fail);
-                  }}
-                >
-                  <Shuffle /> {t("fs.shuffle")}
-                </button>
-                <button
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (p) playPlaylist(p);
-                  }}
-                >
-                  <Play weight="fill" /> {t("brw.playAll")}
-                </button>
-                <button
-                  title={t("lib.rename")}
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (!p) return;
-                    setDlgName(p.name);
-                    setDlg({ kind: "rename", path: p.path, name: p.name });
-                  }}
-                >
-                  <PencilSimple /> {t("lib.rename")}
-                </button>
-                <button
-                  title={t("lib.delete")}
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (!p) return;
-                    setDlg({ kind: "delete", path: p.path, name: p.name });
-                  }}
-                >
-                  <Trash /> {t("lib.delete")}
-                </button>
-                <label className="brw__plfind" title={t("brw.findInPlaylist")}>
-                  <MagnifyingGlass />
-                  <input
-                    value={plQuery}
-                    placeholder={t("brw.findInPlaylist")}
-                    onChange={(e) => setPlQuery(e.target.value)}
-                  />
-                  {plQuery && (
-                    <button
-                      title={t("lib.clear")}
-                      aria-label={t("lib.clear")}
-                      onClick={() => setPlQuery("")}
-                    >
-                      <X />
-                    </button>
-                  )}
-                </label>
-              </span>
-            </div>
-            {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
-            {plTracks.length > 0 && (
-              <div className="brw__colhead" aria-hidden>
-                <span>#</span>
-                <button
-                  className={plSort.key === "title" ? "on" : ""}
-                  onClick={() => toggleSort("title")}
-                  title={t("brw.colTitle")}
-                >
-                  {t("brw.colTitle")}
-                  {plSort.key === "title" ? (
-                    plSort.dir === 1 ? (
-                      <CaretUp />
-                    ) : (
-                      <CaretDown />
-                    )
-                  ) : (
-                    <CaretUpDown />
-                  )}
-                </button>
-                <button
-                  className={plSort.key === "artist" ? "on" : ""}
-                  onClick={() => toggleSort("artist")}
-                  title={t("srch.artist")}
-                >
-                  {t("srch.artist")}
-                  {plSort.key === "artist" ? (
-                    plSort.dir === 1 ? (
-                      <CaretUp />
-                    ) : (
-                      <CaretDown />
-                    )
-                  ) : (
-                    <CaretUpDown />
-                  )}
-                </button>
-                <button
-                  className={`brw__coldur ${plSort.key === "duration" ? "on" : ""}`}
-                  onClick={() => toggleSort("duration")}
-                  title={t("brw.colDuration")}
-                >
-                  <Clock />
-                  {plSort.key === "duration" ? (
-                    plSort.dir === 1 ? (
-                      <CaretUp />
-                    ) : (
-                      <CaretDown />
-                    )
-                  ) : (
-                    <CaretUpDown />
-                  )}
-                </button>
-              </div>
-            )}
-            <div className="lib">
-              {plShown.slice(0, listLimit).map(({ t: pt, i }, di) => {
-                const current = isNow(pt);
-                return (
-                <div
-                  className={[
-                    "lib__row",
-                    current ? "lib__row--current" : "",
-                    sel.has(i) ? "lib__row--sel" : "",
-                    dragIdx === i ? "lib__row--dragging" : "",
-                    dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  role="button"
-                  tabIndex={0}
-                  key={`${pt.path}-${i}`}
-                  title={pt.title || pt.path.split("/").pop()}
-                  /* Sorted/filtered rows don't map to file indices —
-                     Spotify locks manual reorder the same way. */
-                  draggable={!plQuery.trim() && !plSort.key}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("application/x-noctbeat-track", pt.path);
-                    e.dataTransfer.effectAllowed = "copyMove";
-                    setDragIdx(i);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDropIdx(i);
-                  }}
-                  onDragLeave={() => setDropIdx((d) => (d === i ? null : d))}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (p && dragIdx !== null && dragIdx !== i) {
-                      const from = dragIdx;
-                      /* A move renumbers the file — drop the
-                         selection instead of pointing it at the
-                         wrong tracks. */
-                      setSel(new Set());
-                      selAnchor.current = null;
-                      setPlTracks((ts) => {
-                        const n = [...ts];
-                        const [m] = n.splice(from, 1);
-                        n.splice(i, 0, m);
-                        return n;
-                      });
-                      void bridge
-                        .playlistMoveTrack(p.path, from, i)
-                        .catch((err) => {
-                          fail(err);
-                          return bridge
-                            .playlistTracks(p.path)
-                            .then(setPlTracks)
-                            .catch(() => {});
-                        });
-                    }
-                    setDragIdx(null);
-                    setDropIdx(null);
-                  }}
-                  onDragEnd={() => {
-                    setDragIdx(null);
-                    setDropIdx(null);
-                  }}
-                  onClick={(e) => {
-                    /* Spotify-style multi-select: Shift = range from the
-                       last picked row, Cmd/Ctrl toggles one row. A plain
-                       click still plays the track. */
-                    if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                      /* Ranges span display order — under a filter or
-                         sort, picking a visible run must not rope in
-                         the hidden tracks between them in the file. */
-                      setSel((s) => {
-                        const n = new Set(s);
-                        if (e.shiftKey && selAnchor.current !== null) {
-                          const a = Math.min(selAnchor.current, di);
-                          const b = Math.max(selAnchor.current, di);
-                          for (let k = a; k <= b; k++) {
-                            const row = plShown[k];
-                            if (row) n.add(row.i);
-                          }
-                        } else if (n.has(i)) n.delete(i);
-                        else n.add(i);
-                        return n;
-                      });
-                      selAnchor.current = di;
-                      return;
-                    }
-                    if (sel.size > 0) setSel(new Set());
-                    playPlTrack(i);
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setCtx({ x: e.clientX, y: e.clientY, kind: "pl", index: i });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") return navRow(e, 1);
-                    if (e.key === "ArrowUp") return navRow(e, -1);
-                    if (
-                      (e.key === "Delete" || e.key === "Backspace") &&
-                      sel.size > 0
-                    ) {
-                      e.preventDefault();
-                      removeSelected();
-                      return;
-                    }
-                    if (
-                      (e.key === "Enter" || e.key === " ") &&
-                      e.target === e.currentTarget
-                    ) {
-                      e.preventDefault();
-                      playPlTrack(i);
-                    }
-                  }}
-                >
-                  <span className="lib__idx">
-                    {current && playing ? (
-                      <span className="lib__eq" aria-hidden>
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  <span className="lib__title">{pt.title || pt.path.split("/").pop()}</span>
-                  <span className="lib__sub">{pt.artist}</span>
-                  <span className="lib__dur">
-                    {pt.remote ? "stream" : pt.durationMs ? formatTime(pt.durationMs) : ""}
-                  </span>
-                  <button
-                    className="lib__rm"
-                    title={t("lib.removeFromPlaylist")}
-                    aria-label={t("lib.removeFromPlaylist")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removePlTrack(i);
-                    }}
-                  >
-                    <X />
-                  </button>
-                </div>
-                );
-              })}
-            </div>
-            {plShown.length > listLimit && (
-              <div ref={listEndRef} aria-hidden />
-            )}
-            {sel.size > 0 && (
-              <div className="brw__selbar">
-                <b>{sel.size}</b>
-                <button
-                  className="brw__selbtn"
-                  onClick={removeSelected}
-                  title={t("lib.removeFromPlaylist")}
-                >
-                  <Trash /> {t("lib.removeFromPlaylist")}
-                </button>
-                <button
-                  className="brw__selbtn"
-                  onClick={() => setSel(new Set())}
-                  title={t("brw.cancel")}
-                >
-                  {t("brw.cancel")}
-                </button>
-              </div>
-            )}
-          </>
+          <PlaylistView
+            view={view}
+            plArt={plArt}
+            plName={plName}
+            plTracks={plTracks}
+            setPlTracks={setPlTracks}
+            plLoading={plLoading}
+            playlists={playlists}
+            plQuery={plQuery}
+            setPlQuery={setPlQuery}
+            plSort={plSort}
+            toggleSort={toggleSort}
+            plShown={plShown}
+            isNow={isNow}
+            playing={playing}
+            sel={sel}
+            setSel={setSel}
+            selAnchor={selAnchor}
+            dragIdx={dragIdx}
+            setDragIdx={setDragIdx}
+            dropIdx={dropIdx}
+            setDropIdx={setDropIdx}
+            navRow={navRow}
+            removeSelected={removeSelected}
+            playPlTrack={playPlTrack}
+            removePlTrack={removePlTrack}
+            listLimit={listLimit}
+            listEndRef={listEndRef}
+            setCtx={setCtx}
+            setDlg={setDlg}
+            setDlgName={setDlgName}
+            setShuffle={setShuffle}
+            playPlaylist={playPlaylist}
+            fail={fail}
+          />
         )}
       </main>
 

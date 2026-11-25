@@ -45,3 +45,19 @@ export const readLastView = (): View => {
     return "home";
   }
 };
+
+export type DlgState =
+  | { kind: "save" }
+  | { kind: "create" }
+  | { kind: "rename"; path: string; name: string }
+  | { kind: "delete"; path: string; name: string }
+  | null;
+
+export type CtxState = {
+  x: number;
+  y: number;
+  kind: "pl" | "queue" | "railpl" | "pladd";
+  index: number;
+  path?: string;
+  name?: string;
+} | null;
