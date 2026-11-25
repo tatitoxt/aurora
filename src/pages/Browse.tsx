@@ -70,6 +70,7 @@ import SearchView from "./browse/SearchView";
 import RecentView from "./browse/RecentView";
 import ArtistView from "./browse/ArtistView";
 import HomeView from "./browse/HomeView";
+import LikedView from "./browse/LikedView";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
    back), which would silently revert unmute to the default volume. */
@@ -1315,140 +1316,22 @@ export default function Browse() {
         )}
 
         {view === "liked" && (
-          <>
-            <button className="lib__hero" onClick={() => liked[0] && playLiked(liked[0])}>
-              <span className="lib__heroicon">
-                <Heart weight="fill" />
-              </span>
-              <span className="lib__herotxt">
-                <span className="lib__herotitle">{t("lib.liked")}</span>
-                <span className="lib__herosub">
-                  {liked.length} {liked.length === 1 ? t("lib.track") : t("lib.tracks")}
-                </span>
-              </span>
-              <span className="lib__heroplay" aria-hidden>
-                ▶
-              </span>
-            </button>
-            {liked.length > 0 && (
-              <div className="brw__qtools">
-                <span className="seg seg--ghost">
-                  <button
-                    onClick={shuffleLiked}
-                    title={t("fs.shuffle")}
-                  >
-                    <Shuffle /> {t("fs.shuffle")}
-                  </button>
-                  <label className="brw__plfind" title={t("brw.findInPlaylist")}>
-                    <MagnifyingGlass />
-                    <input
-                      value={plQuery}
-                      placeholder={t("brw.findInPlaylist")}
-                      onChange={(e) => setPlQuery(e.target.value)}
-                    />
-                    {plQuery && (
-                      <button
-                        title={t("lib.clear")}
-                        aria-label={t("lib.clear")}
-                        onClick={() => setPlQuery("")}
-                      >
-                        <X />
-                      </button>
-                    )}
-                  </label>
-                </span>
-              </div>
-            )}
-            {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
-            <div className="lib">
-              {likedShown.slice(0, listLimit).map((e) => (
-                <div
-                  key={e.key}
-                  className="lib__row"
-                  role="button"
-                  tabIndex={0}
-                  draggable={!e.trackId.startsWith("remote:")}
-                  onDragStart={(ev) => {
-                    ev.dataTransfer.setData("application/x-noctbeat-track", e.trackId);
-                    ev.dataTransfer.effectAllowed = "copy";
-                  }}
-                  onClick={() => playLiked(e)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === "ArrowDown") return navRow(ev, 1);
-                    if (ev.key === "ArrowUp") return navRow(ev, -1);
-                    if (
-                      (ev.key === "Enter" || ev.key === " ") &&
-                      ev.target === ev.currentTarget
-                    ) {
-                      ev.preventDefault();
-                      playLiked(e);
-                    }
-                  }}
-                >
-                  <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
-                  <span className="lib__title">{e.title}</span>
-                  <span className="lib__sub">{e.artist}</span>
-                  <span className="lib__dur">
-                    {e.durationMs ? formatTime(e.durationMs) : ""}
-                  </span>
-                  {playlists.length > 0 && (
-                    <span className="lib__pluswrap">
-                      <button
-                        className="lib__rm"
-                        title={t("lib.addToPlaylist")}
-                        aria-label={t("lib.addToPlaylist")}
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          const r = ev.currentTarget.getBoundingClientRect();
-                          setAddTo(
-                            addTo?.key === e.key
-                              ? null
-                              : { key: e.key, x: r.left, y: r.bottom + 6 },
-                          );
-                        }}
-                      >
-                        <Plus />
-                      </button>
-                      {addTo?.key === e.key && (
-                        <span
-                          className="brw__plmenu"
-                          style={{
-                            left: Math.max(
-                              8,
-                              Math.min(addTo.x, window.innerWidth - 176),
-                            ),
-                            top: Math.min(addTo.y, window.innerHeight - 60),
-                          }}
-                          onClick={(ev) => ev.stopPropagation()}
-                        >
-                          {playlists.map((p) => (
-                            <button
-                              key={p.path}
-                              title={p.name}
-                              onClick={() => {
-                                setAddTo(null);
-                                void bridge
-                                  .playlistAddTracks(p.path, [e.trackId])
-                                  .then((n) => {
-                                    if (n > 0) flash(p.name);
-                                  })
-                                  .catch(fail);
-                              }}
-                            >
-                              {p.name}
-                            </button>
-                          ))}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {likedShown.length > listLimit && (
-              <div ref={listEndRef} aria-hidden />
-            )}
-          </>
+          <LikedView
+            liked={liked}
+            playLiked={playLiked}
+            shuffleLiked={shuffleLiked}
+            plQuery={plQuery}
+            setPlQuery={setPlQuery}
+            likedShown={likedShown}
+            listLimit={listLimit}
+            navRow={navRow}
+            playlists={playlists}
+            addTo={addTo}
+            setAddTo={setAddTo}
+            flash={flash}
+            fail={fail}
+            listEndRef={listEndRef}
+          />
         )}
 
         {view === "queue" && (
