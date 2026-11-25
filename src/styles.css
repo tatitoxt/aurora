@@ -2677,8 +2677,9 @@ select { color-scheme: dark; }
 .lib__rm:hover { color: var(--text); background: var(--surface-2); }
 .lib__row--dragging { opacity: 0.35; }
 .lib__row--sel { background: var(--surface-hover); }
+.lib--selpad { padding-bottom: 68px; }
 .brw__selbar {
-  position: sticky; bottom: 12px; z-index: 6; margin-top: 10px;
+  position: sticky; bottom: 16px; z-index: 6; margin: 10px 6px 4px;
   display: flex; align-items: center; gap: 10px; align-self: flex-start;
   padding: 8px 12px; border-radius: var(--r-pill);
   background: var(--surface-2); border: 1px solid var(--hair);

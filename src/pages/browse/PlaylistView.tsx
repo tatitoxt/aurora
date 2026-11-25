@@ -242,7 +242,7 @@ export default function PlaylistView({
       </button>
     </div>
   )}
-  <div className="lib">
+  <div className={sel.size > 0 ? "lib lib--selpad" : "lib"}>
     {plShown.slice(0, listLimit).map(({ t: pt, i }, di) => {
       const current = isNow(pt);
       return (
