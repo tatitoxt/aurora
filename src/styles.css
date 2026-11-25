@@ -2753,7 +2753,7 @@ select { color-scheme: dark; }
   font-variant-numeric: tabular-nums; min-width: 30px; text-align: center;
 }
 .brw__seek {
-  flex: 1; max-width: 340px; height: 20px; padding: 8px 0;
+  flex: 1; min-width: 72px; max-width: 340px; height: 20px; padding: 8px 0;
   border: none; background: none; cursor: pointer; position: relative;
 }
 .brw__seek::before {
@@ -2773,6 +2773,9 @@ select { color-scheme: dark; }
   /* The fixed-width transport + volume row would squeeze the seek
      control to zero at the 600px default width. */
   .brw__volwrap { display: none; }
+  /* Transport + seek matter more than shortcuts the rail already
+     offers — drop them so the seek bar keeps a usable width. */
+  .brw__bar > .brw__icon:not(.brw__icon--live) { display: none; }
   /* 160px header art + 4 actions don't fit the default window —
      shrink the art and let the buttons wrap below the title. */
   .brw__plhead { flex-wrap: wrap; align-items: center; }

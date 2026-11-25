@@ -174,7 +174,9 @@ export default function Rail({
           e.preventDefault();
           setPlDrop(null);
           const tp = e.dataTransfer.getData("application/x-noctbeat-track");
-          if (!tp) return;
+          /* Streams and remote: refs aren't files — the backend would
+             skip them silently, so don't pretend the drop did anything. */
+          if (!tp || /^(remote:|https?:)/i.test(tp)) return;
           void bridge
             .playlistAddTracks(p.path, [tp])
             .then((n) => {

@@ -906,8 +906,9 @@ export const bridge = {
   playlistAddTracks: (path: string, paths: string[]): Promise<number> => {
     if (isTauri()) return invokeCmd<number>("playlist_add_tracks", { path, paths });
     const pl = findPl(path);
+    const local = paths.filter((p) => !/^(remote:|https?:)/i.test(p));
     if (pl)
-      paths.forEach((p) =>
+      local.forEach((p) =>
         pl.tracks.push({
           title: p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? p,
           artist: "",
@@ -916,7 +917,7 @@ export const bridge = {
           remote: false,
         }),
       );
-    return Promise.resolve(paths.length);
+    return Promise.resolve(local.length);
   },
   getArtistStats: (artist: string): Promise<ArtistStats> =>
     isTauri()
