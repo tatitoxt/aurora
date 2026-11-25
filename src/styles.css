@@ -3094,6 +3094,11 @@ select { color-scheme: dark; }
   font-size: var(--fs-xs); color: var(--muted); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
+.brw__npa--link {
+  border: none; background: none; padding: 0; font: inherit; color: inherit;
+  text-align: left; cursor: pointer;
+}
+.brw__npa--link:hover { color: var(--text); text-decoration: underline; }
 .brw__ctl { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; }
 .brw__icon {
   width: 30px; height: 30px; flex: none; display: grid; place-items: center;

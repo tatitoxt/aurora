@@ -95,7 +95,10 @@ function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
       live = false;
     };
   }, [url]);
-  if (src) return <img className="brw__art" src={src} alt="" />;
+  if (src)
+    return (
+      <img className="brw__art" src={src} alt="" loading="lazy" decoding="async" />
+    );
   return (
     <span className="brw__art brw__art--ph" aria-hidden>
       {icon ?? <MusicNote />}
@@ -129,6 +132,65 @@ function GenCover({ name }: { name: string }) {
 /* The poll emits fresh objects every call — skip the setState (and the
    whole-tree re-render it costs) when nothing actually changed. */
 const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
+
+/* The engine emits now-playing every tick; the page only needs
+   track/status/source changes, so the per-tick positionMs stream
+   lives inside the two components that display it — otherwise the
+   whole Browse tree would re-render on every tick. */
+function usePosMs() {
+  const [pos, setPos] = useState(0);
+  useEffect(
+    () =>
+      subscribe<NowPlaying>("now-playing", (n) =>
+        setPos(n.positionMs ?? 0),
+      ),
+    [],
+  );
+  return pos;
+}
+
+function SeekCluster({
+  durationMs,
+  hasTrack,
+}: {
+  durationMs: number | undefined;
+  hasTrack: boolean;
+}) {
+  const t = useT();
+  const pos = usePosMs();
+  const progress = durationMs ? Math.min(1, pos / durationMs) : 0;
+  return (
+    <>
+      <span className="brw__time">{hasTrack ? formatTime(pos) : "0:00"}</span>
+      <button
+        className="brw__seek"
+        aria-label={t("brw.seek")}
+        onClick={(e) => {
+          if (!durationMs) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          void bridge.seek(
+            Math.round(((e.clientX - r.left) / r.width) * durationMs),
+          );
+        }}
+      >
+        <i style={{ width: `${progress * 100}%` }} />
+      </button>
+      <span className="brw__time">
+        {durationMs ? formatTime(durationMs) : "0:00"}
+      </span>
+    </>
+  );
+}
+
+function SyncBackdrop(props: {
+  url: string;
+  playing: boolean;
+  cls: string;
+  readyCls: string;
+}) {
+  const pos = usePosMs();
+  return <VideoBackdrop {...props} posMs={pos} audible />;
+}
 
 const RECENT_SEARCHES_KEY = "brw.recentSearches";
 const LAST_VIEW_KEY = "brw.lastView";
@@ -207,6 +269,9 @@ export default function Browse() {
   /* Serialized: a second remove before the first lands would hand
      playlist_remove_track an index that no longer exists in the file. */
   const plRemoving = useRef(false);
+  /* Artist catalog results are static for the session — cache by
+     artist so revisiting a page doesn't re-hit the extension. */
+  const arCatalogCache = useRef(new Map<string, CatalogSong[]>());
   /* Rail playlist item highlighted as a drop target while a track
      row is dragged over it. */
   const [plDrop, setPlDrop] = useState<string | null>(null);
@@ -318,10 +383,16 @@ export default function Browse() {
        would run its 4 IPCs hundreds of times a minute. */
     const npSig = { current: "" };
     const offNp = subscribe<NowPlaying>("now-playing", (n) => {
-      setNp(n);
-      const sig = `${n.track?.id ?? ""}:${n.status}:${n.source ?? ""}`;
+      /* Everything except the volatile fields is render-worthy:
+         metadata can arrive after the track starts (duration,
+         artwork). updatedAtMs is stamped fresh on every snapshot,
+         so it must stay out of the signature together with
+         positionMs — otherwise every tick still re-renders. */
+      const { positionMs: _pos, updatedAtMs: _upd, ...rest } = n;
+      const sig = JSON.stringify(rest);
       if (sig !== npSig.current) {
         npSig.current = sig;
+        setNp(n);
         refresh();
       }
     });
@@ -366,6 +437,30 @@ export default function Browse() {
           return;
         }
       }
+      /* Esc peels UI layers before navigating: context menu, then
+         dialogs, then back in the view history — so one key never
+         does two things. */
+      if (e.key === "Escape") {
+        /* The command palette lives outside this component — while
+           it's open, Esc is its key, not ours. */
+        if (document.querySelector(".palette-backdrop")) return;
+        if (ctx) {
+          setCtx(null);
+          return;
+        }
+        if (addTo) {
+          setAddTo(null);
+          return;
+        }
+        if (dlg) {
+          setDlg(null);
+          return;
+        }
+        if (!inField && past.length > 0) {
+          goBack();
+          return;
+        }
+      }
       /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
       if (e.key !== "/" || inField) return;
       e.preventDefault();
@@ -383,7 +478,7 @@ export default function Browse() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, sel.size, plShown]);
+  }, [view, sel.size, plShown, ctx, addTo, dlg, past.length]);
 
   /* Re-entering Browse from Stage should land where you left off. */
   useEffect(() => {
@@ -426,9 +521,12 @@ export default function Browse() {
     [ext],
   );
 
-  const liked = listable(favs);
-  const favSet = new Set(favs.map((f) => f.key));
-  const favKey = favKeyFor(np);
+  /* These derive from inputs that change rarely (favs, np track
+     identity) — recomputing them per render allocated a Set and
+     re-ran listable over every favorite on every tick. */
+  const liked = useMemo(() => listable(favs), [favs]);
+  const favSet = useMemo(() => new Set(favs.map((f) => f.key)), [favs]);
+  const favKey = useMemo(() => favKeyFor(np), [np]);
   const isFav = favKey !== "" && favSet.has(favKey);
   const track = np?.track ?? null;
   const playing = np?.status === "playing";
@@ -450,9 +548,7 @@ export default function Browse() {
      "demo" stays enabled: the preview mock routes it to the audible
      YouTube-embed backdrop. */
   const volLocal = !track || np?.source === "local" || np?.source === "demo";
-  const progress = track?.durationMs
-    ? Math.min(1, (np?.positionMs ?? 0) / track.durationMs)
-    : 0;
+
 
   const flash = (msg: string) => {
     setNote(msg);
@@ -477,7 +573,10 @@ export default function Browse() {
       .catch(fail);
   };
 
-  const playLiked = (e: FavEntry) => {
+  /* pool narrows the queue to a section's rows (e.g. one artist's
+     likes) — Next must play the next row in that section, not jump
+     to an unrelated favorite. */
+  const playLiked = (e: FavEntry, pool?: FavEntry[]) => {
     setErr("");
     const replay = replayFor(e);
     if (!replay) return;
@@ -485,7 +584,9 @@ export default function Browse() {
       playExternal(replay.query);
       return;
     }
-    const locals = liked.filter((x) => replayFor(x)?.kind === "local").map(toQueueItem);
+    const locals = (pool ?? liked)
+      .filter((x) => replayFor(x)?.kind === "local")
+      .map(toQueueItem);
     const index = locals.findIndex((i) => i.path === e.trackId);
     if (index < 0) return;
     void bridge.playItems(locals, index).catch(fail);
@@ -557,18 +658,24 @@ export default function Browse() {
         ),
       )
       .catch(() => {});
+    const cached = arCatalogCache.current.get(name.trim().toLowerCase());
+    if (cached) {
+      setArSongs(cached);
+      setArLoading(false);
+      return;
+    }
     void bridge
       .catalogSearch(name)
       /* catalogSearch matches the term anywhere (title, album);
          an artist page must list that artist's own catalog — the
          same credit filter SearchPanel applies internally. */
-      .then((r) =>
-        setArSongs(
-          r.filter((s) =>
-            s.artist.toLowerCase().includes(name.trim().toLowerCase()),
-          ),
-        ),
-      )
+      .then((r) => {
+        const songs = r.filter((s) =>
+          s.artist.toLowerCase().includes(name.trim().toLowerCase()),
+        );
+        arCatalogCache.current.set(name.trim().toLowerCase(), songs);
+        setArSongs(songs);
+      })
       .catch(fail)
       .finally(() => setArLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -744,6 +851,17 @@ export default function Browse() {
     m.delete("");
     return [...m.entries(), ...(singles.length ? [["", singles] as [string, CatalogSong[]]] : [])];
   }, [arSongs]);
+  /* Liked songs by this artist — the artist page shows your own
+     relationship, not just the catalog (Spotify does the same). */
+  const arLiked = useMemo(
+    () =>
+      arName
+        ? liked.filter(
+            (e) => e.artist.trim().toLowerCase() === arName.trim().toLowerCase(),
+          )
+        : [],
+    [liked, arName],
+  );
   /* Spotify groups Recently played by day. */
   const recGroups = useMemo(() => {
     const dayStart = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
@@ -1063,13 +1181,11 @@ export default function Browse() {
   return (
     <div className="brw">
       {videoUrl && !bridge.isTauri() && (
-        <VideoBackdrop
+        <SyncBackdrop
           url={videoUrl}
-          posMs={np?.positionMs ?? 0}
           playing={playing}
           cls="brw__bgvid"
           readyCls="brw__bgvid--ready"
-          audible
         />
       )}
       <aside className="brw__rail">
@@ -1457,6 +1573,28 @@ export default function Browse() {
                   </button>
                 ))}
               </div>
+              </>
+            )}
+            {arLiked.length > 0 && (
+              <>
+                <span className="brw__kick">{t("brw.inYourLiked")}</span>
+                <div className="lib">
+                  {arLiked.slice(0, 5).map((e) => (
+                    <button
+                      className="lib__row"
+                      key={e.key}
+                      title={e.title}
+                      onClick={() => playLiked(e, arLiked)}
+                    >
+                      <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
+                      <span className="lib__title">{e.title}</span>
+                      <span className="lib__sub">{e.artist}</span>
+                      <span className="lib__dur">
+                        {e.durationMs ? formatTime(e.durationMs) : ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </>
             )}
             {arSongs.length > 0 && (
@@ -2572,7 +2710,13 @@ export default function Browse() {
             <Art url={track.artworkUrl} />
             <span className="brw__np">
               <span className="brw__npt">{track.title}</span>
-              <span className="brw__npa">{track.artist}</span>
+              <button
+                className="brw__npa brw__npa--link"
+                title={t("brw.goToArtist")}
+                onClick={() => go(`ar:${encodeURIComponent(track.artist)}`)}
+              >
+                {track.artist}
+              </button>
             </span>
             <button
               className={`brw__icon ${isFav ? "on" : ""}`}
@@ -2656,23 +2800,7 @@ export default function Browse() {
               <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />
             )}
           </button>
-          <span className="brw__time">{track ? formatTime(np?.positionMs ?? 0) : "0:00"}</span>
-          <button
-            className="brw__seek"
-            aria-label={t("brw.seek")}
-            onClick={(e) => {
-              if (!track?.durationMs) return;
-              const r = e.currentTarget.getBoundingClientRect();
-              void bridge.seek(
-                Math.round(((e.clientX - r.left) / r.width) * track.durationMs),
-              );
-            }}
-          >
-            <i style={{ width: `${progress * 100}%` }} />
-          </button>
-          <span className="brw__time">
-            {track?.durationMs ? formatTime(track.durationMs) : "0:00"}
-          </span>
+          <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
         </span>
         <button
           className={`brw__icon ${view === "queue" ? "on" : ""}`}
