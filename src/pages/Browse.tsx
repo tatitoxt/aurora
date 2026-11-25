@@ -73,10 +73,13 @@ import HomeView from "./browse/HomeView";
 import LikedView from "./browse/LikedView";
 import QueueView from "./browse/QueueView";
 import PlaylistView from "./browse/PlaylistView";
+import DlgModal from "./browse/DlgModal";
+import CtxMenu from "./browse/CtxMenu";
+import Playbar from "./browse/Playbar";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
    back), which would silently revert unmute to the default volume. */
-let preMuteVol = 0.8;
+const preMuteVolRef = { current: 0.8 };
 
 
 export default function Browse() {
@@ -229,7 +232,7 @@ export default function Browse() {
       .getVolume()
       .then((v) => {
         setVol((p) => (p === v ? p : v));
-        if (v > 0) preMuteVol = v;
+        if (v > 0) preMuteVolRef.current = v;
       })
       .catch(() => {});
   };
@@ -261,7 +264,7 @@ export default function Browse() {
     void bridge.getRepeat().then(setRepeat).catch(() => {});
     void bridge.getVolume().then((v) => {
       setVol(v);
-      if (v > 0) preMuteVol = v;
+      if (v > 0) preMuteVolRef.current = v;
     }).catch(() => {});
     const poll = setInterval(refresh, 4000);
     return () => {
@@ -1393,408 +1396,51 @@ export default function Browse() {
       </main>
 
       {dlg && (
-        <span className="brw__dlg" onClick={() => setDlg(null)}>
-          <span
-            className="brw__dlgcard"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.stopPropagation();
-                setDlg(null);
-                return;
-              }
-              if (e.key !== "Tab") return;
-              /* Focus trap: Tab cycles through the card's own
-                 controls so focus can't fall behind the overlay. */
-              const els = Array.from(
-                e.currentTarget.querySelectorAll<HTMLElement>(
-                  "button, input",
-                ),
-              );
-              if (els.length === 0) return;
-              const first = els[0];
-              const last = els[els.length - 1];
-              const active = document.activeElement as HTMLElement | null;
-              if (e.shiftKey && active === first) {
-                e.preventDefault();
-                last.focus();
-              } else if (!e.shiftKey && active === last) {
-                e.preventDefault();
-                first.focus();
-              } else if (active && !els.includes(active)) {
-                e.preventDefault();
-                (e.shiftKey ? last : first).focus();
-              }
-            }}
-          >
-            <span className="brw__dlgtitle">
-              {dlg.kind === "save"
-                ? t("lib.save")
-                : dlg.kind === "create"
-                  ? t("lib.newPlaylist")
-                  : dlg.kind === "rename"
-                    ? t("lib.rename")
-                    : t("lib.delete")}
-            </span>
-            {dlg.kind === "delete" ? (
-              <span className="brw__dlgname">{dlg.name}</span>
-            ) : (
-              <input
-                className="brw__dlginput"
-                autoFocus
-                value={dlgName}
-                placeholder={t("lib.playlistName")}
-                aria-label={t("lib.playlistName")}
-                onChange={(e) => setDlgName(e.target.value)}
-                onKeyDown={(e) => {
-                  /* Enter that confirms an IME candidate must not
-                     submit — the name hasn't reached dlgName yet. */
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing)
-                    submitDlg();
-                }}
-              />
-            )}
-            <span className="brw__dlgbtns">
-              <button
-                className="brw__dlgbtn"
-                /* Destructive dialogs focus Cancel: an Enter held through
-                   key repeat would otherwise submit the confirm the
-                   instant it gains focus. */
-                autoFocus={dlg.kind === "delete"}
-                onClick={() => setDlg(null)}
-              >
-                {t("brw.cancel")}
-              </button>
-              <button
-                className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
-                onClick={submitDlg}
-              >
-                {dlg.kind === "save"
-                  ? t("lib.save")
-                  : dlg.kind === "create"
-                    ? t("lib.create")
-                    : dlg.kind === "rename"
-                      ? t("lib.rename")
-                      : t("lib.delete")}
-              </button>
-            </span>
-          </span>
-        </span>
+        <DlgModal
+          dlg={dlg}
+          setDlg={setDlg}
+          dlgName={dlgName}
+          setDlgName={setDlgName}
+          submitDlg={submitDlg}
+        />
       )}
 
       {ctx && (
-        <span
-          className="brw__ctx"
-          style={{
-            left: Math.max(8, Math.min(ctx.x, window.innerWidth - 184)),
-            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 24)),
-            maxHeight: window.innerHeight - 32,
-            overflowY: "auto",
-          }}
-        >
-          {ctx.kind === "pladd" &&
-            playlists
-              .filter((p) => /\.m3u8?$/i.test(p.path))
-              .map((p) => (
-                <button
-                  key={p.path}
-                  title={p.name}
-                  onClick={() => {
-                    const tp = ctx.path;
-                    setCtx(null);
-                    if (!tp) return;
-                    void bridge
-                      .playlistAddTracks(p.path, [tp])
-                      .then((n) => {
-                        if (n > 0) flash(p.name);
-                      })
-                      .catch(fail);
-                  }}
-                >
-                  {p.name}
-                </button>
-              ))}
-          {ctx.kind !== "railpl" && ctx.kind !== "pladd" && (
-            <button
-              onClick={() => {
-                setCtx(null);
-                if (ctx.kind === "pl") playPlTrack(ctx.index);
-                else void bridge.playQueueIndex(ctx.index);
-              }}
-            >
-              {t("brw.play")}
-            </button>
-          )}
-          {ctx.kind === "railpl" && (
-            <>
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  setDlgName(ctx.name ?? "");
-                  setDlg({
-                    kind: "rename",
-                    path: ctx.path ?? "",
-                    name: ctx.name ?? "",
-                  });
-                }}
-              >
-                {t("lib.rename")}
-              </button>
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  setDlg({
-                    kind: "delete",
-                    path: ctx.path ?? "",
-                    name: ctx.name ?? "",
-                  });
-                }}
-              >
-                {t("lib.delete")}
-              </button>
-            </>
-          )}
-          {ctx.kind === "pl" && plTracks[ctx.index]?.artist && (
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  go(`ar:${encodeURIComponent(plTracks[ctx.index].artist)}`);
-                }}
-              >
-                {t("brw.goToArtist")}
-              </button>
-            )}
-          {ctx.kind === "pl" && (
-            <button
-              onClick={() => {
-                setCtx(null);
-                /* A selected row's Remove honors the selection —
-                   deleting just the clicked row would silently drop
-                   the user's multi-select intent. */
-                if (sel.size > 1 && sel.has(ctx.index)) removeSelected();
-                else removePlTrack(ctx.index);
-              }}
-            >
-              {t("lib.removeFromPlaylist")}
-            </button>
-          )}
-          {/* Only m3u destinations accept writes, and streams
-              can't be copied into a file playlist — offer the item
-              only when both ends can actually work. */}
-          {(ctx.kind === "pl" || ctx.kind === "queue") &&
-            playlists.some((p) => /\.m3u8?$/i.test(p.path)) &&
-            !(ctx.kind === "pl"
-              ? plTracks[ctx.index]?.remote
-              : /^(remote:|https?:)/i.test(
-                  queue.items[ctx.index]?.path ?? "",
-                )) && (
-              <button
-                onClick={() =>
-                  setCtx({
-                    x: ctx.x,
-                    y: ctx.y,
-                    kind: "pladd",
-                    index: ctx.index,
-                    path:
-                      ctx.kind === "pl"
-                        ? plTracks[ctx.index]?.path
-                        : queue.items[ctx.index]?.path,
-                  })
-                }
-              >
-                {t("lib.addToPlaylist")}…
-              </button>
-            )}
-          {ctx.kind === "queue" &&
-            queue.items[ctx.index]?.track.artist && (
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  go(
-                    `ar:${encodeURIComponent(queue.items[ctx.index].track.artist)}`,
-                  );
-                }}
-              >
-                {t("brw.goToArtist")}
-              </button>
-            )}
-          {ctx.kind === "queue" && queue.currentIndex !== ctx.index && (
-            <button
-              onClick={() => {
-                setCtx(null);
-                void bridge.queueRemove(ctx.index).catch(fail);
-              }}
-            >
-              {t("fs.removeFromQueue")}
-            </button>
-          )}
-        </span>
+        <CtxMenu
+          ctx={ctx}
+          setCtx={setCtx}
+          playlists={playlists}
+          plTracks={plTracks}
+          queue={queue}
+          sel={sel}
+          go={go}
+          playPlTrack={playPlTrack}
+          removePlTrack={removePlTrack}
+          removeSelected={removeSelected}
+          setDlg={setDlg}
+          setDlgName={setDlgName}
+          flash={flash}
+          fail={fail}
+        />
       )}
 
-      <footer className="brw__bar">
-        {track ? (
-          <>
-            <Art url={track.artworkUrl} />
-            <span className="brw__np">
-              <span className="brw__npt">{track.title}</span>
-              <button
-                className="brw__npa brw__npa--link"
-                title={t("brw.goToArtist")}
-                onClick={() => go(`ar:${encodeURIComponent(track.artist)}`)}
-              >
-                {track.artist}
-              </button>
-            </span>
-            <button
-              className={`brw__icon ${isFav ? "on" : ""}`}
-              aria-label={isFav ? t("fs.unlike") : t("fs.like")}
-              title={isFav ? t("fs.unlike") : t("fs.like")}
-              onClick={() => {
-                const entry = favEntryFor(np);
-                if (entry) setFavs((prev) => toggleFav(prev, entry));
-              }}
-            >
-              <Heart size={15} weight={isFav ? "fill" : "regular"} />
-            </button>
-          </>
-        ) : (
-          <span className="brw__np" />
-        )}
-        <span className="brw__ctl">
-          <button
-            className={`brw__icon ${shuffle ? "on" : ""}`}
-            aria-label={t("fs.shuffle")}
-            title={t("fs.shuffle")}
-            onClick={() =>
-              void bridge.getShuffle().then((on) => {
-                const next = !on;
-                return bridge.setShuffle(next).then(() => setShuffle(next));
-              })
-            }
-          >
-            <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
-          </button>
-          <button
-            className="brw__icon"
-            aria-label={t("fs.prev")}
-            title={t("fs.prev")}
-            onClick={() => void bridge.mediaControl("previous")}
-          >
-            <SkipBack size={16} weight="fill" />
-          </button>
-          <button
-            className="brw__icon brw__icon--play"
-            aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
-            title={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
-            onClick={() => void bridge.mediaControl("play-pause")}
-          >
-            {playing ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" />}
-          </button>
-          <button
-            className="brw__icon"
-            aria-label={t("fs.next")}
-            title={t("fs.next")}
-            onClick={() => void bridge.mediaControl("next")}
-          >
-            <SkipForward size={16} weight="fill" />
-          </button>
-          <button
-            className={`brw__icon ${repeat !== "off" ? "on" : ""}`}
-            aria-label={t(
-              repeat === "off"
-                ? "fs.repeatOff"
-                : repeat === "all"
-                  ? "fs.repeatAll"
-                  : "fs.repeatOne",
-            )}
-            title={t(
-              repeat === "off"
-                ? "fs.repeatOff"
-                : repeat === "all"
-                  ? "fs.repeatAll"
-                  : "fs.repeatOne",
-            )}
-            onClick={() =>
-              void bridge.getRepeat().then((m) => {
-                const next = m === "off" ? "all" : m === "all" ? "one" : "off";
-                return bridge.setRepeat(next).then(() => setRepeat(next));
-              })
-            }
-          >
-            {repeat === "one" ? (
-              <RepeatOnce size={15} weight="fill" />
-            ) : (
-              <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />
-            )}
-          </button>
-          <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
-        </span>
-        <button
-          className={`brw__icon ${view === "queue" ? "on" : ""}`}
-          aria-label={t("lib.queue")}
-          title={t("lib.queue")}
-          onClick={() => go("queue")}
-        >
-          <ListBullets size={15} />
-        </button>
-        <span
-          className={`brw__volwrap ${volLocal ? "" : "brw__volwrap--off"}`}
-          title={volLocal ? t("fs.volume") : t("brw.volLocalOnly")}
-        >
-          <button
-            className={`brw__icon ${vol === 0 ? "" : "on"}`}
-            disabled={!volLocal}
-            aria-label={vol === 0 ? t("fs.unmute") : t("fs.mute")}
-            title={volLocal ? (vol === 0 ? t("fs.unmute") : t("fs.mute")) : t("brw.volLocalOnly")}
-            onClick={() => {
-              const next = vol === 0 ? preMuteVol : 0;
-              if (vol !== 0) preMuteVol = vol;
-              setVol(next);
-              void bridge.setVolume(next);
-            }}
-          >
-            {vol === 0 ? <SpeakerSlash size={15} /> : <SpeakerHigh size={15} />}
-          </button>
-          <input
-            className="brw__vol"
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={vol}
-            disabled={!volLocal}
-            aria-label={t("fs.volume")}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setVol(v);
-              void bridge.setVolume(v);
-            }}
-          />
-        </span>
-        <button
-          className="brw__icon brw__icon--live"
-          aria-label={t("brw.liveView")}
-          title={t("brw.liveView")}
-          onClick={() => nav("/")}
-        >
-          <SquaresFour size={15} />
-          <span>{t("brw.liveView")}</span>
-        </button>
-        <button
-          className="brw__icon"
-          aria-label={t("nav.fullscreen")}
-          title={t("nav.fullscreen")}
-          /* Browser preview can't go fullscreen — take them to the
-             live stage instead so the button is never dead. */
-          onClick={() =>
-            bridge.isTauri() ? void bridge.toggleFullscreen() : nav("/")
-          }
-        >
-          <ArrowsOut size={15} />
-        </button>
-      </footer>
+      <Playbar
+        track={track}
+        np={np}
+        playing={playing}
+        isFav={isFav}
+        setFavs={setFavs}
+        shuffle={shuffle}
+        setShuffle={setShuffle}
+        repeat={repeat}
+        setRepeat={setRepeat}
+        vol={vol}
+        setVol={setVol}
+        volLocal={volLocal}
+        view={view}
+        go={go}
+        preMuteVolRef={preMuteVolRef}
+      />
     </div>
   );
 }
