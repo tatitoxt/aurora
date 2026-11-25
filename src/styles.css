@@ -2775,7 +2775,7 @@ select { color-scheme: dark; }
   .brw__volwrap { display: none; }
   /* Transport + seek matter more than shortcuts the rail already
      offers — drop them so the seek bar keeps a usable width. */
-  .brw__bar > .brw__icon:not(.brw__icon--live) { display: none; }
+  .brw__barextra { display: none; }
   /* 160px header art + 4 actions don't fit the default window —
      shrink the art and let the buttons wrap below the title. */
   .brw__plhead { flex-wrap: wrap; align-items: center; }

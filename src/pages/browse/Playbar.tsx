@@ -160,7 +160,7 @@ export default function Playbar({
     <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
   </span>
   <button
-    className={`brw__icon ${view === "queue" ? "on" : ""}`}
+    className={`brw__icon brw__barextra ${view === "queue" ? "on" : ""}`}
     aria-label={t("lib.queue")}
     title={t("lib.queue")}
     onClick={() => go("queue")}
@@ -211,7 +211,7 @@ export default function Playbar({
     <span>{t("brw.liveView")}</span>
   </button>
   <button
-    className="brw__icon"
+    className="brw__icon brw__barextra"
     aria-label={t("nav.fullscreen")}
     title={t("nav.fullscreen")}
     /* Browser preview can't go fullscreen — take them to the
