@@ -45,7 +45,7 @@ describe("DlgModal", () => {
 
 describe("CtxMenu", () => {
   const base = {
-    playlists: [{ path: "/p/a.m3u", name: "A", tracks: 1 }],
+    playlists: [{ path: "/p/a.m3u", name: "A" }],
     plTracks: [],
     queue: { items: [], currentIndex: null },
     sel: new Set<number>(),
@@ -118,7 +118,7 @@ describe("Rail drop guard", () => {
         railSearchRef={{ current: null }}
         liked={[]}
         queue={{ items: [], currentIndex: null }}
-        playlists={[{ path: "/p/a.m3u", name: "A", tracks: 1 }]}
+        playlists={[{ path: "/p/a.m3u", name: "A" }]}
         openPlaylist={() => {}}
         plDrop={null}
         setPlDrop={() => {}}
