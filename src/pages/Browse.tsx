@@ -25,7 +25,6 @@ import {
 } from "../favs";
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
-import SearchPanel from "../SearchPanel";
 import BrowserSources from "../BrowserSources";
 import {
   ArrowsOut,
@@ -61,7 +60,6 @@ import {
 import { Art, GenCover, SeekCluster, SyncBackdrop } from "./browse/bits";
 import {
   AUTO_ORDER,
-  CATEGORIES,
   LAST_VIEW_KEY,
   RECENT_SEARCHES_KEY,
   readLastView,
