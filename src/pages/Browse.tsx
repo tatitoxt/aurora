@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  artSrc,
   bridge,
   subscribe,
   type NowPlaying,
@@ -26,10 +25,8 @@ import {
 } from "../favs";
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
-import type { MsgKey } from "../i18n";
 import SearchPanel from "../SearchPanel";
 import BrowserSources from "../BrowserSources";
-import { VideoBackdrop } from "../VideoBackdrop";
 import {
   ArrowsOut,
   Broadcast,
@@ -43,7 +40,6 @@ import {
   House,
   ListBullets,
   MagnifyingGlass,
-  MusicNote,
   Pause,
   PencilSimple,
   Play,
@@ -62,162 +58,22 @@ import {
   User,
   X,
 } from "@phosphor-icons/react";
-
-/** Providers tried, in order, when playing a catalog/stats entry. */
-const AUTO_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
+import { Art, GenCover, SeekCluster, SyncBackdrop } from "./browse/bits";
+import {
+  AUTO_ORDER,
+  CATEGORIES,
+  LAST_VIEW_KEY,
+  RECENT_SEARCHES_KEY,
+  readLastView,
+  sameJson,
+  type View,
+} from "./browse/types";
+import SearchView from "./browse/SearchView";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
    back), which would silently revert unmute to the default volume. */
 let preMuteVol = 0.8;
 
-type View =
-  | "home"
-  | "search"
-  | "liked"
-  | "queue"
-  | "services"
-  | "settings"
-  | "recent"
-  | `pl:${string}`
-  | `ar:${string}`;
-
-/** Artwork tile that resolves file:// refs to loadable URLs. */
-function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    setSrc("");
-    if (!url) return;
-    let live = true;
-    void artSrc(url).then((s) => {
-      if (live) setSrc(s);
-    });
-    return () => {
-      live = false;
-    };
-  }, [url]);
-  if (src)
-    return (
-      <img className="brw__art" src={src} alt="" loading="lazy" decoding="async" />
-    );
-  return (
-    <span className="brw__art brw__art--ph" aria-hidden>
-      {icon ?? <MusicNote />}
-    </span>
-  );
-}
-
-const hueOf = (s: string) => {
-  let h = 0;
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
-};
-
-/** Generated cover for art-less playlists: a two-tone gradient tile
-    with the initial — reads like a blurred cover, not a dead square. */
-function GenCover({ name }: { name: string }) {
-  const h = hueOf(name);
-  return (
-    <span
-      className="brw__art brw__art--gen"
-      style={{
-        background: `linear-gradient(135deg, hsl(${h} 42% 34%), hsl(${(h + 70) % 360} 38% 16%))`,
-      }}
-      aria-hidden
-    >
-      {name.trim().charAt(0).toUpperCase() || "♪"}
-    </span>
-  );
-}
-
-/* The poll emits fresh objects every call — skip the setState (and the
-   whole-tree re-render it costs) when nothing actually changed. */
-const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
-
-/* The engine emits now-playing every tick; the page only needs
-   track/status/source changes, so the per-tick positionMs stream
-   lives inside the two components that display it — otherwise the
-   whole Browse tree would re-render on every tick. */
-function usePosMs() {
-  const [pos, setPos] = useState(0);
-  useEffect(
-    () =>
-      subscribe<NowPlaying>("now-playing", (n) =>
-        setPos(n.positionMs ?? 0),
-      ),
-    [],
-  );
-  return pos;
-}
-
-function SeekCluster({
-  durationMs,
-  hasTrack,
-}: {
-  durationMs: number | undefined;
-  hasTrack: boolean;
-}) {
-  const t = useT();
-  const pos = usePosMs();
-  const progress = durationMs ? Math.min(1, pos / durationMs) : 0;
-  return (
-    <>
-      <span className="brw__time">{hasTrack ? formatTime(pos) : "0:00"}</span>
-      <button
-        className="brw__seek"
-        aria-label={t("brw.seek")}
-        onClick={(e) => {
-          if (!durationMs) return;
-          const r = e.currentTarget.getBoundingClientRect();
-          void bridge.seek(
-            Math.round(((e.clientX - r.left) / r.width) * durationMs),
-          );
-        }}
-      >
-        <i style={{ width: `${progress * 100}%` }} />
-      </button>
-      <span className="brw__time">
-        {durationMs ? formatTime(durationMs) : "0:00"}
-      </span>
-    </>
-  );
-}
-
-function SyncBackdrop(props: {
-  url: string;
-  playing: boolean;
-  cls: string;
-  readyCls: string;
-}) {
-  const pos = usePosMs();
-  return <VideoBackdrop {...props} posMs={pos} audible />;
-}
-
-const RECENT_SEARCHES_KEY = "brw.recentSearches";
-const LAST_VIEW_KEY = "brw.lastView";
-
-/* Spotify's "Browse all" grid on the empty search page — each tile
-   seeds a provider query since we have no editorial catalog. */
-const CATEGORIES: { k: MsgKey; q: string; hue: number }[] = [
-  { k: "brw.cat.charts", q: "top hits", hue: 262 },
-  { k: "brw.cat.newReleases", q: "new releases", hue: 205 },
-  { k: "brw.cat.latin", q: "latin hits", hue: 340 },
-  { k: "brw.cat.mood", q: "mood", hue: 275 },
-  { k: "brw.cat.workout", q: "workout", hue: 160 },
-  { k: "brw.cat.party", q: "party", hue: 20 },
-];
-
-const readLastView = (): View => {
-  try {
-    const v = localStorage.getItem(LAST_VIEW_KEY) ?? "";
-    return /^(home|search|liked|queue|services|settings|recent|pl:|ar:)/.test(
-      v,
-    )
-      ? (v as View)
-      : "home";
-  } catch {
-    return "home";
-  }
-};
 
 export default function Browse() {
   const t = useT();
@@ -1375,125 +1231,20 @@ export default function Browse() {
         {note && <span className="note">● {note}</span>}
 
         {view === "search" && (
-          <div className="brw__search">
-            {q.trim() !== "" && (
-              <span className="brw__chips seg seg--ghost">
-                {(["all", "songs", "artists", "playlists"] as const).map((f) => (
-                  <button
-                    key={f}
-                    className={sFilter === f ? "on" : ""}
-                    onClick={() => setSFilter(f)}
-                  >
-                    {f === "all"
-                      ? t("brw.all")
-                      : f === "songs"
-                        ? t("srch.songs")
-                        : f === "artists"
-                          ? t("srch.artists")
-                          : t("lib.playlists")}
-                  </button>
-                ))}
-              </span>
-            )}
-            {q.trim() === "" && recentSearches.length > 0 && (
-              <div className="brw__rsearch">
-                <span className="brw__kick">{t("brw.recentSearches")}</span>
-                <div className="brw__rchips">
-                  {recentSearches.map((s) => (
-                    <button
-                      key={s}
-                      className="brw__rchip"
-                      title={s}
-                      onClick={() => setQ(s)}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                  <button
-                    className="brw__rchip"
-                    title={t("lib.clear")}
-                    aria-label={t("lib.clear")}
-                    onClick={() => {
-                      setRecentSearches([]);
-                      try {
-                        localStorage.removeItem(RECENT_SEARCHES_KEY);
-                      } catch {}
-                    }}
-                  >
-                    <X />
-                  </button>
-                </div>
-              </div>
-            )}
-            <SearchPanel
-              src="auto"
-              label={(id) => id}
-              connected={connected}
-              onPlayed={() => {
-                refresh();
-                pushSearch(q);
-              }}
-              query={q}
-              onQuery={setQ}
-              songLimit={6}
-              onArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
-              filter={sFilter === "playlists" ? "none" : sFilter}
-              aside={
-                (sFilter === "all" || sFilter === "playlists") &&
-                playlists.length > 0 ? (
-                  <>
-                    <span className="srch__h">{t("lib.playlists")}</span>
-                    <div className="srch__pllist">
-                      {playlists
-                        .filter((p) =>
-                          p.name
-                            .toLowerCase()
-                            .includes(q.trim().toLowerCase()),
-                        )
-                        .map((p) => (
-                        <button
-                          key={p.path}
-                          className="srch__pl"
-                          title={p.name}
-                          onClick={() => openPlaylist(p)}
-                        >
-                          <Playlist />
-                          <span>{p.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : undefined
-              }
-            />
-            {/* "Browse all" category grid under the search field, the
-                same order Spotify uses on its empty search page. */}
-            {q.trim() === "" && (
-              <>
-                <span className="brw__kick">{t("brw.browseAll")}</span>
-                <div className="brw__cats">
-                  {CATEGORIES.map((c) => (
-                    <button
-                      key={c.k}
-                      className="brw__cat"
-                      style={{
-                        background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
-                      }}
-                      /* A stale chip filter would hide the catalog
-                         results this tile asks for. */
-                      onClick={() => {
-                        setQ(c.q);
-                        setSFilter("all");
-                      }}
-                      title={c.q}
-                    >
-                      <span className="brw__catname">{t(c.k)}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <SearchView
+            q={q}
+            setQ={setQ}
+            sFilter={sFilter}
+            setSFilter={setSFilter}
+            recentSearches={recentSearches}
+            setRecentSearches={setRecentSearches}
+            connected={connected}
+            refresh={refresh}
+            pushSearch={pushSearch}
+            openPlaylist={openPlaylist}
+            playlists={playlists}
+            goArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
+          />
         )}
 
         {view === "services" && (
