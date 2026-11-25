@@ -67,6 +67,8 @@ import {
   type View,
 } from "./browse/types";
 import SearchView from "./browse/SearchView";
+import RecentView from "./browse/RecentView";
+import ArtistView from "./browse/ArtistView";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
    back), which would silently revert unmute to the default volume. */
@@ -1269,151 +1271,28 @@ export default function Browse() {
             <BrowserSources />
           </div>
         )}
-
         {view.startsWith("ar:") && (
-          <div className="brw__section">
-            <div className="brw__arhead">
-              <Art
-                url={arSongs[0]?.artworkUrl ?? arLocal[0]?.track.artworkUrl}
-                icon={<User />}
-              />
-              <span className="brw__arname">{arName}</span>
-              {(arLocal.length > 0 || arSongs.length > 0) && (
-                <button
-                  className="brw__arplay"
-                  title={t("brw.playAll")}
-                  onClick={() => {
-                    if (arLocal.length > 0)
-                      void bridge.playItems(arLocal, 0).catch(fail);
-                    /* No remote-queue API exists — extPlay takes one
-                       query, so search the artist: the provider plays
-                       their top track rather than an arbitrary first
-                       catalog entry. */
-                    else if (arSongs.length > 0) playExternal(arName);
-                  }}
-                >
-                  <Play weight="fill" />
-                </button>
-              )}
-            </div>
-            {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
-            {!arLoading && arLocal.length === 0 && arSongs.length === 0 && (
-              <span className="brw__empty">{t("brw.noTracks")}</span>
-            )}
-            {arLocal.length > 0 && (
-              <>
-                <span className="brw__kick">{t("brw.inLibrary")}</span>
-              <div className="lib">
-                {arLocal.map((it, i) => (
-                  <button
-                    className="lib__row"
-                    key={`${it.path}-${i}`}
-                    title={it.track.title}
-                    onClick={() => void bridge.playItems(arLocal, i).catch(fail)}
-                  >
-                    <span className="lib__idx">{i + 1}</span>
-                    <span className="lib__title">{it.track.title}</span>
-                    <span className="lib__sub">
-                      {it.track.album || it.track.artist}
-                    </span>
-                    <span className="lib__dur">
-                      {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              </>
-            )}
-            {arLiked.length > 0 && (
-              <>
-                <span className="brw__kick">{t("brw.inYourLiked")}</span>
-                <div className="lib">
-                  {arLiked.slice(0, 5).map((e) => (
-                    <button
-                      className="lib__row"
-                      key={e.key}
-                      title={e.title}
-                      onClick={() => playLiked(e, arLiked)}
-                    >
-                      <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
-                      <span className="lib__title">{e.title}</span>
-                      <span className="lib__sub">{e.artist}</span>
-                      <span className="lib__dur">
-                        {e.durationMs ? formatTime(e.durationMs) : ""}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            {arSongs.length > 0 && (
-              <>
-                {arLocal.length > 0 && (
-                  <span className="brw__kick">{t("brw.fromCatalog")}</span>
-                )}
-              <div className="lib">
-                {arGroups.map(([album, songs]) => (
-                  <Fragment key={album || "__singles"}>
-                    {/* Only label groups when albums actually exist —
-                        a flat list needs no header. */}
-                    {album !== "" && arGroups.length > 1 && (
-                      <div className="brw__kick brw__qsection">{album}</div>
-                    )}
-                    {songs.map((s, i) => (
-                      <button
-                        className="lib__row"
-                        key={`${s.title}-${album}-${i}`}
-                        title={s.title}
-                        onClick={() => playExternal(`${s.title} ${s.artist}`)}
-                      >
-                        <span className="lib__idx">{i + 1}</span>
-                        <span className="lib__title">{s.title}</span>
-                        <span className="lib__sub">{s.album || s.artist}</span>
-                        <span className="lib__dur">
-                          {s.durationMs ? formatTime(s.durationMs) : ""}
-                        </span>
-                      </button>
-                    ))}
-                  </Fragment>
-                ))}
-              </div>
-              </>
-            )}
-          </div>
+          <ArtistView
+            arName={arName}
+            arSongs={arSongs}
+            arLocal={arLocal}
+            arLiked={arLiked}
+            arGroups={arGroups}
+            arLoading={arLoading}
+            fail={fail}
+            playExternal={playExternal}
+            playLiked={playLiked}
+          />
         )}
 
         {view === "recent" && (
-          <section className="brw__section">
-            {recent.length === 0 && (
-              <span className="brw__empty">{t("brw.noTracks")}</span>
-            )}
-            {recGroups.map((g) => (
-              <Fragment key={g.label}>
-                {recGroups.length > 1 && (
-                  <span className="brw__kick brw__qsection">{g.label}</span>
-                )}
-                <div className="brw__grid">
-                  {g.rows.map((r) => (
-                    <button
-                      key={`${r.trackId}-${r.playedAtMs}`}
-                      className="brw__card"
-                      title={`${r.title} — ${r.artist}`}
-                      onClick={() => playRecent(r)}
-                    >
-                      <Art url={recArt(r)} />
-                      <span className="brw__cardplay" aria-hidden>
-                        <Play weight="fill" />
-                      </span>
-                      <span className="brw__cardt">{r.title}</span>
-                      <span className="brw__cards">{r.artist}</span>
-                    </button>
-                  ))}
-                </div>
-              </Fragment>
-            ))}
-          </section>
+          <RecentView
+            empty={recent.length === 0}
+            recGroups={recGroups}
+            playRecent={playRecent}
+            recArt={recArt}
+          />
         )}
-
         {view === "home" && (
           <>
             <h2 className="brw__greet">
