@@ -10,7 +10,7 @@
   --dim: #c6cbdb;
   --accent: #e5e7eb;
   --accent2: #9ca3af;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 }
 
@@ -121,8 +121,9 @@ body {
 .karaoke__line {
   font-family: var(--serif);
   font-size: 44px;
-  font-weight: 700;
+  font-weight: 400;
   font-style: italic;
+  font-synthesis: none;
   line-height: 1.16;
   letter-spacing: -0.01em;
   animation: karaokeIn .45s cubic-bezier(.2,.9,.25,1) both;
@@ -859,6 +860,40 @@ body {
 }
 
 /* ---------- fullscreen "albums" mode ---------- */
+/* Bundled woff2-only serif: the lyric voice stays identical on every OS
+   without shipping fallback .woff duplicates. */
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/InstrumentSerifExt-Regular.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/InstrumentSerif-Regular.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/InstrumentSerifExt-Italic.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/InstrumentSerif-Italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
 @font-face {
   font-family: "Bebas Neue";
   src: url("./fonts/BebasNeue.ttf") format("truetype");
@@ -975,14 +1010,16 @@ body {
   mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
 }
 .fs__lyric {
-  font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-family: var(--serif); font-style: italic; font-weight: 400;
+  font-synthesis: none;
   font-size: calc(clamp(38px, 6.5vh, 76px) * var(--lyrsc, 1));
   letter-spacing: 0; text-align: center; line-height: 1.05;
   text-shadow: 0 2px 30px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
   animation: fs-lyric-in 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 .fs__lyrctx {
-  font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-family: var(--serif); font-style: italic; font-weight: 400;
+  font-synthesis: none;
   font-size: clamp(17px, 2.4vh, 26px); text-align: center; line-height: 1.15;
   color: rgba(244, 245, 250, 0.42); max-width: 70vw;
   text-shadow: 0 1px 14px rgba(0,0,0,0.8);
@@ -2406,8 +2443,8 @@ select { color-scheme: dark; }
 .brw__nav:hover { color: var(--text); background: var(--surface-1); }
 .brw__nav.on { color: var(--text); background: var(--surface-2); }
 .brw__railhead {
-  margin: 16px 10px 6px; font-size: var(--fs-2xs); font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  margin: 16px 10px 6px; font-size: var(--fs-sm); font-weight: 650;
+  letter-spacing: -0.005em; color: var(--dim);
 }
 .brw__pllist { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .brw__nav--pl svg { width: 15px; height: 15px; }
@@ -2513,8 +2550,9 @@ select { color-scheme: dark; }
   margin: 2px 0 14px;
 }
 .brw__wordmark {
-  margin-left: 12px; font-style: normal; font-size: 15px; font-weight: 600;
-  letter-spacing: 0.02em; color: var(--muted); vertical-align: 3px;
+  margin-left: 12px; font-family: var(--serif); font-style: italic;
+  font-size: 20px; font-weight: 400; font-synthesis: none;
+  letter-spacing: 0; color: var(--dim); vertical-align: 1px;
 }
 .brw__jump {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -2552,8 +2590,8 @@ select { color-scheme: dark; }
 }
 .brw__showall:hover { color: var(--text); text-decoration: underline; }
 .brw__kick {
-  display: block; font-size: var(--fs-2xs); font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  display: block; font-size: var(--fs-lg); font-weight: 700;
+  letter-spacing: -0.015em; color: var(--text);
   margin-bottom: 10px;
 }
 /* Section labels inside the queue list (Now playing / Next in queue). */
@@ -2988,3 +3026,57 @@ select { color-scheme: dark; }
   text-decoration: underline; border-radius: 4px;
 }
 .note__undo:hover { background: var(--surface-hover); }
+
+/* ---------- Premium paywall card ---------- */
+.premlock {
+  width: min(430px, calc(100vw - 48px));
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 22px; border-radius: var(--r-lg);
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(10,10,14,.58);
+  backdrop-filter: blur(28px) saturate(1.35); -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  box-shadow: 0 18px 60px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.10);
+  color: var(--text); text-align: center; pointer-events: auto;
+}
+.premlock__icon {
+  width: 42px; height: 42px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.premlock__copy { display: flex; flex-direction: column; gap: 6px; }
+.premlock__copy b {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--serif); font-style: italic; font-weight: 400; font-synthesis: none;
+  font-size: 24px; letter-spacing: 0;
+}
+.premlock__copy span { font-size: var(--fs-sm); line-height: 1.45; color: var(--dim); }
+.premlock__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.premlock__actions button {
+  height: 34px; padding: 0 15px; border-radius: var(--r-pill); cursor: pointer;
+  font: inherit; font-size: var(--fs-sm); font-weight: 650;
+}
+.premlock__buy { border: none; background: var(--text); color: var(--bg); }
+.premlock__buy:hover { filter: brightness(1.08); }
+.premlock__key {
+  border: 1px solid var(--hair-strong); background: var(--surface-1); color: var(--text);
+}
+.premlock__key:hover { background: var(--surface-hover); }
+.premlock--compact {
+  width: auto; max-width: calc(100vw - 28px); padding: 14px;
+  flex-direction: row; text-align: left; gap: 10px;
+}
+.premlock--compact .premlock__icon { width: 30px; height: 30px; flex: none; }
+.premlock--compact .premlock__copy { flex: 1; min-width: 0; gap: 1px; }
+.premlock--compact .premlock__copy b { justify-content: flex-start; font-size: 17px; }
+.premlock--compact .premlock__copy span {
+  font-size: var(--fs-2xs); line-height: 1.25; white-space: normal;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.premlock--compact .premlock__actions { flex: none; }
+
+.license-note { font-size: var(--fs-xs); line-height: 1.45; color: var(--muted); }
+.brw__lyrics .premlock { width: 100%; max-width: none; box-sizing: border-box; }
+.hud--locked, .dlyrics--locked {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: transparent;
+}

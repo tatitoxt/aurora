@@ -27,9 +27,11 @@ import {
 } from "../bridge";
 import ArtBackdrop from "../ArtBackdrop";
 import BrowserSources from "../BrowserSources";
+import { setLicenseState, usePremiumStatus } from "../premium";
 
 export default function Settings() {
   const t = useT();
+  const premium = usePremiumStatus();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [outputs, setOutputs] = useState<string[]>([]);
   const [license, setLicense] = useState<LicenseState>({ state: "unlicensed" });
@@ -40,7 +42,10 @@ export default function Settings() {
     if (activating || !key.trim()) return;
     setActivating(true);
     bridge.activateLicense(key.trim())
-      .then(setLicense)
+      .then((lic) => {
+        setLicense(lic);
+        setLicenseState(lic);
+      })
       .finally(() => setActivating(false));
   };
   const [profileName, setProfileName] = useState("");
@@ -75,6 +80,7 @@ export default function Settings() {
     ]).then(([st, lic, outs]) => {
       setS(st);
       setLicense(lic);
+      setLicenseState(lic);
       setOutputs(outs);
       setLoaded(true);
     });
@@ -131,6 +137,10 @@ export default function Settings() {
     document
       .querySelector(`[data-setgrp="${id}"]`)
       ?.scrollIntoView({ block: "start", behavior: "smooth" });
+  const premiumOnly = (fn: () => void) => () => {
+    if (premium === "free") jump("license");
+    else fn();
+  };
 
   return (
     <div className="glass">
@@ -203,7 +213,7 @@ export default function Settings() {
             <button
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
               aria-label={t("set.videoBackdrop")}
-              onClick={() => patch({ videoBackdrop: !s.videoBackdrop })}
+              onClick={premiumOnly(() => patch({ videoBackdrop: !s.videoBackdrop }))}
             />
           </div>
         )}
@@ -642,7 +652,7 @@ export default function Settings() {
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
             aria-label={t("set.floatingHud")}
-            onClick={() => patch({ hudEnabled: !s.hudEnabled })}
+            onClick={premiumOnly(() => patch({ hudEnabled: !s.hudEnabled }))}
           />
         </div>
         <div className="row">
@@ -650,7 +660,7 @@ export default function Settings() {
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
             aria-label={t("set.desktopLyrics")}
-            onClick={() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled })}
+            onClick={premiumOnly(() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled }))}
           />
         </div>
 
@@ -677,6 +687,7 @@ export default function Settings() {
         <div className="setgroup">
         <div className="field">
           <span>{t("set.license")}</span>
+          <span className="license-note">{t("prem.copy")}</span>
           {license.state === "valid" && (
             <span className="license-ok">
               {t("set.licensed")}{license.customer_email ? ` ${license.customer_email}` : ""}
@@ -703,7 +714,10 @@ export default function Settings() {
           )}
           {(license.state === "valid" || license.state === "offline") && (
             <div className="seg">
-              <button onClick={() => bridge.deactivateLicense().then(setLicense)}>
+              <button onClick={() => bridge.deactivateLicense().then((lic) => {
+                setLicense(lic);
+                setLicenseState(lic);
+              })}>
                 {t("set.deactivate")}
               </button>
             </div>

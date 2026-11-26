@@ -24,6 +24,8 @@ import {
   Subtitles,
 } from "@phosphor-icons/react";
 import { LineLyrics } from "../Lyrics";
+import PremiumLock from "../PremiumLock";
+import { usePremiumStatus } from "../premium";
 import { activeLyricIndex } from "../lib";
 import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import {
@@ -47,6 +49,19 @@ function fmt(ms: number | undefined) {
  * either), title + hairline progress, and the transport row. The player
  * window hides while the HUD is up — never both at once. */
 export default function Hud() {
+  const premium = usePremiumStatus();
+  if (premium === "loading") return null;
+  if (premium === "free") {
+    return (
+      <div className="hud hud--locked">
+        <PremiumLock compact />
+      </div>
+    );
+  }
+  return <HudSurface />;
+}
+
+function HudSurface() {
   const t = useT();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);

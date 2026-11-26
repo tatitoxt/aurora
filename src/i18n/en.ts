@@ -81,6 +81,11 @@ const en = {
   "set.licensed": "Licensed",
   "set.licensedOffline": "Licensed (offline grace)",
   "set.deleteProfile": "Delete profile",
+  // premium
+  "prem.title": "Noctbeat Premium",
+  "prem.copy": "Fullscreen music video, synced karaoke lyrics, desktop lyrics and the floating HUD.",
+  "prem.upgrade": "Upgrade",
+  "prem.enterKey": "Enter license key",
   // fullscreen
   "fs.share": "Share",
   "fs.sleep30": "Sleep 30 min",

@@ -5,10 +5,25 @@ import { KaraokeLyric } from "../Lyrics";
 import { activeLyricIndex } from "../lib";
 import { lyricOffsetFor, subscribeLyroff } from "../lyroff";
 import { X } from "@phosphor-icons/react";
+import PremiumLock from "../PremiumLock";
+import { usePremiumStatus } from "../premium";
 
 /** Floating desktop lyrics overlay: the karaoke line on a small glass chip,
  * always on top, draggable anywhere like the HUD. */
 export default function DeskLyrics() {
+  const premium = usePremiumStatus();
+  if (premium === "loading") return null;
+  if (premium === "free") {
+    return (
+      <div className="dlyrics dlyrics--locked">
+        <PremiumLock compact />
+      </div>
+    );
+  }
+  return <DeskLyricsSurface />;
+}
+
+function DeskLyricsSurface() {
   const t = useT();
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [lyrics, setLyrics] = useState<LrcLine[] | null>(null);
