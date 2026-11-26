@@ -92,6 +92,8 @@ const it: Record<keyof typeof en, string> = {
   "lib.setFolder": "Scegli una cartella musica nelle impostazioni e premi Riscansiona.",
   "lib.rename": "Rinomina",
   "lib.delete": "Elimina",
+  "lib.setCover": "Imposta copertina",
+  "lib.removeCover": "Rimuovi copertina",
   "lib.addToPlaylist": "Aggiungi a playlist…",
   "lib.newPlaylist": "Nuova playlist",
   "lib.tracks": "brani",

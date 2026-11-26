@@ -92,6 +92,8 @@ const pt: Record<keyof typeof en, string> = {
   "lib.setFolder": "Escolha uma pasta de música nos ajustes e toque em Reescanear.",
   "lib.rename": "Renomear",
   "lib.delete": "Excluir",
+  "lib.setCover": "Imagem de capa",
+  "lib.removeCover": "Remover capa",
   "lib.addToPlaylist": "Adicionar à playlist…",
   "lib.newPlaylist": "Nova playlist",
   "lib.tracks": "faixas",

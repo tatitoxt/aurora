@@ -92,6 +92,8 @@ const ko: Record<keyof typeof en, string> = {
   "lib.setFolder": "\uc124\uc815\uc5d0\uc11c \uc74c\uc545 \ud3f4\ub354\ub97c \uc120\ud0dd\ud55c \ud6c4 \ub2e4\uc2dc \uc2a4\uce94\uc744 \ub20c\ub7ec\uc8fc\uc138\uc694.",
   "lib.rename": "\uc774\ub984 \ubc14\uafb8\uae30",
   "lib.delete": "\uc0ad\uc81c",
+  "lib.setCover": "커버 이미지 설정",
+  "lib.removeCover": "커버 이미지 제거",
   "lib.addToPlaylist": "\ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8\uc5d0 \ucd94\uac00\u2026",
   "lib.newPlaylist": "\uc0c8 \ud50c\ub808\uc774\ub9ac\uc2a4\ud2b8",
   "lib.tracks": "\uace1",

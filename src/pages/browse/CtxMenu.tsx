@@ -7,6 +7,7 @@ import {
 } from "../../bridge";
 import type { CtxState, DlgState, View } from "./types";
 import type { Dispatch, SetStateAction } from "react";
+import { pickImageFile, fileToCoverDataUrl, setPlaylistCover, playlistCover } from "./covers";
 
 /** Right-click context menu for playlist rows, queue rows, rail
     playlists and the add-to-playlist picker. */
@@ -101,6 +102,32 @@ export default function CtxMenu({
           {t("lib.rename")}
         </button>
         <button
+          onClick={() => {
+            setCtx(null);
+            const path = ctx.path ?? "";
+            void pickImageFile().then(async (f) => {
+              if (!f) return;
+              try {
+                setPlaylistCover(path, await fileToCoverDataUrl(f));
+              } catch {
+                fail(new Error("unreadable image"));
+              }
+            });
+          }}
+        >
+          {t("lib.setCover")}
+        </button>
+        {ctx.path && playlistCover(ctx.path) && (
+          <button
+            onClick={() => {
+              setCtx(null);
+              setPlaylistCover(ctx.path ?? "", null);
+            }}
+          >
+            {t("lib.removeCover")}
+          </button>
+        )}
+                <button
           onClick={() => {
             setCtx(null);
             setDlg({

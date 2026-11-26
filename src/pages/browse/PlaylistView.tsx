@@ -6,6 +6,7 @@ import {
 } from "../../bridge";
 import { formatTime } from "../../lib";
 import { Art, GenCover } from "./bits";
+import { usePlaylistCovers } from "./covers";
 import {
   CaretDown,
   CaretUp,
@@ -97,11 +98,16 @@ export default function PlaylistView({
   fail: (e: unknown) => void;
 }) {
   const t = useT();
+  const covers = usePlaylistCovers();
+  const plPath = view.startsWith("pl:") ? view.slice(3) : "";
+  const cover = plPath ? covers[plPath] : undefined;
   return (
 <>
   <div className="brw__plhead">
     <span className="brw__plart">
-      {plArt ? (
+      {cover ? (
+        <img className="brw__art" src={cover} alt="" />
+      ) : plArt ? (
         <Art url={plArt} icon={<Playlist />} />
       ) : (
         <GenCover name={plName} />

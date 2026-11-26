@@ -92,6 +92,8 @@ const zh: Record<keyof typeof en, string> = {
   "lib.setFolder": "\u8bf7\u5728\u8bbe\u7f6e\u4e2d\u9009\u62e9\u97f3\u4e50\u6587\u4ef6\u5939\u540e\u70b9\u51fb\u91cd\u65b0\u626b\u63cf\u3002",
   "lib.rename": "\u91cd\u547d\u540d",
   "lib.delete": "\u5220\u9664",
+  "lib.setCover": "",
+  "lib.removeCover": "",
   "lib.addToPlaylist": "\u6dfb\u52a0\u5230\u64ad\u653e\u5217\u8868\u2026",
   "lib.newPlaylist": "\u65b0\u5efa\u64ad\u653e\u5217\u8868",
   "lib.tracks": "\u66f2\u76ee",

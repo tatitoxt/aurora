@@ -92,6 +92,8 @@ const ja: Record<keyof typeof en, string> = {
   "lib.setFolder": "\u8a2d\u5b9a\u3067\u30df\u30e5\u30fc\u30b8\u30c3\u30af\u30d5\u30a9\u30eb\u30c0\u30fc\u3092\u9078\u3093\u3067\u304b\u3089\u518d\u30b9\u30ad\u30e3\u30f3\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
   "lib.rename": "\u540d\u524d\u3092\u5909\u66f4",
   "lib.delete": "\u524a\u9664",
+  "lib.setCover": "ー",
+  "lib.removeCover": "ー",
   "lib.addToPlaylist": "\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8\u306b\u8ffd\u52a0\u2026",
   "lib.newPlaylist": "\u65b0\u3057\u3044\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8",
   "lib.tracks": "\u66f2",

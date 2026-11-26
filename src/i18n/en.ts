@@ -128,6 +128,8 @@ const en = {
   "lib.setFolder": "Set a music folder in settings, then press Rescan.",
   "lib.rename": "Rename",
   "lib.delete": "Delete",
+  "lib.setCover": "Set cover image",
+  "lib.removeCover": "Remove cover image",
   "lib.addToPlaylist": "Add to playlist…",
   "lib.newPlaylist": "New playlist",
   "lib.tracks": "tracks",

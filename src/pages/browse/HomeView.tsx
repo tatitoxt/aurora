@@ -7,6 +7,7 @@ import {
   type Stats,
 } from "../../bridge";
 import { Art, GenCover } from "./bits";
+import { usePlaylistCovers } from "./covers";
 import { Heart, Play, User } from "@phosphor-icons/react";
 import type { FavEntry } from "../../favs";
 import type { View } from "./types";
@@ -56,6 +57,7 @@ export default function HomeView({
   go: (v: View) => void;
 }) {
   const t = useT();
+  const covers = usePlaylistCovers();
   return (
 <>
   <h2 className="brw__greet">
@@ -239,7 +241,9 @@ export default function HomeView({
             title={p.name}
             onClick={() => openPlaylist(p)}
           >
-            {plArts[p.path] ? (
+            {covers[p.path] ? (
+              <img className="brw__art" src={covers[p.path]} alt="" />
+            ) : plArts[p.path] ? (
               <img className="brw__art" src={plArts[p.path]} alt="" />
             ) : (
               <GenCover name={p.name} />
