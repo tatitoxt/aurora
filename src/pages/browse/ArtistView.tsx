@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { useT } from "../../i18n";
 import { bridge, type CatalogSong, type QueueItem } from "../../bridge";
 import { togglePreview, usePreviewing } from "./previewer";
@@ -20,6 +20,7 @@ export default function ArtistView({
   fail,
   playExternal,
   playLiked,
+  goArtist,
 }: {
   arName: string;
   arSongs: CatalogSong[];
@@ -30,9 +31,30 @@ export default function ArtistView({
   fail: (e: unknown) => void;
   playExternal: (query: string) => void;
   playLiked: (e: FavEntry, pool?: FavEntry[]) => void;
+  goArtist: (name: string) => void;
 }) {
   const t = useT();
   const previewing = usePreviewing();
+  /* Related artists: collaborators surfacing in this artist's own
+     catalog credits ("A feat. B", "A & B"). iTunes has no related
+     endpoint — features are the honest signal we have. */
+  const related = useMemo(() => {
+    const counts = new Map<string, number>();
+    const self = arName.trim().toLowerCase();
+    for (const song of arSongs) {
+      for (const part of song.artist.split(/\s*(?:feat\.|ft\.|featuring|&|,|\swith\s| x )\s*/i)) {
+        const name = part.trim();
+        if (!name || name.toLowerCase() === self) continue;
+        if (name.toLowerCase().includes(self) && self.includes(name.toLowerCase())) continue;
+        if (song.artist.trim().toLowerCase() === name.toLowerCase()) continue;
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name]) => name);
+  }, [arSongs, arName]);
   return (
 <div className="brw__section">
   <div className="brw__arhead">
@@ -166,6 +188,22 @@ export default function ArtistView({
       ))}
     </div>
     </>
+  )}
+  {related.length > 0 && (
+    <section className="brw__section">
+      <span className="brw__kick">{t("brw.relatedArtists")}</span>
+      <div className="brw__relchips">
+        {related.map((name) => (
+          <button
+            key={name}
+            className="brw__relchip"
+            onClick={() => goArtist(name)}
+          >
+            <User /> {name}
+          </button>
+        ))}
+      </div>
+    </section>
   )}
 </div>
 );

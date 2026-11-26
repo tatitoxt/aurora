@@ -247,6 +247,7 @@ const en = {
   "brw.playsOne": "play",
   "brw.cancel": "Cancel",
   "brw.preview": "Play 30-second preview",
+  "brw.relatedArtists": "Fans also like",
   "brw.lyrics": "Lyrics",
   "brw.noLyrics": "No synced lyrics for this track",
   "brw.play": "Play",

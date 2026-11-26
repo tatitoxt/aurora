@@ -2956,3 +2956,13 @@ select { color-scheme: dark; }
   opacity: 0; transition: opacity 0.15s;
 }
 .srch__prevwrap:hover .srch__previcon, .srch__prevwrap.on .srch__previcon { opacity: 1; }
+
+.brw__relchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+.brw__relchip {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px;
+  padding: 0 14px; border-radius: var(--r-pill); cursor: pointer;
+  border: 1px solid var(--hair); background: var(--surface-1);
+  color: var(--text); font-size: var(--fs-sm); font-weight: 550;
+}
+.brw__relchip:hover { background: var(--surface-hover); }
+.brw__relchip svg { width: 14px; height: 14px; color: var(--muted); }

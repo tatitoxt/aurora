@@ -227,6 +227,7 @@ const pt: Record<keyof typeof en, string> = {
   "brw.colTitle": "Título", "brw.colDuration": "Duração", "brw.findInPlaylist": "Buscar na playlist",
   "brw.plays": "reproduções","brw.playsOne": "reprodução","brw.cancel": "Cancelar","brw.play": "Reproduzir","brw.playAll": "Reproduzir tudo","brw.liveView": "Visualização ao vivo","brw.forward": "Avançar","brw.recentlyPlayed": "Tocadas recentemente","brw.settings": "Configurações","brw.account": "Conta","brw.appSettings": "Configurações do app","brw.noTracks": "Ainda não há faixas","brw.seek": "Posição","brw.trackMissing": "Arquivo da faixa ausente","brw.greetMorning": "Bom dia","brw.greetAfternoon": "Boa tarde","brw.greetEvening": "Boa noite","brw.volLocalOnly": "Somente reprodução local","brw.showAll": "Ver tudo","brw.nextInQueue": "Próxima na fila","brw.browseAll": "Explorar tudo","brw.cat.charts": "Paradas","brw.cat.newReleases": "Lançamentos","brw.cat.latin": "Latina","brw.cat.mood": "Humor","brw.cat.workout": "Treino","brw.cat.party": "Festa","brw.goToArtist": "Ir ao artista","brw.today": "Hoje","brw.yesterday": "Ontem",
   "brw.preview": "Ouvir prévia de 30s",
+  "brw.relatedArtists": "Fãs também gostam",
   "brw.lyrics": "Letra",
   "brw.noLyrics": "Sem letra sincronizada para esta faixa",
 };

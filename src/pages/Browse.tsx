@@ -1202,6 +1202,7 @@ export default function Browse() {
             fail={fail}
             playExternal={playExternal}
             playLiked={playLiked}
+            goArtist={(n) => go(`ar:${encodeURIComponent(n)}`)}
           />
         )}
 
