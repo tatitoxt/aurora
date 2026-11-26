@@ -20,11 +20,12 @@ export default function SearchView({
   openPlaylist,
   playlists,
   goArtist,
+  goAlbum,
 }: {
   q: string;
   setQ: (s: string) => void;
-  sFilter: "all" | "songs" | "artists" | "playlists";
-  setSFilter: (f: "all" | "songs" | "artists" | "playlists") => void;
+  sFilter: "all" | "songs" | "artists" | "albums" | "playlists";
+  setSFilter: (f: "all" | "songs" | "artists" | "albums" | "playlists") => void;
   recentSearches: string[];
   setRecentSearches: (s: string[]) => void;
   connected: Set<string | null>;
@@ -33,13 +34,14 @@ export default function SearchView({
   openPlaylist: (p: PlaylistFile) => void;
   playlists: PlaylistFile[];
   goArtist: (name: string) => void;
+  goAlbum: (artist: string, album: string) => void;
 }) {
   const t = useT();
   return (
 <div className="brw__search">
   {q.trim() !== "" && (
     <span className="brw__chips seg seg--ghost">
-      {(["all", "songs", "artists", "playlists"] as const).map((f) => (
+      {(["all", "songs", "artists", "albums", "playlists"] as const).map((f) => (
         <button
           key={f}
           className={sFilter === f ? "on" : ""}
@@ -51,7 +53,9 @@ export default function SearchView({
               ? t("srch.songs")
               : f === "artists"
                 ? t("srch.artists")
-                : t("lib.playlists")}
+                : f === "albums"
+                  ? t("lib.albums")
+                  : t("lib.playlists")}
         </button>
       ))}
     </span>
@@ -98,6 +102,7 @@ export default function SearchView({
     onQuery={setQ}
     songLimit={6}
     onArtist={goArtist}
+    onAlbum={goAlbum}
     filter={sFilter === "playlists" ? "none" : sFilter}
     aside={
       (sFilter === "all" || sFilter === "playlists") &&

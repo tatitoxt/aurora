@@ -13,7 +13,8 @@ export type View =
   | "settings"
   | "recent"
   | `pl:${string}`
-  | `ar:${string}`;
+  | `ar:${string}`
+  | `al:${string}`;
 
 /* The poll emits fresh objects every call — skip the setState (and the
    whole-tree re-render it costs) when nothing actually changed. */
@@ -21,6 +22,7 @@ export const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify
 
 export const RECENT_SEARCHES_KEY = "brw.recentSearches";
 export const LAST_VIEW_KEY = "brw.lastView";
+export const LYRICS_PANEL_KEY = "brw.lyricsPanel";
 
 /* Spotify's "Browse all" grid on the empty search page — each tile
    seeds a provider query since we have no editorial catalog. */
@@ -36,7 +38,7 @@ export const CATEGORIES: { k: MsgKey; q: string; hue: number }[] = [
 export const readLastView = (): View => {
   try {
     const v = localStorage.getItem(LAST_VIEW_KEY) ?? "";
-    return /^(home|search|liked|queue|services|settings|recent|pl:|ar:)/.test(
+    return /^(home|search|liked|queue|services|settings|recent|pl:|ar:|al:)/.test(
       v,
     )
       ? (v as View)

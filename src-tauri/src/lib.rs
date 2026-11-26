@@ -296,6 +296,8 @@ struct CatalogSong {
     duration_ms: u64,
     artwork_url: String,
     preview_url: Option<String>,
+    disc_number: Option<u64>,
+    track_number: Option<u64>,
 }
 
 /// Song metadata for the Spotify-style search results (Apple's public
@@ -328,6 +330,8 @@ async fn catalog_search(query: String) -> Result<Vec<CatalogSong>, String> {
                 duration_ms: r["trackTimeMillis"].as_u64().unwrap_or(0),
                 artwork_url: s(r, "artworkUrl100").replace("100x100bb", "300x300bb"),
                 preview_url: r["previewUrl"].as_str().map(|u| u.to_string()),
+                disc_number: r["discNumber"].as_u64(),
+                track_number: r["trackNumber"].as_u64(),
             })
             .filter(|c| !c.title.is_empty())
             .collect())

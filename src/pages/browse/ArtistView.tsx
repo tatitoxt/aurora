@@ -21,6 +21,7 @@ export default function ArtistView({
   playExternal,
   playLiked,
   goArtist,
+  goAlbum,
 }: {
   arName: string;
   arSongs: CatalogSong[];
@@ -32,6 +33,7 @@ export default function ArtistView({
   playExternal: (query: string) => void;
   playLiked: (e: FavEntry, pool?: FavEntry[]) => void;
   goArtist: (name: string) => void;
+  goAlbum?: (artist: string, album: string) => void;
 }) {
   const t = useT();
   const previewing = usePreviewing();
@@ -147,7 +149,13 @@ export default function ArtistView({
           {/* Only label groups when albums actually exist —
               a flat list needs no header. */}
           {album !== "" && arGroups.length > 1 && (
-            <div className="brw__kick brw__qsection">{album}</div>
+            <button
+              className="brw__kick brw__qsection brw__albumlink"
+              title={album}
+              onClick={() => goAlbum?.(arName, album)}
+            >
+              {album}
+            </button>
           )}
           {songs.map((s, i) => (
             <button

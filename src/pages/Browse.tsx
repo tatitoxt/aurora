@@ -63,6 +63,7 @@ import { Art, GenCover, SeekCluster, SyncBackdrop } from "./browse/bits";
 import {
   AUTO_ORDER,
   LAST_VIEW_KEY,
+  LYRICS_PANEL_KEY,
   RECENT_SEARCHES_KEY,
   readLastView,
   sameJson,
@@ -71,6 +72,7 @@ import {
 import SearchView from "./browse/SearchView";
 import RecentView from "./browse/RecentView";
 import ArtistView from "./browse/ArtistView";
+import AlbumView from "./browse/AlbumView";
 import HomeView from "./browse/HomeView";
 import LikedView from "./browse/LikedView";
 import QueueView from "./browse/QueueView";
@@ -108,7 +110,13 @@ export default function Browse() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(0.8);
-  const [showLyrics, setShowLyrics] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(() => {
+    try {
+      return localStorage.getItem(LYRICS_PANEL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [autoplay, setAutoplayEnabled] = useAutoplay();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
@@ -140,6 +148,7 @@ export default function Browse() {
   /* Artist catalog results are static for the session — cache by
      artist so revisiting a page doesn't re-hit the extension. */
   const arCatalogCache = useRef(new Map<string, CatalogSong[]>());
+  const alCatalogCache = useRef(new Map<string, CatalogSong[]>());
   /* Rail playlist item highlighted as a drop target while a track
      row is dragged over it. */
   const [plDrop, setPlDrop] = useState<string | null>(null);
@@ -149,6 +158,8 @@ export default function Browse() {
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
   const [arLoading, setArLoading] = useState(false);
+  const [alSongs, setAlSongs] = useState<CatalogSong[]>([]);
+  const [alLoading, setAlLoading] = useState(false);
   /* Long lists render in 200-row pages revealed by a sentinel — a
      2 000-track playlist shouldn't mount 2 000 rows of DOM at once. */
   const [listLimit, setListLimit] = useState(200);
@@ -383,6 +394,13 @@ export default function Browse() {
     }
   }, [view]);
 
+  /* Spotify keeps auxiliary panels where the user left them. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(LYRICS_PANEL_KEY, showLyrics ? "1" : "0");
+    } catch {}
+  }, [showLyrics]);
+
 
   /* Browser preview only: the demo soundtrack lives in the YouTube embed,
      which unmounts with Stage — keep an audible (hidden) embed here so
@@ -586,6 +604,46 @@ export default function Browse() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
+  /* Catalog album page: iTunes exposes albums through song search
+     results, so exact-album matches form the release tracklist. */
+  useEffect(() => {
+    if (!view.startsWith("al:")) return;
+    const payload = view.slice(3);
+    const sep = payload.indexOf("/");
+    if (sep < 0) return;
+    const artist = decodeURIComponent(payload.slice(0, sep));
+    const album = decodeURIComponent(payload.slice(sep + 1));
+    const key = `${artist.toLowerCase()}:${album.toLowerCase()}`;
+    setAlLoading(true);
+    setAlSongs([]);
+    const cached = alCatalogCache.current.get(key);
+    if (cached) {
+      setAlSongs(cached);
+      setAlLoading(false);
+      return;
+    }
+    void bridge
+      .catalogSearch(`${album} ${artist}`)
+      .then((r) => {
+        const exact = r.filter(
+          (s) =>
+            s.album.trim().toLowerCase() === album.trim().toLowerCase() &&
+            s.artist.toLowerCase().includes(artist.trim().toLowerCase()),
+        );
+        const rows = (exact.length > 0 ? exact : r.filter((s) => s.album.trim().toLowerCase() === album.trim().toLowerCase()))
+          .slice()
+          .sort((a, b) =>
+            (a.discNumber ?? 1) - (b.discNumber ?? 1) ||
+            (a.trackNumber ?? Number.MAX_SAFE_INTEGER) - (b.trackNumber ?? Number.MAX_SAFE_INTEGER),
+          );
+        alCatalogCache.current.set(key, rows);
+        setAlSongs(rows);
+      })
+      .catch(fail)
+      .finally(() => setAlLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   /* "Show all" pulls a longer history than the Home preview row. */
   useEffect(() => {
     if (view !== "recent") return;
@@ -640,7 +698,7 @@ export default function Browse() {
     });
   };
   const [sFilter, setSFilter] = useState<
-    "all" | "songs" | "artists" | "playlists"
+    "all" | "songs" | "artists" | "albums" | "playlists"
   >("all");
 
   /* Playlist view: display-only sort + in-playlist filter (Spotify's
@@ -742,6 +800,11 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
   const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
+  const alParts = view.startsWith("al:") ? view.slice(3).split("/") : [];
+  const alArtist = alParts.length === 2 ? decodeURIComponent(alParts[0]) : "";
+  const alName = alParts.length === 2 ? decodeURIComponent(alParts[1]) : "";
+  const goAlbum = (artist: string, album: string) =>
+    go(`al:${encodeURIComponent(artist)}/${encodeURIComponent(album)}`);
   /* Spotify groups an artist page by release — keep first-seen album
      order; empty album names fall into a "singles" bucket last. */
   const arGroups = useMemo(() => {
@@ -1196,6 +1259,7 @@ export default function Browse() {
             {view === "recent" && t("brw.recentlyPlayed")}
             {view.startsWith("pl:") && plName}
             {view.startsWith("ar:") && arName}
+            {view.startsWith("al:") && alName}
           </h1>
           <span className="brw__headspace" />
           <button
@@ -1242,6 +1306,7 @@ export default function Browse() {
             openPlaylist={openPlaylist}
             playlists={playlists}
             goArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
+            goAlbum={goAlbum}
           />
         )}
 
@@ -1280,6 +1345,18 @@ export default function Browse() {
             fail={fail}
             playExternal={playExternal}
             playLiked={playLiked}
+            goArtist={(n) => go(`ar:${encodeURIComponent(n)}`)}
+            goAlbum={goAlbum}
+          />
+        )}
+
+        {view.startsWith("al:") && (
+          <AlbumView
+            artist={alArtist}
+            album={alName}
+            songs={alSongs}
+            loading={alLoading}
+            playExternal={playExternal}
             goArtist={(n) => go(`ar:${encodeURIComponent(n)}`)}
           />
         )}

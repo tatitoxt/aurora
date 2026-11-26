@@ -2669,8 +2669,8 @@ select { color-scheme: dark; }
 .brw__search { width: 100%; max-width: none; }
 .brw__search .fs__provq { width: 100%; max-width: 640px; }
 /* Spotify-style results: "Top result" card left, "Songs" right on the same
-   row, then Artists and Playlists as full-width rows underneath. Grid rows
-   are explicit so the column pairing holds regardless of DOM order. */
+   row, then Albums, Artists and Playlists as full-width rows underneath.
+   Grid rows are explicit so the column pairing holds regardless of DOM order. */
 .brw__search .srch__body {
   display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
   column-gap: 28px;
@@ -2680,9 +2680,11 @@ select { color-scheme: dark; }
 .brw__search .srch__body > .srch__top { grid-column: 1; grid-row: 2; }
 .brw__search .srch__body > .srch__h:has(+ .srch__songs) { grid-column: 2; grid-row: 1; }
 .brw__search .srch__body > .srch__songs { grid-column: 2; grid-row: 2; }
-.brw__search .srch__body > .srch__h:has(+ .srch__artists) { grid-column: 1 / -1; grid-row: 3; }
-.brw__search .srch__body > .srch__artists { grid-column: 1 / -1; grid-row: 4; flex-wrap: wrap; overflow: visible; }
-.brw__search .srch__body > .srch__aside { grid-column: 1 / -1; grid-row: 5; }
+.brw__search .srch__body > .srch__h:has(+ .srch__albums) { grid-column: 1 / -1; grid-row: 3; }
+.brw__search .srch__body > .srch__albums { grid-column: 1 / -1; grid-row: 4; flex-wrap: wrap; overflow: visible; }
+.brw__search .srch__body > .srch__h:has(+ .srch__artists:not(.srch__albums)) { grid-column: 1 / -1; grid-row: 5; }
+.brw__search .srch__body > .srch__artists:not(.srch__albums) { grid-column: 1 / -1; grid-row: 6; flex-wrap: wrap; overflow: visible; }
+.brw__search .srch__body > .srch__aside { grid-column: 1 / -1; grid-row: 7; }
 /* Artist drill-down: the songs list takes the whole width. */
 .brw__search .srch__body > .srch__h:has(.srch__back) { grid-column: 1 / -1; grid-row: 1; }
 .brw__search .srch__body > .srch__h:has(.srch__back) + .srch__songs { grid-column: 1 / -1; grid-row: 2; }
@@ -3112,3 +3114,24 @@ select { color-scheme: dark; }
 }
 .hudlock__back:hover { background: var(--surface-hover); }
 .dlyrics--locked .dlyrics__close { z-index: 2; }
+
+/* Catalog albums: same density as artist cards, but square release art. */
+.srch__album img, .brw__search .srch__album img { border-radius: 8px; }
+.srch__album small {
+  font-size: 10px; color: var(--muted); max-width: 84px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.brw__albumlink {
+  display: block; width: fit-content; border: 0; padding: 0;
+  background: none; color: var(--muted); font: inherit; cursor: pointer;
+  text-transform: inherit; letter-spacing: inherit;
+}
+.brw__albumlink:hover, .brw__albumlink:focus-visible { color: var(--text); text-decoration: underline; outline: none; }
+.brw__alhead img, .brw__alhead .brw__art, .brw__alhead .brw__art--gen { border-radius: 12px; }
+.brw__almeta { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.brw__almeta > small { color: var(--muted); font-size: var(--fs-xs); }
+.brw__alartist {
+  width: fit-content; border: 0; padding: 0; background: none;
+  color: var(--muted); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.brw__alartist:hover, .brw__alartist:focus-visible { color: var(--text); text-decoration: underline; outline: none; }
