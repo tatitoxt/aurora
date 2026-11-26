@@ -7,6 +7,7 @@ import {
   Heart,
   ListBullets,
   Microphone,
+  Infinity as InfinityIcon,
   Pause,
   Play,
   Repeat,
@@ -44,6 +45,8 @@ export default function Playbar({
   preMuteVolRef,
   showLyrics,
   toggleLyrics,
+  autoplay,
+  toggleAutoplay,
 }: {
   track: NowPlaying["track"] | null;
   np: NowPlaying | null;
@@ -62,6 +65,8 @@ export default function Playbar({
   preMuteVolRef: { current: number };
   showLyrics: boolean;
   toggleLyrics: () => void;
+  autoplay: boolean;
+  toggleAutoplay: () => void;
 }) {
   const t = useT();
   const nav = useNavigate();
@@ -171,6 +176,14 @@ export default function Playbar({
     title={t("brw.lyrics")}
   >
     <Microphone size={15} />
+  </button>
+  <button
+    className={`brw__icon brw__barextra ${autoplay ? "on" : ""}`}
+    onClick={toggleAutoplay}
+    aria-label={t("brw.autoplay")}
+    title={t("brw.autoplay")}
+  >
+    <InfinityIcon size={15} />
   </button>
   <button
     className={`brw__icon brw__barextra ${view === "queue" ? "on" : ""}`}

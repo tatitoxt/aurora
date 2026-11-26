@@ -240,6 +240,8 @@ const es: Record<keyof typeof en, string> = {
   "brw.preview": "Escuchar preview de 30s",
   "brw.relatedArtists": "A los fans también les gusta",
   "brw.undo": "Deshacer",
+  "brw.autoplayStarted": "Autoplay: sigue con temas similares",
+  "brw.autoplay": "Autoplay de temas similares",
   "brw.lyrics": "Letra",
   "brw.noLyrics": "No hay letra sincronizada para este tema",
   "brw.play": "Reproducir",

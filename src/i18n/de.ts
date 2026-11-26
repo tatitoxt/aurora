@@ -229,6 +229,8 @@ const de: Record<keyof typeof en, string> = {
   "brw.preview": "30-Sekunden-Vorschau abspielen",
   "brw.relatedArtists": "Hörer mögen auch",
   "brw.undo": "Rückgängig",
+  "brw.autoplayStarted": "Autoplay: ähnliche Titel folgen",
+  "brw.autoplay": "Ähnliche Titel automatisch abspielen",
   "brw.lyrics": "Liedtext",
   "brw.noLyrics": "Kein synchronisierter Text für diesen Titel",
 };

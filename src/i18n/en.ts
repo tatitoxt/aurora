@@ -249,6 +249,8 @@ const en = {
   "brw.preview": "Play 30-second preview",
   "brw.relatedArtists": "Fans also like",
   "brw.undo": "Undo",
+  "brw.autoplayStarted": "Autoplay: continuing with similar tracks",
+  "brw.autoplay": "Autoplay similar tracks",
   "brw.lyrics": "Lyrics",
   "brw.noLyrics": "No synced lyrics for this track",
   "brw.play": "Play",

@@ -229,6 +229,8 @@ const ja: Record<keyof typeof en, string> = {
   "brw.preview": "30",
   "brw.relatedArtists": "",
   "brw.undo": "",
+  "brw.autoplayStarted": "",
+  "brw.autoplay": "",
   "brw.lyrics": "",
   "brw.noLyrics": "",
 };

@@ -107,6 +107,10 @@ export default function Browse() {
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(0.8);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [autoplay, setAutoplay] = useState(
+    () => localStorage.getItem("noctbeat-autoplay") === "1",
+  );
+  const autoplaying = useRef(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   /* "+" add-to-playlist popover: anchored to the button's viewport
@@ -276,6 +280,54 @@ export default function Browse() {
       clearInterval(poll);
     };
   }, []);
+
+  /* Radio/autoplay: when the queue runs out and the engine goes
+     stopped, continue with library tracks — the same artist first,
+     then the rest shuffled in. Persists across sessions. The ref
+     gates a re-fire while the new queue spins up. */
+  useEffect(() => {
+    if (!autoplay) return;
+    const off = subscribe<NowPlaying>("now-playing", (n) => {
+      if (n.status !== "stopped" || autoplaying.current) return;
+      const ended = n.track;
+      if (!ended) return;
+      autoplaying.current = true;
+      void bridge
+        .libraryTracks()
+        .then((items) => {
+          if (items.length === 0) return;
+          const sameArtist = items.filter(
+            (it) =>
+              it.track.artist.toLowerCase() === ended.artist.toLowerCase() &&
+              it.track.title !== ended.title,
+          );
+          const rest = items.filter(
+            (it) =>
+              it.track.artist.toLowerCase() !== ended.artist.toLowerCase() ||
+              it.track.title === ended.title,
+          );
+          const shuffleArr = <T,>(a: T[]): T[] => {
+            const c = [...a];
+            for (let i = c.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [c[i], c[j]] = [c[j], c[i]];
+            }
+            return c;
+          };
+          const radio = [...shuffleArr(sameArtist), ...shuffleArr(rest)].slice(0, 30);
+          if (radio.length === 0) return;
+          return bridge.playItems(radio, 0).then(() => {
+            flash(t("brw.autoplayStarted"));
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          autoplaying.current = false;
+        });
+    });
+    return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoplay]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -1425,6 +1477,14 @@ export default function Browse() {
         preMuteVolRef={preMuteVolRef}
         showLyrics={showLyrics}
         toggleLyrics={() => setShowLyrics((v) => !v)}
+        autoplay={autoplay}
+        toggleAutoplay={() =>
+          setAutoplay((v) => {
+            const nv = !v;
+            localStorage.setItem("noctbeat-autoplay", nv ? "1" : "0");
+            return nv;
+          })
+        }
       />
     </div>
   );

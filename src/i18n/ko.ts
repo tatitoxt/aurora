@@ -229,6 +229,8 @@ const ko: Record<keyof typeof en, string> = {
   "brw.preview": "30초 미리듣기 재생",
   "brw.relatedArtists": "팬들이 좋아하는",
   "brw.undo": "실행 취소",
+  "brw.autoplayStarted": "자동재생: 비슷한 곡 계속",
+  "brw.autoplay": "비슷한 곡 자동재생",
   "brw.lyrics": "가사",
   "brw.noLyrics": "이 트랙의 싱크 가사가 없습니다",
 };
