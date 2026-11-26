@@ -13,10 +13,10 @@ use noctbeat_core::palette::{extract_palette_bytes, Palette, Rgb};
 use noctbeat_core::player::{LocalPlayer, QueueItem, RepeatMode};
 
 mod audio;
-mod playlists_cmds;
 mod discord;
 #[cfg(target_os = "linux")]
 mod mpris;
+mod playlists_cmds;
 use noctbeat_core::settings::{Profile, Settings};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -712,7 +712,10 @@ fn clear_queue(app: tauri::AppHandle, state: State<AppState>) -> Result<(), Stri
 
 /// Resolve the music dir: explicit `dir`, else `settings.music_dir`,
 /// expanding a leading `~`. Error strings are shown to the user.
-pub(crate) fn resolve_music_dir(state: &State<AppState>, dir: Option<String>) -> Result<String, String> {
+pub(crate) fn resolve_music_dir(
+    state: &State<AppState>,
+    dir: Option<String>,
+) -> Result<String, String> {
     let dir = dir.or_else(|| state.settings.lock().ok().and_then(|s| s.music_dir.clone()));
     // First-run zero-config: fall back to the conventional ~/Music folder so
     // scanning works before the user ever opens Settings.
@@ -781,7 +784,7 @@ async fn play_items(
         return Err(format!("no item at index {index}"));
     }
     /* Fail before replacing the queue: a moved/deleted file must not
-       wipe the listener's current queue and playback. */
+    wipe the listener's current queue and playback. */
     let target = &items[index];
     if !target.path.contains("://")
         && !target.path.starts_with("remote:")

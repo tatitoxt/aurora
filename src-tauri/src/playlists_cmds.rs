@@ -114,7 +114,10 @@ pub(crate) fn unique_playlist_path(dir: &str, name: &str) -> std::path::PathBuf 
 /// `-3`, … appended. Remote (not-yet-downloaded) items can't round-trip
 /// through a local playlist and are skipped.
 #[tauri::command]
-pub(crate) fn export_playlist(state: State<AppState>, name: String) -> Result<ExportResult, String> {
+pub(crate) fn export_playlist(
+    state: State<AppState>,
+    name: String,
+) -> Result<ExportResult, String> {
     let dir = resolve_music_dir(&state, None)?;
     let file = unique_playlist_path(&dir, &name);
     let player = state.player.lock().map_err(|e| e.to_string())?;
@@ -187,11 +190,13 @@ pub(crate) fn list_playlists(state: State<AppState>) -> Result<Vec<PlaylistFile>
 /// Create an empty playlist file (the rail's "+" button) — same naming
 /// rules as `export_playlist`, which shares `unique_playlist_path`.
 #[tauri::command]
-pub(crate) fn create_playlist(state: State<AppState>, name: String) -> Result<PlaylistFile, String> {
+pub(crate) fn create_playlist(
+    state: State<AppState>,
+    name: String,
+) -> Result<PlaylistFile, String> {
     let dir = resolve_music_dir(&state, None)?;
     let file = unique_playlist_path(&dir, &name);
-    std::fs::write(&file, "#EXTM3U\n")
-        .map_err(|e| format!("write {}: {e}", file.display()))?;
+    std::fs::write(&file, "#EXTM3U\n").map_err(|e| format!("write {}: {e}", file.display()))?;
     Ok(PlaylistFile {
         name: file
             .file_stem()
@@ -291,7 +296,10 @@ pub(crate) struct PlaylistTrack {
 /// Remote URLs are included (marked `remote`) so a removal index always
 /// lines up with what the file actually lists.
 #[tauri::command]
-pub(crate) fn playlist_tracks(state: State<AppState>, path: String) -> Result<Vec<PlaylistTrack>, String> {
+pub(crate) fn playlist_tracks(
+    state: State<AppState>,
+    path: String,
+) -> Result<Vec<PlaylistTrack>, String> {
     let file = playlist_path_checked(&state, &path)?;
     let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
     Ok(noctbeat_core::playlists::parse(&file, &content)
@@ -407,7 +415,11 @@ pub(crate) fn rewrite_playlist(
 /// The index counts every entry (files and remote rows) exactly as
 /// `playlist_tracks` lists them.
 #[tauri::command]
-pub(crate) fn playlist_remove_track(state: State<AppState>, path: String, index: u32) -> Result<(), String> {
+pub(crate) fn playlist_remove_track(
+    state: State<AppState>,
+    path: String,
+    index: u32,
+) -> Result<(), String> {
     let file = playlist_path_checked(&state, &path)?;
     m3u_editable(&file)?;
     let content = std::fs::read_to_string(&file).map_err(|e| e.to_string())?;
