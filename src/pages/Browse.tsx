@@ -325,6 +325,36 @@ export default function Browse() {
           return;
         }
       }
+      /* Media shortcuts, Spotify-style: Ctrl/Cmd+arrows for volume and
+         transport, Space toggles play — all inert while typing. */
+      if (!inField && (e.ctrlKey || e.metaKey)) {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const d = e.key === "ArrowUp" ? 0.05 : -0.05;
+          setVol((v) => {
+            const nv = Math.min(1, Math.max(0, v + d));
+            if (nv > 0) preMuteVolRef.current = nv;
+            void bridge.setVolume(nv).catch(() => {});
+            return nv;
+          });
+          return;
+        }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          void bridge.mediaControl("next");
+          return;
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          void bridge.mediaControl("previous");
+          return;
+        }
+      }
+      if (e.key === " " && !inField) {
+        e.preventDefault();
+        void bridge.mediaControl("play-pause");
+        return;
+      }
       /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
       if (e.key !== "/" || inField) return;
       e.preventDefault();
