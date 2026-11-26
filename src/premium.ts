@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { bridge, type LicenseState } from "./bridge";
+import { bridge, subscribe, type LicenseState } from "./bridge";
 import { branding } from "./branding";
 
 const PREVIEW_TIER_KEY = "noctbeat.tierPreview";
@@ -45,9 +45,11 @@ export function useLicenseState() {
   useEffect(() => {
     const cb = (s: LicenseState | null) => setState(s);
     listeners.add(cb);
+    const offLicense = subscribe<LicenseState>("license", setLicenseState);
     void loadLicense();
     return () => {
       listeners.delete(cb);
+      offLicense();
     };
   }, []);
   return state;
@@ -67,7 +69,11 @@ function previewTierOverride(): "free" | "premium" | null {
 }
 
 export function licenseIsPremium(state: LicenseState | null) {
-  return state?.state === "valid" || state?.state === "offline";
+  if (state?.state === "valid") return true;
+  /* The backend only emits Offline while grace is valid, but an open
+     window can outlive that deadline — re-check the timestamp here
+     instead of trusting the cached variant forever. */
+  return state?.state === "offline" && state.grace_until_ms > Date.now();
 }
 
 /** Whether checkout/license enforcement is configured for this build. While

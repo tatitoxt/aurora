@@ -2729,7 +2729,7 @@ select { color-scheme: dark; }
 .lib__rm:hover { color: var(--text); background: var(--surface-2); }
 .lib__row--dragging { opacity: 0.35; }
 .lib__row--sel { background: var(--surface-hover); }
-.lib--selpad { padding-bottom: 68px; }
+.lib--playlist { padding-bottom: 68px; }
 .brw__selbar {
   position: sticky; bottom: 16px; z-index: 6; margin: 10px 6px 4px;
   display: flex; align-items: center; gap: 10px; align-self: flex-start;
@@ -2751,7 +2751,7 @@ select { color-scheme: dark; }
 /* Lyrics side panel — overlays the right edge of the main column,
    doesn't disturb the grid. */
 .brw__lyrics {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 300px;
+  position: fixed; top: 0; right: 0; bottom: var(--h-bar); width: 300px;
   z-index: 5; display: flex; flex-direction: column;
   background: rgba(12, 12, 14, 0.92);
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
@@ -2777,8 +2777,11 @@ select { color-scheme: dark; }
 }
 .brw__lyricslist p.past { color: color-mix(in srgb, var(--muted) 55%, transparent); }
 .brw__lyricsempty { color: var(--muted); font-size: var(--fs-sm); padding: 20px 4px; }
-/* The main column is the positioning context for the panel */
 .brw__main { position: relative; }
+.brw__main .note {
+  position: sticky; top: 0; z-index: 8;
+  background: var(--surface-1);
+}
 @media (max-width: 900px) {
   .brw__lyrics { width: 240px; }
 }
@@ -2858,6 +2861,17 @@ select { color-scheme: dark; }
   display: block;
 }
 
+@media (max-width: 900px) {
+  /* Keep the transport inside its lane at mid widths: the mute icon
+     remains, the wide slider is the first thing to fold away. */
+  .brw__vol { display: none; }
+}
+@media (max-width: 820px) {
+  /* Lyrics are a primary surface and must stay reachable at the 600px
+     default window width; queue/autoplay have rail/menu equivalents. */
+  .brw__barextra:not(.brw__barextra--lyrics) { display: none; }
+  .brw__np { width: 140px; }
+}
 @media (max-width: 700px) {
   .brw__time { display: none; }
   .brw__icon--live span { display: none; }
@@ -2867,7 +2881,7 @@ select { color-scheme: dark; }
   .brw__volwrap { display: none; }
   /* Transport + seek matter more than shortcuts the rail already
      offers — drop them so the seek bar keeps a usable width. */
-  .brw__barextra { display: none; }
+  .brw__barextra:not(.brw__barextra--lyrics) { display: none; }
   /* 160px header art + 4 actions don't fit the default window —
      shrink the art and let the buttons wrap below the title. */
   .brw__plhead { flex-wrap: wrap; align-items: center; }
@@ -3080,3 +3094,12 @@ select { color-scheme: dark; }
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
   background: transparent;
 }
+.hudlock__back {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px; height: 28px;
+  padding: 0 12px; border: 1px solid var(--hair); border-radius: var(--r-pill);
+  background: var(--surface-2); color: var(--text); cursor: pointer;
+  font-size: var(--fs-xs); font-weight: 650; white-space: nowrap;
+}
+.hudlock__back:hover { background: var(--surface-hover); }
+.dlyrics--locked .dlyrics__close { z-index: 2; }

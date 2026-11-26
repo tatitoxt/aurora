@@ -3,6 +3,7 @@
 //! commands stay registered in the same invoke_handler.
 
 use crate::{emit_queue, resolve_music_dir, AppState};
+use std::path::PathBuf;
 use tauri::State;
 
 #[derive(serde::Serialize)]
@@ -239,6 +240,52 @@ pub(crate) fn playlist_path_checked(
 pub(crate) fn delete_playlist(state: State<AppState>, path: String) -> Result<(), String> {
     let file = playlist_path_checked(&state, &path)?;
     std::fs::remove_file(&file).map_err(|e| e.to_string())
+}
+
+/// Snapshot the exact bytes of a playlist before a destructive edit. The
+/// backup is keyed by the real discovered PathBuf, so even legacy-encoded
+/// filenames round-trip byte-for-byte while the app session is open.
+#[tauri::command]
+pub(crate) fn playlist_backup(state: State<AppState>, path: String) -> Result<(), String> {
+    let file = playlist_path_checked(&state, &path)?;
+    let bytes = std::fs::read(&file).map_err(|e| e.to_string())?;
+    state
+        .playlist_backups
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(file, bytes);
+    Ok(())
+}
+
+/// Restore the latest exact backup for the display path. This is how Undo
+/// recreates deleted playlists with remote rows, missing files, original
+/// ordering and non-UTF-8 names intact instead of approximating them by
+/// re-adding only surviving local tracks.
+#[tauri::command]
+pub(crate) fn playlist_restore_backup(state: State<AppState>, path: String) -> Result<(), String> {
+    let found = {
+        let backups = state.playlist_backups.lock().map_err(|e| e.to_string())?;
+        let matches: Vec<PathBuf> = backups
+            .keys()
+            .filter(|p| p.to_string_lossy() == path)
+            .cloned()
+            .collect();
+        match matches.as_slice() {
+            [one] => one.clone(),
+            [] => return Err("nothing to undo".into()),
+            _ => return Err("name isn't representable — rename it in a file manager first".into()),
+        }
+    };
+    let bytes = state
+        .playlist_backups
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(&found)
+        .ok_or("nothing to undo")?;
+    if let Some(dir) = found.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&found, bytes).map_err(|e| e.to_string())
 }
 
 /// Rename keeps the original extension; the new file stays in the same

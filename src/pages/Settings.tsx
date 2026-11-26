@@ -137,8 +137,11 @@ export default function Settings() {
     document
       .querySelector(`[data-setgrp="${id}"]`)
       ?.scrollIntoView({ block: "start", behavior: "smooth" });
-  const premiumOnly = (fn: () => void) => () => {
-    if (premium === "free") jump("license");
+  /* Turning a premium surface on is gated; turning one off never is —
+     a free user must always be able to dismiss an overlay that is
+     already open. */
+  const premiumOnly = (enabled: boolean, fn: () => void) => () => {
+    if (premium === "free" && !enabled) jump("license");
     else fn();
   };
 
@@ -213,7 +216,7 @@ export default function Settings() {
             <button
               className={`toggle ${s.videoBackdrop ? "on" : ""}`}
               aria-label={t("set.videoBackdrop")}
-              onClick={premiumOnly(() => patch({ videoBackdrop: !s.videoBackdrop }))}
+              onClick={premiumOnly(s.videoBackdrop, () => patch({ videoBackdrop: !s.videoBackdrop }))}
             />
           </div>
         )}
@@ -652,7 +655,7 @@ export default function Settings() {
           <button
             className={`toggle ${s.hudEnabled ? "on" : ""}`}
             aria-label={t("set.floatingHud")}
-            onClick={premiumOnly(() => patch({ hudEnabled: !s.hudEnabled }))}
+            onClick={premiumOnly(s.hudEnabled, () => patch({ hudEnabled: !s.hudEnabled }))}
           />
         </div>
         <div className="row">
@@ -660,7 +663,7 @@ export default function Settings() {
           <button
             className={`toggle ${s.deskLyricsEnabled ? "on" : ""}`}
             aria-label={t("set.desktopLyrics")}
-            onClick={premiumOnly(() => patch({ deskLyricsEnabled: !s.deskLyricsEnabled }))}
+            onClick={premiumOnly(s.deskLyricsEnabled, () => patch({ deskLyricsEnabled: !s.deskLyricsEnabled }))}
           />
         </div>
 

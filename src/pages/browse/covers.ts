@@ -34,6 +34,23 @@ export function setPlaylistCover(path: string, dataUrl: string | null) {
   window.dispatchEvent(new CustomEvent("noctbeat-plcovers"));
 }
 
+/** Move a cover across a playlist rename; deleting the old key prevents
+   a future unrelated playlist at that path from inheriting the image. */
+export function renamePlaylistCover(from: string, to: string) {
+  if (from === to) return;
+  const all = readAll();
+  const cover = all[from];
+  if (!cover) return;
+  delete all[from];
+  all[to] = cover;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(all));
+  } catch {
+    /* quota — covers are best-effort */
+  }
+  window.dispatchEvent(new CustomEvent("noctbeat-plcovers"));
+}
+
 /** Resize a picked image file to a square-ish JPEG data URL. */
 export function fileToCoverDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -29,6 +29,9 @@ pub(crate) struct AppState {
     pub(crate) player: Mutex<LocalPlayer>,
     /// Arc-shared with the player's path resolver so settings edits reach it.
     pub(crate) settings: std::sync::Arc<Mutex<Settings>>,
+    /// Exact pre-edit playlist bytes for the undo toast. Kept only in
+    /// memory: undo is a session-scoped gesture, not a trash system.
+    pub(crate) playlist_backups: Mutex<std::collections::HashMap<PathBuf, Vec<u8>>>,
     pub(crate) settings_path: PathBuf,
     pub(crate) beat: Mutex<BeatDetector>,
     pub(crate) last_energy: Mutex<EnergyUpdate>,
@@ -1190,18 +1193,31 @@ async fn get_license_state(state: State<'_, AppState>) -> Result<LicenseState, S
 }
 
 #[tauri::command]
-async fn activate_license(state: State<'_, AppState>, key: String) -> Result<LicenseState, String> {
+async fn activate_license(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    key: String,
+) -> Result<LicenseState, String> {
     let http = UreqHttp;
-    Ok(license_client(&http, &state).activate(&key))
+    let out = license_client(&http, &state).activate(&key);
+    // HUD and desktop lyrics are separate webviews: broadcast the new
+    // tier or an already-open overlay keeps its cached free state.
+    let _ = app.emit("license", out.clone());
+    Ok(out)
 }
 
 #[tauri::command]
-async fn deactivate_license(state: State<'_, AppState>) -> Result<LicenseState, String> {
+async fn deactivate_license(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<LicenseState, String> {
     let http = UreqHttp;
     license_client(&http, &state)
         .deactivate()
         .map_err(|e| format!("could not remove stored license: {e}"))?;
-    Ok(LicenseState::Unlicensed)
+    let out = LicenseState::Unlicensed;
+    let _ = app.emit("license", out.clone());
+    Ok(out)
 }
 
 /// Open an external https:// URL in the system browser (e.g. the checkout
@@ -2189,6 +2205,7 @@ pub fn run() {
             source: Mutex::new(source),
             player: Mutex::new(local_player),
             settings: settings_arc,
+            playlist_backups: Mutex::new(std::collections::HashMap::new()),
             settings_path: settings_path.clone(),
             beat: Mutex::new(BeatDetector::new(48_000)),
             last_energy: Mutex::new(EnergyUpdate {
@@ -2282,6 +2299,8 @@ pub fn run() {
             playlists_cmds::create_playlist,
             playlists_cmds::rename_playlist,
             playlists_cmds::delete_playlist,
+            playlists_cmds::playlist_backup,
+            playlists_cmds::playlist_restore_backup,
             playlists_cmds::playlist_tracks,
             playlists_cmds::playlist_remove_track,
             playlists_cmds::playlist_move_track,

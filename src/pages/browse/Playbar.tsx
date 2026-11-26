@@ -170,7 +170,7 @@ export default function Playbar({
     <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
   </span>
   <button
-    className={`brw__icon brw__barextra ${showLyrics ? "on" : ""}`}
+    className={`brw__icon brw__barextra brw__barextra--lyrics ${showLyrics ? "on" : ""}`}
     onClick={toggleLyrics}
     aria-label={t("brw.lyrics")}
     title={t("brw.lyrics")}

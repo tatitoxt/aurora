@@ -7,12 +7,14 @@ import { useT } from "../../i18n";
 import PremiumLock from "../../PremiumLock";
 import { usePremiumStatus } from "../../premium";
 import { X } from "@phosphor-icons/react";
+import { activeLyricIndex } from "../../lib";
+import { lyricOffsetFor } from "../../lyroff";
 
 export default function LyricsPanel({ close }: { close: () => void }) {
   const t = useT();
   const premium = usePremiumStatus();
   const [lines, setLines] = useState<LrcLine[] | null>(null);
-  const [pos, setPos] = useState(0);
+  const [np, setNp] = useState<NowPlaying | null>(null);
   const [sig, setSig] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -21,7 +23,7 @@ export default function LyricsPanel({ close }: { close: () => void }) {
   useEffect(
     () =>
       subscribe<NowPlaying>("now-playing", (n) => {
-        setPos(n.positionMs ?? 0);
+        setNp(n);
         const s = `${n.track?.id}|${n.status}`;
         setSig((p) => (p === s ? p : s));
       }),
@@ -46,9 +48,8 @@ export default function LyricsPanel({ close }: { close: () => void }) {
     };
   }, [sig, premium]);
 
-  const active = lines
-    ? lines.reduce((acc, l, i) => (l.atMs <= pos ? i : acc), 0)
-    : -1;
+  const lyricPos = (np?.positionMs ?? 0) + lyricOffsetFor(np);
+  const active = lines ? activeLyricIndex(lines, lyricPos) : -1;
 
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(".on");

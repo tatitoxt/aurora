@@ -26,6 +26,8 @@ import {
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
 import BrowserSources from "../BrowserSources";
+import { renamePlaylistCover, setPlaylistCover } from "./browse/covers";
+import { onAutoplayStarted, useAutoplay } from "../autoplay";
 import {
   ArrowsOut,
   Broadcast,
@@ -107,10 +109,7 @@ export default function Browse() {
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(0.8);
   const [showLyrics, setShowLyrics] = useState(false);
-  const [autoplay, setAutoplay] = useState(
-    () => localStorage.getItem("noctbeat-autoplay") === "1",
-  );
-  const autoplaying = useRef(false);
+  const [autoplay, setAutoplayEnabled] = useAutoplay();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   /* "+" add-to-playlist popover: anchored to the button's viewport
@@ -281,53 +280,6 @@ export default function Browse() {
     };
   }, []);
 
-  /* Radio/autoplay: when the queue runs out and the engine goes
-     stopped, continue with library tracks — the same artist first,
-     then the rest shuffled in. Persists across sessions. The ref
-     gates a re-fire while the new queue spins up. */
-  useEffect(() => {
-    if (!autoplay) return;
-    const off = subscribe<NowPlaying>("now-playing", (n) => {
-      if (n.status !== "stopped" || autoplaying.current) return;
-      const ended = n.track;
-      if (!ended) return;
-      autoplaying.current = true;
-      void bridge
-        .libraryTracks()
-        .then((items) => {
-          if (items.length === 0) return;
-          const sameArtist = items.filter(
-            (it) =>
-              it.track.artist.toLowerCase() === ended.artist.toLowerCase() &&
-              it.track.title !== ended.title,
-          );
-          const rest = items.filter(
-            (it) =>
-              it.track.artist.toLowerCase() !== ended.artist.toLowerCase() ||
-              it.track.title === ended.title,
-          );
-          const shuffleArr = <T,>(a: T[]): T[] => {
-            const c = [...a];
-            for (let i = c.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [c[i], c[j]] = [c[j], c[i]];
-            }
-            return c;
-          };
-          const radio = [...shuffleArr(sameArtist), ...shuffleArr(rest)].slice(0, 30);
-          if (radio.length === 0) return;
-          return bridge.playItems(radio, 0).then(() => {
-            flash(t("brw.autoplayStarted"));
-          });
-        })
-        .catch(() => {})
-        .finally(() => {
-          autoplaying.current = false;
-        });
-    });
-    return off;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoplay]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -402,11 +354,6 @@ export default function Browse() {
           void bridge.mediaControl("previous");
           return;
         }
-      }
-      if (e.key === " " && !inField) {
-        e.preventDefault();
-        void bridge.mediaControl("play-pause");
-        return;
       }
       /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
       if (e.key !== "/" || inField) return;
@@ -982,18 +929,19 @@ export default function Browse() {
     const p = playlists.find((x) => `pl:${x.path}` === view);
     if (!p) return;
     plRemoving.current = true;
-    const backup = plTracks[i]?.path;
     void bridge
-      .playlistRemoveTrack(p.path, i)
+      .playlistBackup(p.path)
+      .then(() => bridge.playlistRemoveTrack(p.path, i))
       .then(() => {
-        if (backup && !/^(remote:|https?:)/i.test(backup)) {
-          flash(t("lib.removeFromPlaylist"), () => {
-            void bridge
-              .playlistAddTracks(p.path, [backup])
-              .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
-              .catch(fail);
-          });
-        }
+        flash(t("lib.removeFromPlaylist"), () => {
+          void bridge
+            .playlistRestoreBackup(p.path)
+            .then(() => bridge.playlistTracks(p.path))
+            .then((rows) => {
+              if (viewRef.current === `pl:${p.path}`) setPlTracks(rows);
+            })
+            .catch(fail);
+        });
         setPlTracks((ts) => ts.filter((_, j) => j !== i));
         /* Rows below the deleted one shift down — renumber the
            selection so it still points at the same tracks. */
@@ -1012,6 +960,12 @@ export default function Browse() {
         plRemoving.current = false;
       });
   };
+
+  useEffect(
+    () => onAutoplayStarted(() => flash(t("brw.autoplayStarted"))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t],
+  );
 
   /* Arrow keys walk focus across .lib__row siblings, skipping the
      section kickers and headers between them. */
@@ -1036,23 +990,24 @@ export default function Browse() {
     if (!p || sel.size === 0 || plRemoving.current) return;
     plRemoving.current = true;
     const idx = [...sel].sort((a, b) => b - a);
-    const backup = idx
-      .map((i) => plTracks[i]?.path)
-      .filter((x): x is string => !!x && !/^(remote:|https?:)/i.test(x));
-    void idx
-      .reduce(
-        (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
-        Promise.resolve() as Promise<unknown>,
+    void bridge
+      .playlistBackup(p.path)
+      .then(() =>
+        idx.reduce(
+          (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
+          Promise.resolve() as Promise<unknown>,
+        ),
       )
       .then(() => {
-        if (backup.length > 0) {
-          flash(`${t("lib.removeFromPlaylist")} ×${idx.length}`, () => {
-            void bridge
-              .playlistAddTracks(p.path, backup)
-              .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
-              .catch(fail);
-          });
-        }
+        flash(`${t("lib.removeFromPlaylist")} ×${idx.length}`, () => {
+          void bridge
+            .playlistRestoreBackup(p.path)
+            .then(() => bridge.playlistTracks(p.path))
+            .then((rows) => {
+              if (viewRef.current === `pl:${p.path}`) setPlTracks(rows);
+            })
+            .catch(fail);
+        });
         return bridge.playlistTracks(p.path).then(setPlTracks);
       })
       .catch(fail)
@@ -1065,26 +1020,22 @@ export default function Browse() {
 
   /** In-app dialog submit: Save queue-as-playlist / Rename / Delete. */
   /* Sonora/Linear undo pattern: deletion happens at once, the toast
-     offers Undo — no confirm dialog. The backup is the playlist's
-     track paths; Undo recreates the file and re-appends them. */
+     offers Undo — no confirm dialog. The backend keeps an exact
+     byte-level snapshot so remote rows, ordering and even legacy-encoded
+     files restore exactly. */
   const deletePlaylistNow = (path: string, name: string) => {
     void bridge
-      .playlistTracks(path)
-      .then((tracks) => {
-        const backup = tracks.map((tr) => tr.path);
-        return bridge.deletePlaylist(path).then(() => backup);
-      })
-      .then((backup) => {
+      .playlistBackup(path)
+      .then(() => bridge.deletePlaylist(path))
+      .then(() => {
+        setPlaylistCover(path, null);
         setPlaylists((pls) => pls.filter((x) => x.path !== path));
         if (view === `pl:${path}`) go("home");
         flash(`${t("lib.delete")} — ${name}`, () => {
           void bridge
-            .createPlaylist(name)
-            .then((f) => bridge.playlistAddTracks(f.path, backup).then(() => f))
-            .then((f) => {
-              setPlaylists((pls) => [...pls, f]);
-              void bridge.listPlaylists().then(setPlaylists);
-            })
+            .playlistRestoreBackup(path)
+            .then(() => bridge.listPlaylists())
+            .then(setPlaylists)
             .catch(fail);
         });
       })
@@ -1120,6 +1071,7 @@ export default function Browse() {
       void bridge
         .renamePlaylist(dlg.path, name)
         .then((f) => {
+          renamePlaylistCover(dlg.path, f.path);
           setPlaylists((pls) => pls.map((x) => (x.path === dlg.path ? f : x)));
           go(`pl:${f.path}`);
         })
@@ -1478,13 +1430,7 @@ export default function Browse() {
         showLyrics={showLyrics}
         toggleLyrics={() => setShowLyrics((v) => !v)}
         autoplay={autoplay}
-        toggleAutoplay={() =>
-          setAutoplay((v) => {
-            const nv = !v;
-            localStorage.setItem("noctbeat-autoplay", nv ? "1" : "0");
-            return nv;
-          })
-        }
+        toggleAutoplay={() => setAutoplayEnabled(!autoplay)}
       />
     </div>
   );

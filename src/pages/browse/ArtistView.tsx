@@ -1,7 +1,7 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 import { useT } from "../../i18n";
 import { bridge, type CatalogSong, type QueueItem } from "../../bridge";
-import { togglePreview, usePreviewing } from "./previewer";
+import { stopPreview, togglePreview, usePreviewing } from "./previewer";
 import { formatTime } from "../../lib";
 import { Art } from "./bits";
 import { Heart, Play, User } from "@phosphor-icons/react";
@@ -35,6 +35,7 @@ export default function ArtistView({
 }) {
   const t = useT();
   const previewing = usePreviewing();
+  useEffect(() => () => stopPreview(), []);
   /* Related artists: collaborators surfacing in this artist's own
      catalog credits ("A feat. B", "A & B"). iTunes has no related
      endpoint — features are the honest signal we have. */
@@ -42,6 +43,10 @@ export default function ArtistView({
     const counts = new Map<string, number>();
     const self = arName.trim().toLowerCase();
     for (const song of arSongs) {
+      /* Bands can legitimately contain commas/ampersands in their name
+         (Earth, Wind & Fire). The exact credit being this artist is not
+         a collaboration at all. */
+      if (song.artist.trim().toLowerCase() === self) continue;
       for (const part of song.artist.split(/\s*(?:feat\.|ft\.|featuring|&|,|\swith\s| x )\s*/i)) {
         const name = part.trim();
         if (!name || name.toLowerCase() === self) continue;
