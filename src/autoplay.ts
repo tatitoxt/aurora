@@ -8,6 +8,10 @@ const EVENT = "noctbeat-autoplay-started";
 
 let enabled = localStorage.getItem(KEY) === "1";
 let starting = false;
+let manualSeekAt = 0;
+window.addEventListener("noctbeat-manual-seek", () => {
+  manualSeekAt = Date.now();
+});
 const listeners = new Set<(on: boolean) => void>();
 
 function setEnabled(next: boolean) {
@@ -53,7 +57,7 @@ export function useRadioAutoplay(active = true) {
       // engine reaching the real end of the media, regardless of whether
       // playlist metadata overstated its duration.
       const naturalEnd = n.positionMs > 1000;
-      if (!naturalEnd) return;
+      if (!naturalEnd || Date.now() - manualSeekAt < 1000) return;
       starting = true;
       void bridge
         .libraryTracks()

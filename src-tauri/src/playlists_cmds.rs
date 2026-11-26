@@ -268,16 +268,24 @@ pub(crate) fn playlist_restore_backup(state: State<AppState>, path: String) -> R
         let wanted_name = std::path::Path::new(&path)
             .file_name()
             .map(|n| n.to_string_lossy());
-        let matches: Vec<PathBuf> = backups
+        let exact: Vec<PathBuf> = backups
             .keys()
-            .filter(|p| {
-                p.to_string_lossy() == path
-                    || wanted_name.as_ref().is_some_and(|n| {
-                        p.file_name().map(|f| f.to_string_lossy()).as_ref() == Some(n)
-                    })
-            })
+            .filter(|p| p.to_string_lossy() == path)
             .cloned()
             .collect();
+        let matches: Vec<PathBuf> = if exact.is_empty() {
+            backups
+                .keys()
+                .filter(|p| {
+                    wanted_name.as_ref().is_some_and(|n| {
+                        p.file_name().map(|f| f.to_string_lossy()).as_ref() == Some(n)
+                    })
+                })
+                .cloned()
+                .collect()
+        } else {
+            exact
+        };
         match matches.as_slice() {
             [one] => one.clone(),
             [] => return Err("nothing to undo".into()),

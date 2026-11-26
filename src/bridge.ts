@@ -606,6 +606,7 @@ export const bridge = {
   /** Open the bundled bridge extension folder (dev: extension/, packaged: _up_/extension). */
   openExtensionFolder: (): Promise<void> => invokeCmd<void>("open_extension_folder"),
   seek: (positionMs: number) => {
+    window.dispatchEvent(new Event("noctbeat-manual-seek"));
     if (isTauri()) return invokeCmd<null>("seek", { positionMs });
     mock.seek(positionMs);
     return Promise.resolve(null);
