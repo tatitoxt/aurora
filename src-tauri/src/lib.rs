@@ -801,9 +801,6 @@ async fn play_items(
     Ok(())
 }
 
-/// Outcome of `import_playlist`: tracks enqueued, http(s) entries left for
-/// the provider layer, and file entries that no longer exist on disk.
-
 /// Retune the live EQ (dB per band) and persist the choice.
 #[tauri::command]
 fn set_eq(app: tauri::AppHandle, preset: String, bands: Vec<f32>) -> Result<(), String> {
@@ -1236,12 +1233,12 @@ fn open_extension_folder(app: tauri::AppHandle) -> Result<(), String> {
 
 fn open_in_system(url: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
+    let r = std::process::Command::new("xdg-open").arg(url).spawn();
     #[cfg(target_os = "macos")]
-    let r = std::process::Command::new("open").arg(&url).spawn();
+    let r = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "windows")]
     let r = std::process::Command::new("rundll32")
-        .args(["url.dll,FileProtocolHandler", &url])
+        .args(["url.dll,FileProtocolHandler", url])
         .spawn();
     match r {
         Ok(mut child) => {
