@@ -94,10 +94,11 @@ export default function SearchPanel({
     for (const s of songs) {
       const album = s.album?.trim();
       if (!album) continue;
-      const key = `${s.artist.toLowerCase()}:${album.toLowerCase()}`;
+      const artist = s.collectionArtist || s.artist;
+      const key = `${artist.toLowerCase()}:${album.toLowerCase()}`;
       const cur = seen.get(key);
       if (cur) cur.count += 1;
-      else seen.set(key, { artist: s.artist, album, art: s.artworkUrl, count: 1 });
+      else seen.set(key, { artist, album, art: s.artworkUrl, count: 1 });
     }
     return [...seen.values()].slice(0, 8);
   }, [songs]);

@@ -3135,3 +3135,13 @@ select { color-scheme: dark; }
   color: var(--muted); font: inherit; font-size: var(--fs-sm); cursor: pointer;
 }
 .brw__alartist:hover, .brw__alartist:focus-visible { color: var(--text); text-decoration: underline; outline: none; }
+
+.brw__rchipwrap { position: relative; display: inline-flex; }
+.brw__rchipwrap .brw__rchip { padding-right: 24px; }
+.brw__rchipx {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; padding: 0;
+}
+.brw__rchipx:hover, .brw__rchipx:focus-visible { color: var(--text); background: rgba(255,255,255,.12); outline: none; }
+.brw__rchipx svg { width: 10px; height: 10px; }

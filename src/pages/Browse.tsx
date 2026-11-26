@@ -658,7 +658,7 @@ export default function Browse() {
         const exact = r.filter(
           (s) =>
             s.album.trim().toLowerCase() === album.trim().toLowerCase() &&
-            s.artist.toLowerCase().includes(artist.trim().toLowerCase()),
+            (s.collectionArtist || s.artist).toLowerCase().includes(artist.trim().toLowerCase()),
         );
         const rows = (exact.length > 0 ? exact : r.filter((s) => s.album.trim().toLowerCase() === album.trim().toLowerCase()))
           .slice()

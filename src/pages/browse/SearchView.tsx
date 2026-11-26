@@ -65,14 +65,29 @@ export default function SearchView({
       <span className="brw__kick">{t("brw.recentSearches")}</span>
       <div className="brw__rchips">
         {recentSearches.map((s) => (
-          <button
-            key={s}
-            className="brw__rchip"
-            title={s}
-            onClick={() => setQ(s)}
-          >
-            {s}
-          </button>
+          <span className="brw__rchipwrap" key={s}>
+            <button
+              className="brw__rchip"
+              title={s}
+              onClick={() => setQ(s)}
+            >
+              {s}
+            </button>
+            <button
+              className="brw__rchipx"
+              title={`${t("lib.delete")} — ${s}`}
+              aria-label={`${t("lib.delete")} — ${s}`}
+              onClick={() => {
+                const next = recentSearches.filter((x) => x !== s);
+                setRecentSearches(next);
+                try {
+                  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+                } catch {}
+              }}
+            >
+              <X />
+            </button>
+          </span>
         ))}
         <button
           className="brw__rchip"

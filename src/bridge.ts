@@ -121,6 +121,8 @@ export interface CatalogSong {
   artworkUrl: string;
   /** 30s MP3 preview when the source provides one (iTunes does). */
   previewUrl?: string;
+  /** Release-level artist credit; track artists often add featured guests. */
+  collectionArtist?: string;
   /** Release ordering metadata when the catalog source provides it. */
   discNumber?: number;
   trackNumber?: number;
@@ -531,6 +533,7 @@ export const bridge = {
               durationMs: r.trackTimeMillis,
               artworkUrl: String(r.artworkUrl100).replace("100x100bb", "300x300bb"),
               previewUrl: r.previewUrl ? String(r.previewUrl) : undefined,
+              collectionArtist: r.collectionArtistName ? String(r.collectionArtistName) : undefined,
               discNumber: typeof r.discNumber === "number" ? r.discNumber : undefined,
               trackNumber: typeof r.trackNumber === "number" ? r.trackNumber : undefined,
             })),
