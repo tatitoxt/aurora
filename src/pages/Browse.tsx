@@ -76,6 +76,7 @@ import PlaylistView from "./browse/PlaylistView";
 import DlgModal from "./browse/DlgModal";
 import CtxMenu from "./browse/CtxMenu";
 import Playbar from "./browse/Playbar";
+import LyricsPanel from "./browse/LyricsPanel";
 import Rail from "./browse/Rail";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
@@ -105,6 +106,7 @@ export default function Browse() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(0.8);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   /* "+" add-to-playlist popover: anchored to the button's viewport
@@ -1335,6 +1337,8 @@ export default function Browse() {
         />
       )}
 
+      {showLyrics && <LyricsPanel close={() => setShowLyrics(false)} />}
+
       <Playbar
         track={track}
         np={np}
@@ -1351,6 +1355,8 @@ export default function Browse() {
         view={view}
         go={go}
         preMuteVolRef={preMuteVolRef}
+        showLyrics={showLyrics}
+        toggleLyrics={() => setShowLyrics((v) => !v)}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import {
   ArrowsOut,
   Heart,
   ListBullets,
+  Microphone,
   Pause,
   Play,
   Repeat,
@@ -41,6 +42,8 @@ export default function Playbar({
   view,
   go,
   preMuteVolRef,
+  showLyrics,
+  toggleLyrics,
 }: {
   track: NowPlaying["track"] | null;
   np: NowPlaying | null;
@@ -57,6 +60,8 @@ export default function Playbar({
   view: View;
   go: (v: View) => void;
   preMuteVolRef: { current: number };
+  showLyrics: boolean;
+  toggleLyrics: () => void;
 }) {
   const t = useT();
   const nav = useNavigate();
@@ -159,6 +164,14 @@ export default function Playbar({
     </button>
     <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
   </span>
+  <button
+    className={`brw__icon brw__barextra ${showLyrics ? "on" : ""}`}
+    onClick={toggleLyrics}
+    aria-label={t("brw.lyrics")}
+    title={t("brw.lyrics")}
+  >
+    <Microphone size={15} />
+  </button>
   <button
     className={`brw__icon brw__barextra ${view === "queue" ? "on" : ""}`}
     aria-label={t("lib.queue")}

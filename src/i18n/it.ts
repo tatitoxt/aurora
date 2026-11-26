@@ -224,6 +224,8 @@ const it: Record<keyof typeof en, string> = {
   "brw.inLibrary": "Nella tua libreria", "brw.inYourLiked": "Nei tuoi brani preferiti", "brw.fromCatalog": "Dal catalogo",
   "brw.colTitle": "Titolo", "brw.colDuration": "Durata", "brw.findInPlaylist": "Cerca nella playlist",
   "brw.plays": "riproduzioni","brw.playsOne": "riproduzione","brw.cancel": "Annulla","brw.play": "Riproduci","brw.playAll": "Riproduci tutto","brw.liveView": "Vista live","brw.forward": "Avanti","brw.recentlyPlayed": "Riprodotti di recente","brw.settings": "Impostazioni","brw.account": "Account","brw.appSettings": "Impostazioni dell’app","brw.noTracks": "Ancora nessun brano","brw.seek": "Posizione","brw.trackMissing": "File del brano mancante","brw.greetMorning": "Buongiorno","brw.greetAfternoon": "Buon pomeriggio","brw.greetEvening": "Buonasera","brw.volLocalOnly": "Solo riproduzione locale","brw.showAll": "Mostra tutto","brw.nextInQueue": "Prossimo in coda","brw.browseAll": "Sfoglia tutto","brw.cat.charts": "Classifiche","brw.cat.newReleases": "Nuove uscite","brw.cat.latin": "Latina","brw.cat.mood": "Umore","brw.cat.workout": "Allenamento","brw.cat.party": "Festa","brw.goToArtist": "Vai all'artista","brw.today": "Oggi","brw.yesterday": "Ieri",
+  "brw.lyrics": "Testo",
+  "brw.noLyrics": "Nessun testo sincronizzato per questo brano",
 };
 
 export default it;

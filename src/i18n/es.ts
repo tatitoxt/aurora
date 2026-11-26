@@ -235,6 +235,8 @@ const es: Record<keyof typeof en, string> = {
   "brw.plays": "reproducciones",
   "brw.playsOne": "reproducción",
   "brw.cancel": "Cancelar",
+  "brw.lyrics": "Letra",
+  "brw.noLyrics": "No hay letra sincronizada para este tema",
   "brw.play": "Reproducir",
   "brw.volLocalOnly": "Solo reproducción local",
   "brw.playAll": "Reproducir todo",

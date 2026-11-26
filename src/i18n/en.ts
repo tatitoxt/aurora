@@ -244,6 +244,8 @@ const en = {
   "brw.plays": "plays",
   "brw.playsOne": "play",
   "brw.cancel": "Cancel",
+  "brw.lyrics": "Lyrics",
+  "brw.noLyrics": "No synced lyrics for this track",
   "brw.play": "Play",
   "brw.volLocalOnly": "Local playback only",
   "brw.playAll": "Play all",
