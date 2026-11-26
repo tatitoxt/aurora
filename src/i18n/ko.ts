@@ -226,6 +226,7 @@ const ko: Record<keyof typeof en, string> = {
   "brw.inLibrary": "내 라이브러리", "brw.inYourLiked": "좋아요 표시한 곡", "brw.fromCatalog": "카탈로그에서",
   "brw.colTitle": "제목", "brw.colDuration": "재생 시간", "brw.findInPlaylist": "플레이리스트에서 검색",
   "brw.plays": "회 재생","brw.playsOne": "회 재생","brw.cancel": "취소","brw.play": "재생","brw.playAll": "모두 재생","brw.liveView": "라이브 보기","brw.forward": "앞으로","brw.recentlyPlayed": "최근 재생한 항목","brw.settings": "설정","brw.account": "계정","brw.appSettings": "앱 설정","brw.noTracks": "아직 트랙이 없습니다","brw.seek": "위치","brw.trackMissing": "파일이 없습니다","brw.greetMorning": "좋은 아침입니다","brw.greetAfternoon": "안녕하세요","brw.greetEvening": "좋은 저녁입니다","brw.volLocalOnly": "\ub85c\uceec \uc7ac\uc0dd\ub9cc","brw.showAll": "모두 보기","brw.nextInQueue": "다음에 재생","brw.browseAll": "모두 둘러보기","brw.cat.charts": "차트","brw.cat.newReleases": "신곡","brw.cat.latin": "라틴","brw.cat.mood": "무드","brw.cat.workout": "운동","brw.cat.party": "파티","brw.goToArtist": "아티스트로 이동","brw.today": "오늘","brw.yesterday": "어제",
+  "brw.preview": "30초 미리듣기 재생",
   "brw.lyrics": "가사",
   "brw.noLyrics": "이 트랙의 싱크 가사가 없습니다",
 };

@@ -226,6 +226,7 @@ const de: Record<keyof typeof en, string> = {
   "brw.inLibrary": "In deiner Bibliothek", "brw.inYourLiked": "In deinen Lieblingssongs", "brw.fromCatalog": "Aus dem Katalog",
   "brw.colTitle": "Titel", "brw.colDuration": "Dauer", "brw.findInPlaylist": "In Playlist suchen",
   "brw.plays": "Wiedergaben","brw.playsOne": "Wiedergabe","brw.cancel": "Abbrechen","brw.play": "Abspielen","brw.playAll": "Alle abspielen","brw.liveView": "Live-Ansicht","brw.forward": "Vor","brw.recentlyPlayed": "Kürzlich gespielt","brw.settings": "Einstellungen","brw.account": "Konto","brw.appSettings": "App-Einstellungen","brw.noTracks": "Noch keine Titel","brw.seek": "Position","brw.trackMissing": "Datei dieses Titels fehlt","brw.greetMorning": "Guten Morgen","brw.greetAfternoon": "Guten Tag","brw.greetEvening": "Guten Abend","brw.volLocalOnly": "Nur lokale Wiedergabe","brw.showAll": "Alle anzeigen","brw.nextInQueue": "Nächste in der Warteschlange","brw.browseAll": "Alles entdecken","brw.cat.charts": "Charts","brw.cat.newReleases": "Neuerscheinungen","brw.cat.latin": "Latin","brw.cat.mood": "Stimmung","brw.cat.workout": "Workout","brw.cat.party": "Party","brw.goToArtist": "Zum Künstler","brw.today": "Heute","brw.yesterday": "Gestern",
+  "brw.preview": "30-Sekunden-Vorschau abspielen",
   "brw.lyrics": "Liedtext",
   "brw.noLyrics": "Kein synchronisierter Text für diesen Titel",
 };

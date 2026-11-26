@@ -2939,3 +2939,20 @@ select { color-scheme: dark; }
 .brw__arplay svg { width: 18px; height: 18px; }
 
 .brw__nav--drop { outline: 1.5px dashed var(--text); outline-offset: -2px; }
+
+.brw__prevbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  font-size: 8px; color: var(--muted); border: 1px solid var(--hair);
+}
+.brw__prevbtn:hover { color: var(--text); border-color: var(--text); }
+.brw__prevbtn.on { color: var(--text); border-color: var(--text); }
+
+.srch__prevwrap { position: relative; cursor: pointer; flex: none; }
+.srch__prevwrap img { display: block; }
+.srch__previcon {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); color: #fff; font-size: 10px; border-radius: inherit;
+  opacity: 0; transition: opacity 0.15s;
+}
+.srch__prevwrap:hover .srch__previcon, .srch__prevwrap.on .srch__previcon { opacity: 1; }

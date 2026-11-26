@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bridge, type CatalogSong } from "./bridge";
+import { togglePreview, usePreviewing } from "./pages/browse/previewer";
 import { useT } from "./i18n";
 import { artistCards, formatTime } from "./lib";
 
@@ -48,6 +49,7 @@ export default function SearchPanel({
   filter?: "all" | "songs" | "artists" | "none";
 }) {
   const t = useT();
+  const previewing = usePreviewing();
   const [qLocal, setQLocal] = useState("");
   const q = query ?? qLocal;
   const setQ = onQuery ?? setQLocal;
@@ -239,7 +241,33 @@ export default function SearchPanel({
                 onClick={() => play(s)}
                 onKeyDown={(e) => e.key === "Enter" && play(s)}
               >
-                <img src={s.artworkUrl} alt="" />
+                {s.previewUrl ? (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={`srch__prevwrap ${previewing === s.previewUrl ? "on" : ""}`}
+                    aria-label={t("brw.preview")}
+                    title={t("brw.preview")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePreview(s.previewUrl!);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        togglePreview(s.previewUrl!);
+                      }
+                    }}
+                  >
+                    <img src={s.artworkUrl} alt="" />
+                    <span className="srch__previcon" aria-hidden>
+                      {previewing === s.previewUrl ? "❚❚" : "▶"}
+                    </span>
+                  </span>
+                ) : (
+                  <img src={s.artworkUrl} alt="" />
+                )}
                 <span className="srch__meta">
                   <span className="srch__title">{s.title}</span>
                   <span className="srch__sub">{s.artist}</span>

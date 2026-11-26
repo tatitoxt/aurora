@@ -119,6 +119,8 @@ export interface CatalogSong {
   album: string;
   durationMs: number;
   artworkUrl: string;
+  /** 30s MP3 preview when the source provides one (iTunes does). */
+  previewUrl?: string;
 }
 export interface QueueItem {
   track: Track;
@@ -516,6 +518,7 @@ export const bridge = {
               album: r.collectionName,
               durationMs: r.trackTimeMillis,
               artworkUrl: String(r.artworkUrl100).replace("100x100bb", "300x300bb"),
+              previewUrl: r.previewUrl ? String(r.previewUrl) : undefined,
             })),
           )
           .catch(() =>

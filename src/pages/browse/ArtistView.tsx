@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { useT } from "../../i18n";
 import { bridge, type CatalogSong, type QueueItem } from "../../bridge";
+import { togglePreview, usePreviewing } from "./previewer";
 import { formatTime } from "../../lib";
 import { Art } from "./bits";
 import { Heart, Play, User } from "@phosphor-icons/react";
@@ -31,6 +32,7 @@ export default function ArtistView({
   playLiked: (e: FavEntry, pool?: FavEntry[]) => void;
 }) {
   const t = useT();
+  const previewing = usePreviewing();
   return (
 <div className="brw__section">
   <div className="brw__arhead">
@@ -127,7 +129,32 @@ export default function ArtistView({
               title={s.title}
               onClick={() => playExternal(`${s.title} ${s.artist}`)}
             >
-              <span className="lib__idx">{i + 1}</span>
+              <span className="lib__idx">
+                {s.previewUrl ? (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={`brw__prevbtn ${previewing === s.previewUrl ? "on" : ""}`}
+                    aria-label={t("brw.preview")}
+                    title={t("brw.preview")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePreview(s.previewUrl!);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        togglePreview(s.previewUrl!);
+                      }
+                    }}
+                  >
+                    {previewing === s.previewUrl ? "❚❚" : "▶"}
+                  </span>
+                ) : (
+                  i + 1
+                )}
+              </span>
               <span className="lib__title">{s.title}</span>
               <span className="lib__sub">{s.album || s.artist}</span>
               <span className="lib__dur">
