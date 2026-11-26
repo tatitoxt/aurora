@@ -1820,7 +1820,21 @@ body {
    ========================================================================== */
 :root {
   --ui: "Inter Variable", "Inter", -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  --fs-2xs: 10px; --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-lg: 15px; --fs-xl: 20px;
+  /* Metrics ladder (Sonora-style): every font size — and the row,
+     control and bar heights derived from it — scales off one base.
+     A user-scale or accessibility bump on --fs-base re-lays the whole
+     app proportionally instead of breaking fixed pixel assumptions. */
+  --fs-base: 13px;
+  --fs-2xs: calc(var(--fs-base) * 0.77);
+  --fs-xs: calc(var(--fs-base) * 0.85);
+  --fs-sm: calc(var(--fs-base) * 0.92);
+  --fs-md: var(--fs-base);
+  --fs-lg: calc(var(--fs-base) * 1.15);
+  --fs-xl: calc(var(--fs-base) * 1.54);
+  /* Structural heights: max(px-floor, N lines of body text). */
+  --h-row: max(40px, calc(var(--fs-base) * 1.25 * 2.4));
+  --h-control: max(30px, calc(var(--fs-base) * 1.25 * 1.9));
+  --h-bar: max(58px, calc(var(--fs-base) * 1.25 * 3.6));
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
   --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-pill: 999px;
   --surface-1: rgba(255, 255, 255, 0.04);
@@ -2753,7 +2767,7 @@ select { color-scheme: dark; }
 /* Bottom playbar */
 .brw__bar {
   grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
-  padding: 8px 14px; min-height: 58px;
+  padding: 8px 14px; min-height: var(--h-bar);
   border-top: 1px solid var(--hair); background: var(--surface-1);
 }
 .brw__bar .brw__art { width: 40px; flex: none; border-radius: var(--r-sm); }
