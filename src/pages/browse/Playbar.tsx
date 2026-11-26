@@ -170,7 +170,7 @@ export default function Playbar({
     <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
   </span>
   <button
-    className={`brw__icon brw__barextra brw__barextra--lyrics ${showLyrics ? "on" : ""}`}
+    className={`brw__icon brw__barextra brw__barextra--primary ${showLyrics ? "on" : ""}`}
     onClick={toggleLyrics}
     aria-label={t("brw.lyrics")}
     title={t("brw.lyrics")}
@@ -178,7 +178,7 @@ export default function Playbar({
     <Microphone size={15} />
   </button>
   <button
-    className={`brw__icon brw__barextra ${autoplay ? "on" : ""}`}
+    className={`brw__icon brw__barextra brw__barextra--primary ${autoplay ? "on" : ""}`}
     onClick={toggleAutoplay}
     aria-label={t("brw.autoplay")}
     title={t("brw.autoplay")}

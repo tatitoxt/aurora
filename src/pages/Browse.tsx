@@ -26,7 +26,7 @@ import {
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
 import BrowserSources from "../BrowserSources";
-import { renamePlaylistCover, setPlaylistCover } from "./browse/covers";
+import { playlistCover, renamePlaylistCover, setPlaylistCover } from "./browse/covers";
 import { onAutoplayStarted, useAutoplay } from "../autoplay";
 import {
   ArrowsOut,
@@ -938,6 +938,8 @@ export default function Browse() {
             .playlistRestoreBackup(p.path)
             .then(() => bridge.playlistTracks(p.path))
             .then((rows) => {
+              setSel(new Set());
+              selAnchor.current = null;
               if (viewRef.current === `pl:${p.path}`) setPlTracks(rows);
             })
             .catch(fail);
@@ -1004,6 +1006,8 @@ export default function Browse() {
             .playlistRestoreBackup(p.path)
             .then(() => bridge.playlistTracks(p.path))
             .then((rows) => {
+              setSel(new Set());
+              selAnchor.current = null;
               if (viewRef.current === `pl:${p.path}`) setPlTracks(rows);
             })
             .catch(fail);
@@ -1024,6 +1028,7 @@ export default function Browse() {
      byte-level snapshot so remote rows, ordering and even legacy-encoded
      files restore exactly. */
   const deletePlaylistNow = (path: string, name: string) => {
+    const cover = playlistCover(path);
     void bridge
       .playlistBackup(path)
       .then(() => bridge.deletePlaylist(path))
@@ -1034,7 +1039,10 @@ export default function Browse() {
         flash(`${t("lib.delete")} — ${name}`, () => {
           void bridge
             .playlistRestoreBackup(path)
-            .then(() => bridge.listPlaylists())
+            .then(() => {
+              if (cover) setPlaylistCover(path, cover);
+              return bridge.listPlaylists();
+            })
             .then(setPlaylists)
             .catch(fail);
         });

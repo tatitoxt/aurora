@@ -407,7 +407,7 @@ export default function PlaylistView({
   {plShown.length > listLimit && (
     <div ref={listEndRef} aria-hidden />
   )}
-  {sel.size > 0 && (
+  {sel.size > 1 && (
     <div className="brw__selbar">
       <b>{sel.size}</b>
       <button

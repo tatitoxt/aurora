@@ -49,9 +49,10 @@ export function useRadioAutoplay(active = true) {
       if (!ended) return;
       /* MPRIS Stop also reports `stopped`, but rewinds to zero. Radio is
          only for natural queue exhaustion near the duration. */
-      const naturalEnd =
-        n.positionMs > 1000 &&
-        (!ended.durationMs || n.positionMs + 1500 >= ended.durationMs);
+      // MPRIS Stop rewinds to zero; any nonzero stopped position is the
+      // engine reaching the real end of the media, regardless of whether
+      // playlist metadata overstated its duration.
+      const naturalEnd = n.positionMs > 1000;
       if (!naturalEnd) return;
       starting = true;
       void bridge
