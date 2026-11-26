@@ -1307,6 +1307,7 @@ export default function Browse() {
             fail={fail}
           />
         )}
+              {showLyrics && <LyricsPanel close={() => setShowLyrics(false)} />}
       </main>
 
       {dlg && (
@@ -1337,8 +1338,6 @@ export default function Browse() {
           fail={fail}
         />
       )}
-
-      {showLyrics && <LyricsPanel close={() => setShowLyrics(false)} />}
 
       <Playbar
         track={track}
