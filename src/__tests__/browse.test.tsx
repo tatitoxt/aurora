@@ -57,6 +57,8 @@ describe("CtxMenu", () => {
     flash: () => {},
     fail: () => {},
     deletePlaylistNow: () => {},
+    pinnedPlaylists: new Set<string>(),
+    togglePinnedPlaylist: () => {},
   };
 
   it("offers add-to-playlist for local queue rows", () => {
@@ -119,6 +121,7 @@ describe("Rail drop guard", () => {
         liked={[]}
         queue={{ items: [], currentIndex: null }}
         playlists={[{ path: "/p/a.m3u", name: "A" }]}
+        pinnedPlaylists={new Set()}
         openPlaylist={() => {}}
         plDrop={null}
         setPlDrop={() => {}}

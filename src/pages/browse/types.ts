@@ -23,6 +23,7 @@ export const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify
 export const RECENT_SEARCHES_KEY = "brw.recentSearches";
 export const LAST_VIEW_KEY = "brw.lastView";
 export const LYRICS_PANEL_KEY = "brw.lyricsPanel";
+export const PINNED_PLAYLISTS_KEY = "brw.pinnedPlaylists";
 
 /* Spotify's "Browse all" grid on the empty search page — each tile
    seeds a provider query since we have no editorial catalog. */

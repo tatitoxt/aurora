@@ -64,6 +64,7 @@ import {
   AUTO_ORDER,
   LAST_VIEW_KEY,
   LYRICS_PANEL_KEY,
+  PINNED_PLAYLISTS_KEY,
   RECENT_SEARCHES_KEY,
   readLastView,
   sameJson,
@@ -94,6 +95,14 @@ export default function Browse() {
   const [view, setView] = useState<View>(readLastView);
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
+  const [pinnedPlaylists, setPinnedPlaylists] = useState<Set<string>>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(PINNED_PLAYLISTS_KEY) ?? "[]");
+      return new Set(Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  });
   const [plTracks, setPlTracks] = useState<PlaylistTrack[]>([]);
   const [plLoading, setPlLoading] = useState(false);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
@@ -419,6 +428,27 @@ export default function Browse() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackId]);
+
+  const togglePinnedPlaylist = (path: string) => {
+    if (!path) return;
+    setPinnedPlaylists((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      try {
+        localStorage.setItem(PINNED_PLAYLISTS_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
+  /* Spotify pins keep their relative order and float above the rest. */
+  const railPlaylists = useMemo(
+    () => [
+      ...playlists.filter((p) => pinnedPlaylists.has(p.path)),
+      ...playlists.filter((p) => !pinnedPlaylists.has(p.path)),
+    ],
+    [playlists, pinnedPlaylists],
+  );
 
   const connected = useMemo(
     () =>
@@ -1215,7 +1245,8 @@ export default function Browse() {
         railSearchRef={railSearchRef}
         liked={liked}
         queue={queue}
-        playlists={playlists}
+        playlists={railPlaylists}
+        pinnedPlaylists={pinnedPlaylists}
         openPlaylist={openPlaylist}
         plDrop={plDrop}
         setPlDrop={setPlDrop}
@@ -1489,6 +1520,8 @@ export default function Browse() {
           removePlTrack={removePlTrack}
           removeSelected={removeSelected}
           deletePlaylistNow={deletePlaylistNow}
+          pinnedPlaylists={pinnedPlaylists}
+          togglePinnedPlaylist={togglePinnedPlaylist}
           setDlg={setDlg}
           setDlgName={setDlgName}
           flash={flash}

@@ -27,6 +27,8 @@ export default function CtxMenu({
   flash,
   fail,
   deletePlaylistNow,
+  pinnedPlaylists,
+  togglePinnedPlaylist,
 }: {
   ctx: NonNullable<CtxState>;
   setCtx: Dispatch<SetStateAction<CtxState>>;
@@ -43,6 +45,8 @@ export default function CtxMenu({
   flash: (msg: string) => void;
   fail: (e: unknown) => void;
   deletePlaylistNow: (path: string, name: string) => void;
+  pinnedPlaylists: Set<string>;
+  togglePinnedPlaylist: (path: string) => void;
 }) {
   const t = useT();
   return (
@@ -90,6 +94,14 @@ export default function CtxMenu({
     )}
     {ctx.kind === "railpl" && (
       <>
+        <button
+          onClick={() => {
+            setCtx(null);
+            togglePinnedPlaylist(ctx.path ?? "");
+          }}
+        >
+          {pinnedPlaylists.has(ctx.path ?? "") ? t("fs.unpin") : t("fs.pin")}
+        </button>
         <button
           onClick={() => {
             setCtx(null);

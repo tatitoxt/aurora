@@ -8,6 +8,7 @@ import {
   MagnifyingGlass,
   Playlist,
   Plus,
+  PushPin,
 } from "@phosphor-icons/react";
 import type { Dispatch, SetStateAction } from "react";
 import type { CtxState, DlgState, View } from "./types";
@@ -25,6 +26,7 @@ export default function Rail({
   liked,
   queue,
   playlists,
+  pinnedPlaylists,
   openPlaylist,
   plDrop,
   setPlDrop,
@@ -43,6 +45,7 @@ export default function Rail({
   liked: FavEntry[];
   queue: QueueState;
   playlists: PlaylistFile[];
+  pinnedPlaylists: Set<string>;
   openPlaylist: (p: PlaylistFile) => void;
   plDrop: string | null;
   setPlDrop: Dispatch<SetStateAction<string | null>>;
@@ -187,7 +190,7 @@ export default function Rail({
             .catch(fail);
         }}
       >
-        <Playlist />
+        {pinnedPlaylists.has(p.path) ? <PushPin weight="fill" /> : <Playlist />}
         <span>{p.name}</span>
       </button>
     ))}
