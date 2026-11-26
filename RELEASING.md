@@ -29,5 +29,7 @@ Until those secrets exist, releases still publish but ship unsigned updater arti
 ## Licensing (Lemon Squeezy)
 
 1. Create a product; enable license keys.
-2. Put the product checkout URL in `branding.json` → `checkoutUrl`, run `pnpm branding`.
+2. Put the product checkout URL in `branding.json` → `checkoutUrl` and the numeric product id in `licenseProductId`, then run `pnpm branding`.
 3. The app calls `POST {store}/v1/licenses/validate` on activate and on launch; results persist with a 72 h offline grace (`license.json` in the app config dir). Instance activation uses `licenses/activate`; deactivation `licenses/deactivate`.
+
+Freemium gates live behind `src/premium.ts`: free users keep Browse, library, playback and the Browse lyrics side panel; Premium unlocks the fullscreen music-video stage with immersive synced lyrics, desktop lyrics and the floating HUD. While `licenseProductId` is `0` the gates intentionally stay open for everyone — there is nothing to buy or validate yet. Setting the real product id activates enforcement automatically in the next build.

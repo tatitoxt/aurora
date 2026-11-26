@@ -119,6 +119,13 @@ export interface CatalogSong {
   album: string;
   durationMs: number;
   artworkUrl: string;
+  /** 30s MP3 preview when the source provides one (iTunes does). */
+  previewUrl?: string;
+  /** Release-level artist credit; track artists often add featured guests. */
+  collectionArtist?: string;
+  /** Release ordering metadata when the catalog source provides it. */
+  discNumber?: number;
+  trackNumber?: number;
 }
 export interface QueueItem {
   track: Track;
@@ -372,6 +379,9 @@ const demoTracks = (remote: boolean, base: string): PlaylistTrack[] =>
 const mockPlaylistStore: MockPlaylistFile[] = [
   { file: { name: "Favorites", path: "/demo/favorites.m3u8" }, tracks: demoTracks(false, "/demo") },
 ];
+/* Session-scoped exact backups for Undo in the preview, mirroring
+   the desktop command. */
+const mockPlaylistBackups = new Map<string, { file: PlaylistFile; tracks: PlaylistTrack[] }>();
 const findPl = (path: string) => mockPlaylistStore.find((m) => m.file.path === path);
 
 /* Browser preview volume: the YouTube-embed backdrop listens here so the
@@ -406,7 +416,7 @@ export function onFileDrop(cb: (paths: string[]) => void): () => void {
   return () => {};
 }
 
-export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen" | "fullscreen", cb: (p: T) => void): () => void {
+export function subscribe<T>(event: "now-playing" | "energy" | "settings" | "queue" | "listen" | "fullscreen" | "license", cb: (p: T) => void): () => void {
   if (isTauri()) {
     let off: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -462,17 +472,23 @@ ensureMockLoop();
 
 function mockQueueState(): QueueState {
   return {
-    items: mock.playlist.map(([title, artist, album, durationMs, artworkUrl], i) => ({
-      track: {
-        id: `${artist} — ${title}`,
-        title,
-        artist,
-        album,
-        artworkUrl,
-        durationMs,
-      },
-      path: `/demo/${i}.mp3`,
-    })),
+    items: mock.playlist.map(([title, artist, album, durationMs, artworkUrl], i) => {
+      /* Keep the demo path tied to the song, not its queue position —
+         reordering the queue must not make drag-to-playlist save a
+         different track under the same /demo/N path. */
+      const demoIndex = DEMO_PLAYLIST.findIndex(([t, a]) => t === title && a === artist);
+      return {
+        track: {
+          id: `${artist} — ${title}`,
+          title,
+          artist,
+          album,
+          artworkUrl,
+          durationMs,
+        },
+        path: `/demo/${demoIndex >= 0 ? demoIndex : i}.mp3`,
+      };
+    }),
     currentIndex: mock.index,
   };
 }
@@ -516,6 +532,10 @@ export const bridge = {
               album: r.collectionName,
               durationMs: r.trackTimeMillis,
               artworkUrl: String(r.artworkUrl100).replace("100x100bb", "300x300bb"),
+              previewUrl: r.previewUrl ? String(r.previewUrl) : undefined,
+              collectionArtist: r.collectionArtistName ? String(r.collectionArtistName) : undefined,
+              discNumber: typeof r.discNumber === "number" ? r.discNumber : undefined,
+              trackNumber: typeof r.trackNumber === "number" ? r.trackNumber : undefined,
             })),
           )
           .catch(() =>
@@ -594,6 +614,7 @@ export const bridge = {
   /** Open the bundled bridge extension folder (dev: extension/, packaged: _up_/extension). */
   openExtensionFolder: (): Promise<void> => invokeCmd<void>("open_extension_folder"),
   seek: (positionMs: number) => {
+    window.dispatchEvent(new Event("noctbeat-manual-seek"));
     if (isTauri()) return invokeCmd<null>("seek", { positionMs });
     mock.seek(positionMs);
     return Promise.resolve(null);
@@ -886,6 +907,36 @@ export const bridge = {
       /* Copy: the view derives state by filtering/splicing the result —
          handing it the store's array would mutate both at once. */
       : Promise.resolve([...(findPl(path)?.tracks ?? [])]),
+  /** Snapshot a playlist before a destructive edit so Undo can restore
+      the exact original contents. */
+  playlistBackup: (path: string): Promise<void> => {
+    if (isTauri()) return invokeCmd("playlist_backup", { path });
+    const pl = findPl(path);
+    if (pl) {
+      mockPlaylistBackups.set(path, {
+        file: { ...pl.file },
+        tracks: pl.tracks.map((tr) => ({ ...tr })),
+      });
+    }
+    return Promise.resolve();
+  },
+  /** Restore the latest exact playlist backup. */
+  playlistRestoreBackup: (path: string): Promise<void> => {
+    if (isTauri()) return invokeCmd("playlist_restore_backup", { path });
+    const backup = mockPlaylistBackups.get(path);
+    if (!backup) return Promise.reject(new Error("nothing to undo"));
+    mockPlaylistBackups.delete(path);
+    const existing = findPl(path);
+    if (existing) {
+      existing.tracks = backup.tracks.map((tr) => ({ ...tr }));
+    } else {
+      mockPlaylistStore.push({
+        file: { ...backup.file },
+        tracks: backup.tracks.map((tr) => ({ ...tr })),
+      });
+    }
+    return Promise.resolve();
+  },
   /** Drop the entry at `index` from an .m3u/.m3u8 playlist. */
   playlistRemoveTrack: (path: string, index: number): Promise<void> => {
     if (isTauri()) return invokeCmd("playlist_remove_track", { path, index });
@@ -906,17 +957,34 @@ export const bridge = {
   playlistAddTracks: (path: string, paths: string[]): Promise<number> => {
     if (isTauri()) return invokeCmd<number>("playlist_add_tracks", { path, paths });
     const pl = findPl(path);
+    const local = paths.filter((p) => !/^(remote:|https?:)/i.test(p));
     if (pl)
-      paths.forEach((p) =>
-        pl.tracks.push({
-          title: p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? p,
-          artist: "",
-          durationMs: 0,
-          path: p,
-          remote: false,
-        }),
-      );
-    return Promise.resolve(paths.length);
+      local.forEach((p) => {
+        /* Re-resolve demo metadata by path — undo restores must come
+           back with their title/artist, not the bare filename. The
+           real backend reads tags off the file; the mock has no
+           files, so it matches the demo playlist instead. */
+        const m = p.match(/^\/demo\/(\d+)\.mp3$/);
+        const demo = m ? DEMO_PLAYLIST[Number(m[1])] : undefined;
+        pl.tracks.push(
+          demo
+            ? {
+                title: demo[0],
+                artist: demo[1],
+                durationMs: demo[3],
+                path: p,
+                remote: false,
+              }
+            : {
+                title: p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? p,
+                artist: "",
+                durationMs: 0,
+                path: p,
+                remote: false,
+              },
+        );
+      });
+    return Promise.resolve(local.length);
   },
   getArtistStats: (artist: string): Promise<ArtistStats> =>
     isTauri()

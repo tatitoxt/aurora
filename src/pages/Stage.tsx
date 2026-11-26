@@ -24,6 +24,8 @@ import {
 } from "../lib";
 import { lyricOffsetFor, setLyricOffset, subscribeLyroff } from "../lyroff";
 import SearchPanel from "../SearchPanel";
+import PremiumLock from "../PremiumLock";
+import { usePremiumStatus } from "../premium";
 import {
   favEntryFor,
   favKeyFor,
@@ -127,6 +129,7 @@ export default function Stage() {
   const lanim = useLyricAnim();
   const nav = useNavigate();
   const loc = useLocation();
+  const premium = usePremiumStatus();
   const [nativeFs, setNativeFs] = useState(false);
   useEffect(() => {
     void bridge
@@ -432,11 +435,12 @@ export default function Stage() {
       setArt("");
       return;
     }
-    bridge.getLyrics().then(setLyrics);
+    if (premium === "premium") void bridge.getLyrics().then(setLyrics);
+    else setLyrics(null);
     bridge.getQueue().then(setQueue);
     if (track.artworkUrl) void bridge.artSrc(track.artworkUrl).then(setArt);
     else setArt("");
-  }, [track?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [track?.id, premium]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The videoclip is ALWAYS the backdrop: resolved once per track
   // (track?.id dep — np object changes every tick). Falls back to the
@@ -444,7 +448,7 @@ export default function Stage() {
   const trackKey = track?.id ?? null;
   useEffect(() => {
     setVideoUrl(null);
-    if (!trackKey || !track) return;
+    if (!trackKey || !track || premium !== "premium") return;
     let stale = false;
     bridge.resolveVideo(track.artist, track.title).then((u) => {
       if (!stale && u) setVideoUrl(u);
@@ -453,7 +457,7 @@ export default function Stage() {
       stale = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackKey]);
+  }, [trackKey, premium]);
 
   const [lyroffTick, setLyroffTick] = useState(0);
   useEffect(() => subscribeLyroff(() => setLyroffTick((t) => t + 1)), []);
@@ -693,9 +697,9 @@ export default function Stage() {
       onMouseDown={onGlassMouseDown}
     >
       {!clearBg && <div className="fs__bg">
-        {videoUrl ? (
-          <FsVideo url={videoUrl} posMs={pos} playing={playing} audible={!bridge.isTauri()} />
-        ) : wall.length > 1 ? (
+        {/* The artwork wall stays underneath while the clip buffers — the
+            stage never drops to a black frame between resolve and can-play. */}
+        {wall.length > 1 ? (
           <div className="fs__wall">
             {(wall.length < 24
               ? Array.from(
@@ -711,6 +715,9 @@ export default function Stage() {
           <img src={art} alt="" />
         ) : (
           <div className={playing ? "fs__mesh" : "fs__mesh fs__mesh--still"} />
+        )}
+        {videoUrl && (
+          <FsVideo url={videoUrl} posMs={pos} playing={playing} audible={!bridge.isTauri()} />
         )}
         <div className="fs__veil" />
         {settings.ambientBg && !videoUrl && <AmbientBg playing={playing} />}
@@ -883,7 +890,9 @@ export default function Stage() {
       )}
       <div className="fs__center">
         {lyricsOn ? (
-          line ? (
+          premium === "free" ? (
+            <PremiumLock />
+          ) : premium === "loading" ? null : line ? (
             <div className="fs__lyrics">
               {active > 0 && (
                 <div className="fs__lyrctx fs__lyrctx--up" key={`p${active}`}>

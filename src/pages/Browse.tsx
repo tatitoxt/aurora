@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  artSrc,
   bridge,
   subscribe,
   type NowPlaying,
@@ -26,10 +25,9 @@ import {
 } from "../favs";
 import { extProviderId, formatTime } from "../lib";
 import { useT } from "../i18n";
-import type { MsgKey } from "../i18n";
-import SearchPanel from "../SearchPanel";
 import BrowserSources from "../BrowserSources";
-import { VideoBackdrop } from "../VideoBackdrop";
+import { playlistCover, renamePlaylistCover, setPlaylistCover } from "./browse/covers";
+import { onAutoplayStarted, useAutoplay } from "../autoplay";
 import {
   ArrowsOut,
   Broadcast,
@@ -43,7 +41,6 @@ import {
   House,
   ListBullets,
   MagnifyingGlass,
-  MusicNote,
   Pause,
   PencilSimple,
   Play,
@@ -62,162 +59,35 @@ import {
   User,
   X,
 } from "@phosphor-icons/react";
-
-/** Providers tried, in order, when playing a catalog/stats entry. */
-const AUTO_ORDER = ["spotify", "youtube", "soundcloud", "apple", "tidal", "amazon"];
+import { Art, GenCover, SeekCluster, SyncBackdrop } from "./browse/bits";
+import {
+  AUTO_ORDER,
+  LAST_VIEW_KEY,
+  LYRICS_PANEL_KEY,
+  PINNED_PLAYLISTS_KEY,
+  RECENT_SEARCHES_KEY,
+  readLastView,
+  sameJson,
+  type View,
+} from "./browse/types";
+import SearchView from "./browse/SearchView";
+import RecentView from "./browse/RecentView";
+import ArtistView from "./browse/ArtistView";
+import AlbumView from "./browse/AlbumView";
+import HomeView from "./browse/HomeView";
+import LikedView from "./browse/LikedView";
+import QueueView from "./browse/QueueView";
+import PlaylistView from "./browse/PlaylistView";
+import DlgModal from "./browse/DlgModal";
+import CtxMenu from "./browse/CtxMenu";
+import Playbar from "./browse/Playbar";
+import LyricsPanel from "./browse/LyricsPanel";
+import Rail from "./browse/Rail";
 
 /* Module scope: the ref resets when Browse unmounts (Live view and
    back), which would silently revert unmute to the default volume. */
-let preMuteVol = 0.8;
+const preMuteVolRef = { current: 0.8 };
 
-type View =
-  | "home"
-  | "search"
-  | "liked"
-  | "queue"
-  | "services"
-  | "settings"
-  | "recent"
-  | `pl:${string}`
-  | `ar:${string}`;
-
-/** Artwork tile that resolves file:// refs to loadable URLs. */
-function Art({ url, icon }: { url?: string; icon?: React.ReactNode }) {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    setSrc("");
-    if (!url) return;
-    let live = true;
-    void artSrc(url).then((s) => {
-      if (live) setSrc(s);
-    });
-    return () => {
-      live = false;
-    };
-  }, [url]);
-  if (src)
-    return (
-      <img className="brw__art" src={src} alt="" loading="lazy" decoding="async" />
-    );
-  return (
-    <span className="brw__art brw__art--ph" aria-hidden>
-      {icon ?? <MusicNote />}
-    </span>
-  );
-}
-
-const hueOf = (s: string) => {
-  let h = 0;
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
-};
-
-/** Generated cover for art-less playlists: a two-tone gradient tile
-    with the initial — reads like a blurred cover, not a dead square. */
-function GenCover({ name }: { name: string }) {
-  const h = hueOf(name);
-  return (
-    <span
-      className="brw__art brw__art--gen"
-      style={{
-        background: `linear-gradient(135deg, hsl(${h} 42% 34%), hsl(${(h + 70) % 360} 38% 16%))`,
-      }}
-      aria-hidden
-    >
-      {name.trim().charAt(0).toUpperCase() || "♪"}
-    </span>
-  );
-}
-
-/* The poll emits fresh objects every call — skip the setState (and the
-   whole-tree re-render it costs) when nothing actually changed. */
-const sameJson = <T,>(a: T, b: T) => JSON.stringify(a) === JSON.stringify(b);
-
-/* The engine emits now-playing every tick; the page only needs
-   track/status/source changes, so the per-tick positionMs stream
-   lives inside the two components that display it — otherwise the
-   whole Browse tree would re-render on every tick. */
-function usePosMs() {
-  const [pos, setPos] = useState(0);
-  useEffect(
-    () =>
-      subscribe<NowPlaying>("now-playing", (n) =>
-        setPos(n.positionMs ?? 0),
-      ),
-    [],
-  );
-  return pos;
-}
-
-function SeekCluster({
-  durationMs,
-  hasTrack,
-}: {
-  durationMs: number | undefined;
-  hasTrack: boolean;
-}) {
-  const t = useT();
-  const pos = usePosMs();
-  const progress = durationMs ? Math.min(1, pos / durationMs) : 0;
-  return (
-    <>
-      <span className="brw__time">{hasTrack ? formatTime(pos) : "0:00"}</span>
-      <button
-        className="brw__seek"
-        aria-label={t("brw.seek")}
-        onClick={(e) => {
-          if (!durationMs) return;
-          const r = e.currentTarget.getBoundingClientRect();
-          void bridge.seek(
-            Math.round(((e.clientX - r.left) / r.width) * durationMs),
-          );
-        }}
-      >
-        <i style={{ width: `${progress * 100}%` }} />
-      </button>
-      <span className="brw__time">
-        {durationMs ? formatTime(durationMs) : "0:00"}
-      </span>
-    </>
-  );
-}
-
-function SyncBackdrop(props: {
-  url: string;
-  playing: boolean;
-  cls: string;
-  readyCls: string;
-}) {
-  const pos = usePosMs();
-  return <VideoBackdrop {...props} posMs={pos} audible />;
-}
-
-const RECENT_SEARCHES_KEY = "brw.recentSearches";
-const LAST_VIEW_KEY = "brw.lastView";
-
-/* Spotify's "Browse all" grid on the empty search page — each tile
-   seeds a provider query since we have no editorial catalog. */
-const CATEGORIES: { k: MsgKey; q: string; hue: number }[] = [
-  { k: "brw.cat.charts", q: "top hits", hue: 262 },
-  { k: "brw.cat.newReleases", q: "new releases", hue: 205 },
-  { k: "brw.cat.latin", q: "latin hits", hue: 340 },
-  { k: "brw.cat.mood", q: "mood", hue: 275 },
-  { k: "brw.cat.workout", q: "workout", hue: 160 },
-  { k: "brw.cat.party", q: "party", hue: 20 },
-];
-
-const readLastView = (): View => {
-  try {
-    const v = localStorage.getItem(LAST_VIEW_KEY) ?? "";
-    return /^(home|search|liked|queue|services|settings|recent|pl:|ar:)/.test(
-      v,
-    )
-      ? (v as View)
-      : "home";
-  } catch {
-    return "home";
-  }
-};
 
 export default function Browse() {
   const t = useT();
@@ -225,6 +95,14 @@ export default function Browse() {
   const [view, setView] = useState<View>(readLastView);
   const [queue, setQueue] = useState<QueueState>({ items: [], currentIndex: null });
   const [playlists, setPlaylists] = useState<PlaylistFile[]>([]);
+  const [pinnedPlaylists, setPinnedPlaylists] = useState<Set<string>>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(PINNED_PLAYLISTS_KEY) ?? "[]");
+      return new Set(Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  });
   const [plTracks, setPlTracks] = useState<PlaylistTrack[]>([]);
   const [plLoading, setPlLoading] = useState(false);
   const [favs, setFavs] = useState<FavEntry[]>(loadFavs);
@@ -241,6 +119,14 @@ export default function Browse() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [vol, setVol] = useState(0.8);
+  const [showLyrics, setShowLyrics] = useState(() => {
+    try {
+      return localStorage.getItem(LYRICS_PANEL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [autoplay, setAutoplayEnabled] = useAutoplay();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   /* "+" add-to-playlist popover: anchored to the button's viewport
@@ -252,7 +138,6 @@ export default function Browse() {
     | { kind: "save" }
     | { kind: "create" }
     | { kind: "rename"; path: string; name: string }
-    | { kind: "delete"; path: string; name: string }
     | null
   >(null);
   const [dlgName, setDlgName] = useState("");
@@ -272,6 +157,7 @@ export default function Browse() {
   /* Artist catalog results are static for the session — cache by
      artist so revisiting a page doesn't re-hit the extension. */
   const arCatalogCache = useRef(new Map<string, CatalogSong[]>());
+  const alCatalogCache = useRef(new Map<string, CatalogSong[]>());
   /* Rail playlist item highlighted as a drop target while a track
      row is dragged over it. */
   const [plDrop, setPlDrop] = useState<string | null>(null);
@@ -281,6 +167,8 @@ export default function Browse() {
   const [arSongs, setArSongs] = useState<CatalogSong[]>([]);
   const [arLocal, setArLocal] = useState<QueueItem[]>([]);
   const [arLoading, setArLoading] = useState(false);
+  const [alSongs, setAlSongs] = useState<CatalogSong[]>([]);
+  const [alLoading, setAlLoading] = useState(false);
   /* Long lists render in 200-row pages revealed by a sentinel — a
      2 000-track playlist shouldn't mount 2 000 rows of DOM at once. */
   const [listLimit, setListLimit] = useState(200);
@@ -369,7 +257,7 @@ export default function Browse() {
       .getVolume()
       .then((v) => {
         setVol((p) => (p === v ? p : v));
-        if (v > 0) preMuteVol = v;
+        if (v > 0) preMuteVolRef.current = v;
       })
       .catch(() => {});
   };
@@ -401,7 +289,7 @@ export default function Browse() {
     void bridge.getRepeat().then(setRepeat).catch(() => {});
     void bridge.getVolume().then((v) => {
       setVol(v);
-      if (v > 0) preMuteVol = v;
+      if (v > 0) preMuteVolRef.current = v;
     }).catch(() => {});
     const poll = setInterval(refresh, 4000);
     return () => {
@@ -411,6 +299,7 @@ export default function Browse() {
       clearInterval(poll);
     };
   }, []);
+
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -461,6 +350,31 @@ export default function Browse() {
           return;
         }
       }
+      /* Media shortcuts, Spotify-style: Ctrl/Cmd+arrows for volume and
+         transport, Space toggles play — all inert while typing. */
+      if (!inField && (e.ctrlKey || e.metaKey)) {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const d = e.key === "ArrowUp" ? 0.05 : -0.05;
+          setVol((v) => {
+            const nv = Math.min(1, Math.max(0, v + d));
+            if (nv > 0) preMuteVolRef.current = nv;
+            void bridge.setVolume(nv).catch(() => {});
+            return nv;
+          });
+          return;
+        }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          void bridge.mediaControl("next");
+          return;
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          void bridge.mediaControl("previous");
+          return;
+        }
+      }
       /* "/" jumps to search (Ctrl/Cmd+K belongs to the Palette). */
       if (e.key !== "/" || inField) return;
       e.preventDefault();
@@ -489,6 +403,13 @@ export default function Browse() {
     }
   }, [view]);
 
+  /* Spotify keeps auxiliary panels where the user left them. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(LYRICS_PANEL_KEY, showLyrics ? "1" : "0");
+    } catch {}
+  }, [showLyrics]);
+
 
   /* Browser preview only: the demo soundtrack lives in the YouTube embed,
      which unmounts with Stage — keep an audible (hidden) embed here so
@@ -507,6 +428,27 @@ export default function Browse() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackId]);
+
+  const togglePinnedPlaylist = (path: string) => {
+    if (!path) return;
+    setPinnedPlaylists((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      try {
+        localStorage.setItem(PINNED_PLAYLISTS_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
+  /* Spotify pins keep their relative order and float above the rest. */
+  const railPlaylists = useMemo(
+    () => [
+      ...playlists.filter((p) => pinnedPlaylists.has(p.path)),
+      ...playlists.filter((p) => !pinnedPlaylists.has(p.path)),
+    ],
+    [playlists, pinnedPlaylists],
+  );
 
   const connected = useMemo(
     () =>
@@ -550,10 +492,21 @@ export default function Browse() {
   const volLocal = !track || np?.source === "local" || np?.source === "demo";
 
 
-  const flash = (msg: string) => {
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoRef = useRef<(() => void) | null>(null);
+  const [hasUndo, setHasUndo] = useState(false);
+  const flash = (msg: string, undo?: () => void) => {
     setNote(msg);
     setErr("");
-    setTimeout(() => setNote(""), 2800);
+    /* Retrigger: a stale timer must not clear the newer note early. */
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    undoRef.current = undo ?? null;
+    setHasUndo(!!undo);
+    noteTimer.current = setTimeout(() => {
+      setNote("");
+      undoRef.current = null;
+      setHasUndo(false);
+    }, 5200);
   };
   const fail = (e: unknown) => setErr(String(e));
 
@@ -681,6 +634,46 @@ export default function Browse() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
+  /* Catalog album page: iTunes exposes albums through song search
+     results, so exact-album matches form the release tracklist. */
+  useEffect(() => {
+    if (!view.startsWith("al:")) return;
+    const payload = view.slice(3);
+    const sep = payload.indexOf("/");
+    if (sep < 0) return;
+    const artist = decodeURIComponent(payload.slice(0, sep));
+    const album = decodeURIComponent(payload.slice(sep + 1));
+    const key = `${artist.toLowerCase()}:${album.toLowerCase()}`;
+    setAlLoading(true);
+    setAlSongs([]);
+    const cached = alCatalogCache.current.get(key);
+    if (cached) {
+      setAlSongs(cached);
+      setAlLoading(false);
+      return;
+    }
+    void bridge
+      .catalogSearch(`${album} ${artist}`)
+      .then((r) => {
+        const exact = r.filter(
+          (s) =>
+            s.album.trim().toLowerCase() === album.trim().toLowerCase() &&
+            (s.collectionArtist || s.artist).toLowerCase().includes(artist.trim().toLowerCase()),
+        );
+        const rows = (exact.length > 0 ? exact : r.filter((s) => s.album.trim().toLowerCase() === album.trim().toLowerCase()))
+          .slice()
+          .sort((a, b) =>
+            (a.discNumber ?? 1) - (b.discNumber ?? 1) ||
+            (a.trackNumber ?? Number.MAX_SAFE_INTEGER) - (b.trackNumber ?? Number.MAX_SAFE_INTEGER),
+          );
+        alCatalogCache.current.set(key, rows);
+        setAlSongs(rows);
+      })
+      .catch(fail)
+      .finally(() => setAlLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   /* "Show all" pulls a longer history than the Home preview row. */
   useEffect(() => {
     if (view !== "recent") return;
@@ -735,7 +728,7 @@ export default function Browse() {
     });
   };
   const [sFilter, setSFilter] = useState<
-    "all" | "songs" | "artists" | "playlists"
+    "all" | "songs" | "artists" | "albums" | "playlists"
   >("all");
 
   /* Playlist view: display-only sort + in-playlist filter (Spotify's
@@ -837,6 +830,11 @@ export default function Browse() {
       ? (playlists.find((p) => p.path === view.slice(3))?.name ?? "Playlist")
       : "";
   const arName = view.startsWith("ar:") ? decodeURIComponent(view.slice(3)) : "";
+  const alParts = view.startsWith("al:") ? view.slice(3).split("/") : [];
+  const alArtist = alParts.length === 2 ? decodeURIComponent(alParts[0]) : "";
+  const alName = alParts.length === 2 ? decodeURIComponent(alParts[1]) : "";
+  const goAlbum = (artist: string, album: string) =>
+    go(`al:${encodeURIComponent(artist)}/${encodeURIComponent(album)}`);
   /* Spotify groups an artist page by release — keep first-seen album
      order; empty album names fall into a "singles" bucket last. */
   const arGroups = useMemo(() => {
@@ -1025,8 +1023,20 @@ export default function Browse() {
     if (!p) return;
     plRemoving.current = true;
     void bridge
-      .playlistRemoveTrack(p.path, i)
+      .playlistBackup(p.path)
+      .then(() => bridge.playlistRemoveTrack(p.path, i))
       .then(() => {
+        flash(t("lib.removeFromPlaylist"), () => {
+          void bridge
+            .playlistRestoreBackup(p.path)
+            .then(() => bridge.playlistTracks(p.path))
+            .then((rows) => {
+              setSel(new Set());
+              selAnchor.current = null;
+              if (viewRef.current === `pl:${p.path}`) setPlTracks(rows);
+            })
+            .catch(fail);
+        });
         setPlTracks((ts) => ts.filter((_, j) => j !== i));
         /* Rows below the deleted one shift down — renumber the
            selection so it still points at the same tracks. */
@@ -1045,6 +1055,12 @@ export default function Browse() {
         plRemoving.current = false;
       });
   };
+
+  useEffect(
+    () => onAutoplayStarted(() => flash(t("brw.autoplayStarted"))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t],
+  );
 
   /* Arrow keys walk focus across .lib__row siblings, skipping the
      section kickers and headers between them. */
@@ -1069,12 +1085,28 @@ export default function Browse() {
     if (!p || sel.size === 0 || plRemoving.current) return;
     plRemoving.current = true;
     const idx = [...sel].sort((a, b) => b - a);
-    void idx
-      .reduce(
-        (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
-        Promise.resolve() as Promise<unknown>,
+    void bridge
+      .playlistBackup(p.path)
+      .then(() =>
+        idx.reduce(
+          (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
+          Promise.resolve() as Promise<unknown>,
+        ),
       )
-      .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
+      .then(() => {
+        flash(`${t("lib.removeFromPlaylist")} ×${idx.length}`, () => {
+          void bridge
+            .playlistRestoreBackup(p.path)
+            .then(() => bridge.playlistTracks(p.path))
+            .then((rows) => {
+              setSel(new Set());
+              selAnchor.current = null;
+              if (viewRef.current === `pl:${p.path}`) setPlTracks(rows);
+            })
+            .catch(fail);
+        });
+        return bridge.playlistTracks(p.path).then(setPlTracks);
+      })
       .catch(fail)
       .finally(() => {
         plRemoving.current = false;
@@ -1084,6 +1116,33 @@ export default function Browse() {
   };
 
   /** In-app dialog submit: Save queue-as-playlist / Rename / Delete. */
+  /* Sonora/Linear undo pattern: deletion happens at once, the toast
+     offers Undo — no confirm dialog. The backend keeps an exact
+     byte-level snapshot so remote rows, ordering and even legacy-encoded
+     files restore exactly. */
+  const deletePlaylistNow = (path: string, name: string) => {
+    const cover = playlistCover(path);
+    void bridge
+      .playlistBackup(path)
+      .then(() => bridge.deletePlaylist(path))
+      .then(() => {
+        setPlaylistCover(path, null);
+        setPlaylists((pls) => pls.filter((x) => x.path !== path));
+        if (view === `pl:${path}`) go("home");
+        flash(`${t("lib.delete")} — ${name}`, () => {
+          void bridge
+            .playlistRestoreBackup(path)
+            .then(() => {
+              if (cover) setPlaylistCover(path, cover);
+              return bridge.listPlaylists();
+            })
+            .then(setPlaylists)
+            .catch(fail);
+        });
+      })
+      .catch(fail);
+  };
+
   const submitDlg = () => {
     if (!dlg) return;
     const name = dlgName.trim();
@@ -1113,19 +1172,9 @@ export default function Browse() {
       void bridge
         .renamePlaylist(dlg.path, name)
         .then((f) => {
+          renamePlaylistCover(dlg.path, f.path);
           setPlaylists((pls) => pls.map((x) => (x.path === dlg.path ? f : x)));
           go(`pl:${f.path}`);
-        })
-        .catch(fail);
-    } else {
-      void bridge
-        .deletePlaylist(dlg.path)
-        .then(() => {
-          setPlaylists((pls) => pls.filter((x) => x.path !== dlg.path));
-          /* Deleting a different playlist from the rail shouldn't
-             yank the user off the one they're browsing (or wipe its
-             find/sort state). */
-          if (view === `pl:${dlg.path}`) go("home");
         })
         .catch(fail);
     }
@@ -1188,145 +1237,26 @@ export default function Browse() {
           readyCls="brw__bgvid--ready"
         />
       )}
-      <aside className="brw__rail">
-        <span className="brw__top">
-          <span className="brw__brand" title={bridge.productName}>
-            <img className="brw__logo" src="/noctbeat-mark.svg" alt={bridge.productName} />
-          </span>
-          <label
-            className={`brw__railsearch ${view === "search" ? "on" : ""}`}
-            /* Click or typing switches to Search — plain keyboard
-               focus must not, or tabbing past the rail would jump
-               the user into SearchPanel's autofocused input. The
-               same click also opens Search when the input is
-               collapsed to just an icon in narrow windows. */
-            onClick={() => go("search")}
-          >
-            <MagnifyingGlass weight={view === "search" ? "fill" : "regular"} />
-            <input
-              ref={railSearchRef}
-              value={q}
-              placeholder={t("fs.searchSongs")}
-              aria-label={t("brw.search")}
-              onKeyDown={(e) => {
-                if (e.key === "Escape" && q) {
-                  e.stopPropagation();
-                  setQ("");
-                }
-              }}
-              onChange={(e) => {
-                setQ(e.target.value);
-                /* During IME composition the interim events would yank
-                   focus to SearchPanel mid-composition — only switch
-                   once the text is committed. */
-                if (!(e.nativeEvent as InputEvent).isComposing) go("search");
-              }}
-              /* Committing the same interim text fires no onChange —
-                 open Search when the composition ends instead. A
-                 canceled composition ends with empty data and must
-                 not switch the view. */
-              onCompositionEnd={(e) => {
-                if (e.data !== "") go("search");
-              }}
-            />
-          </label>
-        </span>
-        <button
-          className={`brw__nav ${view === "home" ? "on" : ""}`}
-          onClick={() => go("home")}
-        >
-          <House weight={view === "home" ? "fill" : "regular"} />
-          <span>{t("brw.home")}</span>
-        </button>
-        <button
-          className={`brw__nav ${view === "liked" ? "on" : ""}`}
-          onClick={() => go("liked")}
-        >
-          <Heart weight={view === "liked" ? "fill" : "regular"} />
-          <span>{t("lib.liked")}</span>
-          {liked.length > 0 && <em>{liked.length}</em>}
-        </button>
-        <button
-          className={`brw__nav ${view === "queue" ? "on" : ""}`}
-          onClick={() => go("queue")}
-        >
-          <ListBullets weight={view === "queue" ? "fill" : "regular"} />
-          <span>{t("fs.upNext")}</span>
-          {queue.items.length > 0 && <em>{queue.items.length}</em>}
-        </button>
-        <button
-          className={`brw__nav ${view === "services" ? "on" : ""}`}
-          onClick={() => go("services")}
-        >
-          <Broadcast weight={view === "services" ? "fill" : "regular"} />
-          <span>{t("sources.heading")}</span>
-        </button>
-
-        <span className="brw__railhead">
-          {t("lib.playlists")}
-          <button
-            className="brw__railadd"
-            title={t("lib.newPlaylist")}
-            aria-label={t("lib.newPlaylist")}
-            onClick={() => {
-              setDlgName(t("lib.newPlaylist"));
-              setDlg({ kind: "create" });
-            }}
-          >
-            <Plus />
-          </button>
-        </span>
-        <div className="brw__pllist">
-          {playlists.map((p) => (
-            <button
-              key={p.path}
-              className={`brw__nav brw__nav--pl ${view === `pl:${p.path}` ? "on" : ""} ${plDrop === p.path ? "brw__nav--drop" : ""}`}
-              onClick={() => openPlaylist(p)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setCtx({
-                  x: e.clientX,
-                  y: e.clientY,
-                  kind: "railpl",
-                  index: 0,
-                  path: p.path,
-                  name: p.name,
-                });
-              }}
-              onDragOver={(e) => {
-                if (
-                  e.dataTransfer.types.includes("application/x-noctbeat-track")
-                ) {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "copy";
-                  setPlDrop(p.path);
-                }
-              }}
-              onDragLeave={() => setPlDrop((d) => (d === p.path ? null : d))}
-              onDrop={(e) => {
-                e.preventDefault();
-                setPlDrop(null);
-                const tp = e.dataTransfer.getData("application/x-noctbeat-track");
-                if (!tp) return;
-                void bridge
-                  .playlistAddTracks(p.path, [tp])
-                  .then((n) => {
-                    if (n > 0) flash(p.name);
-                    if (view === `pl:${p.path}`)
-                      return bridge.playlistTracks(p.path).then(setPlTracks);
-                  })
-                  .catch(fail);
-              }}
-            >
-              <Playlist />
-              <span>{p.name}</span>
-            </button>
-          ))}
-          {playlists.length === 0 && (
-            <span className="brw__railempty">{t("lib.playlistsEmpty")}</span>
-          )}
-        </div>
-      </aside>
+      <Rail
+        view={view}
+        q={q}
+        setQ={setQ}
+        go={go}
+        railSearchRef={railSearchRef}
+        liked={liked}
+        queue={queue}
+        playlists={railPlaylists}
+        pinnedPlaylists={pinnedPlaylists}
+        openPlaylist={openPlaylist}
+        plDrop={plDrop}
+        setPlDrop={setPlDrop}
+        setCtx={setCtx}
+        setDlg={setDlg}
+        setDlgName={setDlgName}
+        setPlTracks={setPlTracks}
+        flash={flash}
+        fail={fail}
+      />
 
       <main className="brw__main">
         <header className="brw__head">
@@ -1360,6 +1290,7 @@ export default function Browse() {
             {view === "recent" && t("brw.recentlyPlayed")}
             {view.startsWith("pl:") && plName}
             {view.startsWith("ar:") && arName}
+            {view.startsWith("al:") && alName}
           </h1>
           <span className="brw__headspace" />
           <button
@@ -1372,128 +1303,42 @@ export default function Browse() {
           </button>
         </header>
         {err && <span className="license-bad">{err}</span>}
-        {note && <span className="note">● {note}</span>}
+        {note && (
+          <span className="note">
+            ● {note}
+            {hasUndo && (
+              <button
+                className="note__undo"
+                onClick={() => {
+                  undoRef.current?.();
+                  undoRef.current = null;
+                  setHasUndo(false);
+                  setNote("");
+                  if (noteTimer.current) clearTimeout(noteTimer.current);
+                }}
+              >
+                {t("brw.undo")}
+              </button>
+            )}
+          </span>
+        )}
 
         {view === "search" && (
-          <div className="brw__search">
-            {q.trim() !== "" && (
-              <span className="brw__chips seg seg--ghost">
-                {(["all", "songs", "artists", "playlists"] as const).map((f) => (
-                  <button
-                    key={f}
-                    className={sFilter === f ? "on" : ""}
-                    onClick={() => setSFilter(f)}
-                  >
-                    {f === "all"
-                      ? t("brw.all")
-                      : f === "songs"
-                        ? t("srch.songs")
-                        : f === "artists"
-                          ? t("srch.artists")
-                          : t("lib.playlists")}
-                  </button>
-                ))}
-              </span>
-            )}
-            {q.trim() === "" && recentSearches.length > 0 && (
-              <div className="brw__rsearch">
-                <span className="brw__kick">{t("brw.recentSearches")}</span>
-                <div className="brw__rchips">
-                  {recentSearches.map((s) => (
-                    <button
-                      key={s}
-                      className="brw__rchip"
-                      title={s}
-                      onClick={() => setQ(s)}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                  <button
-                    className="brw__rchip"
-                    title={t("lib.clear")}
-                    aria-label={t("lib.clear")}
-                    onClick={() => {
-                      setRecentSearches([]);
-                      try {
-                        localStorage.removeItem(RECENT_SEARCHES_KEY);
-                      } catch {}
-                    }}
-                  >
-                    <X />
-                  </button>
-                </div>
-              </div>
-            )}
-            <SearchPanel
-              src="auto"
-              label={(id) => id}
-              connected={connected}
-              onPlayed={() => {
-                refresh();
-                pushSearch(q);
-              }}
-              query={q}
-              onQuery={setQ}
-              songLimit={6}
-              onArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
-              filter={sFilter === "playlists" ? "none" : sFilter}
-              aside={
-                (sFilter === "all" || sFilter === "playlists") &&
-                playlists.length > 0 ? (
-                  <>
-                    <span className="srch__h">{t("lib.playlists")}</span>
-                    <div className="srch__pllist">
-                      {playlists
-                        .filter((p) =>
-                          p.name
-                            .toLowerCase()
-                            .includes(q.trim().toLowerCase()),
-                        )
-                        .map((p) => (
-                        <button
-                          key={p.path}
-                          className="srch__pl"
-                          title={p.name}
-                          onClick={() => openPlaylist(p)}
-                        >
-                          <Playlist />
-                          <span>{p.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : undefined
-              }
-            />
-            {/* "Browse all" category grid under the search field, the
-                same order Spotify uses on its empty search page. */}
-            {q.trim() === "" && (
-              <>
-                <span className="brw__kick">{t("brw.browseAll")}</span>
-                <div className="brw__cats">
-                  {CATEGORIES.map((c) => (
-                    <button
-                      key={c.k}
-                      className="brw__cat"
-                      style={{
-                        background: `linear-gradient(135deg, hsl(${c.hue} 62% 46%), hsl(${c.hue} 68% 27%))`,
-                      }}
-                      /* A stale chip filter would hide the catalog
-                         results this tile asks for. */
-                      onClick={() => {
-                        setQ(c.q);
-                        setSFilter("all");
-                      }}
-                      title={c.q}
-                    >
-                      <span className="brw__catname">{t(c.k)}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <SearchView
+            q={q}
+            setQ={setQ}
+            sFilter={sFilter}
+            setSFilter={setSFilter}
+            recentSearches={recentSearches}
+            setRecentSearches={setRecentSearches}
+            connected={connected}
+            refresh={refresh}
+            pushSearch={pushSearch}
+            openPlaylist={openPlaylist}
+            playlists={playlists}
+            goArtist={(name) => go(`ar:${encodeURIComponent(name)}`)}
+            goAlbum={goAlbum}
+          />
         )}
 
         {view === "services" && (
@@ -1520,1352 +1365,191 @@ export default function Browse() {
             <BrowserSources />
           </div>
         )}
-
         {view.startsWith("ar:") && (
-          <div className="brw__section">
-            <div className="brw__arhead">
-              <Art
-                url={arSongs[0]?.artworkUrl ?? arLocal[0]?.track.artworkUrl}
-                icon={<User />}
-              />
-              <span className="brw__arname">{arName}</span>
-              {(arLocal.length > 0 || arSongs.length > 0) && (
-                <button
-                  className="brw__arplay"
-                  title={t("brw.playAll")}
-                  onClick={() => {
-                    if (arLocal.length > 0)
-                      void bridge.playItems(arLocal, 0).catch(fail);
-                    /* No remote-queue API exists — extPlay takes one
-                       query, so search the artist: the provider plays
-                       their top track rather than an arbitrary first
-                       catalog entry. */
-                    else if (arSongs.length > 0) playExternal(arName);
-                  }}
-                >
-                  <Play weight="fill" />
-                </button>
-              )}
-            </div>
-            {arLoading && <span className="brw__empty">{t("srch.loading")}</span>}
-            {!arLoading && arLocal.length === 0 && arSongs.length === 0 && (
-              <span className="brw__empty">{t("brw.noTracks")}</span>
-            )}
-            {arLocal.length > 0 && (
-              <>
-                <span className="brw__kick">{t("brw.inLibrary")}</span>
-              <div className="lib">
-                {arLocal.map((it, i) => (
-                  <button
-                    className="lib__row"
-                    key={`${it.path}-${i}`}
-                    title={it.track.title}
-                    onClick={() => void bridge.playItems(arLocal, i).catch(fail)}
-                  >
-                    <span className="lib__idx">{i + 1}</span>
-                    <span className="lib__title">{it.track.title}</span>
-                    <span className="lib__sub">
-                      {it.track.album || it.track.artist}
-                    </span>
-                    <span className="lib__dur">
-                      {it.track.durationMs ? formatTime(it.track.durationMs) : ""}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              </>
-            )}
-            {arLiked.length > 0 && (
-              <>
-                <span className="brw__kick">{t("brw.inYourLiked")}</span>
-                <div className="lib">
-                  {arLiked.slice(0, 5).map((e) => (
-                    <button
-                      className="lib__row"
-                      key={e.key}
-                      title={e.title}
-                      onClick={() => playLiked(e, arLiked)}
-                    >
-                      <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
-                      <span className="lib__title">{e.title}</span>
-                      <span className="lib__sub">{e.artist}</span>
-                      <span className="lib__dur">
-                        {e.durationMs ? formatTime(e.durationMs) : ""}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            {arSongs.length > 0 && (
-              <>
-                {arLocal.length > 0 && (
-                  <span className="brw__kick">{t("brw.fromCatalog")}</span>
-                )}
-              <div className="lib">
-                {arGroups.map(([album, songs]) => (
-                  <Fragment key={album || "__singles"}>
-                    {/* Only label groups when albums actually exist —
-                        a flat list needs no header. */}
-                    {album !== "" && arGroups.length > 1 && (
-                      <div className="brw__kick brw__qsection">{album}</div>
-                    )}
-                    {songs.map((s, i) => (
-                      <button
-                        className="lib__row"
-                        key={`${s.title}-${album}-${i}`}
-                        title={s.title}
-                        onClick={() => playExternal(`${s.title} ${s.artist}`)}
-                      >
-                        <span className="lib__idx">{i + 1}</span>
-                        <span className="lib__title">{s.title}</span>
-                        <span className="lib__sub">{s.album || s.artist}</span>
-                        <span className="lib__dur">
-                          {s.durationMs ? formatTime(s.durationMs) : ""}
-                        </span>
-                      </button>
-                    ))}
-                  </Fragment>
-                ))}
-              </div>
-              </>
-            )}
-          </div>
+          <ArtistView
+            arName={arName}
+            arSongs={arSongs}
+            arLocal={arLocal}
+            arLiked={arLiked}
+            arGroups={arGroups}
+            arLoading={arLoading}
+            fail={fail}
+            playExternal={playExternal}
+            playLiked={playLiked}
+            goArtist={(n) => go(`ar:${encodeURIComponent(n)}`)}
+            goAlbum={goAlbum}
+          />
+        )}
+
+        {view.startsWith("al:") && (
+          <AlbumView
+            artist={alArtist}
+            album={alName}
+            songs={alSongs}
+            loading={alLoading}
+            playExternal={playExternal}
+            goArtist={(n) => go(`ar:${encodeURIComponent(n)}`)}
+          />
         )}
 
         {view === "recent" && (
-          <section className="brw__section">
-            {recent.length === 0 && (
-              <span className="brw__empty">{t("brw.noTracks")}</span>
-            )}
-            {recGroups.map((g) => (
-              <Fragment key={g.label}>
-                {recGroups.length > 1 && (
-                  <span className="brw__kick brw__qsection">{g.label}</span>
-                )}
-                <div className="brw__grid">
-                  {g.rows.map((r) => (
-                    <button
-                      key={`${r.trackId}-${r.playedAtMs}`}
-                      className="brw__card"
-                      title={`${r.title} — ${r.artist}`}
-                      onClick={() => playRecent(r)}
-                    >
-                      <Art url={recArt(r)} />
-                      <span className="brw__cardplay" aria-hidden>
-                        <Play weight="fill" />
-                      </span>
-                      <span className="brw__cardt">{r.title}</span>
-                      <span className="brw__cards">{r.artist}</span>
-                    </button>
-                  ))}
-                </div>
-              </Fragment>
-            ))}
-          </section>
+          <RecentView
+            empty={recent.length === 0}
+            recGroups={recGroups}
+            playRecent={playRecent}
+            recArt={recArt}
+          />
         )}
-
         {view === "home" && (
-          <>
-            <h2 className="brw__greet">
-              {greet}
-              <em className="brw__wordmark">{bridge.productName}</em>
-            </h2>
-            {jumpTiles.length > 0 && (
-              <div className="brw__jump">
-                {jumpTiles.map((j) => (
-                  <button key={j.key} className="brw__tile" onClick={j.onClick}>
-                    {j.art ? (
-                      <Art url={j.art} icon={j.icon} />
-                    ) : (
-                      <span className="brw__art brw__art--ph" aria-hidden>
-                        {j.icon}
-                      </span>
-                    )}
-                    <span className="brw__tilename">{j.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {recent.length > 0 && (
-              <section className="brw__section">
-                <span className="brw__sechead">
-                  <span className="brw__kick">{t("brw.recentlyPlayed")}</span>
-                  <button className="brw__showall" onClick={() => go("recent")}>
-                    {t("brw.showAll")}
-                  </button>
-                </span>
-                <div className="brw__grid">
-                  {recent.slice(0, 12).map((r) => (
-                    <button
-                      key={`${r.trackId}-${r.playedAtMs}`}
-                      className="brw__card"
-                      title={`${r.title} — ${r.artist}`}
-                      onClick={() => playRecent(r)}
-                    >
-                      <Art url={recArt(r)} />
-                      <span className="brw__cardplay" aria-hidden>
-                        <Play weight="fill" />
-                      </span>
-                      <span className="brw__cardt">{r.title}</span>
-                      <span className="brw__cards">{r.artist}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section className="brw__section">
-              <span className="brw__sechead">
-                <span className="brw__kick">{t("fs.upNext")}</span>
-                {queue.items.length > 0 && (
-                  <button className="brw__showall" onClick={() => go("queue")}>
-                    {t("brw.showAll")}
-                  </button>
-                )}
-              </span>
-              <div className="brw__grid">
-                {queue.items.slice(0, 12).map((item, i) => (
-                  <button
-                    key={item.path}
-                    className="brw__card"
-                    title={`${item.track.title} — ${item.track.artist}`}
-                    onClick={() => void bridge.playQueueIndex(i)}
-                  >
-                    <Art url={item.track.artworkUrl} />
-                    <span className="brw__cardplay" aria-hidden>
-                      <Play weight="fill" />
-                    </span>
-                    <span className="brw__cardt">{item.track.title}</span>
-                    <span className="brw__cards">{item.track.artist}</span>
-                  </button>
-                ))}
-                {queue.items.length === 0 && (
-                  <span className="brw__empty">{t("lib.queueEmpty")}</span>
-                )}
-              </div>
-            </section>
-
-            {liked.length > 0 && (
-              <section className="brw__section">
-                <span className="brw__sechead">
-                  <span className="brw__kick">{t("lib.liked")}</span>
-                  <button className="brw__showall" onClick={() => go("liked")}>
-                    {t("brw.showAll")}
-                  </button>
-                </span>
-                <div className="brw__grid">
-                  {liked.slice(0, 12).map((e) => (
-                    <button
-                      key={e.key}
-                      className="brw__card"
-                      title={`${e.title} — ${e.artist}`}
-                      onClick={() => playLiked(e)}
-                    >
-                      <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
-                      <span className="brw__cardplay" aria-hidden>
-                        <Play weight="fill" />
-                      </span>
-                      <span className="brw__cardt">{e.title}</span>
-                      <span className="brw__cards">{e.artist}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {stats && stats.topTracks.length > 0 && (
-              <section className="brw__section">
-                <span className="brw__kick">{t("brw.topTracks")}</span>
-                <div className="brw__rows">
-                  {stats.topTracks.slice(0, 6).map((e, i) => (
-                    <button
-                      key={`${e.name}:${e.sub}`}
-                      className="brw__row"
-                      onClick={() => playExternal(`${e.name} ${e.sub}`)}
-                    >
-                      <span className="brw__idx">{i + 1}</span>
-                      <span className="brw__meta">
-                        <span className="brw__mt">{e.name}</span>
-                        <span className="brw__ms">{e.sub}</span>
-                      </span>
-                      <span className="brw__plays">
-                        {e.plays}{" "}
-                        {e.plays === 1 ? t("brw.playsOne") : t("brw.plays")}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {stats && stats.topArtists.length > 0 && (
-              <section className="brw__section">
-                <span className="brw__kick">{t("brw.topArtists")}</span>
-                <div className="brw__grid brw__grid--round">
-                  {stats.topArtists.slice(0, 8).map((a) => (
-                    <button
-                      key={a.name}
-                      className="brw__card brw__card--round"
-                      title={a.name}
-                      onClick={() => go(`ar:${encodeURIComponent(a.name)}`)}
-                    >
-                      <span className="brw__art brw__art--round brw__art--ph" aria-hidden>
-                        <User />
-                      </span>
-                      <button
-                        type="button"
-                        className="brw__cardplay"
-                        aria-label={`${t("fs.playBtn")} ${a.name}`}
-                        title={`${t("fs.playBtn")} ${a.name}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          playExternal(a.name);
-                        }}
-                      >
-                        <Play weight="fill" />
-                      </button>
-                      <span className="brw__cardt">{a.name}</span>
-                      <span className="brw__cards">
-                        {a.plays} {t("brw.plays")}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {playlists.length > 0 && (
-              <section className="brw__section">
-                <span className="brw__kick">{t("lib.playlists")}</span>
-                <div className="brw__grid">
-                  {playlists.map((p) => (
-                    <button
-                      key={p.path}
-                      className="brw__card"
-                      title={p.name}
-                      onClick={() => openPlaylist(p)}
-                    >
-                      {plArts[p.path] ? (
-                        <img className="brw__art" src={plArts[p.path]} alt="" />
-                      ) : (
-                        <GenCover name={p.name} />
-                      )}
-                      <button
-                        type="button"
-                        className="brw__cardplay"
-                        aria-label={`${t("fs.playBtn")} ${p.name}`}
-                        title={`${t("fs.playBtn")} ${p.name}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          playPlaylist(p);
-                        }}
-                      >
-                        <Play weight="fill" />
-                      </button>
-                      <span className="brw__cardt">{p.name}</span>
-                      <span className="brw__cards">playlist</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
+          <HomeView
+            greet={greet}
+            jumpTiles={jumpTiles}
+            recent={recent}
+            playRecent={playRecent}
+            recArt={recArt}
+            queue={queue}
+            liked={liked}
+            playLiked={playLiked}
+            stats={stats}
+            playExternal={playExternal}
+            playlists={playlists}
+            openPlaylist={openPlaylist}
+            plArts={plArts}
+            playPlaylist={playPlaylist}
+            go={go}
+          />
         )}
 
         {view === "liked" && (
-          <>
-            <button className="lib__hero" onClick={() => liked[0] && playLiked(liked[0])}>
-              <span className="lib__heroicon">
-                <Heart weight="fill" />
-              </span>
-              <span className="lib__herotxt">
-                <span className="lib__herotitle">{t("lib.liked")}</span>
-                <span className="lib__herosub">
-                  {liked.length} {liked.length === 1 ? t("lib.track") : t("lib.tracks")}
-                </span>
-              </span>
-              <span className="lib__heroplay" aria-hidden>
-                ▶
-              </span>
-            </button>
-            {liked.length > 0 && (
-              <div className="brw__qtools">
-                <span className="seg seg--ghost">
-                  <button
-                    onClick={shuffleLiked}
-                    title={t("fs.shuffle")}
-                  >
-                    <Shuffle /> {t("fs.shuffle")}
-                  </button>
-                  <label className="brw__plfind" title={t("brw.findInPlaylist")}>
-                    <MagnifyingGlass />
-                    <input
-                      value={plQuery}
-                      placeholder={t("brw.findInPlaylist")}
-                      onChange={(e) => setPlQuery(e.target.value)}
-                    />
-                    {plQuery && (
-                      <button
-                        title={t("lib.clear")}
-                        aria-label={t("lib.clear")}
-                        onClick={() => setPlQuery("")}
-                      >
-                        <X />
-                      </button>
-                    )}
-                  </label>
-                </span>
-              </div>
-            )}
-            {liked.length === 0 && <span className="brw__empty">{t("lib.likedEmpty")}</span>}
-            <div className="lib">
-              {likedShown.slice(0, listLimit).map((e) => (
-                <div
-                  key={e.key}
-                  className="lib__row"
-                  role="button"
-                  tabIndex={0}
-                  draggable={!e.trackId.startsWith("remote:")}
-                  onDragStart={(ev) => {
-                    ev.dataTransfer.setData("application/x-noctbeat-track", e.trackId);
-                    ev.dataTransfer.effectAllowed = "copy";
-                  }}
-                  onClick={() => playLiked(e)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === "ArrowDown") return navRow(ev, 1);
-                    if (ev.key === "ArrowUp") return navRow(ev, -1);
-                    if (
-                      (ev.key === "Enter" || ev.key === " ") &&
-                      ev.target === ev.currentTarget
-                    ) {
-                      ev.preventDefault();
-                      playLiked(e);
-                    }
-                  }}
-                >
-                  <Art url={e.artworkUrl} icon={<Heart weight="fill" />} />
-                  <span className="lib__title">{e.title}</span>
-                  <span className="lib__sub">{e.artist}</span>
-                  <span className="lib__dur">
-                    {e.durationMs ? formatTime(e.durationMs) : ""}
-                  </span>
-                  {playlists.length > 0 && (
-                    <span className="lib__pluswrap">
-                      <button
-                        className="lib__rm"
-                        title={t("lib.addToPlaylist")}
-                        aria-label={t("lib.addToPlaylist")}
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          const r = ev.currentTarget.getBoundingClientRect();
-                          setAddTo(
-                            addTo?.key === e.key
-                              ? null
-                              : { key: e.key, x: r.left, y: r.bottom + 6 },
-                          );
-                        }}
-                      >
-                        <Plus />
-                      </button>
-                      {addTo?.key === e.key && (
-                        <span
-                          className="brw__plmenu"
-                          style={{
-                            left: Math.max(
-                              8,
-                              Math.min(addTo.x, window.innerWidth - 176),
-                            ),
-                            top: Math.min(addTo.y, window.innerHeight - 60),
-                          }}
-                          onClick={(ev) => ev.stopPropagation()}
-                        >
-                          {playlists.map((p) => (
-                            <button
-                              key={p.path}
-                              title={p.name}
-                              onClick={() => {
-                                setAddTo(null);
-                                void bridge
-                                  .playlistAddTracks(p.path, [e.trackId])
-                                  .then((n) => {
-                                    if (n > 0) flash(p.name);
-                                  })
-                                  .catch(fail);
-                              }}
-                            >
-                              {p.name}
-                            </button>
-                          ))}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {likedShown.length > listLimit && (
-              <div ref={listEndRef} aria-hidden />
-            )}
-          </>
+          <LikedView
+            liked={liked}
+            playLiked={playLiked}
+            shuffleLiked={shuffleLiked}
+            plQuery={plQuery}
+            setPlQuery={setPlQuery}
+            likedShown={likedShown}
+            listLimit={listLimit}
+            navRow={navRow}
+            playlists={playlists}
+            addTo={addTo}
+            setAddTo={setAddTo}
+            flash={flash}
+            fail={fail}
+            listEndRef={listEndRef}
+          />
         )}
 
         {view === "queue" && (
-          <>
-            {queue.items.length > 0 && (
-              <div className="brw__qtools">
-                <span className="seg seg--ghost">
-                  <button
-                    title={t("lib.save")}
-                    onClick={() => {
-                      setDlgName("");
-                      setDlg({ kind: "save" });
-                    }}
-                  >
-                    {t("lib.save")}
-                  </button>
-                  <button onClick={() => void bridge.clearQueue().catch(fail)}>
-                    {t("lib.clear")}
-                  </button>
-                </span>
-                <span className="brw__qstat">
-                  {queue.items.length}{" "}
-                  {queue.items.length === 1 ? t("lib.track") : t("lib.tracks")} ·{" "}
-                  {formatTime(queueLeftMs)}
-                </span>
-              </div>
-            )}
-            <div className="lib">
-              {queue.items.map((item, i) => {
-                const current = queue.currentIndex === i;
-                const ci = queue.currentIndex ?? -1;
-                return (
-                  <Fragment key={item.path}>
-                    {current && (
-                      <div className="brw__kick brw__qsection">
-                        {t("fs.nowPlaying")}
-                      </div>
-                    )}
-                    {i === ci + 1 && (
-                      <div className="brw__kick brw__qsection">
-                        {t("brw.nextInQueue")}
-                      </div>
-                    )}
-                    <div
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "ArrowDown") return navRow(e, 1);
-                      if (e.key === "ArrowUp") return navRow(e, -1);
-                      if (
-                        (e.key === "Enter" || e.key === " ") &&
-                        e.target === e.currentTarget
-                      ) {
-                        e.preventDefault();
-                        void bridge.playQueueIndex(i);
-                      }
-                    }}
-                    className={[
-                      "lib__row",
-                      "lib__row--num",
-                      current ? "lib__row--current" : "",
-                      dragIdx === i ? "lib__row--dragging" : "",
-                      dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    draggable
-                    onDragStart={(e) => {
-                      /* Also published for rail-playlist drops. */
-                      e.dataTransfer.setData("application/x-noctbeat-track", item.path);
-                      e.dataTransfer.effectAllowed = "copyMove";
-                      setDragIdx(i);
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDropIdx(i);
-                    }}
-                    onDragLeave={() => setDropIdx((d) => (d === i ? null : d))}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (dragIdx !== null && dragIdx !== i) {
-                        void bridge.queueMove(dragIdx, i).catch(fail);
-                      }
-                      setDragIdx(null);
-                      setDropIdx(null);
-                    }}
-                    onDragEnd={() => {
-                      setDragIdx(null);
-                      setDropIdx(null);
-                    }}
-                    onClick={() => void bridge.playQueueIndex(i)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setCtx({ x: e.clientX, y: e.clientY, kind: "queue", index: i });
-                    }}
-                  >
-                    <span className="lib__idx">
-                      {current && playing ? (
-                        <span className="lib__eq" aria-hidden>
-                          <i />
-                          <i />
-                          <i />
-                        </span>
-                      ) : (
-                        i + 1
-                      )}
-                    </span>
-                    <Art url={item.track.artworkUrl} />
-                    <span className="lib__title">{item.track.title}</span>
-                    <span className="lib__sub">{item.track.artist}</span>
-                    <span className="lib__dur">
-                      {item.track.durationMs ? formatTime(item.track.durationMs) : ""}
-                    </span>
-                    <button
-                      className="lib__rm"
-                      aria-label={current ? t("fs.playingCantRemove") : t("fs.removeFromQueue")}
-                      title={current ? t("fs.playingCantRemove") : t("fs.removeFromQueue")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!current) void bridge.queueRemove(i).catch(fail);
-                      }}
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                  </Fragment>
-                );
-              })}
-              {queue.items.length === 0 && (
-                <span className="brw__empty">{t("lib.queueEmpty")}</span>
-              )}
-            </div>
-          </>
+          <QueueView
+            queue={queue}
+            playing={playing}
+            queueLeftMs={queueLeftMs}
+            navRow={navRow}
+            dragIdx={dragIdx}
+            setDragIdx={setDragIdx}
+            dropIdx={dropIdx}
+            setDropIdx={setDropIdx}
+            setCtx={setCtx}
+            setDlgName={setDlgName}
+            setDlg={setDlg}
+            fail={fail}
+          />
         )}
 
         {view.startsWith("pl:") && (
-          <>
-            <div className="brw__plhead">
-              <span className="brw__plart">
-                {plArt ? (
-                  <Art url={plArt} icon={<Playlist />} />
-                ) : (
-                  <GenCover name={plName} />
-                )}
-              </span>
-              <span className="brw__plmeta">
-                <span className="brw__plt">{plName}</span>
-                <span className="brw__pls">
-                  {plTracks.length} {plTracks.length === 1 ? t("lib.track") : t("lib.tracks")}
-                  {plTracks.some((pt) => pt.durationMs > 0) && (
-                    <>
-                      {" · "}
-                      {formatTime(
-                        plTracks.reduce((ms, pt) => ms + pt.durationMs, 0),
-                      )}
-                      {/* '+' flags a subtotal: some rows report no length. */}
-                      {plTracks.some((pt) => pt.durationMs === 0) ? "+" : ""}
-                    </>
-                  )}
-                </span>
-              </span>
-              <span className="seg seg--ghost">
-                <button
-                  title={t("fs.shuffle")}
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (!p) return;
-                    void bridge
-                      .setShuffle(true)
-                      .then(() => {
-                        setShuffle(true);
-                        playPlaylist(p, true);
-                      })
-                      .catch(fail);
-                  }}
-                >
-                  <Shuffle /> {t("fs.shuffle")}
-                </button>
-                <button
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (p) playPlaylist(p);
-                  }}
-                >
-                  <Play weight="fill" /> {t("brw.playAll")}
-                </button>
-                <button
-                  title={t("lib.rename")}
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (!p) return;
-                    setDlgName(p.name);
-                    setDlg({ kind: "rename", path: p.path, name: p.name });
-                  }}
-                >
-                  <PencilSimple /> {t("lib.rename")}
-                </button>
-                <button
-                  title={t("lib.delete")}
-                  onClick={() => {
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (!p) return;
-                    setDlg({ kind: "delete", path: p.path, name: p.name });
-                  }}
-                >
-                  <Trash /> {t("lib.delete")}
-                </button>
-                <label className="brw__plfind" title={t("brw.findInPlaylist")}>
-                  <MagnifyingGlass />
-                  <input
-                    value={plQuery}
-                    placeholder={t("brw.findInPlaylist")}
-                    onChange={(e) => setPlQuery(e.target.value)}
-                  />
-                  {plQuery && (
-                    <button
-                      title={t("lib.clear")}
-                      aria-label={t("lib.clear")}
-                      onClick={() => setPlQuery("")}
-                    >
-                      <X />
-                    </button>
-                  )}
-                </label>
-              </span>
-            </div>
-            {plLoading && <span className="brw__empty">{t("srch.loading")}</span>}
-            {plTracks.length > 0 && (
-              <div className="brw__colhead" aria-hidden>
-                <span>#</span>
-                <button
-                  className={plSort.key === "title" ? "on" : ""}
-                  onClick={() => toggleSort("title")}
-                  title={t("brw.colTitle")}
-                >
-                  {t("brw.colTitle")}
-                  {plSort.key === "title" ? (
-                    plSort.dir === 1 ? (
-                      <CaretUp />
-                    ) : (
-                      <CaretDown />
-                    )
-                  ) : (
-                    <CaretUpDown />
-                  )}
-                </button>
-                <button
-                  className={plSort.key === "artist" ? "on" : ""}
-                  onClick={() => toggleSort("artist")}
-                  title={t("srch.artist")}
-                >
-                  {t("srch.artist")}
-                  {plSort.key === "artist" ? (
-                    plSort.dir === 1 ? (
-                      <CaretUp />
-                    ) : (
-                      <CaretDown />
-                    )
-                  ) : (
-                    <CaretUpDown />
-                  )}
-                </button>
-                <button
-                  className={`brw__coldur ${plSort.key === "duration" ? "on" : ""}`}
-                  onClick={() => toggleSort("duration")}
-                  title={t("brw.colDuration")}
-                >
-                  <Clock />
-                  {plSort.key === "duration" ? (
-                    plSort.dir === 1 ? (
-                      <CaretUp />
-                    ) : (
-                      <CaretDown />
-                    )
-                  ) : (
-                    <CaretUpDown />
-                  )}
-                </button>
-              </div>
-            )}
-            <div className="lib">
-              {plShown.slice(0, listLimit).map(({ t: pt, i }, di) => {
-                const current = isNow(pt);
-                return (
-                <div
-                  className={[
-                    "lib__row",
-                    current ? "lib__row--current" : "",
-                    sel.has(i) ? "lib__row--sel" : "",
-                    dragIdx === i ? "lib__row--dragging" : "",
-                    dropIdx === i && dragIdx !== i ? "lib__row--dropover" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  role="button"
-                  tabIndex={0}
-                  key={`${pt.path}-${i}`}
-                  title={pt.title || pt.path.split("/").pop()}
-                  /* Sorted/filtered rows don't map to file indices —
-                     Spotify locks manual reorder the same way. */
-                  draggable={!plQuery.trim() && !plSort.key}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("application/x-noctbeat-track", pt.path);
-                    e.dataTransfer.effectAllowed = "copyMove";
-                    setDragIdx(i);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDropIdx(i);
-                  }}
-                  onDragLeave={() => setDropIdx((d) => (d === i ? null : d))}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const p = playlists.find((x) => `pl:${x.path}` === view);
-                    if (p && dragIdx !== null && dragIdx !== i) {
-                      const from = dragIdx;
-                      /* A move renumbers the file — drop the
-                         selection instead of pointing it at the
-                         wrong tracks. */
-                      setSel(new Set());
-                      selAnchor.current = null;
-                      setPlTracks((ts) => {
-                        const n = [...ts];
-                        const [m] = n.splice(from, 1);
-                        n.splice(i, 0, m);
-                        return n;
-                      });
-                      void bridge
-                        .playlistMoveTrack(p.path, from, i)
-                        .catch((err) => {
-                          fail(err);
-                          return bridge
-                            .playlistTracks(p.path)
-                            .then(setPlTracks)
-                            .catch(() => {});
-                        });
-                    }
-                    setDragIdx(null);
-                    setDropIdx(null);
-                  }}
-                  onDragEnd={() => {
-                    setDragIdx(null);
-                    setDropIdx(null);
-                  }}
-                  onClick={(e) => {
-                    /* Spotify-style multi-select: Shift = range from the
-                       last picked row, Cmd/Ctrl toggles one row. A plain
-                       click still plays the track. */
-                    if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                      /* Ranges span display order — under a filter or
-                         sort, picking a visible run must not rope in
-                         the hidden tracks between them in the file. */
-                      setSel((s) => {
-                        const n = new Set(s);
-                        if (e.shiftKey && selAnchor.current !== null) {
-                          const a = Math.min(selAnchor.current, di);
-                          const b = Math.max(selAnchor.current, di);
-                          for (let k = a; k <= b; k++) {
-                            const row = plShown[k];
-                            if (row) n.add(row.i);
-                          }
-                        } else if (n.has(i)) n.delete(i);
-                        else n.add(i);
-                        return n;
-                      });
-                      selAnchor.current = di;
-                      return;
-                    }
-                    if (sel.size > 0) setSel(new Set());
-                    playPlTrack(i);
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setCtx({ x: e.clientX, y: e.clientY, kind: "pl", index: i });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") return navRow(e, 1);
-                    if (e.key === "ArrowUp") return navRow(e, -1);
-                    if (
-                      (e.key === "Delete" || e.key === "Backspace") &&
-                      sel.size > 0
-                    ) {
-                      e.preventDefault();
-                      removeSelected();
-                      return;
-                    }
-                    if (
-                      (e.key === "Enter" || e.key === " ") &&
-                      e.target === e.currentTarget
-                    ) {
-                      e.preventDefault();
-                      playPlTrack(i);
-                    }
-                  }}
-                >
-                  <span className="lib__idx">
-                    {current && playing ? (
-                      <span className="lib__eq" aria-hidden>
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  <span className="lib__title">{pt.title || pt.path.split("/").pop()}</span>
-                  <span className="lib__sub">{pt.artist}</span>
-                  <span className="lib__dur">
-                    {pt.remote ? "stream" : pt.durationMs ? formatTime(pt.durationMs) : ""}
-                  </span>
-                  <button
-                    className="lib__rm"
-                    title={t("lib.removeFromPlaylist")}
-                    aria-label={t("lib.removeFromPlaylist")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removePlTrack(i);
-                    }}
-                  >
-                    <X />
-                  </button>
-                </div>
-                );
-              })}
-            </div>
-            {plShown.length > listLimit && (
-              <div ref={listEndRef} aria-hidden />
-            )}
-            {sel.size > 0 && (
-              <div className="brw__selbar">
-                <b>{sel.size}</b>
-                <button
-                  className="brw__selbtn"
-                  onClick={removeSelected}
-                  title={t("lib.removeFromPlaylist")}
-                >
-                  <Trash /> {t("lib.removeFromPlaylist")}
-                </button>
-                <button
-                  className="brw__selbtn"
-                  onClick={() => setSel(new Set())}
-                  title={t("brw.cancel")}
-                >
-                  {t("brw.cancel")}
-                </button>
-              </div>
-            )}
-          </>
+          <PlaylistView
+            view={view}
+            plArt={plArt}
+            plName={plName}
+            plTracks={plTracks}
+            setPlTracks={setPlTracks}
+            plLoading={plLoading}
+            playlists={playlists}
+            plQuery={plQuery}
+            setPlQuery={setPlQuery}
+            plSort={plSort}
+            toggleSort={toggleSort}
+            plShown={plShown}
+            isNow={isNow}
+            playing={playing}
+            sel={sel}
+            setSel={setSel}
+            selAnchor={selAnchor}
+            dragIdx={dragIdx}
+            setDragIdx={setDragIdx}
+            dropIdx={dropIdx}
+            setDropIdx={setDropIdx}
+            navRow={navRow}
+            removeSelected={removeSelected}
+            deletePlaylistNow={deletePlaylistNow}
+            playPlTrack={playPlTrack}
+            removePlTrack={removePlTrack}
+            listLimit={listLimit}
+            listEndRef={listEndRef}
+            setCtx={setCtx}
+            setDlg={setDlg}
+            setDlgName={setDlgName}
+            setShuffle={setShuffle}
+            playPlaylist={playPlaylist}
+            fail={fail}
+          />
         )}
+              {showLyrics && <LyricsPanel close={() => setShowLyrics(false)} />}
       </main>
 
       {dlg && (
-        <span className="brw__dlg" onClick={() => setDlg(null)}>
-          <span
-            className="brw__dlgcard"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.stopPropagation();
-                setDlg(null);
-                return;
-              }
-              if (e.key !== "Tab") return;
-              /* Focus trap: Tab cycles through the card's own
-                 controls so focus can't fall behind the overlay. */
-              const els = Array.from(
-                e.currentTarget.querySelectorAll<HTMLElement>(
-                  "button, input",
-                ),
-              );
-              if (els.length === 0) return;
-              const first = els[0];
-              const last = els[els.length - 1];
-              const active = document.activeElement as HTMLElement | null;
-              if (e.shiftKey && active === first) {
-                e.preventDefault();
-                last.focus();
-              } else if (!e.shiftKey && active === last) {
-                e.preventDefault();
-                first.focus();
-              } else if (active && !els.includes(active)) {
-                e.preventDefault();
-                (e.shiftKey ? last : first).focus();
-              }
-            }}
-          >
-            <span className="brw__dlgtitle">
-              {dlg.kind === "save"
-                ? t("lib.save")
-                : dlg.kind === "create"
-                  ? t("lib.newPlaylist")
-                  : dlg.kind === "rename"
-                    ? t("lib.rename")
-                    : t("lib.delete")}
-            </span>
-            {dlg.kind === "delete" ? (
-              <span className="brw__dlgname">{dlg.name}</span>
-            ) : (
-              <input
-                className="brw__dlginput"
-                autoFocus
-                value={dlgName}
-                placeholder={t("lib.playlistName")}
-                aria-label={t("lib.playlistName")}
-                onChange={(e) => setDlgName(e.target.value)}
-                onKeyDown={(e) => {
-                  /* Enter that confirms an IME candidate must not
-                     submit — the name hasn't reached dlgName yet. */
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing)
-                    submitDlg();
-                }}
-              />
-            )}
-            <span className="brw__dlgbtns">
-              <button
-                className="brw__dlgbtn"
-                /* Destructive dialogs focus Cancel: an Enter held through
-                   key repeat would otherwise submit the confirm the
-                   instant it gains focus. */
-                autoFocus={dlg.kind === "delete"}
-                onClick={() => setDlg(null)}
-              >
-                {t("brw.cancel")}
-              </button>
-              <button
-                className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
-                onClick={submitDlg}
-              >
-                {dlg.kind === "save"
-                  ? t("lib.save")
-                  : dlg.kind === "create"
-                    ? t("lib.create")
-                    : dlg.kind === "rename"
-                      ? t("lib.rename")
-                      : t("lib.delete")}
-              </button>
-            </span>
-          </span>
-        </span>
+        <DlgModal
+          dlg={dlg}
+          setDlg={setDlg}
+          dlgName={dlgName}
+          setDlgName={setDlgName}
+          submitDlg={submitDlg}
+        />
       )}
 
       {ctx && (
-        <span
-          className="brw__ctx"
-          style={{
-            left: Math.max(8, Math.min(ctx.x, window.innerWidth - 184)),
-            top: Math.max(8, Math.min(ctx.y, window.innerHeight - 24)),
-            maxHeight: window.innerHeight - 32,
-            overflowY: "auto",
-          }}
-        >
-          {ctx.kind === "pladd" &&
-            playlists
-              .filter((p) => /\.m3u8?$/i.test(p.path))
-              .map((p) => (
-                <button
-                  key={p.path}
-                  title={p.name}
-                  onClick={() => {
-                    const tp = ctx.path;
-                    setCtx(null);
-                    if (!tp) return;
-                    void bridge
-                      .playlistAddTracks(p.path, [tp])
-                      .then((n) => {
-                        if (n > 0) flash(p.name);
-                      })
-                      .catch(fail);
-                  }}
-                >
-                  {p.name}
-                </button>
-              ))}
-          {ctx.kind !== "railpl" && ctx.kind !== "pladd" && (
-            <button
-              onClick={() => {
-                setCtx(null);
-                if (ctx.kind === "pl") playPlTrack(ctx.index);
-                else void bridge.playQueueIndex(ctx.index);
-              }}
-            >
-              {t("brw.play")}
-            </button>
-          )}
-          {ctx.kind === "railpl" && (
-            <>
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  setDlgName(ctx.name ?? "");
-                  setDlg({
-                    kind: "rename",
-                    path: ctx.path ?? "",
-                    name: ctx.name ?? "",
-                  });
-                }}
-              >
-                {t("lib.rename")}
-              </button>
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  setDlg({
-                    kind: "delete",
-                    path: ctx.path ?? "",
-                    name: ctx.name ?? "",
-                  });
-                }}
-              >
-                {t("lib.delete")}
-              </button>
-            </>
-          )}
-          {ctx.kind === "pl" && plTracks[ctx.index]?.artist && (
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  go(`ar:${encodeURIComponent(plTracks[ctx.index].artist)}`);
-                }}
-              >
-                {t("brw.goToArtist")}
-              </button>
-            )}
-          {ctx.kind === "pl" && (
-            <button
-              onClick={() => {
-                setCtx(null);
-                /* A selected row's Remove honors the selection —
-                   deleting just the clicked row would silently drop
-                   the user's multi-select intent. */
-                if (sel.size > 1 && sel.has(ctx.index)) removeSelected();
-                else removePlTrack(ctx.index);
-              }}
-            >
-              {t("lib.removeFromPlaylist")}
-            </button>
-          )}
-          {/* Only m3u destinations accept writes, and streams
-              can't be copied into a file playlist — offer the item
-              only when both ends can actually work. */}
-          {(ctx.kind === "pl" || ctx.kind === "queue") &&
-            playlists.some((p) => /\.m3u8?$/i.test(p.path)) &&
-            !(ctx.kind === "pl"
-              ? plTracks[ctx.index]?.remote
-              : /^(remote:|https?:)/i.test(
-                  queue.items[ctx.index]?.path ?? "",
-                )) && (
-              <button
-                onClick={() =>
-                  setCtx({
-                    x: ctx.x,
-                    y: ctx.y,
-                    kind: "pladd",
-                    index: ctx.index,
-                    path:
-                      ctx.kind === "pl"
-                        ? plTracks[ctx.index]?.path
-                        : queue.items[ctx.index]?.path,
-                  })
-                }
-              >
-                {t("lib.addToPlaylist")}…
-              </button>
-            )}
-          {ctx.kind === "queue" &&
-            queue.items[ctx.index]?.track.artist && (
-              <button
-                onClick={() => {
-                  setCtx(null);
-                  go(
-                    `ar:${encodeURIComponent(queue.items[ctx.index].track.artist)}`,
-                  );
-                }}
-              >
-                {t("brw.goToArtist")}
-              </button>
-            )}
-          {ctx.kind === "queue" && queue.currentIndex !== ctx.index && (
-            <button
-              onClick={() => {
-                setCtx(null);
-                void bridge.queueRemove(ctx.index).catch(fail);
-              }}
-            >
-              {t("fs.removeFromQueue")}
-            </button>
-          )}
-        </span>
+        <CtxMenu
+          ctx={ctx}
+          setCtx={setCtx}
+          playlists={playlists}
+          plTracks={plTracks}
+          queue={queue}
+          sel={sel}
+          go={go}
+          playPlTrack={playPlTrack}
+          removePlTrack={removePlTrack}
+          removeSelected={removeSelected}
+          deletePlaylistNow={deletePlaylistNow}
+          pinnedPlaylists={pinnedPlaylists}
+          togglePinnedPlaylist={togglePinnedPlaylist}
+          setDlg={setDlg}
+          setDlgName={setDlgName}
+          flash={flash}
+          fail={fail}
+        />
       )}
 
-      <footer className="brw__bar">
-        {track ? (
-          <>
-            <Art url={track.artworkUrl} />
-            <span className="brw__np">
-              <span className="brw__npt">{track.title}</span>
-              <button
-                className="brw__npa brw__npa--link"
-                title={t("brw.goToArtist")}
-                onClick={() => go(`ar:${encodeURIComponent(track.artist)}`)}
-              >
-                {track.artist}
-              </button>
-            </span>
-            <button
-              className={`brw__icon ${isFav ? "on" : ""}`}
-              aria-label={isFav ? t("fs.unlike") : t("fs.like")}
-              title={isFav ? t("fs.unlike") : t("fs.like")}
-              onClick={() => {
-                const entry = favEntryFor(np);
-                if (entry) setFavs((prev) => toggleFav(prev, entry));
-              }}
-            >
-              <Heart size={15} weight={isFav ? "fill" : "regular"} />
-            </button>
-          </>
-        ) : (
-          <span className="brw__np" />
-        )}
-        <span className="brw__ctl">
-          <button
-            className={`brw__icon ${shuffle ? "on" : ""}`}
-            aria-label={t("fs.shuffle")}
-            title={t("fs.shuffle")}
-            onClick={() =>
-              void bridge.getShuffle().then((on) => {
-                const next = !on;
-                return bridge.setShuffle(next).then(() => setShuffle(next));
-              })
-            }
-          >
-            <Shuffle size={15} weight={shuffle ? "fill" : "regular"} />
-          </button>
-          <button
-            className="brw__icon"
-            aria-label={t("fs.prev")}
-            title={t("fs.prev")}
-            onClick={() => void bridge.mediaControl("previous")}
-          >
-            <SkipBack size={16} weight="fill" />
-          </button>
-          <button
-            className="brw__icon brw__icon--play"
-            aria-label={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
-            title={playing ? t("fs.pauseBtn") : t("fs.playBtn")}
-            onClick={() => void bridge.mediaControl("play-pause")}
-          >
-            {playing ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" />}
-          </button>
-          <button
-            className="brw__icon"
-            aria-label={t("fs.next")}
-            title={t("fs.next")}
-            onClick={() => void bridge.mediaControl("next")}
-          >
-            <SkipForward size={16} weight="fill" />
-          </button>
-          <button
-            className={`brw__icon ${repeat !== "off" ? "on" : ""}`}
-            aria-label={t(
-              repeat === "off"
-                ? "fs.repeatOff"
-                : repeat === "all"
-                  ? "fs.repeatAll"
-                  : "fs.repeatOne",
-            )}
-            title={t(
-              repeat === "off"
-                ? "fs.repeatOff"
-                : repeat === "all"
-                  ? "fs.repeatAll"
-                  : "fs.repeatOne",
-            )}
-            onClick={() =>
-              void bridge.getRepeat().then((m) => {
-                const next = m === "off" ? "all" : m === "all" ? "one" : "off";
-                return bridge.setRepeat(next).then(() => setRepeat(next));
-              })
-            }
-          >
-            {repeat === "one" ? (
-              <RepeatOnce size={15} weight="fill" />
-            ) : (
-              <Repeat size={15} weight={repeat === "all" ? "fill" : "regular"} />
-            )}
-          </button>
-          <SeekCluster durationMs={track?.durationMs} hasTrack={!!track} />
-        </span>
-        <button
-          className={`brw__icon ${view === "queue" ? "on" : ""}`}
-          aria-label={t("lib.queue")}
-          title={t("lib.queue")}
-          onClick={() => go("queue")}
-        >
-          <ListBullets size={15} />
-        </button>
-        <span
-          className={`brw__volwrap ${volLocal ? "" : "brw__volwrap--off"}`}
-          title={volLocal ? t("fs.volume") : t("brw.volLocalOnly")}
-        >
-          <button
-            className={`brw__icon ${vol === 0 ? "" : "on"}`}
-            disabled={!volLocal}
-            aria-label={vol === 0 ? t("fs.unmute") : t("fs.mute")}
-            title={volLocal ? (vol === 0 ? t("fs.unmute") : t("fs.mute")) : t("brw.volLocalOnly")}
-            onClick={() => {
-              const next = vol === 0 ? preMuteVol : 0;
-              if (vol !== 0) preMuteVol = vol;
-              setVol(next);
-              void bridge.setVolume(next);
-            }}
-          >
-            {vol === 0 ? <SpeakerSlash size={15} /> : <SpeakerHigh size={15} />}
-          </button>
-          <input
-            className="brw__vol"
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={vol}
-            disabled={!volLocal}
-            aria-label={t("fs.volume")}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setVol(v);
-              void bridge.setVolume(v);
-            }}
-          />
-        </span>
-        <button
-          className="brw__icon brw__icon--live"
-          aria-label={t("brw.liveView")}
-          title={t("brw.liveView")}
-          onClick={() => nav("/")}
-        >
-          <SquaresFour size={15} />
-          <span>{t("brw.liveView")}</span>
-        </button>
-        <button
-          className="brw__icon"
-          aria-label={t("nav.fullscreen")}
-          title={t("nav.fullscreen")}
-          /* Browser preview can't go fullscreen — take them to the
-             live stage instead so the button is never dead. */
-          onClick={() =>
-            bridge.isTauri() ? void bridge.toggleFullscreen() : nav("/")
-          }
-        >
-          <ArrowsOut size={15} />
-        </button>
-      </footer>
+      <Playbar
+        track={track}
+        np={np}
+        playing={playing}
+        isFav={isFav}
+        setFavs={setFavs}
+        shuffle={shuffle}
+        setShuffle={setShuffle}
+        repeat={repeat}
+        setRepeat={setRepeat}
+        vol={vol}
+        setVol={setVol}
+        volLocal={volLocal}
+        view={view}
+        go={go}
+        preMuteVolRef={preMuteVolRef}
+        showLyrics={showLyrics}
+        toggleLyrics={() => setShowLyrics((v) => !v)}
+        autoplay={autoplay}
+        toggleAutoplay={() => setAutoplayEnabled(!autoplay)}
+      />
     </div>
   );
 }

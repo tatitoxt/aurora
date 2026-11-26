@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bridge, type CatalogSong } from "./bridge";
+import { togglePreview, usePreviewing } from "./pages/browse/previewer";
 import { useT } from "./i18n";
 import { artistCards, formatTime } from "./lib";
 
@@ -28,6 +29,7 @@ export default function SearchPanel({
   aside,
   songLimit,
   onArtist,
+  onAlbum,
   filter = "all",
 }: {
   src: string;
@@ -44,10 +46,13 @@ export default function SearchPanel({
   /** Route artist clicks externally (e.g. Browse pushes its own artist
       view onto the history stack) instead of the internal sub-page. */
   onArtist?: (name: string) => void;
+  /** Route album clicks externally (Browse owns album pages/history). */
+  onAlbum?: (artist: string, album: string) => void;
   /** Spotify-style section filter for the caller's filter chips. */
-  filter?: "all" | "songs" | "artists" | "none";
+  filter?: "all" | "songs" | "artists" | "albums" | "none";
 }) {
   const t = useT();
+  const previewing = usePreviewing();
   const [qLocal, setQLocal] = useState("");
   const q = query ?? qLocal;
   const setQ = onQuery ?? setQLocal;
@@ -82,6 +87,21 @@ export default function SearchPanel({
   }, [q]);
 
   const artists = useMemo(() => artistCards(songs), [songs]);
+  /* Albums are metadata groupings of the song results — first artwork
+     wins, duplicates from the same release collapse into one card. */
+  const albums = useMemo(() => {
+    const seen = new Map<string, { artist: string; album: string; art: string; count: number }>();
+    for (const s of songs) {
+      const album = s.album?.trim();
+      if (!album) continue;
+      const artist = s.collectionArtist || s.artist;
+      const key = `${artist.toLowerCase()}:${album.toLowerCase()}`;
+      const cur = seen.get(key);
+      if (cur) cur.count += 1;
+      else seen.set(key, { artist, album, art: s.artworkUrl, count: 1 });
+    }
+    return [...seen.values()].slice(0, 8);
+  }, [songs]);
 
   // An artist page lists that artist's own catalog, not just this query's hits.
   const openArtist = (name: string) => {
@@ -150,6 +170,7 @@ export default function SearchPanel({
           e.key === "Enter" &&
           top &&
           filter !== "artists" &&
+          filter !== "albums" &&
           filter !== "none" &&
           play(top)
         }
@@ -193,8 +214,32 @@ export default function SearchPanel({
             </button>
           )}
           {!artist &&
+            albums.length > 0 &&
+            (filter === "all" || filter === "albums") && (
+            <>
+              <span className="srch__h">{t("lib.albums")}</span>
+              <div className="srch__artists srch__albums">
+                {albums.map((a) => (
+                  <button
+                    key={`${a.artist}:${a.album}`}
+                    className="srch__artist srch__album"
+                    title={`${a.album} — ${a.artist}`}
+                    onClick={() =>
+                      onAlbum ? onAlbum(a.artist, a.album) : play(songs.find((s) => s.album === a.album && s.artist === a.artist) ?? songs[0])
+                    }
+                  >
+                    <img src={a.art} alt="" />
+                    <span>{a.album}</span>
+                    <small>{a.artist}</small>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {!artist &&
             (filter === "artists" ? artists.length > 0 : artists.length > 1) &&
             filter !== "songs" &&
+            filter !== "albums" &&
             filter !== "none" && (
             <>
               <span className="srch__h">{t("srch.artists")}</span>
@@ -213,7 +258,7 @@ export default function SearchPanel({
               </div>
             </>
           )}
-          {filter !== "artists" && filter !== "none" && (
+          {filter !== "artists" && filter !== "albums" && filter !== "none" && (
             <>
           <span className="srch__h">
             {artist ? (
@@ -239,7 +284,33 @@ export default function SearchPanel({
                 onClick={() => play(s)}
                 onKeyDown={(e) => e.key === "Enter" && play(s)}
               >
-                <img src={s.artworkUrl} alt="" />
+                {s.previewUrl ? (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className={`srch__prevwrap ${previewing === s.previewUrl ? "on" : ""}`}
+                    aria-label={t("brw.preview")}
+                    title={t("brw.preview")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePreview(s.previewUrl!);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        togglePreview(s.previewUrl!);
+                      }
+                    }}
+                  >
+                    <img src={s.artworkUrl} alt="" />
+                    <span className="srch__previcon" aria-hidden>
+                      {previewing === s.previewUrl ? "❚❚" : "▶"}
+                    </span>
+                  </span>
+                ) : (
+                  <img src={s.artworkUrl} alt="" />
+                )}
                 <span className="srch__meta">
                   <span className="srch__title">{s.title}</span>
                   <span className="srch__sub">{s.artist}</span>

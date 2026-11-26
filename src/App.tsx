@@ -11,6 +11,7 @@ import {
 import { favEntryFor, loadFavs, toggleFav } from "./favs";
 import { useT } from "./i18n";
 import { applyDynAccent, applyGlassOpacity, applyTheme } from "./themes";
+import { useRadioAutoplay } from "./autoplay";
 
 // Each window (Stage, HUD, desk lyrics) loads only its own page chunk.
 const Stage = lazy(() => import("./pages/Stage"));
@@ -27,6 +28,11 @@ const Wrapped = lazy(() => import("./pages/Wrapped"));
 const Visualizer = lazy(() => import("./pages/Visualizer"));
 
 export default function App() {
+  const loc = useLocation();
+  /* Radio is playback state, not a Browse-page concern: it keeps working
+     when the user switches back to Live View, but overlay webviews do not
+     each get their own copy of the listener. */
+  useRadioAutoplay(!["/hud", "/desklyrics"].includes(loc.pathname));
   // Every icon button explains itself on hover: mirror aria-label into title.
   useEffect(() => {
     const label = (b: HTMLElement) => {
