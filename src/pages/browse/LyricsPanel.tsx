@@ -4,15 +4,12 @@
 import { useEffect, useRef, useState } from "react";
 import { bridge, subscribe, type LrcLine, type NowPlaying } from "../../bridge";
 import { useT } from "../../i18n";
-import PremiumLock from "../../PremiumLock";
-import { usePremiumStatus } from "../../premium";
 import { X } from "@phosphor-icons/react";
 import { activeLyricIndex } from "../../lib";
 import { lyricOffsetFor } from "../../lyroff";
 
 export default function LyricsPanel({ close }: { close: () => void }) {
   const t = useT();
-  const premium = usePremiumStatus();
   const [lines, setLines] = useState<LrcLine[] | null>(null);
   const [np, setNp] = useState<NowPlaying | null>(null);
   const [sig, setSig] = useState("");
@@ -30,10 +27,6 @@ export default function LyricsPanel({ close }: { close: () => void }) {
     [],
   );
   useEffect(() => {
-    if (premium !== "premium") {
-      setLines(null);
-      return;
-    }
     let live = true;
     void bridge
       .getLyrics()
@@ -46,7 +39,7 @@ export default function LyricsPanel({ close }: { close: () => void }) {
     return () => {
       live = false;
     };
-  }, [sig, premium]);
+  }, [sig]);
 
   const lyricPos = (np?.positionMs ?? 0) + lyricOffsetFor(np);
   const active = lines ? activeLyricIndex(lines, lyricPos) : -1;
@@ -65,9 +58,7 @@ export default function LyricsPanel({ close }: { close: () => void }) {
         </button>
       </div>
       <div className="brw__lyricslist" ref={listRef}>
-        {premium === "free" ? (
-          <PremiumLock compact />
-        ) : premium === "loading" ? null : lines && lines.length > 0 ? (
+        {lines && lines.length > 0 ? (
           lines.map((l, i) => (
             <p key={i} className={i === active ? "on" : i < active ? "past" : ""}>
               {l.text || "♪"}
