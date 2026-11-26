@@ -446,10 +446,13 @@ export default function Browse() {
   const volLocal = !track || np?.source === "local" || np?.source === "demo";
 
 
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flash = (msg: string) => {
     setNote(msg);
     setErr("");
-    setTimeout(() => setNote(""), 2800);
+    /* Retrigger: a stale timer must not clear the newer note early. */
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    noteTimer.current = setTimeout(() => setNote(""), 2800);
   };
   const fail = (e: unknown) => setErr(String(e));
 

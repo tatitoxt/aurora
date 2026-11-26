@@ -336,7 +336,15 @@ export default function PlaylistView({
             selAnchor.current = di;
             return;
           }
-          if (sel.size > 0) setSel(new Set());
+          /* Spotify semantics: plain click selects the row, double
+             click plays. Reproducing on single click meant the first
+             click after a ctrl+click selection spree fired playback. */
+          setSel(new Set([i]));
+          selAnchor.current = di;
+        }}
+        onDoubleClick={(e) => {
+          if (e.shiftKey || e.metaKey || e.ctrlKey) return;
+          setSel(new Set());
           playPlTrack(i);
         }}
         onContextMenu={(e) => {

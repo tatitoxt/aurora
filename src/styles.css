@@ -2942,7 +2942,7 @@ select { color-scheme: dark; }
 
 .brw__prevbtn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  width: 28px; height: 28px; margin: -4px 0; border-radius: 50%; cursor: pointer;
   font-size: 8px; color: var(--muted); border: 1px solid var(--hair);
 }
 .brw__prevbtn:hover { color: var(--text); border-color: var(--text); }
