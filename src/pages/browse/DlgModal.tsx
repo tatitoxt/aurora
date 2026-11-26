@@ -63,11 +63,9 @@ export default function DlgModal({
             ? t("lib.newPlaylist")
             : dlg.kind === "rename"
               ? t("lib.rename")
-              : t("lib.delete")}
+              : ""}
       </span>
-      {dlg.kind === "delete" ? (
-        <span className="brw__dlgname">{dlg.name}</span>
-      ) : (
+      {(
         <input
           className="brw__dlginput"
           autoFocus
@@ -89,13 +87,12 @@ export default function DlgModal({
           /* Destructive dialogs focus Cancel: an Enter held through
              key repeat would otherwise submit the confirm the
              instant it gains focus. */
-          autoFocus={dlg.kind === "delete"}
           onClick={() => setDlg(null)}
         >
           {t("brw.cancel")}
         </button>
         <button
-          className={`brw__dlgbtn brw__dlgbtn--go ${dlg.kind === "delete" ? "brw__dlgbtn--danger" : ""}`}
+          className={`brw__dlgbtn brw__dlgbtn--go ${""}`}
           onClick={submitDlg}
         >
           {dlg.kind === "save"

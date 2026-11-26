@@ -58,6 +58,7 @@ export default function PlaylistView({
   listEndRef,
   setCtx,
   setDlg,
+  deletePlaylistNow,
   setDlgName,
   setShuffle,
   playPlaylist,
@@ -92,6 +93,7 @@ export default function PlaylistView({
   listEndRef: React.RefObject<HTMLDivElement>;
   setCtx: Dispatch<SetStateAction<CtxState>>;
   setDlg: Dispatch<SetStateAction<DlgState>>;
+  deletePlaylistNow: (path: string, name: string) => void;
   setDlgName: (s: string) => void;
   setShuffle: (b: boolean) => void;
   playPlaylist: (p: PlaylistFile, shuffled?: boolean) => void;
@@ -170,7 +172,7 @@ export default function PlaylistView({
         onClick={() => {
           const p = playlists.find((x) => `pl:${x.path}` === view);
           if (!p) return;
-          setDlg({ kind: "delete", path: p.path, name: p.name });
+          deletePlaylistNow(p.path, p.name);
         }}
       >
         <Trash /> {t("lib.delete")}

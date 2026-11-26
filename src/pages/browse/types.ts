@@ -50,7 +50,6 @@ export type DlgState =
   | { kind: "save" }
   | { kind: "create" }
   | { kind: "rename"; path: string; name: string }
-  | { kind: "delete"; path: string; name: string }
   | null;
 
 export type CtxState = {

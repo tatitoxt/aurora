@@ -228,6 +228,7 @@ const fr: Record<keyof typeof en, string> = {
   "brw.plays": "écoutes","brw.playsOne": "écoute","brw.cancel": "Annuler","brw.play": "Lire","brw.playAll": "Tout lire","brw.liveView": "Vue live","brw.forward": "Suivant","brw.recentlyPlayed": "Écoutés récemment","brw.settings": "Paramètres","brw.account": "Compte","brw.appSettings": "Réglages de l’app","brw.noTracks": "Aucun titre pour l’instant","brw.seek": "Position","brw.trackMissing": "Fichier du titre manquant","brw.greetMorning": "Bonjour","brw.greetAfternoon": "Bon après-midi","brw.greetEvening": "Bonsoir","brw.volLocalOnly": "Lecture locale uniquement","brw.showAll": "Tout afficher","brw.nextInQueue": "Suivant dans la file","brw.browseAll": "Tout parcourir","brw.cat.charts": "Classements","brw.cat.newReleases": "Nouveautés","brw.cat.latin": "Latino","brw.cat.mood": "Humeur","brw.cat.workout": "Entraînement","brw.cat.party": "Soirée","brw.goToArtist": "Aller à l'artiste","brw.today": "Aujourd'hui","brw.yesterday": "Hier",
   "brw.preview": "Écouter un extrait de 30 s",
   "brw.relatedArtists": "Les fans aiment aussi",
+  "brw.undo": "Annuler",
   "brw.lyrics": "Paroles",
   "brw.noLyrics": "Pas de paroles synchronisées pour ce titre",
 };

@@ -27,17 +27,16 @@ describe("DlgModal", () => {
     expect(submit).toHaveBeenCalled();
   });
 
-  it("focuses Cancel on destructive dialogs (no Enter accidents)", () => {
+  it("rename dialog renders input and cancel", () => {
     render(
       <DlgModal
-        dlg={{ kind: "delete", path: "/x.m3u", name: "mixtape" }}
+        dlg={{ kind: "rename", path: "/x.m3u", name: "mixtape" }}
         setDlg={() => {}}
         dlgName=""
         setDlgName={() => {}}
         submitDlg={() => {}}
       />,
     );
-    // the cancel button carries autoFocus for delete dialogs
     const cancel = screen.getAllByRole("button")[0];
     expect(cancel).toHaveTextContent(/cancel/i);
   });
@@ -57,6 +56,7 @@ describe("CtxMenu", () => {
     setDlgName: () => {},
     flash: () => {},
     fail: () => {},
+    deletePlaylistNow: () => {},
   };
 
   it("offers add-to-playlist for local queue rows", () => {

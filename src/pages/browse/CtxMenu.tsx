@@ -26,6 +26,7 @@ export default function CtxMenu({
   setDlgName,
   flash,
   fail,
+  deletePlaylistNow,
 }: {
   ctx: NonNullable<CtxState>;
   setCtx: Dispatch<SetStateAction<CtxState>>;
@@ -41,6 +42,7 @@ export default function CtxMenu({
   setDlgName: (s: string) => void;
   flash: (msg: string) => void;
   fail: (e: unknown) => void;
+  deletePlaylistNow: (path: string, name: string) => void;
 }) {
   const t = useT();
   return (
@@ -130,11 +132,7 @@ export default function CtxMenu({
                 <button
           onClick={() => {
             setCtx(null);
-            setDlg({
-              kind: "delete",
-              path: ctx.path ?? "",
-              name: ctx.name ?? "",
-            });
+            deletePlaylistNow(ctx.path ?? "", ctx.name ?? "");
           }}
         >
           {t("lib.delete")}

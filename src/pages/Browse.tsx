@@ -118,7 +118,6 @@ export default function Browse() {
     | { kind: "save" }
     | { kind: "create" }
     | { kind: "rename"; path: string; name: string }
-    | { kind: "delete"; path: string; name: string }
     | null
   >(null);
   const [dlgName, setDlgName] = useState("");
@@ -447,12 +446,20 @@ export default function Browse() {
 
 
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flash = (msg: string) => {
+  const undoRef = useRef<(() => void) | null>(null);
+  const [hasUndo, setHasUndo] = useState(false);
+  const flash = (msg: string, undo?: () => void) => {
     setNote(msg);
     setErr("");
     /* Retrigger: a stale timer must not clear the newer note early. */
     if (noteTimer.current) clearTimeout(noteTimer.current);
-    noteTimer.current = setTimeout(() => setNote(""), 2800);
+    undoRef.current = undo ?? null;
+    setHasUndo(!!undo);
+    noteTimer.current = setTimeout(() => {
+      setNote("");
+      undoRef.current = null;
+      setHasUndo(false);
+    }, 5200);
   };
   const fail = (e: unknown) => setErr(String(e));
 
@@ -923,9 +930,18 @@ export default function Browse() {
     const p = playlists.find((x) => `pl:${x.path}` === view);
     if (!p) return;
     plRemoving.current = true;
+    const backup = plTracks[i]?.path;
     void bridge
       .playlistRemoveTrack(p.path, i)
       .then(() => {
+        if (backup && !/^(remote:|https?:)/i.test(backup)) {
+          flash(t("lib.removeFromPlaylist"), () => {
+            void bridge
+              .playlistAddTracks(p.path, [backup])
+              .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
+              .catch(fail);
+          });
+        }
         setPlTracks((ts) => ts.filter((_, j) => j !== i));
         /* Rows below the deleted one shift down — renumber the
            selection so it still points at the same tracks. */
@@ -968,12 +984,25 @@ export default function Browse() {
     if (!p || sel.size === 0 || plRemoving.current) return;
     plRemoving.current = true;
     const idx = [...sel].sort((a, b) => b - a);
+    const backup = idx
+      .map((i) => plTracks[i]?.path)
+      .filter((x): x is string => !!x && !/^(remote:|https?:)/i.test(x));
     void idx
       .reduce(
         (pr, i) => pr.then(() => bridge.playlistRemoveTrack(p.path, i)),
         Promise.resolve() as Promise<unknown>,
       )
-      .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
+      .then(() => {
+        if (backup.length > 0) {
+          flash(`${t("lib.removeFromPlaylist")} ×${idx.length}`, () => {
+            void bridge
+              .playlistAddTracks(p.path, backup)
+              .then(() => bridge.playlistTracks(p.path).then(setPlTracks))
+              .catch(fail);
+          });
+        }
+        return bridge.playlistTracks(p.path).then(setPlTracks);
+      })
       .catch(fail)
       .finally(() => {
         plRemoving.current = false;
@@ -983,6 +1012,33 @@ export default function Browse() {
   };
 
   /** In-app dialog submit: Save queue-as-playlist / Rename / Delete. */
+  /* Sonora/Linear undo pattern: deletion happens at once, the toast
+     offers Undo — no confirm dialog. The backup is the playlist's
+     track paths; Undo recreates the file and re-appends them. */
+  const deletePlaylistNow = (path: string, name: string) => {
+    void bridge
+      .playlistTracks(path)
+      .then((tracks) => {
+        const backup = tracks.map((tr) => tr.path);
+        return bridge.deletePlaylist(path).then(() => backup);
+      })
+      .then((backup) => {
+        setPlaylists((pls) => pls.filter((x) => x.path !== path));
+        if (view === `pl:${path}`) go("home");
+        flash(`${t("lib.delete")} — ${name}`, () => {
+          void bridge
+            .createPlaylist(name)
+            .then((f) => bridge.playlistAddTracks(f.path, backup).then(() => f))
+            .then((f) => {
+              setPlaylists((pls) => [...pls, f]);
+              void bridge.listPlaylists().then(setPlaylists);
+            })
+            .catch(fail);
+        });
+      })
+      .catch(fail);
+  };
+
   const submitDlg = () => {
     if (!dlg) return;
     const name = dlgName.trim();
@@ -1014,17 +1070,6 @@ export default function Browse() {
         .then((f) => {
           setPlaylists((pls) => pls.map((x) => (x.path === dlg.path ? f : x)));
           go(`pl:${f.path}`);
-        })
-        .catch(fail);
-    } else {
-      void bridge
-        .deletePlaylist(dlg.path)
-        .then(() => {
-          setPlaylists((pls) => pls.filter((x) => x.path !== dlg.path));
-          /* Deleting a different playlist from the rail shouldn't
-             yank the user off the one they're browsing (or wipe its
-             find/sort state). */
-          if (view === `pl:${dlg.path}`) go("home");
         })
         .catch(fail);
     }
@@ -1151,7 +1196,25 @@ export default function Browse() {
           </button>
         </header>
         {err && <span className="license-bad">{err}</span>}
-        {note && <span className="note">● {note}</span>}
+        {note && (
+          <span className="note">
+            ● {note}
+            {hasUndo && (
+              <button
+                className="note__undo"
+                onClick={() => {
+                  undoRef.current?.();
+                  undoRef.current = null;
+                  setHasUndo(false);
+                  setNote("");
+                  if (noteTimer.current) clearTimeout(noteTimer.current);
+                }}
+              >
+                {t("brw.undo")}
+              </button>
+            )}
+          </span>
+        )}
 
         {view === "search" && (
           <SearchView
@@ -1298,6 +1361,7 @@ export default function Browse() {
             setDropIdx={setDropIdx}
             navRow={navRow}
             removeSelected={removeSelected}
+            deletePlaylistNow={deletePlaylistNow}
             playPlTrack={playPlTrack}
             removePlTrack={removePlTrack}
             listLimit={listLimit}
@@ -1335,6 +1399,7 @@ export default function Browse() {
           playPlTrack={playPlTrack}
           removePlTrack={removePlTrack}
           removeSelected={removeSelected}
+          deletePlaylistNow={deletePlaylistNow}
           setDlg={setDlg}
           setDlgName={setDlgName}
           flash={flash}

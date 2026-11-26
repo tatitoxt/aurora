@@ -239,6 +239,7 @@ const es: Record<keyof typeof en, string> = {
   "brw.cancel": "Cancelar",
   "brw.preview": "Escuchar preview de 30s",
   "brw.relatedArtists": "A los fans también les gusta",
+  "brw.undo": "Deshacer",
   "brw.lyrics": "Letra",
   "brw.noLyrics": "No hay letra sincronizada para este tema",
   "brw.play": "Reproducir",
