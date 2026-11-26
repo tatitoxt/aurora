@@ -911,15 +911,31 @@ export const bridge = {
     const pl = findPl(path);
     const local = paths.filter((p) => !/^(remote:|https?:)/i.test(p));
     if (pl)
-      local.forEach((p) =>
-        pl.tracks.push({
-          title: p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? p,
-          artist: "",
-          durationMs: 0,
-          path: p,
-          remote: false,
-        }),
-      );
+      local.forEach((p) => {
+        /* Re-resolve demo metadata by path — undo restores must come
+           back with their title/artist, not the bare filename. The
+           real backend reads tags off the file; the mock has no
+           files, so it matches the demo playlist instead. */
+        const m = p.match(/^\/demo\/(\d+)\.mp3$/);
+        const demo = m ? DEMO_PLAYLIST[Number(m[1])] : undefined;
+        pl.tracks.push(
+          demo
+            ? {
+                title: demo[0],
+                artist: demo[1],
+                durationMs: demo[3],
+                path: p,
+                remote: false,
+              }
+            : {
+                title: p.split("/").pop()?.replace(/\.[^.]+$/, "") ?? p,
+                artist: "",
+                durationMs: 0,
+                path: p,
+                remote: false,
+              },
+        );
+      });
     return Promise.resolve(local.length);
   },
   getArtistStats: (artist: string): Promise<ArtistStats> =>
